@@ -5,19 +5,22 @@
 #include <linux/module.h>
 
 #define KERNEL_SECTOR_SIZE 512
-#define TARGET_DEVICE_PATH "/dev/vda"
+#define TARGET_DEVICE_PATH "/dev/test_disk/backup"
 
 MODULE_LICENSE("GPL");
 MODULE_AUTHOR("ashmrtn");
 MODULE_DESCRIPTION("test hello world");
 
+const char* const flag_names[] = {
+  "write", "fail fast dev", "fail fast transport", "fail fast driver", "sync",
+  "meta", "prio", "discard", "secure", "write same", "no idle", "fua", "flush",
+  "read ahead", "throttled", "sorted", "soft barrier", "no merge", "started",
+  "don't prep", "queued", "elv priv", "failed", "quiet", "preempt", "alloced",
+  "copy user", "flush seq", "io stat", "mixed merge", "kernel", "pm", "end",
+  "nr bits"
+};
 
 static int major_num = 0;
-//module_param(major_num, int, 0);
-static int hardsect_size = 512;
-//module_param(hardsect_size, int, 0);
-static int nsectors = 2;  /* How big the drive is */
-//module_param(nsectors, int, 0);
 
 static struct hwm_device {
   unsigned long size;
@@ -33,11 +36,33 @@ static const struct block_device_operations hellow_ops = {
   //.ioctl       = blk_wrapper_ioctl
 };
 
+static void print_rw_flags(unsigned long rw) {
+  int i;
+  for (i = __REQ_WRITE; i < __REQ_NR_BITS; i++) {
+    if (rw & (1ULL << i)) {
+      printk(KERN_INFO "\t%s\n", flag_names[i]);
+    }
+  }
+}
+
 static void hellow_bio(struct request_queue* q, struct bio* bio) {
   struct hwm_device* hwm;
   struct request_queue* target_queue;
 
   printk(KERN_INFO "hwm: passing request to normal block device driver\n");
+  if (bio->bi_bdev->bd_contains != bio->bi_bdev) {
+    printk(KERN_INFO "hwm: writing to partition starting at sector %x\n",
+        bio->bi_bdev->bd_part->start_sect);
+  }
+  printk(KERN_INFO "hwm: bio rw has flags:\n");
+  print_rw_flags(bio->bi_rw);
+  /*
+  if (bio->bi_rw & REQ_WRITE) {
+    printk(KERN_INFO "hwm: bio marked as write\n");
+  }
+  printk(KERN_INFO "hwm: bio flagged with %lx and rw is %lx\n", bio->bi_flags,
+      bio->bi_rw);
+  */
   hwm = (struct hwm_device*) q->queuedata;
   target_queue = hwm->target_dev->bd_queue;
   bio->bi_bdev = hwm->target_dev;
@@ -98,6 +123,7 @@ static int __init hello_init(void) {
 }
 
 static void __exit hello_cleanup(void) {
+  blkdev_put(Device.target_dev, FMODE_READ | FMODE_WRITE);
   blk_cleanup_queue(Device.gd->queue);
   del_gendisk(Device.gd);
   put_disk(Device.gd);
