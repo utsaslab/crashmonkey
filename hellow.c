@@ -127,15 +127,15 @@ static void hellow_bio(struct request_queue* q, struct bio* bio) {
         goto passthrough;
       }
       memset(new_page_node, 0, sizeof(struct page_node));
-      unsigned long data = get_zeroed_page(GFP_NOIO);
-      if (data == 0) {
+      new_page_node->page = get_zeroed_page(GFP_NOIO);
+      if (new_page_node->page == 0) {
         kfree(new_page_node);
         kfree(write);
         printk(KERN_WARNING "hwm: unable to get page to copy write data to\n");
         goto passthrough;
       }
       void* bio_data = kmap(vec->bv_page);
-      copy_page((void*) data, bio_data);
+      copy_page((void*) new_page_node->page, bio_data);
       kunmap(bio_data);
       if (write->current_page != NULL) {
         write->current_page->next = new_page_node;
@@ -143,6 +143,17 @@ static void hellow_bio(struct request_queue* q, struct bio* bio) {
         write->pages = new_page_node;
       }
       write->current_page = new_page_node;
+      new_page_node->len = vec->bv_len;
+      new_page_node->offset = vec->bv_offset;
+
+      /*
+      // Sanity check which prints data copied to the log.
+      char* data = kmalloc(new_page_node->len + 1, GFP_NOIO);
+      strncpy(data, (const char*) (new_page_node->page + new_page_node->offset),
+          new_page_node->len);
+      printk(KERN_INFO "hwm: copied data:\n~~~\n%s\n~~~\n", data);
+      kfree(data);
+      */
     }
   }
 
