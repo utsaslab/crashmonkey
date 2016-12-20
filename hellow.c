@@ -26,11 +26,16 @@ const char* const flag_names[] = {
   "nr bits"
 };
 
-struct disk_write_op {
+// For ease of transferring data to user-land.
+struct disk_write_op_meta {
   unsigned long bi_flags;
   unsigned long bi_rw;
   sector_t write_sector;
   unsigned int size;
+};
+
+struct disk_write_op {
+  struct disk_write_op_meta metadata;
   void* data;
   struct disk_write_op* next;
 };
@@ -48,6 +53,8 @@ static struct hwm_device {
   struct disk_write_op* writes;
   // Pointer to last write op in the chain.
   struct disk_write_op* current_write;
+  // Pointer to log entry to be sent to user-land next.
+  struct disk_write_op* current_log_write;
 } Device;
 
 // TODO(ashmrtn): Add mutexes/locking to make thread-safe.
@@ -64,6 +71,57 @@ static int hellow_ioctl(struct block_device* bdev, fmode_t mode,
       printk(KERN_INFO "hwm: turning on data logging\n");
       Device.log_on = true;
       break;
+    case HWM_GET_LOG_ENT_SIZE: {
+      printk(KERN_INFO "hwm: getting size of next log entry\n");
+      if (Device.current_log_write == NULL) {
+        return -ENODATA;
+      }
+      if (!access_ok(VERIFY_WRITE, (void*) arg, sizeof(unsigned int))) {
+        // TODO(ashmrtn): Find right error code.
+        return -EFAULT;
+      }
+      unsigned int entry_size = Device.current_log_write->metadata.size +
+        sizeof(struct disk_write_op_meta);
+      int not_copied = 0;
+      do {
+        not_copied = copy_to_user((void*) (arg + not_copied),
+            &entry_size + not_copied, sizeof(unsigned int));
+      } while (not_copied != 0);
+      break;
+    }
+    case HWM_GET_LOG_ENT: {
+      printk(KERN_INFO "hwm: getting next log entry\n");
+      if (Device.current_log_write == NULL) {
+        return -ENODATA;
+      }
+      if (!access_ok(VERIFY_WRITE, (void*) arg,
+            sizeof(struct disk_write_op_meta) +
+            Device.current_log_write->metadata.size)) {
+        // TODO(ashmrtn): Find right error code.
+        return -EFAULT;
+      }
+
+      // Copy metadata.
+      int not_copied = 0;
+      do {
+        not_copied = copy_to_user((void*) (arg + not_copied),
+            &(Device.current_log_write->metadata) + not_copied,
+            sizeof(struct disk_write_op_meta) - not_copied);
+      } while (not_copied != 0);
+
+      // Copy written data.
+      void* data_start = (void*) (arg + sizeof(struct disk_write_op_meta));
+      not_copied = 0;
+      do {
+        not_copied = copy_to_user(data_start + not_copied,
+            Device.current_log_write->data + not_copied,
+            Device.current_log_write->metadata.size - not_copied);
+      } while (not_copied != 0);
+
+      // Move pointer to the next log entry.
+      Device.current_log_write = Device.current_log_write->next;
+      break;
+    }
     default:
       ret = -EINVAL;
   }
@@ -120,10 +178,10 @@ static void hellow_bio(struct request_queue* q, struct bio* bio) {
         printk(KERN_WARNING "hwm: unable to make new write node\n");
         goto passthrough;
       }
-      write->bi_flags = bio->bi_flags;
-      write->bi_rw = bio->bi_rw;
-      write->write_sector = bio->bi_sector;
-      write->size = bio->bi_size;
+      write->metadata.bi_flags = bio->bi_flags;
+      write->metadata.bi_rw = bio->bi_rw;
+      write->metadata.write_sector = bio->bi_sector;
+      write->metadata.size = bio->bi_size;
 
       if (Device.current_write == NULL) {
         // This is the first write in the log.
@@ -135,7 +193,7 @@ static void hellow_bio(struct request_queue* q, struct bio* bio) {
       }
       Device.current_write = write;
 
-      write->data = kmalloc(write->size, GFP_NOIO);
+      write->data = kmalloc(write->metadata.size, GFP_NOIO);
       if (write->data == NULL) {
         printk(KERN_WARNING "hwm: unable to get memory for data logging\n");
         kfree(write);
@@ -155,11 +213,13 @@ static void hellow_bio(struct request_queue* q, struct bio* bio) {
         copied_data += vec->bv_len;
       }
 
+      /*
       // Sanity check which prints data copied to the log.
-      char* data = kzalloc(write->size, GFP_NOIO);
-      strncpy(data, (const char*) (write->data), write->size);
+      char* data = kzalloc(write->metadata.size, GFP_NOIO);
+      strncpy(data, (const char*) (write->data), write->metadata.size);
       printk(KERN_INFO "hwm: copied data:\n~~~\n%s\n~~~\n", data);
       kfree(data);
+      */
     }
   }
 
