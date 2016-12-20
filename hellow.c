@@ -1,9 +1,14 @@
 #include <linux/blkdev.h>
+#include <linux/errno.h>
 #include <linux/fs.h>
 #include <linux/init.h>
+#include <linux/ioctl.h>
 #include <linux/kernel.h>
 #include <linux/mm.h>
 #include <linux/module.h>
+#include <linux/slab.h>
+
+#include "hellow_ioctl.h"
 
 #define KERNEL_SECTOR_SIZE 512
 #define TARGET_DEVICE_PATH "/dev/vdb"
@@ -21,18 +26,12 @@ const char* const flag_names[] = {
   "nr bits"
 };
 
-struct page_node {
-  unsigned long page;
-  unsigned int len;
-  unsigned int offset;
-  struct page_node* next;
-};
-
 struct disk_write_op {
   unsigned long bi_flags;
   unsigned long bi_rw;
-  struct page_node* pages;
-  struct page_node* current_page;
+  sector_t write_sector;
+  unsigned int size;
+  void* data;
   struct disk_write_op* next;
 };
 
@@ -49,15 +48,36 @@ static struct hwm_device {
   spinlock_t lock;
   u8* data;
   struct gendisk* gd;
+  bool log_on;
   struct block_device* target_dev;
   struct epoch_list_node* epochs;
   struct epoch_list_node* current_epoch;
 } Device;
 
+// TODO(ashmrtn): Add mutexes/locking to make thread-safe.
+static int hellow_ioctl(struct block_device* bdev, fmode_t mode,
+    unsigned int cmd, unsigned long arg) {
+  int ret = 0;
+
+  switch (cmd) {
+    case HWM_LOG_OFF:
+      printk(KERN_INFO "hwm: turning off data logging\n");
+      Device.log_on = false;
+      break;
+    case HWM_LOG_ON:
+      printk(KERN_INFO "hwm: turning on data logging\n");
+      Device.log_on = true;
+      break;
+    default:
+      ret = -EINVAL;
+  }
+  return ret;
+}
+
 // The device operations structure.
 static const struct block_device_operations hellow_ops = {
-  .owner       = THIS_MODULE
-  //.ioctl       = blk_wrapper_ioctl
+  .owner   = THIS_MODULE,
+  .ioctl   = hellow_ioctl,
 };
 
 static void print_rw_flags(unsigned long rw) {
@@ -92,68 +112,56 @@ static void hellow_bio(struct request_queue* q, struct bio* bio) {
   // memory.
   // TODO(ashmrtn): Add support for discard operations.
   // TODO(ashmrtn): Add support for flush/fua operations.
-  if (bio->bi_rw & REQ_FLUSH ||
-      bio->bi_rw & REQ_FUA || bio->bi_rw & REQ_FLUSH_SEQ) {
-    // Start a new epoch with the disk logs.
-  } else if (bio->bi_rw & REQ_WRITE || bio->bi_rw & REQ_DISCARD) {
-    // Log data to disk logs.
-    struct disk_write_op* write =
-      kmalloc(sizeof(struct disk_write_op), GFP_NOIO);
-    if (write == NULL) {
-      printk(KERN_WARNING "hwm: unable to make new write node\n");
-      goto passthrough;
-    }
-    memset(write, 0, sizeof(struct disk_write_op));
-    write->bi_flags = bio->bi_flags;
-    write->bi_rw = bio->bi_rw;
-
-    if (Device.current_epoch->current_write == NULL) {
-      // This is the first write for this epoch.
-      Device.current_epoch->writes = write;
-    } else {
-      Device.current_epoch->current_write->next = write;
-    }
-    Device.current_epoch->current_write = write;
-
-    int i = 0;
-    struct bio_vec* vec;
-    bio_for_each_segment(vec, bio, i) {
-      printk(KERN_INFO "hwm: making new page for segment of data\n");
-      struct page_node* new_page_node =
-        kmalloc(sizeof(struct page_node), GFP_NOIO);
-      if (new_page_node == NULL) {
-        printk(KERN_WARNING "hwm: unable to get new page node\n");
-        kfree(write);
+  if (Device.log_on) {
+    if (bio->bi_rw & REQ_FLUSH ||
+        bio->bi_rw & REQ_FUA || bio->bi_rw & REQ_FLUSH_SEQ) {
+      // Start a new epoch with the disk logs.
+    } else if (bio->bi_rw & REQ_WRITE || bio->bi_rw & REQ_DISCARD) {
+      // Log data to disk logs.
+      struct disk_write_op* write =
+        kzalloc(sizeof(struct disk_write_op), GFP_NOIO);
+      if (write == NULL) {
+        printk(KERN_WARNING "hwm: unable to make new write node\n");
         goto passthrough;
       }
-      memset(new_page_node, 0, sizeof(struct page_node));
-      new_page_node->page = get_zeroed_page(GFP_NOIO);
-      if (new_page_node->page == 0) {
-        kfree(new_page_node);
-        kfree(write);
-        printk(KERN_WARNING "hwm: unable to get page to copy write data to\n");
-        goto passthrough;
-      }
-      void* bio_data = kmap(vec->bv_page);
-      copy_page((void*) new_page_node->page, bio_data);
-      kunmap(bio_data);
-      if (write->current_page != NULL) {
-        write->current_page->next = new_page_node;
+      write->bi_flags = bio->bi_flags;
+      write->bi_rw = bio->bi_rw;
+      write->write_sector = bio->bi_sector;
+      write->size = bio->bi_size;
+
+      if (Device.current_epoch->current_write == NULL) {
+        // This is the first write for this epoch.
+        Device.current_epoch->writes = write;
       } else {
-        write->pages = new_page_node;
+        Device.current_epoch->current_write->next = write;
       }
-      write->current_page = new_page_node;
-      new_page_node->len = vec->bv_len;
-      new_page_node->offset = vec->bv_offset;
+      Device.current_epoch->current_write = write;
 
-      /*
+      write->data = kmalloc(write->size, GFP_NOIO);
+      if (write->data == NULL) {
+        printk(KERN_WARNING "hwm: unable to get memory for data logging\n");
+        kfree(write);
+        goto passthrough;
+      }
+      int copied_data = 0;
+
+      int i = 0;
+      struct bio_vec* vec;
+      bio_for_each_segment(vec, bio, i) {
+        printk(KERN_INFO "hwm: making new page for segment of data\n");
+
+        void* bio_data = kmap(vec->bv_page);
+        memcpy((void*) (write->data + copied_data), bio_data + vec->bv_offset,
+            vec->bv_len);
+        kunmap(bio_data);
+        copied_data += vec->bv_len;
+      }
+
       // Sanity check which prints data copied to the log.
-      char* data = kmalloc(new_page_node->len + 1, GFP_NOIO);
-      strncpy(data, (const char*) (new_page_node->page + new_page_node->offset),
-          new_page_node->len);
+      char* data = kzalloc(write->size, GFP_NOIO);
+      strncpy(data, (const char*) (write->data), write->size);
       printk(KERN_INFO "hwm: copied data:\n~~~\n%s\n~~~\n", data);
       kfree(data);
-      */
     }
   }
 
@@ -168,12 +176,13 @@ static void hellow_bio(struct request_queue* q, struct bio* bio) {
 static int __init hello_init(void) {
   printk(KERN_INFO "hwm: Hello World from module\n");
   // Get memory for our starting disk epoch node.
-  Device.epochs = kmalloc(sizeof(struct epoch_list_node), GFP_NOIO);
+  Device.log_on = false;
+  //Device.log_on = true;
+  Device.epochs = kzalloc(sizeof(struct epoch_list_node), GFP_NOIO);
   if (Device.epochs == NULL) {
     printk(KERN_WARNING "hwm: unable to get memory for epochs\n");
     goto out;
   }
-  memset(Device.epochs, 0, sizeof(struct epoch_list_node));
   Device.current_epoch = Device.epochs;
 
   // Get registered.
@@ -229,20 +238,12 @@ static int __init hello_init(void) {
 static void free_logs(void) {
   struct disk_write_op* w;
   struct disk_write_op* tmp_w;
-  struct page_node* p;
-  struct page_node* tmp_p;
   struct epoch_list_node* tmp_e;
   struct epoch_list_node* e = Device.epochs;
   while (e != NULL) {
     w = e->writes;
     while (w != NULL) {
-      p = w->pages;
-      while (p != NULL) {
-        free_page(p->page);
-        tmp_p = p;
-        p = p->next;
-        kfree(tmp_p);
-      }
+      kfree(w->data);
       tmp_w = w;
       w = w->next;
       kfree(tmp_w);
