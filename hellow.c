@@ -35,12 +35,6 @@ struct disk_write_op {
   struct disk_write_op* next;
 };
 
-struct epoch_list_node {
-  struct disk_write_op* writes;
-  struct disk_write_op* current_write;
-  struct epoch_list_node* next;
-};
-
 static int major_num = 0;
 
 static struct hwm_device {
@@ -50,8 +44,10 @@ static struct hwm_device {
   struct gendisk* gd;
   bool log_on;
   struct block_device* target_dev;
-  struct epoch_list_node* epochs;
-  struct epoch_list_node* current_epoch;
+  // Pointer to first write op in the chain.
+  struct disk_write_op* writes;
+  // Pointer to last write op in the chain.
+  struct disk_write_op* current_write;
 } Device;
 
 // TODO(ashmrtn): Add mutexes/locking to make thread-safe.
@@ -129,13 +125,15 @@ static void hellow_bio(struct request_queue* q, struct bio* bio) {
       write->write_sector = bio->bi_sector;
       write->size = bio->bi_size;
 
-      if (Device.current_epoch->current_write == NULL) {
-        // This is the first write for this epoch.
-        Device.current_epoch->writes = write;
+      if (Device.current_write == NULL) {
+        // This is the first write in the log.
+        Device.writes = write;
       } else {
-        Device.current_epoch->current_write->next = write;
+        // Some write(s) was/were already made so add this to the back of the
+        // chain and update pointers.
+        Device.current_write->next = write;
       }
-      Device.current_epoch->current_write = write;
+      Device.current_write = write;
 
       write->data = kmalloc(write->size, GFP_NOIO);
       if (write->data == NULL) {
@@ -178,12 +176,6 @@ static int __init hello_init(void) {
   // Get memory for our starting disk epoch node.
   Device.log_on = false;
   //Device.log_on = true;
-  Device.epochs = kzalloc(sizeof(struct epoch_list_node), GFP_NOIO);
-  if (Device.epochs == NULL) {
-    printk(KERN_WARNING "hwm: unable to get memory for epochs\n");
-    goto out;
-  }
-  Device.current_epoch = Device.epochs;
 
   // Get registered.
   major_num = register_blkdev(major_num, "hwm");
@@ -236,21 +228,13 @@ static int __init hello_init(void) {
 }
 
 static void free_logs(void) {
-  struct disk_write_op* w;
+  struct disk_write_op* w = Device.writes;
   struct disk_write_op* tmp_w;
-  struct epoch_list_node* tmp_e;
-  struct epoch_list_node* e = Device.epochs;
-  while (e != NULL) {
-    w = e->writes;
-    while (w != NULL) {
-      kfree(w->data);
-      tmp_w = w;
-      w = w->next;
-      kfree(tmp_w);
-    }
-    tmp_e = e;
-    e = e->next;
-    kfree(tmp_e);
+  while (w != NULL) {
+    kfree(w->data);
+    tmp_w = w;
+    w = w->next;
+    kfree(tmp_w);
   }
 }
 
