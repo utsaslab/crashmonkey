@@ -71,7 +71,7 @@ static int hellow_ioctl(struct block_device* bdev, fmode_t mode,
       printk(KERN_INFO "hwm: turning on data logging\n");
       Device.log_on = true;
       break;
-    case HWM_GET_LOG_ENT_SIZE: {
+    case HWM_GET_LOG_ENT_SIZE:
       printk(KERN_INFO "hwm: getting size of next log entry\n");
       if (Device.current_log_write == NULL) {
         return -ENODATA;
@@ -82,14 +82,9 @@ static int hellow_ioctl(struct block_device* bdev, fmode_t mode,
       }
       unsigned int entry_size = Device.current_log_write->metadata.size +
         sizeof(struct disk_write_op_meta);
-      int not_copied = 0;
-      do {
-        not_copied = copy_to_user((void*) (arg + not_copied),
-            &entry_size + not_copied, sizeof(unsigned int));
-      } while (not_copied != 0);
+      ret = put_user(entry_size, (unsigned long __user*) arg);
       break;
-    }
-    case HWM_GET_LOG_ENT: {
+    case HWM_GET_LOG_ENT:
       printk(KERN_INFO "hwm: getting next log entry\n");
       if (Device.current_log_write == NULL) {
         return -ENODATA;
@@ -102,26 +97,26 @@ static int hellow_ioctl(struct block_device* bdev, fmode_t mode,
       }
 
       // Copy metadata.
-      int not_copied = 0;
-      do {
-        not_copied = copy_to_user((void*) (arg + not_copied),
-            &(Device.current_log_write->metadata) + not_copied,
-            sizeof(struct disk_write_op_meta) - not_copied);
-      } while (not_copied != 0);
+      unsigned int not_copied = sizeof(struct disk_write_op_meta);
+      while (not_copied != 0) {
+        unsigned int offset = sizeof(struct disk_write_op_meta) - not_copied;
+        not_copied = copy_to_user((void*) (arg + offset),
+            &(Device.current_log_write->metadata) + offset, not_copied);
+      }
 
       // Copy written data.
       void* data_start = (void*) (arg + sizeof(struct disk_write_op_meta));
-      not_copied = 0;
-      do {
-        not_copied = copy_to_user(data_start + not_copied,
-            Device.current_log_write->data + not_copied,
-            Device.current_log_write->metadata.size - not_copied);
-      } while (not_copied != 0);
+      not_copied = Device.current_log_write->metadata.size;
+      while (not_copied != 0) {
+        unsigned int offset =
+          Device.current_log_write->metadata.size - not_copied;
+        not_copied = copy_to_user(data_start + offset,
+            Device.current_log_write->data + offset, not_copied);
+      }
 
       // Move pointer to the next log entry.
       Device.current_log_write = Device.current_log_write->next;
       break;
-    }
     default:
       ret = -EINVAL;
   }
