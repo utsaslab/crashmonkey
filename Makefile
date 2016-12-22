@@ -1,4 +1,4 @@
-TESTING := testing/log_on_off
+TESTING := testing/log_on_off testing/test_get_log_ent_size
 obj-m := hellow.o
 KDIR := /lib/modules/$(shell uname -r)/build
 default:
@@ -6,6 +6,9 @@ default:
 
 test_log_on_off: testing/log_on_off.c
 	gcc testing/log_on_off.c -o testing/log_on_off
+
+test_get_ent_size: testing/test_get_log_ent_size.c
+	gcc testing/test_get_log_ent_size.c -o testing/test_get_log_ent_size
 
 clean:
 	$(MAKE) -C $(KDIR) M=$(PWD) clean

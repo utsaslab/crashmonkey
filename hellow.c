@@ -26,14 +26,6 @@ const char* const flag_names[] = {
   "nr bits"
 };
 
-// For ease of transferring data to user-land.
-struct disk_write_op_meta {
-  unsigned long bi_flags;
-  unsigned long bi_rw;
-  sector_t write_sector;
-  unsigned int size;
-};
-
 struct disk_write_op {
   struct disk_write_op_meta metadata;
   void* data;
@@ -57,6 +49,20 @@ static struct hwm_device {
   struct disk_write_op* current_log_write;
 } Device;
 
+static void free_logs(void) {
+  struct disk_write_op* w = Device.writes;
+  struct disk_write_op* tmp_w;
+  while (w != NULL) {
+    kfree(w->data);
+    tmp_w = w;
+    w = w->next;
+    kfree(tmp_w);
+  }
+  Device.current_write = NULL;
+  Device.writes = NULL;
+  Device.current_log_write = NULL;
+}
+
 // TODO(ashmrtn): Add mutexes/locking to make thread-safe.
 static int hellow_ioctl(struct block_device* bdev, fmode_t mode,
     unsigned int cmd, unsigned long arg) {
@@ -74,19 +80,24 @@ static int hellow_ioctl(struct block_device* bdev, fmode_t mode,
     case HWM_GET_LOG_ENT_SIZE:
       printk(KERN_INFO "hwm: getting size of next log entry\n");
       if (Device.current_log_write == NULL) {
+        printk(KERN_WARNING "hwm: no log entries to report size for\n");
         return -ENODATA;
       }
       if (!access_ok(VERIFY_WRITE, (void*) arg, sizeof(unsigned int))) {
         // TODO(ashmrtn): Find right error code.
+        printk(KERN_WARNING "hwm: bad user land memory pointer in log entry"
+            " size\n");
         return -EFAULT;
       }
       unsigned int entry_size = Device.current_log_write->metadata.size +
         sizeof(struct disk_write_op_meta);
+      printk(KERN_INFO "hwm: size of next log entry is %d\n", entry_size);
       ret = put_user(entry_size, (unsigned long __user*) arg);
       break;
     case HWM_GET_LOG_ENT:
       printk(KERN_INFO "hwm: getting next log entry\n");
       if (Device.current_log_write == NULL) {
+        printk(KERN_WARNING "hwm: no log entries to report data for\n");
         return -ENODATA;
       }
       if (!access_ok(VERIFY_WRITE, (void*) arg,
@@ -117,6 +128,9 @@ static int hellow_ioctl(struct block_device* bdev, fmode_t mode,
       // Move pointer to the next log entry.
       Device.current_log_write = Device.current_log_write->next;
       break;
+    case HWM_CLR_LOG:
+      printk(KERN_INFO "hwm: clearing data logs\n");
+      free_logs();
     default:
       ret = -EINVAL;
   }
@@ -130,6 +144,7 @@ static const struct block_device_operations hellow_ops = {
 };
 
 static void print_rw_flags(unsigned long rw) {
+  printk(KERN_INFO "\traw flags: %lx\n", rw);
   int i;
   for (i = __REQ_WRITE; i < __REQ_NR_BITS; i++) {
     if (rw & (1ULL << i)) {
@@ -145,7 +160,7 @@ static void hellow_bio(struct request_queue* q, struct bio* bio) {
 
   printk(KERN_INFO "hwm: passing request to normal block device driver\n");
   if (bio->bi_bdev->bd_contains != bio->bi_bdev) {
-    printk(KERN_INFO "hwm: writing to partition starting at sector %x\n",
+    printk(KERN_INFO "hwm: writing to partition starting at sector %lx\n",
         bio->bi_bdev->bd_part->start_sect);
   }
   printk(KERN_INFO "hwm: bio rw has flags:\n");
@@ -181,6 +196,8 @@ static void hellow_bio(struct request_queue* q, struct bio* bio) {
       if (Device.current_write == NULL) {
         // This is the first write in the log.
         Device.writes = write;
+        // Set the first write in the log so that it's picked up later.
+        Device.current_log_write = write;
       } else {
         // Some write(s) was/were already made so add this to the back of the
         // chain and update pointers.
@@ -208,13 +225,11 @@ static void hellow_bio(struct request_queue* q, struct bio* bio) {
         copied_data += vec->bv_len;
       }
 
-      /*
       // Sanity check which prints data copied to the log.
       char* data = kzalloc(write->metadata.size, GFP_NOIO);
       strncpy(data, (const char*) (write->data), write->metadata.size);
       printk(KERN_INFO "hwm: copied data:\n~~~\n%s\n~~~\n", data);
       kfree(data);
-      */
     }
   }
 
@@ -280,17 +295,6 @@ static int __init hello_init(void) {
   out:
     unregister_blkdev(major_num, "hwm");
     return -ENOMEM;
-}
-
-static void free_logs(void) {
-  struct disk_write_op* w = Device.writes;
-  struct disk_write_op* tmp_w;
-  while (w != NULL) {
-    kfree(w->data);
-    tmp_w = w;
-    w = w->next;
-    kfree(tmp_w);
-  }
 }
 
 static void __exit hello_cleanup(void) {
