@@ -9,11 +9,12 @@
 #include <unistd.h>
 
 #define TEXT "hello great big world out there"
+#define TEST_FILE "/mnt/snapshot/test_file"
 
 // Assumes that the hwm module is already inserted into the kernel and is
 // properly running.
 int main(int argc, char** argv) {
-  int fd = open("/mnt/snapshot/testing/test_file2", O_RDWR | O_CREAT);
+  int fd = open(TEST_FILE, O_RDWR | O_CREAT);
   if (fd == -1) {
     printf("Error opening test file\n");
     return -1;

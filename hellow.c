@@ -11,7 +11,8 @@
 #include "hellow_ioctl.h"
 
 #define KERNEL_SECTOR_SIZE 512
-#define TARGET_DEVICE_PATH "/dev/vdb"
+//#define TARGET_DEVICE_PATH "/dev/vdb"
+#define TARGET_DEVICE_PATH "/dev/fs_consist_test/fs_consist_test_snap"
 
 MODULE_LICENSE("GPL");
 MODULE_AUTHOR("ashmrtn");
@@ -241,6 +242,7 @@ static void hellow_bio(struct request_queue* q, struct bio* bio) {
   target_queue->make_request_fn(target_queue, bio);
 }
 
+// TODO(ashmrtn): Fix error when wrong device path is passed.
 static int __init hello_init(void) {
   printk(KERN_INFO "hwm: Hello World from module\n");
   // Get memory for our starting disk epoch node.
