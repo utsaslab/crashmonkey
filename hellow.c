@@ -11,7 +11,7 @@
 #include "hellow_ioctl.h"
 
 #define KERNEL_SECTOR_SIZE 512
-//#define TARGET_DEVICE_PATH "/dev/vdb"
+//#define TARGET_DEVICE_PATH "/dev/ram0"
 #define TARGET_DEVICE_PATH "/dev/fs_consist_test/fs_consist_test_snap"
 
 MODULE_LICENSE("GPL");
@@ -179,9 +179,8 @@ static void hellow_bio(struct request_queue* q, struct bio* bio) {
   // TODO(ashmrtn): Add support for flush/fua operations.
   if (Device.log_on) {
     if (bio->bi_rw & REQ_FLUSH ||
-        bio->bi_rw & REQ_FUA || bio->bi_rw & REQ_FLUSH_SEQ) {
-      // Start a new epoch with the disk logs.
-    } else if (bio->bi_rw & REQ_WRITE || bio->bi_rw & REQ_DISCARD) {
+        bio->bi_rw & REQ_FUA || bio->bi_rw & REQ_FLUSH_SEQ ||
+        bio->bi_rw & REQ_WRITE || bio->bi_rw & REQ_DISCARD) {
       // Log data to disk logs.
       struct disk_write_op* write =
         kzalloc(sizeof(struct disk_write_op), GFP_NOIO);

@@ -166,7 +166,13 @@ fi
 format_drive
 if [[ "$?" -ne 0 ]] ; then
   echo "Error formatting test drive"
-  teardown 1
+  teardown 2
+  exit 1
+fi
+sync
+if [[ "$?" -ne 0 ]] ; then
+  echo "Error calling sync after formatting drive"
+  teardown 2
   exit 1
 fi
 is_wrapper_mounted
@@ -179,6 +185,6 @@ if [[ "$?" -eq 1 ]] ; then
   fi
 fi
 echo "Running C tests"
-sudo "$C_HARNESS"
+sudo "$C_HARNESS" "$1"
 teardown 1
 exit

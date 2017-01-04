@@ -1,6 +1,9 @@
 TESTING := testing/log_on_off testing/test_get_log_ent_size
 obj-m := hellow.o
 KDIR := /lib/modules/$(shell uname -r)/build
+GPP = g++
+GOPTS = -std=c++11
+GOTPSSO = -shared -fPIC
 default:
 	$(MAKE) -C $(KDIR) M=$(PWD) modules
 
@@ -10,12 +13,20 @@ test_log_on_off: testing/log_on_off.c
 test_get_ent_size: testing/test_get_log_ent_size.c
 	gcc testing/test_get_log_ent_size.c -o testing/test_get_log_ent_size
 
-harness: c_harness.c
-	gcc c_harness.c -o c_harness
+harness: c_harness.cpp default tests_echo_root_dir
+	$(GPP) $(GOPTS) c_harness.cpp -ldl -o c_harness
 
 tests_c_harness: tests/test_get_log_ent_size.c
 	gcc tests/test_get_log_ent_size.c -o tests/test_get_log_ent_size
 
+tests_echo_root_dir: tests/echo_root_dir.cpp
+	$(GPP) $(GOPTS) $(GOTPSSO) -Wl,-soname,echo_root_dir.so \
+		-o tests/echo_root_dir.so tests/echo_root_dir.cpp
+	
+tests_echo_sub_dir: tests/echo_sub_dir.cpp
+	$(GPP) $(GOPTS) $(GOTPSSO) -Wl,-soname,echo_sub_dir.so \
+		-o tests/echo_sub_dir.so tests/echo_sub_dir.cpp
+
 clean:
 	$(MAKE) -C $(KDIR) M=$(PWD) clean
-	rm -f $(TESTING)
+	rm -f $(TESTING) tests/*.so c_harness
