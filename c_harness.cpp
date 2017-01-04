@@ -9,6 +9,7 @@
 #include <cerrno>
 #include <cstdio>
 #include <iostream>
+#include <vector>
 
 #include "hellow_ioctl.h"
 #include "test_case.h"
@@ -18,45 +19,76 @@
 #define WRITE_DELAY 30
 
 using std::cerr;
+using std::vector;
 using fs_testing::create_t;
 using fs_testing::destroy_t;
 using fs_testing::test_case;
 
-void print_log(int device_fd) {
-  struct disk_write_op_meta* metadata;
-  void* data = NULL;
-  unsigned int entry_size;
-  while (1) {
-    int result = ioctl(device_fd, HWM_GET_LOG_ENT_SIZE, &entry_size);
-    if (result == -1) {
-      if (errno == ENODATA) {
-        //printf("No log data reported by block device\n");
-        break;
-      } else if (errno == EFAULT) {
-        cerr << "efault occurred\n";
-        return;
-      }
-    }
-    data = calloc(entry_size, sizeof(char));
-    result = ioctl(device_fd, HWM_GET_LOG_ENT, data);
-    if (result == -1) {
-      if (errno == ENODATA) {
-        //printf("end of log data\n");
-        free(data);
-        break;
-      } else if (errno == EFAULT) {
-        cerr << "efault occurred\n";
-        free(data);
-        return;
-      }
-    }
-    metadata = (struct disk_write_op_meta*) data;
-    char* data_string =
-      (char*) ((unsigned long) data + sizeof(struct disk_write_op_meta));
-    printf("operation with flags: %lx\n~~~\n%s\n~~~\n", metadata->bi_rw,
-        data_string);
-    free(data);
+struct disk_write {
+  disk_write_op_meta metadata;
+  void* data;
+};
+
+void clear_data(vector<struct disk_write>* data) {
+  for (auto it = data->begin(); it != data->end(); ++it) {
+    free(it->data);
   }
+}
+
+vector<struct disk_write> get_log(int device_fd) {
+  vector<struct disk_write> res_data;
+  while (1) {
+    struct disk_write write;
+
+    int result = ioctl(device_fd, HWM_GET_LOG_META, &write.metadata);
+    if (result == -1) {
+      if (errno == ENODATA) {
+        break;
+      } else if (errno == EFAULT) {
+        cerr << "efault occurred\n";
+        clear_data(&res_data);
+        return vector<struct disk_write>();
+      }
+    }
+
+    write.data = calloc(write.metadata.size, sizeof(char));
+    if (write.data == NULL) {
+      cerr << "Error getting temporary memory for log data\n";
+      clear_data(&res_data);
+      return vector<struct disk_write>();
+    }
+    result = ioctl(device_fd, HWM_GET_LOG_DATA, write.data);
+    if (result == -1) {
+      if (errno == ENODATA) {
+        // Should never reach here as loop will break when getting the size
+        // above.
+        free(write.data);
+        break;
+      } else if (errno == EFAULT) {
+        cerr << "efault occurred\n";
+        free(write.data);
+        clear_data(&res_data);
+        return vector<struct disk_write>();
+      }
+    }
+
+    res_data.push_back(write);
+    printf("operation with flags: %lx\n~~~\n%s\n~~~\n",
+        res_data.back().metadata.bi_rw, (char*) res_data.back().data);
+    result = ioctl(device_fd, HWM_NEXT_ENT);
+    if (result == -1) {
+      if (errno == ENODATA) {
+        // Should never reach here as loop will break when getting the size
+        // above.
+        free(write.data);
+        break;
+      } else {
+        cerr << "Error getting next log entry\n";
+        break;
+      }
+    }
+  }
+  return res_data;
 }
 
 int main(int argc, char** argv) {
@@ -89,7 +121,6 @@ int main(int argc, char** argv) {
     return -1;
   }
 
-  ioctl(device_fd, HWM_LOG_OFF);
   test_case* test = ((create_t*)(factory))();
   if (test->setup() != 0) {
     cerr << "Error in test setup\n";
@@ -114,17 +145,19 @@ int main(int argc, char** argv) {
       close(device_fd);
       return -1;
     }
+    ioctl(device_fd, HWM_LOG_OFF);
   } else {
     // Forked process' stuff.
     int res = test->run();
     ((destroy_t*)(killer))(test);
     dlclose(handle);
+    // Exit forked process after test.
     return res;
   }
 
-  ioctl(device_fd, HWM_LOG_OFF);
-  print_log(device_fd);
+  vector<struct disk_write> data = get_log(device_fd);
   close(device_fd);
   dlclose(handle);
+  clear_data(&data);
   return 0;
 }

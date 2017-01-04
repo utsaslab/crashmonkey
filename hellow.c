@@ -78,36 +78,19 @@ static int hellow_ioctl(struct block_device* bdev, fmode_t mode,
       printk(KERN_INFO "hwm: turning on data logging\n");
       Device.log_on = true;
       break;
-    case HWM_GET_LOG_ENT_SIZE:
-      printk(KERN_INFO "hwm: getting size of next log entry\n");
+    case HWM_GET_LOG_META:
+      printk(KERN_INFO "hwm: getting next log entry meta\n");
       if (Device.current_log_write == NULL) {
-        printk(KERN_WARNING "hwm: no log entries to report size for\n");
+        printk(KERN_WARNING "hwm: no log entry here \n");
         return -ENODATA;
       }
-      if (!access_ok(VERIFY_WRITE, (void*) arg, sizeof(unsigned int))) {
+      if (!access_ok(VERIFY_WRITE, (void*) arg,
+            sizeof(struct disk_write_op_meta))) {
         // TODO(ashmrtn): Find right error code.
         printk(KERN_WARNING "hwm: bad user land memory pointer in log entry"
             " size\n");
         return -EFAULT;
       }
-      unsigned int entry_size = Device.current_log_write->metadata.size +
-        sizeof(struct disk_write_op_meta);
-      printk(KERN_INFO "hwm: size of next log entry is %d\n", entry_size);
-      ret = put_user(entry_size, (unsigned long __user*) arg);
-      break;
-    case HWM_GET_LOG_ENT:
-      printk(KERN_INFO "hwm: getting next log entry\n");
-      if (Device.current_log_write == NULL) {
-        printk(KERN_WARNING "hwm: no log entries to report data for\n");
-        return -ENODATA;
-      }
-      if (!access_ok(VERIFY_WRITE, (void*) arg,
-            sizeof(struct disk_write_op_meta) +
-            Device.current_log_write->metadata.size)) {
-        // TODO(ashmrtn): Find right error code.
-        return -EFAULT;
-      }
-
       // Copy metadata.
       unsigned int not_copied = sizeof(struct disk_write_op_meta);
       while (not_copied != 0) {
@@ -115,23 +98,40 @@ static int hellow_ioctl(struct block_device* bdev, fmode_t mode,
         not_copied = copy_to_user((void*) (arg + offset),
             &(Device.current_log_write->metadata) + offset, not_copied);
       }
+      break;
+    case HWM_GET_LOG_DATA:
+      printk(KERN_INFO "hwm: getting log entry data\n");
+      if (Device.current_log_write == NULL) {
+        printk(KERN_WARNING "hwm: no log entries to report data for\n");
+        return -ENODATA;
+      }
+      if (!access_ok(VERIFY_WRITE, (void*) arg,
+            Device.current_log_write->metadata.size)) {
+        // TODO(ashmrtn): Find right error code.
+        return -EFAULT;
+      }
 
       // Copy written data.
-      void* data_start = (void*) (arg + sizeof(struct disk_write_op_meta));
       not_copied = Device.current_log_write->metadata.size;
       while (not_copied != 0) {
         unsigned int offset =
           Device.current_log_write->metadata.size - not_copied;
-        not_copied = copy_to_user(data_start + offset,
+        not_copied = copy_to_user((void*) (arg + offset),
             Device.current_log_write->data + offset, not_copied);
       }
-
-      // Move pointer to the next log entry.
+      break;
+    case HWM_NEXT_ENT:
+      printk(KERN_INFO "hwm: moving to next log entry\n");
+      if (Device.current_log_write == NULL) {
+        printk(KERN_WARNING "hwm: no next log entry\n");
+        return -ENODATA;
+      }
       Device.current_log_write = Device.current_log_write->next;
       break;
     case HWM_CLR_LOG:
       printk(KERN_INFO "hwm: clearing data logs\n");
       free_logs();
+      break;
     default:
       ret = -EINVAL;
   }
