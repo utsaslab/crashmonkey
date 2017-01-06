@@ -16,5 +16,4 @@ struct disk_write_op_meta {
   unsigned int size;
 };
 
-
 #endif

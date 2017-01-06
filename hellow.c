@@ -228,7 +228,8 @@ static void hellow_bio(struct request_queue* q, struct bio* bio) {
       // Sanity check which prints data copied to the log.
       char* data = kzalloc(write->metadata.size, GFP_NOIO);
       strncpy(data, (const char*) (write->data), write->metadata.size);
-      printk(KERN_INFO "hwm: copied data:\n~~~\n%s\n~~~\n", data);
+      printk(KERN_INFO "hwm: copied %ld bytes of from %lx data:\n~~~\n%s\n~~~\n",
+          write->metadata.size, write->metadata.write_sector * 512, data);
       kfree(data);
     }
   }
