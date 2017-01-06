@@ -7,3 +7,5 @@ Module.symvers
 *.swp
 *.cmd
 .tmp_versions
+tests/*.so
+c_harness
