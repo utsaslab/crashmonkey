@@ -41,10 +41,13 @@
 #define INIT_LV     "lvcreate " VG_DISK " -n " LV_DISK " -l " LV_SIZE
 #define INIT_SN     \
   "lvcreate -s -n " SN_DISK " -l " SN_SIZE " /dev/" VG_DISK "/" LV_DISK
+#define DESTROY_SN  "lvremove -f /dev/" VG_DISK "/" SN_DISK
 #define INSMOD      "insmod " MODULE_NAME
 #define RMMOD       "rmmod " MODULE_NAME
 // TODO(ashmrtn): Expand to work with other file system types.
 #define FMT_DRIVE   "mkfs -t ext4 /dev/" VG_DISK "/" LV_DISK
+
+#define SECTOR_SIZE 512
 
 using std::cerr;
 using std::cout;
@@ -102,8 +105,10 @@ vector<struct disk_write> get_log(int device_fd) {
     }
 
     res_data.push_back(write);
+    /*
     printf("operation with flags: %lx\n~~~\n%s\n~~~\n",
         res_data.back().metadata.bi_rw, (char*) res_data.back().data);
+    */
     result = ioctl(device_fd, HWM_NEXT_ENT);
     if (result == -1) {
       if (errno == ENODATA) {
@@ -180,6 +185,7 @@ int main(int argc, char** argv) {
   pid_t child;
   pid_t status;
   vector<struct disk_write> data;
+  int sn_fd;
   // For error reporting on exit on error.
   int res2 = -1;
   cout << "Reading old dirty expire time\n";
@@ -331,7 +337,6 @@ int main(int argc, char** argv) {
       cerr << "Error in test process\n";
       goto exit_device_fd;
     }
-    ioctl(device_fd, HWM_LOG_OFF);
   } else {
     // Forked process' stuff.
     int res = test->run();
@@ -341,6 +346,14 @@ int main(int argc, char** argv) {
     return res;
   }
 
+  cout << "Unmounting wrapper file system after test profiling\n";
+  res = umount(MNT_POINT);
+  if (res < 0) {
+    cerr << "Error cleaning up: cannot unmount wrapper file system\n";
+    goto exit_module;
+  }
+
+  ioctl(device_fd, HWM_LOG_OFF);
   cout << "Getting profile data\n";
   data = get_log(device_fd);
   clear_data(&data);
@@ -348,12 +361,6 @@ int main(int argc, char** argv) {
   // Normal termination.
   cout << "Close wrapper ioctl fd\n";
   close(device_fd);
-  cout << "Unmounting wrapper file system after test profiling\n";
-  res = umount(MNT_POINT);
-  if (res < 0) {
-    cerr << "Error cleaning up: cannot unmount wrapper file system\n";
-    goto exit_module;
-  }
   cout << "Removing wrapper module from kernel\n";
   res = system(RMMOD);
   if (res < 0) {
@@ -363,6 +370,62 @@ int main(int argc, char** argv) {
   cout << "Destorying test case\n";
   ((destroy_t*)(killer))(test);
   dlclose(handle);
+  // Kill snapshot.
+  cout << "Destroying profiling snapshot\n";
+  res = system(DESTROY_SN);
+  if (res != 0) {
+    cerr << "Error cleaning up: destroy profiling snapshot\n";
+    goto exit_vg;
+  }
+  // Create new snapshot.
+  cout << "Making new snapshot\n";
+  res = system(INIT_SN);
+  if (res != 0) {
+    cerr << "Error creating snapshot\n";
+    goto exit_vg;
+  }
+  // Write recorded data out to block device to make sure this is the data we're
+  // looking for.
+  cout << "Opening snapshot block device\n";
+  sn_fd = open("/dev/" VG_DISK "/" SN_DISK, O_WRONLY);
+  if (sn_fd < 0) {
+    cerr << "Error opening snapshot as block device\n";
+    goto exit_vg;
+  }
+  cout << "Writing profiled data to block device\n";
+  for (const auto write_op : data) {
+    // Operation is not a write so skip it.
+    if (!(write_op.metadata.bi_rw & 1ULL)) {
+      continue;
+    }
+    unsigned long int byte_addr = write_op.metadata.write_sector * SECTOR_SIZE;
+    //cout << "Moving to offset " << byte_addr << "\n";
+    /*
+    printf("Moving to offset 0x%lx to write %ld bytes\n", byte_addr,
+        write_op.metadata.size);
+    */
+    res = lseek(sn_fd, byte_addr, SEEK_SET);
+    if (res < 0) {
+      cerr << "Error seeking in block device\n";
+      break;
+    }
+    int bytes_written = 0;
+    do {
+      res = write(sn_fd,
+          (void*) ((unsigned long) write_op.data + bytes_written),
+          write_op.metadata.size - bytes_written);
+      if (res < 0) {
+        cerr << "Error writing profiled data to block device\n";
+        break;
+      }
+      bytes_written += res;
+    } while (bytes_written < write_op.metadata.size);
+  }
+
+
+  // Finish cleaning everything up.
+  cout << "Closing snapshot block device\n";
+  close(sn_fd);
   cout << "Removing volume group\n";
   res = system(DESTROY_VG);
   if (res != 0) {

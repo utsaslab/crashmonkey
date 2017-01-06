@@ -8,7 +8,11 @@
 
 #include "../test_case.h"
 
-#define TEXT "hello great big world out there\n"
+#define TEXT "This is some string of characters that is going to be at least" \
+  " 256 characters long. It is going to be some very random sentences that " \
+  "probaby won't make sense in any other context or any context at all. It " \
+  "really doesn't matter though because all I want to do is see if this test " \
+  "is working properly or not so there.\n"
 #define TEST_FILE "test_file"
 #define TEST_DIR "test_dir"
 #define TEST_MNT "/mnt/snapshot"
@@ -17,7 +21,6 @@
 // TODO(ashmrtn): Pass mount path and test device names to tests somehow.
 namespace fs_testing {
 
-using std::cout;
 using std::strlen;
 
 class echo_sub_dir : public test_case {
@@ -40,8 +43,8 @@ class echo_sub_dir : public test_case {
   }
 
   virtual int run() override {
-    cout << "Running run\n";
-    int fd = open(TEST_MNT "/" TEST_DIR "/" TEST_FILE, O_RDWR | O_CREAT);
+    int fd = open(TEST_MNT "/" TEST_DIR "/" TEST_FILE, O_RDWR | O_CREAT,
+        S_IRWXU | S_IRWXG | S_IRWXO);
     if (fd == -1) {
       return -1;
     }
