@@ -17,29 +17,25 @@
 // TODO(ashmrtn): Pass mount path and test device names to tests somehow.
 namespace fs_testing {
 
-using std::cerr;
 using std::cout;
 using std::strlen;
 
 class echo_sub_dir : public test_case {
  public:
   virtual int setup() override {
-    cout << "Running setup\n";
     int res = mkdir(TEST_MNT "/" TEST_DIR, 0777);
     if (res < 0) {
-      cerr << "Error in test setup\n";
       return -1;
     }
-    res = open(TEST_MNT "/" TEST_DIR, O_RDONLY);
+    int dir = open(TEST_MNT "/" TEST_DIR, O_RDONLY);
     if (res < 0) {
-      cerr << "Error opening test directory to sync\n";
       return -1;
     }
-    res = fsync(res);
+    res = fsync(dir);
     if (res < 0) {
-      cerr < "Error calling fsync on test directory\n";
       return -1;
     }
+    close(dir);
     return 0;
   }
 
@@ -47,7 +43,6 @@ class echo_sub_dir : public test_case {
     cout << "Running run\n";
     int fd = open(TEST_MNT "/" TEST_DIR "/" TEST_FILE, O_RDWR | O_CREAT);
     if (fd == -1) {
-      cerr << "Error opening test file\n";
       return -1;
     }
 
@@ -56,7 +51,6 @@ class echo_sub_dir : public test_case {
     while (written != str_len) {
       written = write(fd, TEXT + written, str_len - written);
       if (written == -1) {
-        cerr << "Error while writing to test file\n";
         goto out;
       }
     }
