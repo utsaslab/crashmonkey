@@ -31,7 +31,7 @@ class echo_sub_dir : public test_case {
       return -1;
     }
     const int dir = open(TEST_MNT "/" TEST_DIR, O_RDONLY);
-    if (res < 0) {
+    if (dir < 0) {
       return -1;
     }
     res = fsync(dir);
