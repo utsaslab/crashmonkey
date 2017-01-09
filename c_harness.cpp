@@ -186,61 +186,22 @@ int main(int argc, char** argv) {
   void* checker = NULL;
   const char* dl_error = NULL;
   test_case* test = NULL;
-  int err = 0;
   int device_fd = -1;
   pid_t child = -1;
   pid_t status = -1;
   vector<struct disk_write> data;
   int sn_fd = -1;
   // For error reporting on exit on error.
+  int res = -1;
   int res2 = -1;
-  cout << "Reading old dirty expire time\n";
-  char old_expire_time[EXPIRE_TIME_SIZE];
-  int res = get_expire_time(old_expire_time, EXPIRE_TIME_SIZE);
-  if (res < 0) {
-    cerr << "Error saving old expire_dirty_centisecs\n";
-    return -1;
-  }
-  cout << "Writing test dirty_expire_centisecs\n";
-  res = put_expire_time(TEST_EXPIRE_TIME);
-  if (res < 0) {
-    cerr << "Error writing new dirty_expire_centisecs\n";
-    return -1;
-  }
-  cout << "Making new physical volume\n";
-  res = system(INIT_PV);
-  if (res != 0) {
-    cerr << "Error creating physical volume\n";
-    goto exit_expire_time;
-  }
-  cout << "Making new volume group\n";
-  res = system(INIT_VG);
-  if (res != 0) {
-    cerr << "Error creating volume group\n";
-    goto exit_pv;
-  }
-  cout << "Making new logical volume\n";
-  res = system(INIT_LV);
-  if (res != 0) {
-    cerr << "Error creating logical volume\n";
-    goto exit_vg;
-  }
-  cout << "Formatting test drive\n";
-  res = system(FMT_DRIVE);
-  if (res < 0) {
-    cerr << "Error formatting test drive\n";
-    goto exit_vg;
-  }
 
-  // TODO(ashmrtn): Move to before all the other setup stuff since we should
-  // abandon the test if we can't load the test case anyway.
   // Load the class being tested.
   cout << "Loading test class\n";
   handle = dlopen(argv[1], RTLD_LAZY);
   if (handle == NULL) {
     cerr << "Error loading test from class " << argv[1] << "\n" << dlerror()
       << "\n";
-    goto exit_vg;
+    return -1;
   }
   // Get needed methods from loaded class.
   cout << "Loading factory method\n";
@@ -248,25 +209,54 @@ int main(int argc, char** argv) {
   dl_error = dlerror();
   if (dl_error) {
     cerr << "Error gettig factory method " << dl_error << "\n";
-    dlclose(handle);
-    goto exit_vg;
+    goto exit_handle;
   }
   cout << "Loading destory method\n";
   killer = dlsym(handle, "delete_instance");
   dl_error = dlerror();
   if (dl_error) {
     cerr << "Error gettig deleter method " << dl_error << "\n";
-    dlclose(handle);
+    goto exit_handle;
+  }
+  test = ((create_t*)(factory))();
+
+  cout << "Reading old dirty expire time\n";
+  char old_expire_time[EXPIRE_TIME_SIZE];
+  if (get_expire_time(old_expire_time, EXPIRE_TIME_SIZE) < 0) {
+    cerr << "Error saving old expire_dirty_centisecs\n";
+    goto exit_test_case;
+  }
+  cout << "Writing test dirty_expire_centisecs\n";
+  if (put_expire_time(TEST_EXPIRE_TIME) < 0) {
+    cerr << "Error writing new dirty_expire_centisecs\n";
+    goto exit_expire_time;
+  }
+  cout << "Making new physical volume\n";
+  if (system(INIT_PV) != 0) {
+    cerr << "Error creating physical volume\n";
+    goto exit_expire_time;
+  }
+  cout << "Making new volume group\n";
+  if (system(INIT_VG) != 0) {
+    cerr << "Error creating volume group\n";
+    goto exit_pv;
+  }
+  cout << "Making new logical volume\n";
+  if (system(INIT_LV) != 0) {
+    cerr << "Error creating logical volume\n";
+    goto exit_vg;
+  }
+  cout << "Formatting test drive\n";
+  if (system(FMT_DRIVE) != 0) {
+    cerr << "Error formatting test drive\n";
     goto exit_vg;
   }
 
   // Mount test file system for pre-test setup.
   cout << "Mounting test file system for pre-test setup\n";
   // TODO(ashmrtn): Fix to work with all file system types.
-  res = mount(TEST_PATH, MNT_POINT, "ext4", 0, NULL);
-  if (res < 0) {
+  if (mount(TEST_PATH, MNT_POINT, "ext4", 0, NULL) < 0) {
     cerr < "Error mounting test file system for pre-test setup\n";
-    dlclose(handle);
     goto exit_vg;
   }
 
@@ -275,43 +265,41 @@ int main(int argc, char** argv) {
   // handles.
   // Run pre-test setup stuff.
   cout << "Running test setup\n";
-  test = ((create_t*)(factory))();
   if (test->setup() != 0) {
     cerr << "Error in test setup\n";
-    umount(MNT_POINT);
-    goto exit_test_case;
+    if (umount(MNT_POINT) < 0) {
+      cerr << "Error cleaning up: unmount test file system\n";
+      res2 = -2;
+      goto exit_expire_time;
+    }
+    goto exit_vg;
   }
 
   // Unmount the test file system after pre-test setup.
   cout << "Unmounting test file system after pre-test setup\n";
-  res = umount(MNT_POINT);
-  if (res < 0 && errno != EBUSY) {
-    cerr << "Error unmounting test file system after pre-test setup " << err
-      << "\n";
-    goto exit_test_case;
+  if (umount(MNT_POINT) < 0) {
+    cerr << "Error unmounting test file system after pre-test setup\n";
+    goto exit_expire_time;
   }
 
   // Create snapshot of disk for testing.
   cout << "Making new snapshot\n";
-  res = system(INIT_SN);
-  if (res != 0) {
+  if (system(INIT_SN) != 0) {
     cerr << "Error creating snapshot\n";
-    goto exit_test_case;
+    goto exit_vg;
   }
 
   // Insert the disk block wrapper into the kernel.
   cout << "Inserting wrapper module into kernel\n";
-  res = system(INSMOD);
-  if (res < 0) {
+  if (system(INSMOD) != 0) {
     cerr << "Error inserting kernel wrapper module\n";
-    goto exit_test_case;
+    goto exit_vg;
   }
 
   // Mount the file system under the wrapper module for profiling.
   // TODO(ashmrtn): Fix to work with all file system types.
   cout << "Mounting wrapper file system\n";
-  res = mount(DEVICE_PATH, MNT_POINT, "ext4", 0, NULL);
-  if (res < 0) {
+  if (mount(DEVICE_PATH, MNT_POINT, "ext4", 0, NULL) < 0) {
     cerr << "Error mounting wrapper file system\n";
     goto exit_module;
   }
@@ -321,7 +309,7 @@ int main(int argc, char** argv) {
   device_fd = open(DEVICE_PATH, O_RDONLY | O_CLOEXEC);
   if (device_fd == -1) {
     cerr << "Error opening device file\n";
-    goto exit_module;
+    goto exit_unmount;
   }
 
   // Clear wrapper module logs prior to test profiling.
@@ -341,13 +329,14 @@ int main(int argc, char** argv) {
   } else if (child != 0) {
     wait(&status);
     sleep(WRITE_DELAY);
+    child = -1;
     if (status != 0) {
       cerr << "Error in test process\n";
       goto exit_device_fd;
     }
   } else {
     // Forked process' stuff.
-    int res = test->run();
+    res = test->run();
     ((destroy_t*)(killer))(test);
     dlclose(handle);
     // Exit forked process after test.
@@ -355,37 +344,31 @@ int main(int argc, char** argv) {
   }
 
   cout << "Unmounting wrapper file system after test profiling\n";
-  res = umount(MNT_POINT);
-  if (res < 0) {
-    cerr << "Error cleaning up: cannot unmount wrapper file system\n";
-    goto exit_module;
+  if (umount(MNT_POINT) < 0) {
+    cerr << "Error unmounting wrapper file system\n";
+    goto exit_expire_time;
   }
 
   ioctl(device_fd, HWM_LOG_OFF);
   cout << "Getting profile data\n";
   data = get_log(device_fd);
-  clear_data(&data);
 
-  // Normal termination.
   cout << "Close wrapper ioctl fd\n";
   close(device_fd);
   cout << "Removing wrapper module from kernel\n";
-  res = system(RMMOD);
-  if (res < 0) {
+  if (system(RMMOD) != 0) {
     cerr << "Error cleaning up: remove wrapper module\n";
-    goto exit_test_case;
+    goto exit_expire_time;
   }
   // Kill snapshot.
   cout << "Destroying profiling snapshot\n";
-  res = system(DESTROY_SN);
-  if (res != 0) {
+  if (system(DESTROY_SN) != 0) {
     cerr << "Error cleaning up: destroy profiling snapshot\n";
     goto exit_vg;
   }
   // Create new snapshot.
   cout << "Making new snapshot\n";
-  res = system(INIT_SN);
-  if (res != 0) {
+  if (system(INIT_SN) != 0) {
     cerr << "Error creating snapshot\n";
     goto exit_vg;
   }
@@ -403,7 +386,8 @@ int main(int argc, char** argv) {
     if (!(write_op.metadata.bi_rw & 1ULL)) {
       continue;
     }
-    unsigned long int byte_addr = write_op.metadata.write_sector * SECTOR_SIZE;
+    const unsigned long int byte_addr =
+      write_op.metadata.write_sector * SECTOR_SIZE;
     //cout << "Moving to offset " << byte_addr << "\n";
     /*
     printf("Moving to offset 0x%lx to write %ld bytes\n", byte_addr,
@@ -412,7 +396,8 @@ int main(int argc, char** argv) {
     res = lseek(sn_fd, byte_addr, SEEK_SET);
     if (res < 0) {
       cerr << "Error seeking in block device\n";
-      break;
+      close(sn_fd);
+      goto exit_vg;
     }
     int bytes_written = 0;
     do {
@@ -421,7 +406,8 @@ int main(int argc, char** argv) {
           write_op.metadata.size - bytes_written);
       if (res < 0) {
         cerr << "Error writing profiled data to block device\n";
-        break;
+        close(sn_fd);
+        goto exit_vg;
       }
       bytes_written += res;
     } while (bytes_written < write_op.metadata.size);
@@ -430,100 +416,94 @@ int main(int argc, char** argv) {
   close(sn_fd);
   cout << "Running fsck on snapshot block device\n";
   res = system(FSCK);
-  if (res == 0 || WEXITSTATUS(res) == 1) {
-    res = mount(FULL_SN_PATH, MNT_POINT, "ext4", 0, NULL);
-    if (res < 0) {
-      cerr << "Error mounting snapshot file system for check_test\n";
-      goto exit_test_case;
-    }
-    cout << "Running check_test on snapshot file system\n";
-    res = test->check_test();
-    if (res < 0) {
-      cerr << "check_test failed: " << res << "\n";
-      res = umount(MNT_POINT);
-      if (res < 0) {
-        res2 = -2;
-        cerr << "Error cleaning up: unmount snapshot file system\n";
-      }
-      goto exit_test_case;
-    }
-  } else {
+  if (!(res == 0 || WEXITSTATUS(res) == 1)) {
     cerr << "Error running fsck on snapshot file system: " <<
       WEXITSTATUS(res) << "\n";
     goto exit_test_case;
   }
+  cout << "Mounting snapshot file system for check_test\n";
+  if (mount(FULL_SN_PATH, MNT_POINT, "ext4", 0, NULL) < 0) {
+    cerr << "Error mounting snapshot file system for check_test\n";
+    goto exit_vg;
+  }
+  cout << "Running check_test on snapshot file system\n";
+  if (test->check_test() < 0) {
+    cerr << "check_test failed: " << res << "\n";
+    if (umount(MNT_POINT) < 0) {
+      res2 = -2;
+      cerr << "Error cleaning up: unmount snapshot file system\n";
+      goto exit_expire_time;
+    }
+    goto exit_vg;
+  }
 
   // Finish cleaning everything up.
   cout << "Unmounting snapshot file system\n";
-  res = umount(MNT_POINT);
-  if (res < 0) {
+  if (umount(MNT_POINT) < 0) {
     cerr << "Error cleaning up: unmount snapshot file system\n";
-    goto exit_test_case;
+    res2 = -2;
+    goto exit_expire_time;
   }
-  cout << "Destorying test case\n";
-  ((destroy_t*)(killer))(test);
-  dlclose(handle);
+  cout << "Clearing write operations data\n";
+  clear_data(&data);
   cout << "Removing volume group\n";
-  res = system(DESTROY_VG);
-  if (res != 0) {
+  if (system(DESTROY_VG) != 0) {
     cerr << "Error cleaning up: remove volume group(s)\n";
     res2 = -2;
-    goto exit_pv;
+    goto exit_expire_time;
   }
   cout << "Removing physical volume\n";
-  res = system(DESTROY_PV);
-  if (res != 0) {
+  if (system(DESTROY_PV) != 0) {
     cerr << "Error cleaning up: remove physical volume(s)\n";
     res2 = -2;
     goto exit_expire_time;
   }
   cout << "Restoring dirty_expire_time\n";
-  res = put_expire_time(old_expire_time);
-  if (res < 0) {
+  if (put_expire_time(old_expire_time) < 0) {
     cerr << "Error cleaning up: fix dirty_expire_centisecs\n";
-    return -1;
+    res2 = -2;
+    goto exit_test_case;
   }
+  cout << "Destroying test case\n";
+  ((destroy_t*)(killer))(test);
+  dlclose(handle);
   return 0;
 
  exit_device_fd:
   close(device_fd);
  exit_unmount:
-  res = umount(MNT_POINT);
-  if (res < 0) {
+  if (umount(MNT_POINT) < 0) {
     cerr << "Error cleaning up: unmount wrapper file system\n";
-    ((destroy_t*)(killer))(test);
-    dlclose(handle);
     res2 = -2;
     goto exit_expire_time;
   }
  exit_module:
-  res = system(RMMOD);
-  if (res < 0) {
+  if (system(RMMOD) != 0) {
     cerr << "Error cleaning up: remove wrapper module\n";
+    res2 = -2;
+    goto exit_expire_time;
   }
- exit_test_case:
-  ((destroy_t*)(killer))(test);
-  dlclose(handle);
  exit_vg:
   // Remove volume groups that were created.
-  res = system(DESTROY_VG);
-  if (res != 0) {
+  if (system(DESTROY_VG) != 0) {
     cerr << "Error cleaning up: remove volume group(s)\n";
     res2 = -2;
   }
  exit_pv:
   // Remove physical volumes that were created.
-  res = system(DESTROY_PV);
-  if (res != 0) {
+  if (system(DESTROY_PV) != 0) {
     cerr << "Error cleaning up: remove physical volume(s)\n";
     res2 = -2;
   }
  exit_expire_time:
   // Restore old dirty_expire_centisecs.
-  res = put_expire_time(old_expire_time);
-  if (res < 0) {
+  if (put_expire_time(old_expire_time) < 0) {
     cerr << "Error cleaning up: fix dirty_expire_centisecs\n";
     res2 = -2;
   }
+ exit_test_case:
+  ((destroy_t*)(killer))(test);
+ exit_handle:
+  dlclose(handle);
   return res2;
 }
