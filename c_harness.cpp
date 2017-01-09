@@ -264,15 +264,37 @@ int main(int argc, char** argv) {
   // still be unmounted even if the test case doesn't properly close all file
   // handles.
   // Run pre-test setup stuff.
-  cout << "Running test setup\n";
-  if (test->setup() != 0) {
-    cerr << "Error in test setup\n";
+  cout << "Running pre-test setup\n";
+  child = fork();
+  if (child < 0) {
+    cerr << "Error creating child process to run pre-test setup\n";
     if (umount(MNT_POINT) < 0) {
       cerr << "Error cleaning up: unmount test file system\n";
       res2 = -2;
       goto exit_expire_time;
     }
-    goto exit_vg;
+  } else if (child != 0) {
+    // Parent process should wait for child to terminate before proceeding.
+    wait(&status);
+    sleep(WRITE_DELAY);
+    child = -1;
+    if (status != 0) {
+      cerr << "Error in pre-test setup\n";
+      if (umount(MNT_POINT) < 0) {
+        cerr << "Error cleaning up: unmount test file system\n";
+        res2 = -2;
+        goto exit_expire_time;
+      }
+      goto exit_vg;
+    }
+    status = -1;
+  } else {
+    // Child should run test setup.
+    res = test->setup();
+    ((destroy_t*)(killer))(test);
+    dlclose(handle);
+    // Exit forked process after test.
+    return res;
   }
 
   // Unmount the test file system after pre-test setup.
@@ -323,7 +345,7 @@ int main(int argc, char** argv) {
   // won't hang due to a busy mount point.
   cout << "Running test profile\n";
   child = fork();
-  if (child == -1) {
+  if (child < 0) {
     cerr << "Error spinning off test process\n";
     goto exit_device_fd;
   } else if (child != 0) {
@@ -334,6 +356,7 @@ int main(int argc, char** argv) {
       cerr << "Error in test process\n";
       goto exit_device_fd;
     }
+    status = -1;
   } else {
     // Forked process' stuff.
     res = test->run();
