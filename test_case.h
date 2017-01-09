@@ -8,6 +8,7 @@ class test_case {
   virtual ~test_case() {};
   virtual int setup() = 0;
   virtual int run() = 0;
+  virtual int check_test() = 0;
 };
 
 typedef test_case* create_t();

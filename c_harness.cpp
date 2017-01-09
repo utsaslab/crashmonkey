@@ -19,20 +19,24 @@
 #define SO_PATH "tests/"
 #define MODULE_NAME "hellow.ko"
 #define DEVICE_PATH "/dev/hwm"
-#define WRITE_DELAY 30
 #define EXPIRE_TIME_SIZE 10
 #define DIRTY_EXPIRE_TIME_PATH "/proc/sys/vm/dirty_expire_centisecs"
-#define TEST_EXPIRE_TIME "1500"
+// TODO(ashmrtn): Find a good delay time to use for tests.
+#define TEST_EXPIRE_TIME "500"
+#define WRITE_DELAY 10
 
-#define PV_DISK "/dev/ram0"
-#define VG_DISK "fs_consist_test"
-#define LV_DISK "fs_consist_test_dev"
-#define SN_DISK "fs_consist_test_snap"
-#define LV_SIZE "50%FREE"
-#define SN_SIZE "100%FREE"
+#define PV_DISK       "/dev/ram0"
+#define VG_DISK       "fs_consist_test"
+#define LV_DISK       "fs_consist_test_dev"
+#define SN_DISK       "fs_consist_test_snap"
+#define FULL_LV_PATH  "/dev/" VG_DISK "/" LV_DISK
+#define FULL_SN_PATH  "/dev/" VG_DISK "/" SN_DISK
 
-#define TEST_PATH "/dev/" VG_DISK "/" LV_DISK
-#define MNT_POINT "/mnt/snapshot"
+#define LV_SIZE       "50%FREE"
+#define SN_SIZE       "100%FREE"
+
+#define TEST_PATH     FULL_LV_PATH
+#define MNT_POINT     "/mnt/snapshot"
 
 #define INIT_PV     "pvcreate " PV_DISK
 #define DESTROY_PV  "pvremove -f " PV_DISK
@@ -40,12 +44,13 @@
 #define DESTROY_VG  "vgremove -f " VG_DISK
 #define INIT_LV     "lvcreate " VG_DISK " -n " LV_DISK " -l " LV_SIZE
 #define INIT_SN     \
-  "lvcreate -s -n " SN_DISK " -l " SN_SIZE " /dev/" VG_DISK "/" LV_DISK
-#define DESTROY_SN  "lvremove -f /dev/" VG_DISK "/" SN_DISK
+  "lvcreate -s -n " SN_DISK " -l " SN_SIZE " " FULL_LV_PATH
+#define DESTROY_SN  "lvremove -f " FULL_SN_PATH
 #define INSMOD      "insmod " MODULE_NAME
 #define RMMOD       "rmmod " MODULE_NAME
 // TODO(ashmrtn): Expand to work with other file system types.
-#define FMT_DRIVE   "mkfs -t ext4 /dev/" VG_DISK "/" LV_DISK
+#define FMT_DRIVE   "mkfs -t ext4 " FULL_LV_PATH
+#define FSCK        "fsck -t ext4 " FULL_SN_PATH " -- -y"
 
 #define SECTOR_SIZE 512
 
@@ -175,17 +180,18 @@ int main(int argc, char** argv) {
     return -1;
   }
   // So that jumps to error exit points work.
-  void* handle;
-  void* factory;
-  void* killer;
-  const char* dl_error;
-  test_case* test;
+  void* handle = NULL;
+  void* factory = NULL;
+  void* killer = NULL;
+  void* checker = NULL;
+  const char* dl_error = NULL;
+  test_case* test = NULL;
   int err = 0;
   int device_fd = -1;
-  pid_t child;
-  pid_t status;
+  pid_t child = -1;
+  pid_t status = -1;
   vector<struct disk_write> data;
-  int sn_fd;
+  int sn_fd = -1;
   // For error reporting on exit on error.
   int res2 = -1;
   cout << "Reading old dirty expire time\n";
@@ -226,6 +232,8 @@ int main(int argc, char** argv) {
     goto exit_vg;
   }
 
+  // TODO(ashmrtn): Move to before all the other setup stuff since we should
+  // abandon the test if we can't load the test case anyway.
   // Load the class being tested.
   cout << "Loading test class\n";
   handle = dlopen(argv[1], RTLD_LAZY);
@@ -367,9 +375,6 @@ int main(int argc, char** argv) {
     cerr << "Error cleaning up: remove wrapper module\n";
     goto exit_test_case;
   }
-  cout << "Destorying test case\n";
-  ((destroy_t*)(killer))(test);
-  dlclose(handle);
   // Kill snapshot.
   cout << "Destroying profiling snapshot\n";
   res = system(DESTROY_SN);
@@ -384,15 +389,15 @@ int main(int argc, char** argv) {
     cerr << "Error creating snapshot\n";
     goto exit_vg;
   }
-  // Write recorded data out to block device to make sure this is the data we're
-  // looking for.
+  // Write recorded data out to block device in different orders so that we can
+  // see if they are all valid or not.
   cout << "Opening snapshot block device\n";
-  sn_fd = open("/dev/" VG_DISK "/" SN_DISK, O_WRONLY);
+  sn_fd = open(FULL_SN_PATH, O_WRONLY);
   if (sn_fd < 0) {
     cerr << "Error opening snapshot as block device\n";
     goto exit_vg;
   }
-  cout << "Writing profiled data to block device\n";
+  cout << "Writing profiled data to block device and checking with fsck\n";
   for (const auto write_op : data) {
     // Operation is not a write so skip it.
     if (!(write_op.metadata.bi_rw & 1ULL)) {
@@ -421,11 +426,43 @@ int main(int argc, char** argv) {
       bytes_written += res;
     } while (bytes_written < write_op.metadata.size);
   }
-
-
-  // Finish cleaning everything up.
   cout << "Closing snapshot block device\n";
   close(sn_fd);
+  cout << "Running fsck on snapshot block device\n";
+  res = system(FSCK);
+  if (res == 0 || WEXITSTATUS(res) == 1) {
+    res = mount(FULL_SN_PATH, MNT_POINT, "ext4", 0, NULL);
+    if (res < 0) {
+      cerr << "Error mounting snapshot file system for check_test\n";
+      goto exit_test_case;
+    }
+    cout << "Running check_test on snapshot file system\n";
+    res = test->check_test();
+    if (res < 0) {
+      cerr << "check_test failed: " << res << "\n";
+      res = umount(MNT_POINT);
+      if (res < 0) {
+        res2 = -2;
+        cerr << "Error cleaning up: unmount snapshot file system\n";
+      }
+      goto exit_test_case;
+    }
+  } else {
+    cerr << "Error running fsck on snapshot file system: " <<
+      WEXITSTATUS(res) << "\n";
+    goto exit_test_case;
+  }
+
+  // Finish cleaning everything up.
+  cout << "Unmounting snapshot file system\n";
+  res = umount(MNT_POINT);
+  if (res < 0) {
+    cerr << "Error cleaning up: unmount snapshot file system\n";
+    goto exit_test_case;
+  }
+  cout << "Destorying test case\n";
+  ((destroy_t*)(killer))(test);
+  dlclose(handle);
   cout << "Removing volume group\n";
   res = system(DESTROY_VG);
   if (res != 0) {
