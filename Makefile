@@ -13,8 +13,10 @@ test_log_on_off: testing/log_on_off.c
 test_get_ent_size: testing/test_get_log_ent_size.c
 	gcc testing/test_get_log_ent_size.c -o testing/test_get_log_ent_size
 
-harness: c_harness.cpp default tests_echo_sub_dir
-	$(GPP) $(GOPTS) c_harness.cpp -ldl -o c_harness
+harness: c_harness.cpp default utils.h utils.cpp hellow_ioctl.h \
+	tests_echo_sub_dir
+	$(GPP) $(GOPTS) c_harness.cpp utils.cpp \
+		-I /usr/src/linux-headers-$(shell uname -r)/include/ -ldl -o c_harness
 
 tests_c_harness: tests/test_get_log_ent_size.c
 	gcc tests/test_get_log_ent_size.c -o tests/test_get_log_ent_size
@@ -27,6 +29,10 @@ tests_echo_sub_dir: tests/echo_sub_dir.cpp
 	$(GPP) $(GOPTS) $(GOTPSSO) -Wl,-soname,echo_sub_dir.so \
 		-o tests/echo_sub_dir.so tests/echo_sub_dir.cpp
 
+permute: permute.cpp utils.h utils.cpp hellow_ioctl.h
+	$(GPP) $(GOPTS) permute.cpp utils.cpp \
+		-I /usr/src/linux-headers-$(shell uname -r)/include/ -o permute
+
 clean:
 	$(MAKE) -C $(KDIR) M=$(PWD) clean
-	rm -f $(TESTING) tests/*.so c_harness
+	rm -f $(TESTING) tests/*.so c_harness purmute
