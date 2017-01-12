@@ -5,16 +5,36 @@
 #include <cstring>
 
 #include <iostream>
+#include <random>
 #include <tuple>
+#include <utility>
+#include <vector>
 
 #include "utils.h"
 
 namespace fs_testing {
 
+namespace {
+
+bool is_async_write(const disk_write& write) {
+  return (
+      !((write.metadata.bi_rw & REQ_SYNC) ||
+        (write.metadata.bi_rw & REQ_FUA) ||
+        (write.metadata.bi_rw & REQ_FLUSH) ||
+        (write.metadata.bi_rw & REQ_FLUSH_SEQ) ||
+        (write.metadata.bi_rw & REQ_SOFTBARRIER)) &&
+      write.metadata.bi_rw & REQ_WRITE);
+}
+
+}  // namespace
+
 using std::cout;
 using std::memcpy;
+using std::mt19937;
 using std::ostream;
+using std::pair;
 using std::tie;
+using std::uniform_int_distribution;
 using std::vector;
 
 disk_write::disk_write() {
@@ -99,80 +119,110 @@ ostream& operator<<(ostream& os, const disk_write& dw) {
   return os;
 }
 
-vector<disk_write> permute(const vector<disk_write>* data,
-    const vector<disk_write>* original,
-    const vector<disk_write>* ordering) {
-  cout << "in permute\n";
-  vector<disk_write> res = *data;
+permuter::permuter(const vector<disk_write>* data) : original(*data) {
+  for (int i = 0; i < original.size(); ++i) {
+    if (is_async_write(original.at(i))) {
+      struct permute_info info;
+      info.write = original.at(i);
+      info.shift = 0;
+      ordering.push_back(info);
+    }
+  }
+  current = original;
+  // TODO(ashmrtn): Make a flag to make it random or not.
+  rand = mt19937(42);
+  //done = unorderd_set<vector<disk_write>>();
+}
+
+permuter& permuter::operator=(const permuter& other) {
+  original = other.original;
+  ordering = other.ordering;
+  current = original;
+  //done = unorderd_set<vector<disk_write>>();
+}
+
+bool permuter::permute(vector<disk_write>* res) {
+  disk_write unordered;
   bool last_permutation = true;
   // Checks to see if we have gone through all the permutations possible. If we
   // have then return the first permutation that we got.
-  int move_idx = 0;
-  int res_idx = res.size() - 1;
-  for (int idx = ordering->size() - 1; idx >= 0; --idx) {
-    if (ordering->at(idx) != res.at(res_idx)) {
-      move_idx = res_idx;
+  for (int idx = ordering.size() - 1, cur_idx = current.size() - 1; idx >= 0;
+      --idx, --cur_idx) {
+    if (ordering.at(idx).write != current.at(cur_idx)) {
       last_permutation = false;
+      unordered = ordering.at(idx).write;
+      //cout << "unordered element set to: " << unordered << " at index: " << idx
+      //  << std::endl;
       break;
     }
-    --res_idx;
   }
   if (last_permutation) {
-    return *original;
+    return false;
   }
-  cout << "move index set to " << move_idx << " by first loop\n";
-  cout << "checking last element of new ordering\n";
+  int move_idx = 0;
+  for (int i = 0; i < ordering.size(); ++i) {
+    if (ordering.at(i).write == unordered) {
+      move_idx = i;
+      ordering.at(move_idx++).shift += 1;
+      break;
+    }
+  }
 
-  // Move the asynchronus write furthest to the end over by one. If the
-  // asynchronus write operations at the end are already in order then move the
-  // next asynchronus write closest to the end over by one.
-  if (res.back() == ordering->back()) {
-    // Set all the writes except the one closest to the end that isn't already
-    // ordered at the end to where they were in the original ordering.
-    disk_write temp;
-    for (int idx = move_idx; idx >= 0; --idx) {
-      if (!(
-            (res.at(idx).metadata.bi_rw & REQ_SYNC) ||
-            (res.at(idx).metadata.bi_rw & REQ_FUA) ||
-            (res.at(idx).metadata.bi_rw & REQ_FLUSH) ||
-            (res.at(idx).metadata.bi_rw & REQ_FLUSH_SEQ) ||
-            (res.at(idx).metadata.bi_rw & REQ_SOFTBARRIER)) &&
-          res.at(idx).metadata.bi_rw & REQ_WRITE) {
-        move_idx = idx;
-        temp = res.at(idx);
-        cout << "temp is " << temp << "\n";
-        cout << "Move index determined to be " << move_idx << "\n";
+  current = original;
+  for (int i = move_idx; i < ordering.size(); ++i) {
+    ordering.at(i).shift = 0;
+  }
+  for (permute_info info : ordering) {
+    if (info.shift == 0) {
+      continue;
+    }
+
+    int pos = 0;
+    for (int i = 0; i < current.size(); ++i) {
+      if (current.at(i) == info.write) {
+        pos = i;
         break;
       }
     }
-    for (int idx = move_idx; idx < res.size(); ++idx) {
-      res.at(idx) = original->at(idx);
+
+    for (int i = 0, idx = pos; i < info.shift; ++i, ++idx) {
+      current.at(idx) = current.at(idx + 1);
     }
-    res.at(move_idx) = res.at(move_idx + 1);
-    res.at(move_idx + 1) = temp;
-    return res;
-  } else {
-    cout << "Moving the last asynchronus element of the ordering over by one\n";
-    // size() - 2 should be fine as the if statement above makes sure that the
-    // last write is not the last asynchronus write submitted to the block
-    // device.
-    for (int idx = res.size() - 2; idx >= 0; --idx) {
-      // This is the first asynchronus write so just shift it to the right by
-      // one.
-      if (!(
-            (res.at(idx).metadata.bi_rw & REQ_SYNC) ||
-            (res.at(idx).metadata.bi_rw & REQ_FUA) ||
-            (res.at(idx).metadata.bi_rw & REQ_FLUSH) ||
-            (res.at(idx).metadata.bi_rw & REQ_FLUSH_SEQ) ||
-            (res.at(idx).metadata.bi_rw & REQ_SOFTBARRIER)) &&
-          res.at(idx).metadata.bi_rw & REQ_WRITE) {
-        cout << "index for moving is " << idx << "\n";
-        disk_write temp = res.at(idx);
-        res.at(idx) = res.at(idx + 1);
-        res.at(idx + 1) = temp;
-        return res;
+    current.at(pos + info.shift) = info.write;
+  }
+  *res = current;
+  return true;
+}
+
+bool permuter::permute_nth(std::vector<disk_write>* res, int n) {
+  for (int i = 0; i < n - 1; ++i) {
+    if (!permute(res)) {
+      return false;
+    }
+  }
+  return true;
+}
+
+void permuter::permute_random(std::vector<disk_write>* res) {
+  const int size = original.size();
+  *res = original;
+  for (permute_info info : ordering) {
+    // Find where in the vector the current movable write is.
+    int pos = 0;
+    for (int i = 0; i < current.size(); ++i) {
+      if (current.at(i) == info.write) {
+        pos = i;
+        break;
       }
     }
+    uniform_int_distribution<int> uid(0, size - pos - 1);
+    const int shift = uid(rand);
+
+    // Move everything over and then place the write we're moving.
+    for (int i = 0, idx = pos; i < shift; ++i, ++idx) {
+      res->at(idx) = res->at(idx + 1);
+    }
+    res->at(pos + shift) = info.write;
   }
 }
 

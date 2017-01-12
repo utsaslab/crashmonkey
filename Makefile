@@ -35,4 +35,4 @@ permute: permute.cpp utils.h utils.cpp hellow_ioctl.h
 
 clean:
 	$(MAKE) -C $(KDIR) M=$(PWD) clean
-	rm -f $(TESTING) tests/*.so c_harness purmute
+	rm -f $(TESTING) tests/*.so c_harness permute

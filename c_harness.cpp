@@ -61,6 +61,7 @@ using std::vector;
 using fs_testing::create_t;
 using fs_testing::destroy_t;
 using fs_testing::disk_write;
+using fs_testing::permuter;
 using fs_testing::test_case;
 
 vector<disk_write> get_log(int device_fd) {
@@ -178,11 +179,13 @@ int main(int argc, char** argv) {
   pid_t child = -1;
   pid_t status = -1;
   vector<disk_write> data;
+  vector<disk_write> permutes;
   int sn_fd = -1;
   int num_written_blocks = -1;
   int num_tests_run = 0;
   int num_passed_tests = 0;
   int num_failed_tests = 0;
+  permuter p;
   // For error reporting on exit on error.
   int res = -1;
   int res2 = -1;
@@ -313,7 +316,8 @@ int main(int argc, char** argv) {
   // Mount the file system under the wrapper module for profiling.
   // TODO(ashmrtn): Fix to work with all file system types.
   cout << "Mounting wrapper file system\n";
-  if (mount(DEVICE_PATH, MNT_POINT, "ext4", 0, NULL) < 0) {
+  //if (mount(DEVICE_PATH, MNT_POINT, "ext4", 0, NULL) < 0) {
+  if (mount(DEVICE_PATH, MNT_POINT, "ext4", 0, "nobarrier") < 0) {
     cerr << "Error mounting wrapper file system\n";
     goto exit_module;
   }
@@ -379,99 +383,119 @@ int main(int argc, char** argv) {
   cout << "Writing profiled data to block device and checking with fsck\n";
   // TODO(ashmrtn): Make a separate function and remove num_written_blocks
   // declaration above.
+  cout << "original ordering:\n";
+  for (const disk_write w : data) {
+    cout << '\t' << w << std::endl;
+  }
   num_written_blocks = data.size();
-  for (int num_write_blocks = 0; num_write_blocks <= num_written_blocks;
-      ++num_write_blocks) {
-    cout << "Writing the first " << num_write_blocks << " blocks to disk\n";
-    ++num_tests_run;
-
-    // Kill snapshot.
-    cout << "Destroying snapshot\n";
-    if (system(DESTROY_SN) != 0) {
-      cerr << "Error cleaning up: destroy profiling snapshot\n";
-      goto exit_vg;
+  p = permuter(&data);
+  permutes = data;
+  for (int rounds = 0; rounds < 100; ++rounds) {
+    /*
+    cout << "new permutation ordering:\n";
+    for (const disk_write w : permutes) {
+      cout << '\t' << w << std::endl;
     }
-    // Create new snapshot.
-    cout << "Making new snapshot\n";
-    if (system(INIT_SN) != 0) {
-      cerr << "Error creating snapshot\n";
-      goto exit_vg;
-    }
+    */
+    {
+      int num_write_blocks = num_written_blocks;
+      cout << "." << std::flush;
+      //cout << "Writing the first " << num_write_blocks << " blocks to disk\n";
+      ++num_tests_run;
 
-    // Write recorded data out to block device in different orders so that we
-    // can they are all valid or not.
-    cout << "Opening snapshot block device\n";
-    sn_fd = open(FULL_SN_PATH, O_WRONLY);
-    if (sn_fd < 0) {
-      cerr << "Error opening snapshot as block device\n";
-      ++num_failed_tests;
-      continue;
-    }
+      // Kill snapshot.
+      //cout << "Destroying snapshot\n";
+      if (system(DESTROY_SN) != 0) {
+        cerr << "Error cleaning up: destroy profiling snapshot\n";
+        goto exit_vg;
+      }
+      // Create new snapshot.
+      //cout << "Making new snapshot\n";
+      if (system(INIT_SN) != 0) {
+        cerr << "Error creating snapshot\n";
+        goto exit_vg;
+      }
 
-    for (int block_idx = 0; block_idx < num_write_blocks; ++block_idx) {
-      const disk_write write_op = data.at(block_idx);
-      // Operation is not a write so skip it.
-      if (!(write_op.metadata.bi_rw & 1ULL)) {
+      // Write recorded data out to block device in different orders so that we
+      // can they are all valid or not.
+      //cout << "Opening snapshot block device\n";
+      sn_fd = open(FULL_SN_PATH, O_WRONLY);
+      if (sn_fd < 0) {
+        cerr << "Error opening snapshot as block device\n";
+        ++num_failed_tests;
         continue;
       }
-      const unsigned long int byte_addr =
-        write_op.metadata.write_sector * SECTOR_SIZE;
-      if (lseek(sn_fd, byte_addr, SEEK_SET) < 0) {
-        cerr << "Error seeking in block device\n";
-        ++num_failed_tests;
-        // TODO(ashmrtn): Get rid of this terrible thing.
-        close(sn_fd);
-        goto finish_snapshot_test;
-      }
-      int bytes_written = 0;
-      do {
-        res = write(sn_fd,
-            (void*) ((unsigned long) write_op.data + bytes_written),
-            write_op.metadata.size - bytes_written);
-        if (res < 0) {
-          cerr << "Error writing profiled data to block device\n";
+
+      // TODO(ashmrtn): Make this a new function that takes a vector of the
+      // blocks to write or some iterators to the blocks to write.
+      for (int block_idx = 0; block_idx < num_write_blocks; ++block_idx) {
+        const disk_write write_op = data.at(block_idx);
+        // Operation is not a write so skip it.
+        if (!(write_op.metadata.bi_rw & 1ULL)) {
+          continue;
+        }
+        const unsigned long int byte_addr =
+          write_op.metadata.write_sector * SECTOR_SIZE;
+        if (lseek(sn_fd, byte_addr, SEEK_SET) < 0) {
+          cerr << "Error seeking in block device\n";
           ++num_failed_tests;
           // TODO(ashmrtn): Get rid of this terrible thing.
           close(sn_fd);
           goto finish_snapshot_test;
         }
-        bytes_written += res;
-      } while (bytes_written < write_op.metadata.size);
-    }
-    cout << "Closing snapshot block device\n";
-    close(sn_fd);
-    cout << "Running fsck on snapshot block device\n";
-    res = system(FSCK);
-    if (!(res == 0 || WEXITSTATUS(res) == 1)) {
-      cerr << "Error running fsck on snapshot file system: " <<
-        WEXITSTATUS(res) << "\n";
-      ++num_failed_tests;
-    } else {
-      cout << "Mounting snapshot file system for check_test\n";
-      if (mount(FULL_SN_PATH, MNT_POINT, "ext4", 0, NULL) < 0) {
-        cerr << "Error mounting snapshot file system for check_test\n";
-        ++num_failed_tests;
+        int bytes_written = 0;
+        do {
+          res = write(sn_fd,
+              (void*) ((unsigned long) write_op.data + bytes_written),
+              write_op.metadata.size - bytes_written);
+          if (res < 0) {
+            cerr << "Error writing profiled data to block device\n";
+            ++num_failed_tests;
+            // TODO(ashmrtn): Get rid of this terrible thing.
+            close(sn_fd);
+            goto finish_snapshot_test;
+          }
+          bytes_written += res;
+        } while (bytes_written < write_op.metadata.size);
       }
-      cout << "Running check_test on snapshot file system\n";
-      res = test->check_test();
-      if (res < 0) {
-        cerr << "check_test failed: " << res << "\n";
+      //cout << "Closing snapshot block device\n";
+      close(sn_fd);
+      //cout << "Running fsck on snapshot block device\n";
+      // TODO(ashmrtn): Expand to have various "levels" of consistency.
+      res = system(FSCK);
+      if (!(res == 0 || WEXITSTATUS(res) == 1)) {
+        cerr << "Error running fsck on snapshot file system: " <<
+          WEXITSTATUS(res) << "\n";
         ++num_failed_tests;
       } else {
-        ++num_passed_tests;
+        //cout << "Mounting snapshot file system for check_test\n";
+        if (mount(FULL_SN_PATH, MNT_POINT, "ext4", 0, NULL) < 0) {
+          cerr << "Error mounting snapshot file system for check_test\n";
+          ++num_failed_tests;
+        }
+        //cout << "Running check_test on snapshot file system\n";
+        res = test->check_test();
+        if (res < 0) {
+          //cerr << "check_test failed: " << res << "\n";
+          ++num_failed_tests;
+        } else {
+          ++num_passed_tests;
+        }
+      }
+
+     finish_snapshot_test:
+      //cout << "Unmounting snapshot file system\n";
+      if (umount(MNT_POINT) < 0) {
+        cerr << "Error unmounting snapshot file system\n";
+        res2 = -3;
+        goto exit_expire_time;
       }
     }
-
-   finish_snapshot_test:
-    cout << "Unmounting snapshot file system\n";
-    if (umount(MNT_POINT) < 0) {
-      cerr << "Error unmounting snapshot file system\n";
-      res2 = -3;
-      goto exit_expire_time;
-    }
+    p.permute_random(&permutes);
   }
 
   // Finish cleaning everything up.
+  cout << '\n';
   cout << "Removing volume group\n";
   if (system(DESTROY_VG) != 0) {
     cerr << "Error cleaning up: remove volume group(s)\n";
