@@ -248,28 +248,21 @@ int Tester::get_wrapper_log() {
         }
       }
 
-      void* data = calloc(meta.size, sizeof(char));
-      if (data == NULL) {
-        cerr << "Error getting temporary memory for log data\n";
-        log_data.clear();
-        return WRAPPER_MEM_ERR;
-      }
-      result = ioctl(ioctl_fd, HWM_GET_LOG_DATA, data);
+      char* data = new char[meta.size];
+      result = ioctl(ioctl_fd, HWM_GET_LOG_DATA, (void*) data);
       if (result == -1) {
         if (errno == ENODATA) {
           // Should never reach here as loop will break when getting the size
           // above.
-          free(data);
           break;
         } else if (errno == EFAULT) {
           cerr << "efault occurred\n";
-          free(data);
           log_data.clear();
           return WRAPPER_MEM_ERR;
         }
       }
-      log_data.emplace_back(meta, data);
-      free(data);
+      log_data.emplace_back(meta, (void*) data);
+      delete[] data;
 
       result = ioctl(ioctl_fd, HWM_NEXT_ENT);
       if (result == -1) {
@@ -405,7 +398,7 @@ int Tester::test_run() {
 int Tester::test_check_random_permutations(const int num_rounds) {
   std::fill(test_test_stats, test_test_stats + 6, 0);
   test_test_stats[TESTS_TESTS_RUN] = 0;
-  //p = permuter(&log_data);
+  permuter p = permuter(&log_data);
   vector<disk_write> permutes = log_data;
   const auto start_itr = permutes.begin();
   for (int rounds = 0; rounds < num_rounds; ++rounds) {
@@ -466,7 +459,7 @@ int Tester::test_check_random_permutations(const int num_rounds) {
         umount_device();
       }
     }
-    //p.permute_random(&permutes);
+    p.permute_random(&permutes);
   }
   cout << endl;
   return SUCCESS;

@@ -14,8 +14,8 @@ test_get_ent_size: testing/test_get_log_ent_size.c
 	gcc testing/test_get_log_ent_size.c -o testing/test_get_log_ent_size
 
 harness: c_harness.cpp default utils.h utils.cpp hellow_ioctl.h \
-	tests_echo_sub_dir
-	$(GPP) $(GOPTS) c_harness.cpp utils.cpp \
+	Tester.cpp Tester.h tests_echo_sub_dir
+	$(GPP) $(GOPTS) c_harness.cpp Tester.cpp utils.cpp \
 		-I /usr/src/linux-headers-$(shell uname -r)/include/ -ldl -o c_harness
 
 tests_c_harness: tests/test_get_log_ent_size.c

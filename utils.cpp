@@ -5,6 +5,7 @@
 #include <cstring>
 
 #include <iostream>
+#include <memory>
 #include <random>
 #include <tuple>
 #include <utility>
@@ -33,65 +34,28 @@ using std::memcpy;
 using std::mt19937;
 using std::ostream;
 using std::pair;
+using std::shared_ptr;
 using std::tie;
 using std::uniform_int_distribution;
 using std::vector;
 
-disk_write::disk_write() {
-  data = NULL;
-}
-
-// TODO(ashmrtn): Make more efficient with something like shared poiners or
-// another way to share data memory.
 disk_write::disk_write(const struct disk_write_op_meta& m,
-    //const void* d) : metadata(m) {
     const void* d) {
   metadata = m;
   if (metadata.size > 0 && d != NULL) {
-    data = malloc(metadata.size);
-    if (data != NULL) {
-      memcpy(data, d, metadata.size);
-    }
-  } else {
-    data = NULL;
+    data = shared_ptr<void>(new char[metadata.size]);
+    memcpy(data.get(), d, metadata.size);
   }
 }
 
-// TODO(ashmrtn): Make more efficient with something like shared poiners or
-// another way to share data memory.
 disk_write::disk_write(const disk_write& other) {
   metadata = other.metadata;
-  if (metadata.size > 0 && other.data != NULL) {
-    data = malloc(metadata.size);
-    if (data != NULL) {
-      memcpy(data, other.data, metadata.size);
-    } else {
-      data = NULL;
-    }
-  }
-}
-
-disk_write::~disk_write() {
-  if (data != NULL) {
-    free(data);
-    data = NULL;
-  }
+  data = other.data;
 }
 
 disk_write& disk_write::operator=(const disk_write& other) {
   metadata = other.metadata;
-  if (data != NULL) {
-    free(data);
-    data = NULL;
-  }
-  if (metadata.size > 0 && other.data != NULL) {
-    data = malloc(other.metadata.size);
-    if (data != NULL) {
-      memcpy(data, other.data, metadata.size);
-    }
-  } else {
-    data = NULL;
-  }
+  data = other.data;
 }
 
 bool operator==(const disk_write& a, const disk_write& b) {
@@ -99,11 +63,11 @@ bool operator==(const disk_write& a, const disk_write& b) {
         a.metadata.size) ==
       tie(b.metadata.bi_flags, b.metadata.bi_rw, b.metadata.write_sector,
         b.metadata.size)) {
-    if ((a.data == NULL && b.data != NULL) ||
-        (a.data != NULL && b.data == NULL)) {
+    if ((a.data.get() == NULL && b.data.get() != NULL) ||
+        (a.data.get() != NULL && b.data.get() == NULL)) {
       return false;
     }
-    if (memcmp(a.data, b.data, a.metadata.size) == 0) {
+    if (memcmp(a.data.get(), b.data.get(), a.metadata.size) == 0) {
       return true;
     }
   }
@@ -117,6 +81,22 @@ bool operator!=(const disk_write& a, const disk_write& b) {
 ostream& operator<<(ostream& os, const disk_write& dw) {
   os << dw.metadata.bi_rw;
   return os;
+}
+
+bool disk_write::has_write_flag() {
+  return metadata.bi_rw & REQ_WRITE;
+}
+
+shared_ptr<void> disk_write::set_data(const void* d) {
+  if (metadata.size > 0 && d != NULL) {
+    data = shared_ptr<void>(new char[metadata.size]);
+    memcpy(data.get(), d, metadata.size);
+  }
+  return data;
+}
+
+shared_ptr<void> disk_write::get_data() {
+  return data;
 }
 
 permuter::permuter(const vector<disk_write>* data) : original(*data) {
