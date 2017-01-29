@@ -18,6 +18,11 @@ harness: c_harness.cpp default utils.h utils.cpp hellow_ioctl.h \
 	$(GPP) $(GOPTS) c_harness.cpp Tester.cpp utils.cpp \
 		-I /usr/src/linux-headers-$(shell uname -r)/include/ -ldl -o c_harness
 
+harness_big: c_harness.cpp default utils.h utils.cpp hellow_ioctl.h \
+	Tester.cpp Tester.h tests_echo_sub_dir_big
+	$(GPP) $(GOPTS) c_harness.cpp Tester.cpp utils.cpp \
+		-I /usr/src/linux-headers-$(shell uname -r)/include/ -ldl -o c_harness
+
 tests_c_harness: tests/test_get_log_ent_size.c
 	gcc tests/test_get_log_ent_size.c -o tests/test_get_log_ent_size
 
@@ -28,6 +33,10 @@ tests_echo_root_dir: tests/echo_root_dir.cpp
 tests_echo_sub_dir: tests/echo_sub_dir.cpp
 	$(GPP) $(GOPTS) $(GOTPSSO) -Wl,-soname,echo_sub_dir.so \
 		-o tests/echo_sub_dir.so tests/echo_sub_dir.cpp
+
+tests_echo_sub_dir_big: tests/echo_sub_dir_big.cpp
+	$(GPP) $(GOPTS) $(GOTPSSO) -Wl,-soname,echo_sub_dir_big.so \
+		-o tests/echo_sub_dir_big.so tests/echo_sub_dir_big.cpp
 
 permute: permute.cpp utils.h utils.cpp hellow_ioctl.h
 	$(GPP) $(GOPTS) permute.cpp utils.cpp \
