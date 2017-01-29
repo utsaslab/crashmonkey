@@ -1,4 +1,5 @@
 #include <fcntl.h>
+#include <getopt.h>
 #include <string.h>
 #include <sys/ioctl.h>
 #include <sys/mount.h>
@@ -9,7 +10,9 @@
 
 #include <cerrno>
 #include <cstdio>
+#include <cstdlib>
 #include <iostream>
+#include <string>
 #include <vector>
 
 #include "utils.h"
@@ -20,22 +23,71 @@
 // TODO(ashmrtn): Find a good delay time to use for tests.
 #define TEST_DIRTY_EXPIRE_TIME "500"
 #define WRITE_DELAY 10
+#define MOUNT_DELAY 3
+
+#define OPTS_STRING "d:lm:nt:"
 
 using std::cerr;
 using std::cout;
 using std::endl;
+using std::string;
 using fs_testing::Tester;
 
+static const option long_options[] = {
+  {"no-lvm", no_argument, NULL, 'l'},
+  {"dry-run", no_argument, NULL, 'n'},
+  {"fs-type", required_argument, NULL, 't'},
+  {"test-dev", required_argument, NULL, 'd'},
+  {"mount-opts", required_argument, NULL, 'm'},
+  {0, 0, 0, 0},
+};
+
 int main(int argc, char** argv) {
-  if (argc == 1) {
-    cerr << "Please give a .so test case to load\n";
+  string fs_type("ext4");
+  string test_dev("/dev/ram0");
+  string mount_opts("");
+  bool dry_run = false;
+  bool no_lvm = false;
+
+  int option_idx = 0;
+
+  // Parse command line arguments.
+  for (int c = getopt_long(argc, argv, OPTS_STRING, long_options, &option_idx);
+        c != -1;
+        c = getopt_long(argc, argv, OPTS_STRING, long_options, &option_idx)) {
+    switch (c) {
+      case 'd':
+        test_dev = string(optarg);
+      case 'l':
+        no_lvm = 1;
+        break;
+      case 'm':
+        mount_opts = string(optarg);
+        break;
+      case 'n':
+        dry_run = 1;
+        break;
+      case 't':
+        fs_type = string(optarg);
+        break;
+      case '?':
+      default:
+        return -1;
+    }
+  }
+
+  const unsigned int test_case_idx = optind;
+
+  if (test_case_idx == argc) {
+    cerr << "Please give a .so test case to load" << endl;
     return -1;
   }
 
-  Tester test_harness;
+  Tester test_harness(fs_type, test_dev);
+
   // Load the class being tested.
   cout << "Loading test case" << endl;
-  if (test_harness.test_load_class(argv[1]) != SUCCESS) {
+  if (test_harness.test_load_class(argv[test_case_idx]) != SUCCESS) {
     test_harness.cleanup_harness();
       return -1;
   }
@@ -51,23 +103,32 @@ int main(int argc, char** argv) {
   }
 
   // Initialize LVM
-  cout << "Initializing LVM" << endl;
-  if (test_harness.lvm_init() != SUCCESS) {
-    test_harness.cleanup_harness();
-    return -1;
+  if (!no_lvm) {
+    cout << "Initializing LVM" << endl;
+    if (test_harness.lvm_init() != SUCCESS) {
+      test_harness.cleanup_harness();
+      return -1;
+    }
   }
 
   // Format test drive to desired type.
   cout << "Formatting test drive" << endl;
-  if (test_harness.format_lvm_drive(FMT_EXT4) != SUCCESS) {
+  if (test_harness.format_drive() != SUCCESS) {
+    cerr << "Error formatting test drive" << endl;
+    test_harness.cleanup_harness();
+    return -1;
+  }
+
+  cout << "Clearing caches" << endl;
+  if (test_harness.clear_caches() != SUCCESS) {
+    cerr << "Error clearing caches" << endl;
     test_harness.cleanup_harness();
     return -1;
   }
 
   // Mount test file system for pre-test setup.
   cout << "Mounting test file system for pre-test setup\n";
-  //if (test_harness.mount_device(MNT_LVM_LV_DEV, NULL) != SUCCESS) {
-  if (test_harness.mount_device(MNT_LVM_LV_DEV, "nobarrier") != SUCCESS) {
+  if (test_harness.mount_raw_test_device(mount_opts.c_str()) != SUCCESS) {
     test_harness.cleanup_harness();
     return -1;
   }
@@ -87,7 +148,6 @@ int main(int argc, char** argv) {
         cerr << "Error in pre-test setup\n";
         test_harness.cleanup_harness();
       }
-      sleep(WRITE_DELAY);
     } else {
       return test_harness.test_setup();
     }
@@ -101,10 +161,12 @@ int main(int argc, char** argv) {
   }
 
   // Create snapshot of disk for testing.
-  cout << "Making new snapshot\n";
-  if (test_harness.init_snapshot() != SUCCESS) {
-    test_harness.cleanup_harness();
-    return -1;
+  if (!no_lvm) {
+    cout << "Making new snapshot\n";
+    if (test_harness.init_snapshot() != SUCCESS) {
+      test_harness.cleanup_harness();
+      return -1;
+    }
   }
 
   // Insert the disk block wrapper into the kernel.
@@ -117,12 +179,17 @@ int main(int argc, char** argv) {
   // Mount the file system under the wrapper module for profiling.
   // TODO(ashmrtn): Fix to work with all file system types.
   cout << "Mounting wrapper file system\n";
-  //if (test_harness.mount_device(MNT_WRAPPER_DEV, "barrier") != SUCCESS) {
-  if (test_harness.mount_device(MNT_WRAPPER_DEV, "nobarrier") != SUCCESS) {
+  if (test_harness.mount_wrapper_device(mount_opts.c_str()) != SUCCESS) {
     cerr << "Error mounting wrapper file system\n";
     test_harness.cleanup_harness();
     return -1;
   }
+
+  cout << "Sleeping after mount" << endl;
+  unsigned int to_sleep = MOUNT_DELAY;
+  do {
+    to_sleep = sleep(to_sleep);
+  } while (to_sleep > 0);
 
   // Get access to wrapper module ioctl functions via FD.
   cout << "Getting wrapper device ioctl fd\n";
@@ -188,21 +255,23 @@ int main(int argc, char** argv) {
     return -1;
   }
 
-  cout << "Writing profiled data to block device and checking with fsck\n";
-  test_harness.test_check_random_permutations(5);
+  if (!dry_run) {
+    cout << "Writing profiled data to block device and checking with fsck\n";
+    test_harness.test_check_random_permutations(5);
 
-  cout << "Ran " << test_harness.test_test_stats[TESTS_TESTS_RUN] << " tests"
-        << endl
-    << '\t' << test_harness.test_test_stats[TESTS_TEST_FSCK_FAIL]
-        << " tests fsck failed" << endl
-    << '\t' << test_harness.test_test_stats[TESTS_TEST_BAD_DATA]
-        << " tests bad data" << endl
-    << '\t' << test_harness.test_test_stats[TESTS_TEST_FSCK_FIX]
-        << " tests fsck fix" << endl
-    << '\t' << test_harness.test_test_stats[TESTS_TEST_PASS]
-        << " tests passed" << endl
-    << '\t' << test_harness.test_test_stats[TESTS_TEST_ERR]
-        << " tests errored" << endl;
+    cout << "Ran " << test_harness.test_test_stats[TESTS_TESTS_RUN] << " tests"
+          << endl
+      << '\t' << test_harness.test_test_stats[TESTS_TEST_FSCK_FAIL]
+          << " tests fsck failed" << endl
+      << '\t' << test_harness.test_test_stats[TESTS_TEST_BAD_DATA]
+          << " tests bad data" << endl
+      << '\t' << test_harness.test_test_stats[TESTS_TEST_FSCK_FIX]
+          << " tests fsck fix" << endl
+      << '\t' << test_harness.test_test_stats[TESTS_TEST_PASS]
+          << " tests passed" << endl
+      << '\t' << test_harness.test_test_stats[TESTS_TEST_ERR]
+          << " tests errored" << endl;
+  }
 
   // Finish cleaning everything up.
   test_harness.cleanup_harness();

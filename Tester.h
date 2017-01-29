@@ -1,6 +1,7 @@
 #ifndef TESTER_H
 #define TESTER_H
 
+#include <string>
 #include <vector>
 
 #include "test_case.h"
@@ -27,10 +28,7 @@
 #define WRAPPER_OPEN_DEV_ERR   -18
 #define WRAPPER_DATA_ERR       -19
 #define WRAPPER_MEM_ERR        -20
-
-#define MNT_LVM_LV_DEV         0
-#define MNT_LVM_SN_DEV         1
-#define MNT_WRAPPER_DEV        2
+#define CLEAR_CACHE_ERR        -21
 
 #define FMT_EXT4               0
 
@@ -46,6 +44,8 @@
 namespace fs_testing {
 class Tester {
  public:
+  Tester(const std::string f_type, const std::string target_test_device);
+
   int test_test_stats[5];
 
   const char* update_dirty_expire_time(const char* time);
@@ -55,7 +55,7 @@ class Tester {
   int init_snapshot();
   int destroy_snapshot();
 
-  int format_lvm_drive(const int type);
+  int format_drive();
 
   int test_load_class(const char* path);
   void test_unload_class();
@@ -63,7 +63,8 @@ class Tester {
   int test_run();
   int test_check_random_permutations(const int num_rounds);
 
-  int mount_device(const int dev, const char* opts);
+  int mount_raw_test_device(const char* opts);
+  int mount_wrapper_device(const char* opts);
   int umount_device();
 
   int insert_wrapper();
@@ -75,6 +76,7 @@ class Tester {
   int get_wrapper_log();
   void clear_wrapper_log();
 
+  int clear_caches();
   void cleanup_harness();
 
  private:
@@ -84,9 +86,13 @@ class Tester {
   test_case* test = NULL;
 
   char dirty_expire_time[DIRTY_EXPIRE_TIME_SIZE];
+  const std::string fs_type;
+  const std::string raw_test_device;
+  std::string test_mnt_device;
 
   bool lvm_pv_active = false;
   bool lvm_vg_active = false;
+  bool lvm_lv_active = false;
   bool lvm_sn_active = false;
 
   bool wrapper_inserted = false;
@@ -96,6 +102,8 @@ class Tester {
 
   int ioctl_fd = -1;
   std::vector<disk_write> log_data;
+
+  int mount_device(const char* dev, const char* opts);
 
   bool read_dirty_expire_time(int fd);
   bool write_dirty_expire_time(int fd, const char* time);

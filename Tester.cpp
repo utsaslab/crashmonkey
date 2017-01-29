@@ -18,6 +18,7 @@
 #define TEST_CLASS_DEFACTORY  "delete_instance"
 
 #define DIRTY_EXPIRE_TIME_PATH "/proc/sys/vm/dirty_expire_centisecs"
+#define DROP_CACHES_PATH       "/proc/sys/vm/drop_caches"
 
 #define PV_DISK       "/dev/ram0"
 #define VG_DISK       "fs_consist_test"
@@ -33,6 +34,7 @@
 #define TEST_PATH     FULL_LV_PATH
 
 // TODO(ashmrtn): Make a quiet and regular version of commands.
+// TODO(ashmrtn): Make so that commands work with user given device path.
 #define INIT_PV     "pvcreate " PV_DISK " > /dev/null 2>&1"
 #define DESTROY_PV  "pvremove -f " PV_DISK " > /dev/null 2>&1"
 #define INIT_VG     "vgcreate " VG_DISK " " PV_DISK " > /dev/null 2>&1"
@@ -47,11 +49,12 @@
 #define MNT_WRAPPER_DEV_PATH FULL_WRAPPER_PATH
 #define MNT_MNT_POINT        "/mnt/snapshot"
 
-#define FMT_FMT_DRIVE   "mkfs -t ext4 " FULL_LV_PATH " > /dev/null 2>&1"
+#define FMT_FMT_DRIVE   "mkfs -t "
 
 #define INSMOD_MODULE_NAME "hellow.ko"
-#define WRAPPER_INSMOD      "insmod " INSMOD_MODULE_NAME " > /dev/null 2>&1"
+#define WRAPPER_INSMOD      "insmod " INSMOD_MODULE_NAME
 #define WRAPPER_RMMOD       "rmmod " INSMOD_MODULE_NAME " > /dev/null 2>&1"
+#define SILENT              " > /dev/null 2>&1"
 
 #define SECTOR_SIZE 512
 
@@ -66,13 +69,18 @@ using std::cout;
 using std::endl;
 using std::free;
 using std::shared_ptr;
+using std::string;
 using std::vector;
 
 using fs_testing::create_t;
 using fs_testing::destroy_t;
 
+Tester::Tester(const string f_type, const string target_test_device) :
+  fs_type(f_type), raw_test_device(target_test_device),
+  test_mnt_device(target_test_device) {};
+
 int Tester::lvm_init() {
-  // Start of physical volume on LVM.
+  // Start up physical volume on LVM.
   if (system(INIT_PV) != 0) {
     return LVM_PV_INIT_ERR;
   }
@@ -85,6 +93,7 @@ int Tester::lvm_init() {
     }
     lvm_pv_active = false;
     lvm_vg_active = false;
+    lvm_lv_active = false;
     return LVM_VG_INIT_ERR;
   }
   lvm_vg_active = true;
@@ -101,6 +110,9 @@ int Tester::lvm_init() {
     lvm_pv_active = false;
     return LVM_LV_INIT_ERR;
   }
+  lvm_lv_active = true;
+  test_mnt_device = MNT_LVM_LV_DEV_PATH;
+
   return SUCCESS;
 }
 
@@ -111,6 +123,8 @@ int Tester::lvm_destroy() {
     if (system(DESTROY_VG) != 0) {
       return LVM_VG_REMOVE_ERR;
     }
+    lvm_sn_active = false;
+    lvm_lv_active = false;
     lvm_vg_active = false;
   }
 
@@ -121,16 +135,19 @@ int Tester::lvm_destroy() {
     }
     lvm_pv_active = false;
   }
+  test_mnt_device = raw_test_device;
+
   return SUCCESS;
 }
 
 int Tester::init_snapshot() {
-  if (!lvm_sn_active) {
+  if (lvm_lv_active && !lvm_sn_active) {
     if (system(INIT_SN) != 0) {
       lvm_sn_active = false;
       return LVM_SN_INIT_ERR;
     }
     lvm_sn_active = true;
+    test_mnt_device = MNT_LVM_SN_DEV_PATH;
     return SUCCESS;
   }
   return LVM_SN_INIT_ERR;
@@ -144,27 +161,20 @@ int Tester::destroy_snapshot() {
     }
   }
   lvm_sn_active = false;
+  test_mnt_device = MNT_LVM_LV_DEV_PATH;
   return SUCCESS;
 }
 
-// TODO(ashmrtn): Fix to work with all file system types.
-int Tester::mount_device(const int dev, const char* opts) {
-  char* path = NULL;
-  switch (dev) {
-    case MNT_LVM_LV_DEV:
-      path = (char*) MNT_LVM_LV_DEV_PATH;
-      break;
-    case MNT_LVM_SN_DEV:
-      path = (char*) MNT_LVM_SN_DEV_PATH;
-      break;
-    case MNT_WRAPPER_DEV:
-      path = (char*) MNT_WRAPPER_DEV_PATH;
-      break;
-    default:
-      disk_mounted = false;
-      return MNT_BAD_DEV_ERR;
-  }
-  if (mount(path, MNT_MNT_POINT, "ext4", 0, (void*) opts) < 0) {
+int Tester::mount_raw_test_device(const char* opts) {
+  return mount_device(test_mnt_device.c_str(), opts);
+}
+
+int Tester::mount_wrapper_device(const char* opts) {
+  return mount_device(MNT_WRAPPER_DEV_PATH, opts);
+}
+
+int Tester::mount_device(const char* dev, const char* opts) {
+  if (mount(dev, MNT_MNT_POINT, fs_type.c_str(), 0, (void*) opts) < 0) {
     disk_mounted = false;
     return MNT_MNT_ERR;
   }
@@ -185,7 +195,9 @@ int Tester::umount_device() {
 
 int Tester::insert_wrapper() {
   if (!wrapper_inserted) {
-    if (system(WRAPPER_INSMOD) != 0) {
+    string command(WRAPPER_INSMOD);
+    command += " " + test_mnt_device + SILENT;
+    if (system(command.c_str()) != 0) {
       wrapper_inserted = false;
       return WRAPPER_INSERT_ERR;
     }
@@ -380,11 +392,13 @@ bool Tester::write_dirty_expire_time(const int fd, const char* time) {
   return true;
 }
 
-// TODO(ashmrtn): Fix to work with all file system types.
-int Tester::format_lvm_drive(const int type) {
-  if (system(FMT_FMT_DRIVE) != 0) {
+int Tester::format_drive() {
+  string command(FMT_FMT_DRIVE);
+  command += fs_type + " " +  test_mnt_device + SILENT;
+  if (system(command.c_str()) != 0) {
     return FMT_FMT_ERR;
   }
+  return SUCCESS;
 }
 
 int Tester::test_setup() {
@@ -442,7 +456,7 @@ int Tester::test_check_random_permutations(const int num_rounds) {
           WEXITSTATUS(fsck_res) << "\n";
         ++test_test_stats[TESTS_TEST_FSCK_FAIL];
       } else {
-        if (mount_device(MNT_LVM_SN_DEV, NULL) != SUCCESS) {
+        if (mount_raw_test_device(NULL) != SUCCESS) {
           ++test_test_stats[TESTS_TEST_FSCK_FAIL];
         }
         const int test_check_res = test->check_test();
@@ -515,6 +529,25 @@ void Tester::cleanup_harness() {
   }
 
   test_unload_class();
+}
+
+int Tester::clear_caches() {
+  sync();
+  const int cache_fd = open(DROP_CACHES_PATH, O_WRONLY);
+  if (cache_fd < 0) {
+    return CLEAR_CACHE_ERR;
+  }
+
+  int res;
+  do {
+    res = write(cache_fd, "3", 1);
+    if (res < 0) {
+      close(cache_fd);
+      return CLEAR_CACHE_ERR;
+    }
+  } while (res < 1);
+  close(cache_fd);
+  return SUCCESS;
 }
 
 }  // namespace fs_testing

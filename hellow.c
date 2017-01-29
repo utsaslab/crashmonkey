@@ -6,17 +6,19 @@
 #include <linux/kernel.h>
 #include <linux/mm.h>
 #include <linux/module.h>
+#include <linux/moduleparam.h>
 #include <linux/slab.h>
 
 #include "hellow_ioctl.h"
 
 #define KERNEL_SECTOR_SIZE 512
-//#define TARGET_DEVICE_PATH "/dev/ram0"
-#define TARGET_DEVICE_PATH "/dev/fs_consist_test/fs_consist_test_snap"
 
 MODULE_LICENSE("GPL");
 MODULE_AUTHOR("ashmrtn");
 MODULE_DESCRIPTION("test hello world");
+
+static char* target_device_path = "/dev/fs_consist_test/fs_consist_test_snap";
+module_param(target_device_path, charp, 0);
 
 const char* const flag_names[] = {
   "write", "fail fast dev", "fail fast transport", "fail fast driver", "sync",
@@ -164,7 +166,7 @@ static void hellow_bio(struct request_queue* q, struct bio* bio) {
     printk(KERN_INFO "hwm: writing to partition starting at sector %lx\n",
         bio->bi_bdev->bd_part->start_sect);
   }
-  printk(KERN_INFO "hwm: bio rw has flags:\n");
+  printk(KERN_INFO "hwm: bio rw of size %ld has flags:\n", bio->bi_size);
   print_rw_flags(bio->bi_rw);
   /*
   if (bio->bi_rw & REQ_WRITE) {
@@ -216,7 +218,7 @@ static void hellow_bio(struct request_queue* q, struct bio* bio) {
       int i = 0;
       struct bio_vec* vec;
       bio_for_each_segment(vec, bio, i) {
-        printk(KERN_INFO "hwm: making new page for segment of data\n");
+        //printk(KERN_INFO "hwm: making new page for segment of data\n");
 
         void* bio_data = kmap(vec->bv_page);
         memcpy((void*) (write->data + copied_data), bio_data + vec->bv_offset,
@@ -226,11 +228,13 @@ static void hellow_bio(struct request_queue* q, struct bio* bio) {
       }
 
       // Sanity check which prints data copied to the log.
+      /*
       char* data = kzalloc(write->metadata.size, GFP_NOIO);
       strncpy(data, (const char*) (write->data), write->metadata.size);
       printk(KERN_INFO "hwm: copied %ld bytes of from %lx data:\n~~~\n%s\n~~~\n",
           write->metadata.size, write->metadata.write_sector * 512, data);
       kfree(data);
+      */
     }
   }
 
@@ -245,9 +249,9 @@ static void hellow_bio(struct request_queue* q, struct bio* bio) {
 // TODO(ashmrtn): Fix error when wrong device path is passed.
 static int __init hello_init(void) {
   printk(KERN_INFO "hwm: Hello World from module\n");
+  printk(KERN_INFO "hwm: Wrapping device %s\n", target_device_path);
   // Get memory for our starting disk epoch node.
   Device.log_on = false;
-  //Device.log_on = true;
 
   // Get registered.
   major_num = register_blkdev(major_num, "hwm");
@@ -256,7 +260,7 @@ static int __init hello_init(void) {
     goto out;
   }
 
-  Device.target_dev = blkdev_get_by_path(TARGET_DEVICE_PATH,
+  Device.target_dev = blkdev_get_by_path(target_device_path,
       FMODE_READ | FMODE_WRITE, &Device);
   if (!Device.target_dev) {
     printk(KERN_WARNING "hwm: unable to grab underlying device\n");
