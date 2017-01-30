@@ -60,6 +60,7 @@ int main(int argc, char** argv) {
         test_dev = string(optarg);
       case 'l':
         no_lvm = 1;
+        dry_run = 1;
         break;
       case 'm':
         mount_opts = string(optarg);
@@ -174,6 +175,7 @@ int main(int argc, char** argv) {
   if (test_harness.insert_wrapper() != SUCCESS) {
     cerr << "Error inserting kernel wrapper module\n";
     test_harness.cleanup_harness();
+    return -1;
   }
 
   // Mount the file system under the wrapper module for profiling.
@@ -257,7 +259,7 @@ int main(int argc, char** argv) {
 
   if (!dry_run) {
     cout << "Writing profiled data to block device and checking with fsck\n";
-    test_harness.test_check_random_permutations(5);
+    test_harness.test_check_random_permutations(1);
 
     cout << "Ran " << test_harness.test_test_stats[TESTS_TESTS_RUN] << " tests"
           << endl

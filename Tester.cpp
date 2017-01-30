@@ -35,14 +35,16 @@
 
 // TODO(ashmrtn): Make a quiet and regular version of commands.
 // TODO(ashmrtn): Make so that commands work with user given device path.
-#define INIT_PV     "pvcreate " PV_DISK " > /dev/null 2>&1"
-#define DESTROY_PV  "pvremove -f " PV_DISK " > /dev/null 2>&1"
-#define INIT_VG     "vgcreate " VG_DISK " " PV_DISK " > /dev/null 2>&1"
-#define DESTROY_VG  "vgremove -f " VG_DISK " > /dev/null 2>&1"
-#define INIT_LV     "lvcreate " VG_DISK " -n " LV_DISK " -l " LV_SIZE " > /dev/null 2>&1"
+#define SILENT              " > /dev/null 2>&1"
+
+#define INIT_PV     "pvcreate " PV_DISK SILENT
+#define DESTROY_PV  "pvremove -f " PV_DISK SILENT
+#define INIT_VG     "vgcreate " VG_DISK " " PV_DISK SILENT
+#define DESTROY_VG  "vgremove -f " VG_DISK SILENT
+#define INIT_LV     "lvcreate " VG_DISK " -n " LV_DISK " -l " LV_SIZE SILENT
 #define INIT_SN     \
-  "lvcreate -s -n " SN_DISK " -l " SN_SIZE " " FULL_LV_PATH " > /dev/null 2>&1"
-#define DESTROY_SN  "lvremove -f " FULL_SN_PATH " > /dev/null 2>&1"
+  "lvcreate -s -n " SN_DISK " -l " SN_SIZE " " FULL_LV_PATH SILENT
+#define DESTROY_SN  "lvremove -f " FULL_SN_PATH SILENT
 
 #define MNT_LVM_LV_DEV_PATH  FULL_LV_PATH
 #define MNT_LVM_SN_DEV_PATH  FULL_SN_PATH
@@ -52,14 +54,13 @@
 #define FMT_FMT_DRIVE   "mkfs -t "
 
 #define INSMOD_MODULE_NAME "hellow.ko"
-#define WRAPPER_INSMOD      "insmod " INSMOD_MODULE_NAME
-#define WRAPPER_RMMOD       "rmmod " INSMOD_MODULE_NAME " > /dev/null 2>&1"
-#define SILENT              " > /dev/null 2>&1"
+#define WRAPPER_INSMOD      "insmod " INSMOD_MODULE_NAME " target_device_path="
+#define WRAPPER_RMMOD       "rmmod " INSMOD_MODULE_NAME
 
 #define SECTOR_SIZE 512
 
 // TODO(ashmrtn): Expand to work with other file system types.
-#define TEST_CASE_FSCK "fsck -T -t ext4 " FULL_SN_PATH " -- -y > /dev/null 2>&1"
+#define TEST_CASE_FSCK "fsck -T -t "
 
 namespace fs_testing {
 
@@ -196,7 +197,7 @@ int Tester::umount_device() {
 int Tester::insert_wrapper() {
   if (!wrapper_inserted) {
     string command(WRAPPER_INSMOD);
-    command += " " + test_mnt_device + SILENT;
+    command += test_mnt_device + SILENT;
     if (system(command.c_str()) != 0) {
       wrapper_inserted = false;
       return WRAPPER_INSERT_ERR;
@@ -450,14 +451,19 @@ int Tester::test_check_random_permutations(const int num_rounds) {
       }
       close(sn_fd);
 
-      const int fsck_res = system(TEST_CASE_FSCK);
+      string command(TEST_CASE_FSCK);
+      command += fs_type + " " + FULL_SN_PATH " -- -y" + SILENT;
+      const int fsck_res = system(command.c_str());
       if (!(fsck_res == 0 || WEXITSTATUS(fsck_res) == 1)) {
         cerr << "Error running fsck on snapshot file system: " <<
           WEXITSTATUS(fsck_res) << "\n";
         ++test_test_stats[TESTS_TEST_FSCK_FAIL];
       } else {
+        // TODO(ashmrtn): Consider mounting with options specified for test
+        // profile?
         if (mount_raw_test_device(NULL) != SUCCESS) {
           ++test_test_stats[TESTS_TEST_FSCK_FAIL];
+          continue;
         }
         const int test_check_res = test->check_test();
         if (test_check_res < 0) {
@@ -468,7 +474,7 @@ int Tester::test_check_random_permutations(const int num_rounds) {
           ++test_test_stats[TESTS_TEST_PASS];
         } else {
           ++test_test_stats[TESTS_TEST_ERR];
-          cout << "test errored for other reason" << endl;
+          cerr << "test errored for other reason" << endl;
         }
         umount_device();
       }
