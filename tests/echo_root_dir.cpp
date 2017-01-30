@@ -11,6 +11,7 @@
 using std::calloc;
 
 #define TEXT "hello great big world out there\n"
+#define TEST_TEXT_SIZE (sizeof TEXT)
 #define TEST_FILE "test_file"
 #define TEST_MNT "/mnt/snapshot"
 #define TEST_FILE_PERMS  ((mode_t) (S_IRWXU | S_IRWXG | S_IRWXO))
@@ -55,6 +56,7 @@ class echo_root_dir : public test_case {
   }
 
   virtual int check_test() override {
+    int res2 = 0;
     struct stat stats;
     int res = stat(TEST_MNT "/" TEST_FILE, &stats);
     if (res < 0) {
@@ -82,12 +84,21 @@ class echo_root_dir : public test_case {
         free(buf);
         close(fd);
         return -1;
+      } else if (res == 0) {
+        break;
       }
       bytes_read += res;
     } while (bytes_read < size);
-    free(buf);
     close(fd);
-    return 0;
+
+    if (bytes_read != size) {
+      res2 = -1;
+    } else if (memcmp(TEXT, buf, TEST_TEXT_SIZE) != 0) {
+      res2 = -1;
+    }
+
+    free(buf);
+    return res2;
   }
 };
 

@@ -86,6 +86,7 @@ class echo_sub_dir_big : public test_case {
   }
 
   virtual int check_test() override {
+    int res2 = 0;
     struct stat stats;
     int res = stat(TEST_MNT "/" TEST_DIR "/" TEST_FILE, &stats);
     if (res < 0) {
@@ -118,13 +119,14 @@ class echo_sub_dir_big : public test_case {
     } while (bytes_read < TEST_TEXT_SIZE);
     close(fd);
 
-    if (memcmp(text, buf, TEST_TEXT_SIZE) != 0) {
-      free(buf);
-      return -1;
+    if (bytes_read != TEST_TEXT_SIZE) {
+      res2 = -1;
+    } else if (memcmp(text, buf, TEST_TEXT_SIZE) != 0) {
+      res2 = -1;
     }
 
     free(buf);
-    return 0;
+    return res2;
   }
 
  private:
