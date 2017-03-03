@@ -109,11 +109,13 @@ class echo_sub_dir_big : public test_case {
       return -2;
     }
     do {
-      int res = read(fd, buf + bytes_read, TEST_TEXT_SIZE - bytes_read);
+      res = read(fd, buf + bytes_read, TEST_TEXT_SIZE - bytes_read);
       if (res < 0) {
         free(buf);
         close(fd);
         return -1;
+      } else if (res == 0) {
+        break;
       }
       bytes_read += res;
     } while (bytes_read < TEST_TEXT_SIZE);
