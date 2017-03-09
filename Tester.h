@@ -29,6 +29,7 @@
 #define WRAPPER_DATA_ERR       -19
 #define WRAPPER_MEM_ERR        -20
 #define CLEAR_CACHE_ERR        -21
+#define PART_PART_ERR          -22
 
 #define FMT_EXT4               0
 
@@ -44,7 +45,9 @@
 namespace fs_testing {
 class Tester {
  public:
-  Tester(const std::string f_type, const std::string target_test_device);
+  Tester(const std::string f_type, const std::string target_test_device,
+      bool v);
+  const bool verbose = false;
 
   int test_test_stats[5];
 
@@ -55,6 +58,8 @@ class Tester {
   int init_snapshot();
   int destroy_snapshot();
 
+  int partition_drive();
+  int wipe_paritions();
   int format_drive();
 
   int test_load_class(const char* path);
@@ -63,7 +68,7 @@ class Tester {
   int test_run();
   int test_check_random_permutations(const int num_rounds);
 
-  int mount_raw_test_device(const char* opts);
+  int mount_device_raw(const char* opts);
   int mount_wrapper_device(const char* opts);
   int umount_device();
 
@@ -87,8 +92,8 @@ class Tester {
 
   char dirty_expire_time[DIRTY_EXPIRE_TIME_SIZE];
   const std::string fs_type;
-  const std::string raw_test_device;
-  std::string test_mnt_device;
+  const std::string device_raw;
+  std::string device_mount;
 
   bool lvm_pv_active = false;
   bool lvm_vg_active = false;

@@ -37,20 +37,29 @@
 // TODO(ashmrtn): Make so that commands work with user given device path.
 #define SILENT              " > /dev/null 2>&1"
 
-#define INIT_PV     "pvcreate " PV_DISK SILENT
-#define DESTROY_PV  "pvremove -f " PV_DISK SILENT
-#define INIT_VG     "vgcreate " VG_DISK " " PV_DISK SILENT
-#define DESTROY_VG  "vgremove -f " VG_DISK SILENT
-#define INIT_LV     "lvcreate " VG_DISK " -n " LV_DISK " -l " LV_SIZE SILENT
+#define INIT_PV     "pvcreate "
+#define DESTROY_PV  "pvremove -f "
+#define INIT_VG     "vgcreate " VG_DISK " "
+//#define DESTROY_VG  "vgremove -f " VG_DISK SILENT
+#define DESTROY_VG  "vgremove -f " VG_DISK
+#define INIT_LV     "lvcreate " VG_DISK " -n " LV_DISK " -l " LV_SIZE
+//#define INIT_LV     "lvcreate " VG_DISK " -n " LV_DISK " -l " LV_SIZE SILENT
 #define INIT_SN     \
-  "lvcreate -s -n " SN_DISK " -l " SN_SIZE " " FULL_LV_PATH SILENT
-#define DESTROY_SN  "lvremove -f " FULL_SN_PATH SILENT
+  "lvcreate -s -n " SN_DISK " -l " SN_SIZE " " FULL_LV_PATH
+//#define INIT_SN     \
+  //"lvcreate -s -n " SN_DISK " -l " SN_SIZE " " FULL_LV_PATH SILENT
+#define DESTROY_SN  "lvremove -f " FULL_SN_PATH
+//#define DESTROY_SN  "lvremove -f " FULL_SN_PATH SILENT
 
 #define MNT_LVM_LV_DEV_PATH  FULL_LV_PATH
 #define MNT_LVM_SN_DEV_PATH  FULL_SN_PATH
 #define MNT_WRAPPER_DEV_PATH FULL_WRAPPER_PATH
 #define MNT_MNT_POINT        "/mnt/snapshot"
 
+#define PART_PART_DRIVE   "fdisk "
+#define PART_PART_DRIVE_2 " << EOF\no\nn\np\n1\n\n\nw\nEOF\n"
+#define PART_DEL_PART_DRIVE   "fdisk "
+#define PART_DEL_PART_DRIVE_2 " << EOF\no\nw\nEOF\n"
 #define FMT_FMT_DRIVE   "mkfs -t "
 
 #define INSMOD_MODULE_NAME "hellow.ko"
@@ -76,20 +85,35 @@ using std::vector;
 using fs_testing::create_t;
 using fs_testing::destroy_t;
 
-Tester::Tester(const string f_type, const string target_test_device) :
-  fs_type(f_type), raw_test_device(target_test_device),
-  test_mnt_device(target_test_device) {};
+Tester::Tester(const string f_type, const string target_test_device, bool v) :
+  fs_type(f_type), device_raw(target_test_device), verbose(v) {
+    // Start off by assuming we will make a partition for ourselves and use that
+    // parition.
+    device_mount = device_raw + "1";
+  };
 
 int Tester::lvm_init() {
   // Start up physical volume on LVM.
-  if (system(INIT_PV) != 0) {
+  string command(INIT_PV + device_raw);
+  if (!verbose) {
+    command += SILENT;
+  }
+  if (system(command.c_str()) != 0) {
     return LVM_PV_INIT_ERR;
   }
   lvm_pv_active = true;
 
   // Start of volume group on LVM.
-  if (system(INIT_VG) != 0) {
-    if (system(DESTROY_PV) != 0) {
+  command = string(INIT_VG + device_raw);
+  if (!verbose) {
+    command += SILENT;
+  }
+  if (system(command.c_str()) != 0) {
+    command = string(DESTROY_PV + device_raw);
+    if (!verbose) {
+      command += SILENT;
+    }
+    if (system(command.c_str()) != 0) {
       return LVM_PV_REMOVE_ERR;
     }
     lvm_pv_active = false;
@@ -100,19 +124,27 @@ int Tester::lvm_init() {
   lvm_vg_active = true;
 
   // Start of logical volume on LVM.
-  if (system(INIT_LV) != 0) {
+  command = INIT_LV;
+  if (!verbose) {
+    command += SILENT;
+  }
+  if (system(command.c_str()) != 0) {
     if (system(DESTROY_VG) != 0) {
       return LVM_VG_REMOVE_ERR;
     }
     lvm_vg_active = false;
-    if (system(DESTROY_PV) != 0) {
+    command = string(DESTROY_PV + device_raw);
+    if (!verbose) {
+      command += SILENT;
+    }
+    if (system(command.c_str()) != 0) {
       return LVM_PV_REMOVE_ERR;
     }
     lvm_pv_active = false;
     return LVM_LV_INIT_ERR;
   }
   lvm_lv_active = true;
-  test_mnt_device = MNT_LVM_LV_DEV_PATH;
+  device_mount = MNT_LVM_LV_DEV_PATH;
 
   return SUCCESS;
 }
@@ -131,12 +163,16 @@ int Tester::lvm_destroy() {
 
   // Remove LVM physcial volume.
   if (lvm_pv_active) {
-    if (system(DESTROY_PV) != 0) {
+    string command(DESTROY_PV + device_raw);
+    if (!verbose) {
+      command += SILENT;
+    }
+    if (system(command.c_str()) != 0) {
       return LVM_PV_REMOVE_ERR;
     }
     lvm_pv_active = false;
   }
-  test_mnt_device = raw_test_device;
+  device_mount = device_raw + "1";
 
   return SUCCESS;
 }
@@ -148,7 +184,7 @@ int Tester::init_snapshot() {
       return LVM_SN_INIT_ERR;
     }
     lvm_sn_active = true;
-    test_mnt_device = MNT_LVM_SN_DEV_PATH;
+    device_mount = MNT_LVM_SN_DEV_PATH;
     return SUCCESS;
   }
   return LVM_SN_INIT_ERR;
@@ -162,16 +198,24 @@ int Tester::destroy_snapshot() {
     }
   }
   lvm_sn_active = false;
-  test_mnt_device = MNT_LVM_LV_DEV_PATH;
+  device_mount = MNT_LVM_LV_DEV_PATH;
   return SUCCESS;
 }
 
-int Tester::mount_raw_test_device(const char* opts) {
-  return mount_device(test_mnt_device.c_str(), opts);
+int Tester::mount_device_raw(const char* opts) {
+  return mount_device(device_mount.c_str(), opts);
 }
 
 int Tester::mount_wrapper_device(const char* opts) {
-  return mount_device(MNT_WRAPPER_DEV_PATH, opts);
+  // TODO(ashmrtn): Make some sort of boolean that tracks if we should use the
+  // first parition or not?
+  if (!lvm_sn_active && !lvm_lv_active) {
+    string dev(MNT_WRAPPER_DEV_PATH);
+    dev += "1";
+    return mount_device(dev.c_str(), opts);
+  } else {
+    return mount_device(MNT_WRAPPER_DEV_PATH, opts);
+  }
 }
 
 int Tester::mount_device(const char* dev, const char* opts) {
@@ -197,7 +241,10 @@ int Tester::umount_device() {
 int Tester::insert_wrapper() {
   if (!wrapper_inserted) {
     string command(WRAPPER_INSMOD);
-    command += test_mnt_device + SILENT;
+    command += device_mount;
+    if (!verbose) {
+      command += SILENT;
+    }
     if (system(command.c_str()) != 0) {
       wrapper_inserted = false;
       return WRAPPER_INSERT_ERR;
@@ -393,9 +440,35 @@ bool Tester::write_dirty_expire_time(const int fd, const char* time) {
   return true;
 }
 
+int Tester::partition_drive() {
+  string command(PART_PART_DRIVE + device_raw);
+  if (!verbose) {
+    command += SILENT;
+  }
+  command += PART_PART_DRIVE_2;
+  if (system(command.c_str()) != 0) {
+    return PART_PART_ERR;
+  }
+  return SUCCESS;
+}
+
+int Tester::wipe_paritions() {
+  string command(PART_DEL_PART_DRIVE + device_raw);
+  if (!verbose) {
+    command += SILENT;
+  }
+  command += PART_DEL_PART_DRIVE_2;
+  if (system(command.c_str()) != 0) {
+    return PART_PART_ERR;
+  }
+  return SUCCESS;
+}
+
 int Tester::format_drive() {
-  string command(FMT_FMT_DRIVE);
-  command += fs_type + " " +  test_mnt_device + SILENT;
+  string command(FMT_FMT_DRIVE + fs_type + " " +  device_mount);
+  if (!verbose) {
+    command += SILENT;
+  }
   if (system(command.c_str()) != 0) {
     return FMT_FMT_ERR;
   }
@@ -451,8 +524,10 @@ int Tester::test_check_random_permutations(const int num_rounds) {
       }
       close(sn_fd);
 
-      string command(TEST_CASE_FSCK);
-      command += fs_type + " " + FULL_SN_PATH " -- -y" + SILENT;
+      string command(TEST_CASE_FSCK + fs_type + " " + FULL_SN_PATH " -- -y");
+      if (!verbose) {
+        command += SILENT;
+      }
       const int fsck_res = system(command.c_str());
       if (!(fsck_res == 0 || WEXITSTATUS(fsck_res) == 1)) {
         cerr << "Error running fsck on snapshot file system: " <<
@@ -461,7 +536,7 @@ int Tester::test_check_random_permutations(const int num_rounds) {
       } else {
         // TODO(ashmrtn): Consider mounting with options specified for test
         // profile?
-        if (mount_raw_test_device(NULL) != SUCCESS) {
+        if (mount_device_raw(NULL) != SUCCESS) {
           ++test_test_stats[TESTS_TEST_FSCK_FAIL];
           continue;
         }
