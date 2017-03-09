@@ -146,11 +146,17 @@ static const struct block_device_operations hellow_ops = {
   .ioctl   = hellow_ioctl,
 };
 
-static void print_rw_flags(unsigned long rw) {
-  printk(KERN_INFO "\traw flags: %lx\n", rw);
+static void print_rw_flags(unsigned long rw, unsigned long flags) {
+  printk(KERN_INFO "\traw rw flags: %lx\n", rw);
   int i;
   for (i = __REQ_WRITE; i < __REQ_NR_BITS; i++) {
     if (rw & (1ULL << i)) {
+      printk(KERN_INFO "\t%s\n", flag_names[i]);
+    }
+  }
+  printk(KERN_INFO "\traw flags flags: %lx\n", flags);
+  for (i = __REQ_WRITE; i < __REQ_NR_BITS; i++) {
+    if (flags & (1ULL << i)) {
       printk(KERN_INFO "\t%s\n", flag_names[i]);
     }
   }
@@ -161,28 +167,32 @@ static void hellow_bio(struct request_queue* q, struct bio* bio) {
   struct hwm_device* hwm;
   struct request_queue* target_queue;
 
+  /*
   printk(KERN_INFO "hwm: passing request to normal block device driver\n");
   if (bio->bi_bdev->bd_contains != bio->bi_bdev) {
     printk(KERN_INFO "hwm: writing to partition starting at sector %lx\n",
         bio->bi_bdev->bd_part->start_sect);
   }
-  printk(KERN_INFO "hwm: bio rw of size %ld has flags:\n", bio->bi_size);
-  print_rw_flags(bio->bi_rw);
-  /*
-  if (bio->bi_rw & REQ_WRITE) {
-    printk(KERN_INFO "hwm: bio marked as write\n");
-  }
-  printk(KERN_INFO "hwm: bio flagged with %lx and rw is %lx\n", bio->bi_flags,
-      bio->bi_rw);
   */
+      printk(KERN_INFO "hwm: bio rw of size %u headed for 0x%lx (sector 0x%lx)"
+          " has flags:\n", bio->bi_size, bio->bi_sector * 512, bio->bi_sector);
+      print_rw_flags(bio->bi_rw, bio->bi_flags);
   // Log information about writes, fua, and flush/flush_seq events in kernel
   // memory.
-  // TODO(ashmrtn): Add support for discard operations.
-  // TODO(ashmrtn): Add support for flush/fua operations.
   if (Device.log_on) {
     if (bio->bi_rw & REQ_FLUSH ||
         bio->bi_rw & REQ_FUA || bio->bi_rw & REQ_FLUSH_SEQ ||
-        bio->bi_rw & REQ_WRITE || bio->bi_rw & REQ_DISCARD) {
+        bio->bi_rw & REQ_WRITE || bio->bi_rw & REQ_DISCARD ||
+        bio->bi_flags & REQ_FLUSH || bio->bi_flags & REQ_FUA ||
+        bio->bi_flags & REQ_WRITE) {
+
+      printk(KERN_INFO "hwm: logging above bio\n");
+      /*
+      printk(KERN_INFO "hwm: bio rw of size %u headed for 0x%lx (sector 0x%lx)"
+          " has flags:\n", bio->bi_size, bio->bi_sector * 512, bio->bi_sector);
+      print_rw_flags(bio->bi_rw, bio->bi_flags);
+      */
+
       // Log data to disk logs.
       struct disk_write_op* write =
         kzalloc(sizeof(struct disk_write_op), GFP_NOIO);
@@ -311,7 +321,7 @@ static void __exit hello_cleanup(void) {
   put_disk(Device.gd);
   unregister_blkdev(major_num, "hwm");
 
-  printk(KERN_INFO "hwm: Cleaning up\n");
+  printk(KERN_INFO "hwm: Cleaning up bye!\n");
 }
 
 module_init(hello_init);
