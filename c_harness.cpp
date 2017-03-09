@@ -1,16 +1,10 @@
 #include <fcntl.h>
 #include <getopt.h>
 #include <string.h>
-#include <sys/ioctl.h>
-#include <sys/mount.h>
-#include <sys/stat.h>
 #include <sys/types.h>
 #include <unistd.h>
 #include <wait.h>
 
-#include <cerrno>
-#include <cstdio>
-#include <cstdlib>
 #include <iostream>
 #include <string>
 #include <vector>
@@ -23,9 +17,9 @@
 // TODO(ashmrtn): Find a good delay time to use for tests.
 #define TEST_DIRTY_EXPIRE_TIME "500"
 #define WRITE_DELAY 10
-#define MOUNT_DELAY 3
+#define MOUNT_DELAY 2 * WRITE_DELAY
 
-#define OPTS_STRING "d:lm:nt:"
+#define OPTS_STRING "d:lm:nst:v"
 
 using std::cerr;
 using std::cout;
@@ -35,7 +29,9 @@ using fs_testing::Tester;
 
 static const option long_options[] = {
   {"no-lvm", no_argument, NULL, 'l'},
+  {"no-snap", no_argument, NULL, 's'},
   {"dry-run", no_argument, NULL, 'n'},
+  {"verbose", no_argument, NULL, 'v'},
   {"fs-type", required_argument, NULL, 't'},
   {"test-dev", required_argument, NULL, 'd'},
   {"mount-opts", required_argument, NULL, 'm'},
@@ -43,11 +39,15 @@ static const option long_options[] = {
 };
 
 int main(int argc, char** argv) {
+  string dirty_expire_time_centisecs(TEST_DIRTY_EXPIRE_TIME);
+  unsigned long int test_sleep_delay = WRITE_DELAY;
   string fs_type("ext4");
   string test_dev("/dev/ram0");
   string mount_opts("");
   bool dry_run = false;
   bool no_lvm = false;
+  bool no_snap = false;
+  bool verbose = false;
 
   int option_idx = 0;
 
@@ -58,6 +58,7 @@ int main(int argc, char** argv) {
     switch (c) {
       case 'd':
         test_dev = string(optarg);
+        break;
       case 'l':
         no_lvm = 1;
         dry_run = 1;
@@ -68,8 +69,15 @@ int main(int argc, char** argv) {
       case 'n':
         dry_run = 1;
         break;
+      case 's':
+        no_snap = 1;
+        dry_run = 1;
+        break;
       case 't':
         fs_type = string(optarg);
+        break;
+      case 'v':
+        verbose = true;
         break;
       case '?':
       default:
@@ -84,7 +92,7 @@ int main(int argc, char** argv) {
     return -1;
   }
 
-  Tester test_harness(fs_type, test_dev);
+  Tester test_harness(fs_type, test_dev, verbose);
 
   // Load the class being tested.
   cout << "Loading test case" << endl;
@@ -96,17 +104,31 @@ int main(int argc, char** argv) {
   // Update dirty_expire_time.
   cout << "Updating dirty_expire_time_centisecs" << endl;
   const char* old_expire_time =
-    test_harness.update_dirty_expire_time(TEST_DIRTY_EXPIRE_TIME);
+    test_harness.update_dirty_expire_time(dirty_expire_time_centisecs.c_str());
   if (old_expire_time == NULL) {
     cerr << "Error updating dirty_expire_time_centisecs" << endl;
     test_harness.cleanup_harness();
     return -1;
   }
 
-  // Initialize LVM
+  // Partition drive so LVM won't complain later.
+  cout << "Wiping test device" << endl;
+  if (test_harness.wipe_paritions() != SUCCESS) {
+    cerr << "Error wiping paritions on test device" << endl;
+    test_harness.cleanup_harness();
+    return -1;
+  }
+
+  // Initialize LVM or create a new partition table on test device.
   if (!no_lvm) {
     cout << "Initializing LVM" << endl;
     if (test_harness.lvm_init() != SUCCESS) {
+      test_harness.cleanup_harness();
+      return -1;
+    }
+  } else {
+    cout << "Partitioning test drive" << endl;
+    if (test_harness.partition_drive() != SUCCESS) {
       test_harness.cleanup_harness();
       return -1;
     }
@@ -129,7 +151,7 @@ int main(int argc, char** argv) {
 
   // Mount test file system for pre-test setup.
   cout << "Mounting test file system for pre-test setup\n";
-  if (test_harness.mount_raw_test_device(mount_opts.c_str()) != SUCCESS) {
+  if (test_harness.mount_device_raw(mount_opts.c_str()) != SUCCESS) {
     test_harness.cleanup_harness();
     return -1;
   }
@@ -162,7 +184,7 @@ int main(int argc, char** argv) {
   }
 
   // Create snapshot of disk for testing.
-  if (!no_lvm) {
+  if (!no_lvm && !no_snap) {
     cout << "Making new snapshot\n";
     if (test_harness.init_snapshot() != SUCCESS) {
       test_harness.cleanup_harness();
@@ -179,7 +201,6 @@ int main(int argc, char** argv) {
   }
 
   // Mount the file system under the wrapper module for profiling.
-  // TODO(ashmrtn): Fix to work with all file system types.
   cout << "Mounting wrapper file system\n";
   if (test_harness.mount_wrapper_device(mount_opts.c_str()) != SUCCESS) {
     cerr << "Error mounting wrapper file system\n";
@@ -204,7 +225,7 @@ int main(int argc, char** argv) {
   // Clear wrapper module logs prior to test profiling.
   cout << "Clearing wrapper device logs\n";
   test_harness.clear_wrapper_log();
-  cout << "Enabling wrapper device loging\n";
+  cout << "Enabling wrapper device logging\n";
   test_harness.begin_wrapper_logging();
 
   // Fork off a new process and run test profiling. Forking makes it easier to
