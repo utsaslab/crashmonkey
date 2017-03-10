@@ -17,7 +17,7 @@
 // TODO(ashmrtn): Find a good delay time to use for tests.
 #define TEST_DIRTY_EXPIRE_TIME "500"
 #define WRITE_DELAY 10
-#define MOUNT_DELAY 2 * WRITE_DELAY
+#define MOUNT_DELAY 3
 
 #define OPTS_STRING "d:lm:nst:v"
 
