@@ -17,7 +17,7 @@ MODULE_LICENSE("GPL");
 MODULE_AUTHOR("ashmrtn");
 MODULE_DESCRIPTION("test hello world");
 
-static char* target_device_path = "/dev/fs_consist_test/fs_consist_test_snap";
+static char* target_device_path = "";
 module_param(target_device_path, charp, 0);
 
 const char* const flag_names[] = {
@@ -257,8 +257,11 @@ static void hellow_bio(struct request_queue* q, struct bio* bio) {
 }
 
 // TODO(ashmrtn): Fix error when wrong device path is passed.
-static int __init hello_init(void) {
+static int __init hellow_init(void) {
   printk(KERN_INFO "hwm: Hello World from module\n");
+  if (strlen(target_device_path) == 0) {
+    return -ENOTTY;
+  }
   printk(KERN_INFO "hwm: Wrapping device %s\n", target_device_path);
   // Get memory for our starting disk epoch node.
   Device.log_on = false;
@@ -271,9 +274,18 @@ static int __init hello_init(void) {
   }
 
   Device.target_dev = blkdev_get_by_path(target_device_path,
-      FMODE_READ | FMODE_WRITE, &Device);
+      FMODE_READ, &Device);
   if (!Device.target_dev) {
     printk(KERN_WARNING "hwm: unable to grab underlying device\n");
+    goto out;
+  }
+  if (!Device.target_dev->bd_queue) {
+    printk(KERN_WARNING "hwm: attempt to wrap device with no request queue\n");
+    goto out;
+  }
+  if (!Device.target_dev->bd_queue->make_request_fn) {
+    printk(KERN_WARNING "hwm: attempt to wrap device with no "
+        "make_request_fn\n");
     goto out;
   }
 
@@ -300,6 +312,9 @@ static int __init hello_init(void) {
     goto out;
   }
   blk_queue_make_request(Device.gd->queue, hellow_bio);
+  // Make this queue have the same flags as the queue we're feeding into.
+  Device.gd->queue->flush_flags = Device.target_dev->bd_queue->flush_flags;
+  Device.gd->queue->queue_flags = Device.target_dev->bd_queue->queue_flags;
   Device.gd->queue->queuedata = &Device;
   //blk_queue_hardsect_size(Queue, hardsect_size);
 
@@ -315,7 +330,7 @@ static int __init hello_init(void) {
 
 static void __exit hello_cleanup(void) {
   free_logs();
-  blkdev_put(Device.target_dev, FMODE_READ | FMODE_WRITE);
+  blkdev_put(Device.target_dev, FMODE_READ);
   blk_cleanup_queue(Device.gd->queue);
   del_gendisk(Device.gd);
   put_disk(Device.gd);
@@ -324,5 +339,5 @@ static void __exit hello_cleanup(void) {
   printk(KERN_INFO "hwm: Cleaning up bye!\n");
 }
 
-module_init(hello_init);
+module_init(hellow_init);
 module_exit(hello_cleanup);
