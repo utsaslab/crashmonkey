@@ -147,19 +147,21 @@ static const struct block_device_operations hellow_ops = {
 };
 
 static void print_rw_flags(unsigned long rw, unsigned long flags) {
-  printk(KERN_INFO "\traw rw flags: %lx\n", rw);
+  printk(KERN_INFO "\traw rw flags: 0x%.4lx\n", rw);
   int i;
   for (i = __REQ_WRITE; i < __REQ_NR_BITS; i++) {
     if (rw & (1ULL << i)) {
       printk(KERN_INFO "\t%s\n", flag_names[i]);
     }
   }
+  /*
   printk(KERN_INFO "\traw flags flags: %lx\n", flags);
   for (i = __REQ_WRITE; i < __REQ_NR_BITS; i++) {
     if (flags & (1ULL << i)) {
       printk(KERN_INFO "\t%s\n", flag_names[i]);
     }
   }
+  */
 }
 
 // TODO(ashmrtn): Currently not thread safe/reentrant. Make it so.
@@ -168,15 +170,10 @@ static void hellow_bio(struct request_queue* q, struct bio* bio) {
   struct request_queue* target_queue;
 
   /*
-  printk(KERN_INFO "hwm: passing request to normal block device driver\n");
-  if (bio->bi_bdev->bd_contains != bio->bi_bdev) {
-    printk(KERN_INFO "hwm: writing to partition starting at sector %lx\n",
-        bio->bi_bdev->bd_part->start_sect);
-  }
+  printk(KERN_INFO "hwm: bio rw of size %u headed for 0x%lx (sector 0x%lx)"
+      " has flags:\n", bio->bi_size, bio->bi_sector * 512, bio->bi_sector);
+  print_rw_flags(bio->bi_rw, bio->bi_flags);
   */
-      printk(KERN_INFO "hwm: bio rw of size %u headed for 0x%lx (sector 0x%lx)"
-          " has flags:\n", bio->bi_size, bio->bi_sector * 512, bio->bi_sector);
-      print_rw_flags(bio->bi_rw, bio->bi_flags);
   // Log information about writes, fua, and flush/flush_seq events in kernel
   // memory.
   if (Device.log_on) {
@@ -186,12 +183,10 @@ static void hellow_bio(struct request_queue* q, struct bio* bio) {
         bio->bi_flags & REQ_FLUSH || bio->bi_flags & REQ_FUA ||
         bio->bi_flags & REQ_WRITE) {
 
-      printk(KERN_INFO "hwm: logging above bio\n");
-      /*
+      //printk(KERN_INFO "hwm: logging above bio\n");
       printk(KERN_INFO "hwm: bio rw of size %u headed for 0x%lx (sector 0x%lx)"
           " has flags:\n", bio->bi_size, bio->bi_sector * 512, bio->bi_sector);
       print_rw_flags(bio->bi_rw, bio->bi_flags);
-      */
 
       // Log data to disk logs.
       struct disk_write_op* write =
@@ -230,20 +225,17 @@ static void hellow_bio(struct request_queue* q, struct bio* bio) {
       bio_for_each_segment(vec, bio, i) {
         //printk(KERN_INFO "hwm: making new page for segment of data\n");
 
-        void* bio_data = kmap(vec->bv_page);
-        memcpy((void*) (write->data + copied_data), bio_data + vec->bv_offset,
+        memcpy((void*) (write->data + copied_data), vec->bv_page + vec->bv_offset,
             vec->bv_len);
-        kunmap(bio_data);
         copied_data += vec->bv_len;
       }
 
       // Sanity check which prints data copied to the log.
       /*
-      char* data = kzalloc(write->metadata.size, GFP_NOIO);
-      strncpy(data, (const char*) (write->data), write->metadata.size);
-      printk(KERN_INFO "hwm: copied %ld bytes of from %lx data:\n~~~\n%s\n~~~\n",
-          write->metadata.size, write->metadata.write_sector * 512, data);
-      kfree(data);
+      printk(KERN_INFO "hwm: copied %ld bytes of from %lx data:"
+          "\n~~~\n%s\n~~~\n",
+          write->metadata.size, write->metadata.write_sector * 512,
+          write->data);
       */
     }
   }
