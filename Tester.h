@@ -7,29 +7,24 @@
 #include "test_case.h"
 #include "utils.h"
 
-#define SUCCESS                0
-#define LVM_PV_INIT_ERR        -1
-#define LVM_PV_REMOVE_ERR      -2
-#define LVM_VG_INIT_ERR        -3
-#define LVM_VG_REMOVE_ERR      -4
-#define LVM_LV_INIT_ERR        -5
-#define LVM_SN_INIT_ERR        -6
-#define LVM_SN_REMOVE_ERR      -7
-#define TEST_CASE_HANDLE_ERR   -8
-#define TEST_CASE_INIT_ERR     -9
-#define TEST_CASE_DEST_ERR     -10
-#define TEST_CASE_FILE_ERR     -11
-#define MNT_BAD_DEV_ERR        -12
-#define MNT_MNT_ERR            -13
-#define MNT_UMNT_ERR           -14
-#define FMT_FMT_ERR            -15
-#define WRAPPER_INSERT_ERR     -16
-#define WRAPPER_REMOVE_ERR     -17
-#define WRAPPER_OPEN_DEV_ERR   -18
-#define WRAPPER_DATA_ERR       -19
-#define WRAPPER_MEM_ERR        -20
-#define CLEAR_CACHE_ERR        -21
-#define PART_PART_ERR          -22
+#define SUCCESS                  0
+#define DRIVE_CLONE_ERR          -1
+#define DRIVE_CLONE_RESTORE_ERR  -2
+#define TEST_CASE_HANDLE_ERR     -8
+#define TEST_CASE_INIT_ERR       -9
+#define TEST_CASE_DEST_ERR       -10
+#define TEST_CASE_FILE_ERR       -11
+#define MNT_BAD_DEV_ERR          -12
+#define MNT_MNT_ERR              -13
+#define MNT_UMNT_ERR             -14
+#define FMT_FMT_ERR              -15
+#define WRAPPER_INSERT_ERR       -16
+#define WRAPPER_REMOVE_ERR       -17
+#define WRAPPER_OPEN_DEV_ERR     -18
+#define WRAPPER_DATA_ERR         -19
+#define WRAPPER_MEM_ERR          -20
+#define CLEAR_CACHE_ERR          -21
+#define PART_PART_ERR            -22
 
 #define FMT_EXT4               0
 
@@ -50,17 +45,16 @@ class Tester {
   const bool verbose = false;
 
   int test_test_stats[5];
+  unsigned long int device_size;
+  char* device_clone;
 
   const char* update_dirty_expire_time(const char* time);
-
-  int lvm_init();
-  int lvm_destroy();
-  int init_snapshot();
-  int destroy_snapshot();
 
   int partition_drive();
   int wipe_paritions();
   int format_drive();
+  int clone_drive();
+  int clone_drive_restore();
 
   int test_load_class(const char* path);
   void test_unload_class();
@@ -94,11 +88,6 @@ class Tester {
   const std::string fs_type;
   const std::string device_raw;
   std::string device_mount;
-
-  bool lvm_pv_active = false;
-  bool lvm_vg_active = false;
-  bool lvm_lv_active = false;
-  bool lvm_sn_active = false;
 
   bool wrapper_inserted = false;
 

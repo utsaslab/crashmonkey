@@ -7,6 +7,7 @@
 #include <unistd.h>
 
 #include <algorithm>
+#include <cerrno>
 #include <cstdlib>
 #include <iostream>
 #include <memory>
@@ -20,39 +21,12 @@
 #define DIRTY_EXPIRE_TIME_PATH "/proc/sys/vm/dirty_expire_centisecs"
 #define DROP_CACHES_PATH       "/proc/sys/vm/drop_caches"
 
-#define PV_DISK       "/dev/ram0"
-#define VG_DISK       "fs_consist_test"
-#define LV_DISK       "fs_consist_test_dev"
-#define SN_DISK       "fs_consist_test_snap"
-#define FULL_LV_PATH  "/dev/" VG_DISK "/" LV_DISK
-#define FULL_SN_PATH  "/dev/" VG_DISK "/" SN_DISK
 #define FULL_WRAPPER_PATH "/dev/hwm"
-
-#define LV_SIZE       "50%FREE"
-#define SN_SIZE       "100%FREE"
-
-#define TEST_PATH     FULL_LV_PATH
 
 // TODO(ashmrtn): Make a quiet and regular version of commands.
 // TODO(ashmrtn): Make so that commands work with user given device path.
 #define SILENT              " > /dev/null 2>&1"
 
-#define INIT_PV     "pvcreate "
-#define DESTROY_PV  "pvremove -f "
-#define INIT_VG     "vgcreate " VG_DISK " "
-//#define DESTROY_VG  "vgremove -f " VG_DISK SILENT
-#define DESTROY_VG  "vgremove -f " VG_DISK
-#define INIT_LV     "lvcreate " VG_DISK " -n " LV_DISK " -l " LV_SIZE
-//#define INIT_LV     "lvcreate " VG_DISK " -n " LV_DISK " -l " LV_SIZE SILENT
-#define INIT_SN     \
-  "lvcreate -s -n " SN_DISK " -l " SN_SIZE " " FULL_LV_PATH
-//#define INIT_SN     \
-  //"lvcreate -s -n " SN_DISK " -l " SN_SIZE " " FULL_LV_PATH SILENT
-#define DESTROY_SN  "lvremove -f " FULL_SN_PATH
-//#define DESTROY_SN  "lvremove -f " FULL_SN_PATH SILENT
-
-#define MNT_LVM_LV_DEV_PATH  FULL_LV_PATH
-#define MNT_LVM_SN_DEV_PATH  FULL_SN_PATH
 #define MNT_WRAPPER_DEV_PATH FULL_WRAPPER_PATH
 #define MNT_MNT_POINT        "/mnt/snapshot"
 
@@ -65,6 +39,9 @@
 #define INSMOD_MODULE_NAME "hellow.ko"
 #define WRAPPER_INSMOD      "insmod " INSMOD_MODULE_NAME " target_device_path="
 #define WRAPPER_RMMOD       "rmmod " INSMOD_MODULE_NAME
+
+#define DEV_SECTORS_PATH    "/sys/block/"
+#define DEV_SECTORS_PATH_2  "/size"
 
 #define SECTOR_SIZE 512
 
@@ -90,116 +67,44 @@ Tester::Tester(const string f_type, const string target_test_device, bool v) :
     // Start off by assuming we will make a partition for ourselves and use that
     // parition.
     device_mount = device_raw + "1";
+
+    // /sys/block/<dev> has the number of 512 byte sectors on the disk.
+    string dev = device_raw.substr(device_raw.find_last_of("/") + 1);
+    string path(DEV_SECTORS_PATH + dev + DEV_SECTORS_PATH_2);
+    int size_fd = open(path.c_str(), O_RDONLY);
+    if (size_fd < 0) {
+      int err = errno;
+      cerr << "Unable to device size file " << errno << endl;
+      device_size = 0;
+      return;
+    }
+    unsigned int buf_size = 50;
+    char size_buf[buf_size];
+    unsigned int bytes_read = 0;
+    int res = 0;
+    do {
+      res = read(size_fd, size_buf + bytes_read, buf_size - 1 - bytes_read);
+      if (res < 0) {
+        int err = errno;
+        device_size = 0;
+        cerr << "Unable to get device size " << err << endl;
+        close(size_fd);
+        return;
+      }
+
+      bytes_read += res;
+    } while (res != 0 && bytes_read < buf_size - 1);
+    close(size_fd);
+
+    // Null terminate string.
+    size_buf[bytes_read] = '\0';
+    device_size = strtol(size_buf, NULL, 10) * SECTOR_SIZE;
   };
 
-int Tester::lvm_init() {
-  // Start up physical volume on LVM.
-  string command(INIT_PV + device_raw);
-  if (!verbose) {
-    command += SILENT;
-  }
-  if (system(command.c_str()) != 0) {
-    return LVM_PV_INIT_ERR;
-  }
-  lvm_pv_active = true;
-
-  // Start of volume group on LVM.
-  command = string(INIT_VG + device_raw);
-  if (!verbose) {
-    command += SILENT;
-  }
-  if (system(command.c_str()) != 0) {
-    command = string(DESTROY_PV + device_raw);
-    if (!verbose) {
-      command += SILENT;
-    }
-    if (system(command.c_str()) != 0) {
-      return LVM_PV_REMOVE_ERR;
-    }
-    lvm_pv_active = false;
-    lvm_vg_active = false;
-    lvm_lv_active = false;
-    return LVM_VG_INIT_ERR;
-  }
-  lvm_vg_active = true;
-
-  // Start of logical volume on LVM.
-  command = INIT_LV;
-  if (!verbose) {
-    command += SILENT;
-  }
-  if (system(command.c_str()) != 0) {
-    if (system(DESTROY_VG) != 0) {
-      return LVM_VG_REMOVE_ERR;
-    }
-    lvm_vg_active = false;
-    command = string(DESTROY_PV + device_raw);
-    if (!verbose) {
-      command += SILENT;
-    }
-    if (system(command.c_str()) != 0) {
-      return LVM_PV_REMOVE_ERR;
-    }
-    lvm_pv_active = false;
-    return LVM_LV_INIT_ERR;
-  }
-  lvm_lv_active = true;
-  device_mount = MNT_LVM_LV_DEV_PATH;
-
-  return SUCCESS;
+int Tester::clone_drive() {
 }
 
-int Tester::lvm_destroy() {
-  // Removing an LVM volume group also removes all logical volumes for the
-  // group.
-  if (lvm_vg_active) {
-    if (system(DESTROY_VG) != 0) {
-      return LVM_VG_REMOVE_ERR;
-    }
-    lvm_sn_active = false;
-    lvm_lv_active = false;
-    lvm_vg_active = false;
-  }
-
-  // Remove LVM physcial volume.
-  if (lvm_pv_active) {
-    string command(DESTROY_PV + device_raw);
-    if (!verbose) {
-      command += SILENT;
-    }
-    if (system(command.c_str()) != 0) {
-      return LVM_PV_REMOVE_ERR;
-    }
-    lvm_pv_active = false;
-  }
-  device_mount = device_raw + "1";
-
-  return SUCCESS;
-}
-
-int Tester::init_snapshot() {
-  if (lvm_lv_active && !lvm_sn_active) {
-    if (system(INIT_SN) != 0) {
-      lvm_sn_active = false;
-      return LVM_SN_INIT_ERR;
-    }
-    lvm_sn_active = true;
-    device_mount = MNT_LVM_SN_DEV_PATH;
-    return SUCCESS;
-  }
-  return LVM_SN_INIT_ERR;
-}
-
-int Tester::destroy_snapshot() {
-  if (lvm_sn_active) {
-    if (system(DESTROY_SN) != 0) {
-      lvm_sn_active = true;
-      return LVM_SN_REMOVE_ERR;
-    }
-  }
-  lvm_sn_active = false;
-  device_mount = MNT_LVM_LV_DEV_PATH;
-  return SUCCESS;
+int Tester::clone_drive_restore() {
 }
 
 int Tester::mount_device_raw(const char* opts) {
@@ -209,13 +114,9 @@ int Tester::mount_device_raw(const char* opts) {
 int Tester::mount_wrapper_device(const char* opts) {
   // TODO(ashmrtn): Make some sort of boolean that tracks if we should use the
   // first parition or not?
-  if (!lvm_sn_active && !lvm_lv_active) {
-    string dev(MNT_WRAPPER_DEV_PATH);
-    dev += "1";
-    return mount_device(dev.c_str(), opts);
-  } else {
-    return mount_device(MNT_WRAPPER_DEV_PATH, opts);
-  }
+  string dev(MNT_WRAPPER_DEV_PATH);
+  dev += "1";
+  return mount_device(dev.c_str(), opts);
 }
 
 int Tester::mount_device(const char* dev, const char* opts) {
@@ -495,23 +396,17 @@ int Tester::test_check_random_permutations(const int num_rounds) {
     //for (auto end_itr = permutes.end() - 1; end_itr != permutes.end(); ++end_itr) {
       ++test_test_stats[TESTS_TESTS_RUN];
       cout << '.' << std::flush;
-      // Kill snapshot.
-      if (lvm_sn_active) {
-        if (destroy_snapshot() != SUCCESS) {
-          cout << endl;
-          return LVM_SN_REMOVE_ERR;
-        }
-      }
 
-      // Create new snapshot.
-      if (init_snapshot() != SUCCESS) {
+      // Restore disk clone.
+      if (clone_drive_restore() != SUCCESS) {
         cout << endl;
-        return LVM_SN_INIT_ERR;
+        return DRIVE_CLONE_RESTORE_ERR;
       }
 
       // Write recorded data out to block device in different orders so that we
-      // can they are all valid or not.
-      const int sn_fd = open(FULL_SN_PATH, O_WRONLY);
+      // can if they are all valid or not.
+      // TODO(ashmrtn): Change variable name.
+      const int sn_fd = open(disk_mount_path, O_WRONLY);
       if (sn_fd < 0) {
         cout << endl;
         return TEST_CASE_FILE_ERR;
@@ -524,7 +419,8 @@ int Tester::test_check_random_permutations(const int num_rounds) {
       }
       close(sn_fd);
 
-      string command(TEST_CASE_FSCK + fs_type + " " + FULL_SN_PATH " -- -y");
+      string command(TEST_CASE_FSCK + fs_type + " " + disk_mount_path
+          + " -- -y");
       if (!verbose) {
         command += SILENT;
       }
@@ -599,12 +495,6 @@ void Tester::cleanup_harness() {
 
   if (remove_wrapper() != SUCCESS) {
     cerr << "Unable to remove wrapper device" << endl;
-    test_unload_class();
-    return;
-  }
-
-  if (lvm_destroy() != SUCCESS) {
-    cerr << "Unable to destroy LVM" << endl;
     test_unload_class();
     return;
   }
