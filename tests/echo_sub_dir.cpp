@@ -57,7 +57,7 @@ class echo_sub_dir : public test_case {
     unsigned int written = 0;
     while (written != str_len) {
       written = write(fd, TEXT + written, str_len - written);
-      if (written == -1) {
+      if (written < 0) {
         goto out;
       }
     }
