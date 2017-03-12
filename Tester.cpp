@@ -101,10 +101,69 @@ Tester::Tester(const string f_type, const string target_test_device, bool v) :
     device_size = strtol(size_buf, NULL, 10) * SECTOR_SIZE;
   };
 
-int Tester::clone_drive() {
+int Tester::clone_device() {
+  if (device_clone != NULL) {
+    cerr << "Device clone already exists" << endl;
+    return DRIVE_CLONE_EXISTS_ERR;
+  }
+  int raw_dev_fd = open(device_raw.c_str(), O_RDONLY);
+  if (raw_dev_fd < 0) {
+    cerr << "Error opening raw device" << endl;
+    return DRIVE_CLONE_ERR;
+  }
+
+  if (device_size == 0) {
+    cerr << "Device size is 0" << endl;
+    return DRIVE_CLONE_ERR;
+  }
+  device_clone = new char[device_size];
+  unsigned int bytes_read = 0;
+  do {
+    int res = read(raw_dev_fd, device_clone + bytes_read,
+        device_size - bytes_read);
+    if (res < 0) {
+      cerr << "Error reading from raw device" << endl;
+      close(raw_dev_fd);
+      return DRIVE_CLONE_ERR;
+    }
+    bytes_read += res;
+    if (res == 0 && bytes_read < device_size) {
+      cerr << "Reached end of device before device size" << endl;
+      close(raw_dev_fd);
+      return DRIVE_CLONE_ERR;
+    }
+  } while (bytes_read < device_size);
+  close(raw_dev_fd);
+
+  return SUCCESS;
 }
 
-int Tester::clone_drive_restore() {
+int Tester::clone_device_restore() {
+  if (device_clone == NULL) {
+    cerr << "No device clone to restore" << endl;
+    return DRIVE_CLONE_ERR;
+  }
+
+  int raw_dev_fd = open(device_raw.c_str(), O_WRONLY);
+  if (raw_dev_fd < 0) {
+    cerr << "Error opening raw device" << endl;
+    return DRIVE_CLONE_ERR;
+  }
+
+  unsigned int bytes_written = 0;
+  do {
+    int res = write(raw_dev_fd, device_clone + bytes_written,
+        device_size - bytes_written);
+    if (res < 0) {
+      cerr << "Error writing to raw device" << endl;
+      close(raw_dev_fd);
+      return DRIVE_CLONE_RESTORE_ERR;
+    }
+    bytes_written += res;
+  } while (bytes_written < device_size);
+  close(raw_dev_fd);
+
+  return SUCCESS;
 }
 
 int Tester::mount_device_raw(const char* opts) {
@@ -398,15 +457,14 @@ int Tester::test_check_random_permutations(const int num_rounds) {
       cout << '.' << std::flush;
 
       // Restore disk clone.
-      if (clone_drive_restore() != SUCCESS) {
+      if (clone_device_restore() != SUCCESS) {
         cout << endl;
         return DRIVE_CLONE_RESTORE_ERR;
       }
 
       // Write recorded data out to block device in different orders so that we
       // can if they are all valid or not.
-      // TODO(ashmrtn): Change variable name.
-      const int sn_fd = open(disk_mount_path, O_WRONLY);
+      const int sn_fd = open(device_raw.c_str(), O_WRONLY);
       if (sn_fd < 0) {
         cout << endl;
         return TEST_CASE_FILE_ERR;
@@ -419,7 +477,7 @@ int Tester::test_check_random_permutations(const int num_rounds) {
       }
       close(sn_fd);
 
-      string command(TEST_CASE_FSCK + fs_type + " " + disk_mount_path
+      string command(TEST_CASE_FSCK + fs_type + " " + device_mount
           + " -- -y");
       if (!verbose) {
         command += SILENT;
@@ -456,6 +514,61 @@ int Tester::test_check_random_permutations(const int num_rounds) {
   return SUCCESS;
 }
 
+int Tester::test_check_current() {
+  string command(TEST_CASE_FSCK + fs_type + " " + device_mount
+      + " -- -y");
+  if (!verbose) {
+    command += SILENT;
+  }
+  const int fsck_res = system(command.c_str());
+  if (!(fsck_res == 0 || WEXITSTATUS(fsck_res) == 1)) {
+    cerr << "Error running fsck on snapshot file system: " <<
+      WEXITSTATUS(fsck_res) << "\n";
+    return TEST_TEST_ERR;
+  } else {
+    // TODO(ashmrtn): Consider mounting with options specified for test
+    // profile?
+    if (mount_device_raw(NULL) != SUCCESS) {
+      cerr << "Error mounting file system" << endl;
+      return TEST_TEST_ERR;
+    }
+    const int test_check_res = test->check_test();
+    if (test_check_res < 0) {
+      cerr << "Bad data" << endl;
+      return TEST_TEST_ERR;
+    } else if (test_check_res == 0 && fsck_res != 0) {
+      cerr << "fsck fix" << endl;
+    } else if (test_check_res == 0 && fsck_res == 0) {
+      // Does nothing, but success case
+    } else {
+      cerr << "Other reasons" << endl;
+      return TEST_TEST_ERR;
+    }
+    umount_device();
+  }
+
+  return SUCCESS;
+}
+
+int Tester::test_restore_log() {
+  // We need to mount the original device because we intercept bios after they
+  // have been traslated to the current disk and lose information about sector
+  // offset from the partition. If we were to mount and write into the partition
+  // we would clobber the disk state in unknown ways.
+  const int sn_fd = open(device_raw.c_str(), O_WRONLY);
+  if (sn_fd < 0) {
+    cout << endl;
+    return TEST_CASE_FILE_ERR;
+  }
+  if (!test_write_data(sn_fd, log_data.begin(), log_data.end())) {
+    cout << "test errored in writing data" << endl;
+    close(sn_fd);
+    return TEST_TEST_ERR;
+  }
+  close(sn_fd);
+  return SUCCESS;
+}
+
 bool Tester::test_write_data(const int disk_fd,
     const vector<disk_write>::iterator& start,
     const vector<disk_write>::iterator& end) {
@@ -487,6 +600,10 @@ bool Tester::test_write_data(const int disk_fd,
 }
 
 void Tester::cleanup_harness() {
+  delete[] device_clone;
+  device_clone = NULL;
+  device_size = 0;
+
   if (umount_device() != SUCCESS) {
     cerr << "Unable to unmount device" << endl;
     test_unload_class();

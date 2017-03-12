@@ -10,6 +10,8 @@
 #define SUCCESS                  0
 #define DRIVE_CLONE_ERR          -1
 #define DRIVE_CLONE_RESTORE_ERR  -2
+#define DRIVE_CLONE_EXISTS_ERR   -3
+#define TEST_TEST_ERR            -4
 #define TEST_CASE_HANDLE_ERR     -8
 #define TEST_CASE_INIT_ERR       -9
 #define TEST_CASE_DEST_ERR       -10
@@ -46,21 +48,23 @@ class Tester {
 
   int test_test_stats[5];
   unsigned long int device_size;
-  char* device_clone;
+  char* device_clone = NULL;
 
   const char* update_dirty_expire_time(const char* time);
 
   int partition_drive();
   int wipe_paritions();
   int format_drive();
-  int clone_drive();
-  int clone_drive_restore();
+  int clone_device();
+  int clone_device_restore();
 
   int test_load_class(const char* path);
   void test_unload_class();
   int test_setup();
   int test_run();
   int test_check_random_permutations(const int num_rounds);
+  int test_restore_log();
+  int test_check_current();
 
   int mount_device_raw(const char* opts);
   int mount_wrapper_device(const char* opts);
@@ -92,7 +96,6 @@ class Tester {
   bool wrapper_inserted = false;
 
   bool disk_mounted = false;
-  char* disk_mount_path = NULL;
 
   int ioctl_fd = -1;
   std::vector<disk_write> log_data;
