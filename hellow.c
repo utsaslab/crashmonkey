@@ -225,8 +225,10 @@ static void hellow_bio(struct request_queue* q, struct bio* bio) {
       bio_for_each_segment(vec, bio, i) {
         //printk(KERN_INFO "hwm: making new page for segment of data\n");
 
-        memcpy((void*) (write->data + copied_data), vec->bv_page + vec->bv_offset,
+        void *bio_data = kmap(vec->bv_page);
+        memcpy((void*) (write->data + copied_data), bio_data + vec->bv_offset,
             vec->bv_len);
+        kunmap(bio_data);
         copied_data += vec->bv_len;
       }
 
