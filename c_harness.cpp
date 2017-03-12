@@ -19,7 +19,7 @@
 #define WRITE_DELAY 10
 #define MOUNT_DELAY 3
 
-#define OPTS_STRING "d:lm:nst:v"
+#define OPTS_STRING "d:m:nst:v"
 
 using std::cerr;
 using std::cout;
@@ -28,7 +28,6 @@ using std::string;
 using fs_testing::Tester;
 
 static const option long_options[] = {
-  {"no-lvm", no_argument, NULL, 'l'},
   {"no-snap", no_argument, NULL, 's'},
   {"dry-run", no_argument, NULL, 'n'},
   {"verbose", no_argument, NULL, 'v'},
@@ -58,10 +57,6 @@ int main(int argc, char** argv) {
     switch (c) {
       case 'd':
         test_dev = string(optarg);
-        break;
-      case 'l':
-        no_lvm = 1;
-        dry_run = 1;
         break;
       case 'm':
         mount_opts = string(optarg);
@@ -119,19 +114,11 @@ int main(int argc, char** argv) {
     return -1;
   }
 
-  // Initialize LVM or create a new partition table on test device.
-  if (!no_lvm) {
-    cout << "Initializing LVM" << endl;
-    if (test_harness.lvm_init() != SUCCESS) {
-      test_harness.cleanup_harness();
-      return -1;
-    }
-  } else {
-    cout << "Partitioning test drive" << endl;
-    if (test_harness.partition_drive() != SUCCESS) {
-      test_harness.cleanup_harness();
-      return -1;
-    }
+  // Create a new partition table on test device.
+  cout << "Partitioning test drive" << endl;
+  if (test_harness.partition_drive() != SUCCESS) {
+    test_harness.cleanup_harness();
+    return -1;
   }
 
   // Format test drive to desired type.
@@ -184,9 +171,9 @@ int main(int argc, char** argv) {
   }
 
   // Create snapshot of disk for testing.
-  if (!no_lvm && !no_snap) {
+  if (!no_snap) {
     cout << "Making new snapshot\n";
-    if (test_harness.init_snapshot() != SUCCESS) {
+    if (test_harness.clone_device() != SUCCESS) {
       test_harness.cleanup_harness();
       return -1;
     }
@@ -277,6 +264,37 @@ int main(int argc, char** argv) {
     test_harness.cleanup_harness();
     return -1;
   }
+
+  /***************************************************/
+  /*
+#define TEST_CASE_FSCK "fsck -T -t "
+
+  // Create a new partition table on test device.
+  cout << "Partitioning test drive" << endl;
+  if (test_harness.partition_drive() != SUCCESS) {
+    test_harness.cleanup_harness();
+    return -1;
+  }
+
+  cout << "Restoring device clone" << std::endl;
+  if (test_harness.clone_device_restore() != SUCCESS) {
+    test_harness.cleanup_harness();
+    cerr << "Error restoring device clone" << std::endl;
+    return -1;
+  }
+
+  cout << "Restoring log data" << std::endl;
+  if (test_harness.test_restore_log() != SUCCESS) {
+    test_harness.cleanup_harness();
+    cerr << "Error restoring log data" << std::endl;
+    return -1;
+  }
+
+  std::cout << "Result of current test is " << test_harness.test_check_current()
+    << std::endl;
+  */
+
+  /***************************************************/
 
   if (!dry_run) {
     cout << "Writing profiled data to block device and checking with fsck\n";
