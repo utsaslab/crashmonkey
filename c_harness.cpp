@@ -19,7 +19,7 @@
 #define WRITE_DELAY 10
 #define MOUNT_DELAY 3
 
-#define OPTS_STRING "d:m:nst:v"
+#define OPTS_STRING "d:m:np:st:v"
 
 using std::cerr;
 using std::cout;
@@ -34,6 +34,7 @@ static const option long_options[] = {
   {"fs-type", required_argument, NULL, 't'},
   {"test-dev", required_argument, NULL, 'd'},
   {"mount-opts", required_argument, NULL, 'm'},
+  {"permuter", required_argument, NULL, 'p'},
   {0, 0, 0, 0},
 };
 
@@ -43,6 +44,7 @@ int main(int argc, char** argv) {
   string fs_type("ext4");
   string test_dev("/dev/ram0");
   string mount_opts("");
+  string permuter("permuters/RandomPermuter.so");
   bool dry_run = false;
   bool no_lvm = false;
   bool no_snap = false;
@@ -63,6 +65,9 @@ int main(int argc, char** argv) {
         break;
       case 'n':
         dry_run = 1;
+        break;
+      case 'p':
+        permuter = string(optarg);
         break;
       case 's':
         no_snap = 1;
@@ -96,6 +101,15 @@ int main(int argc, char** argv) {
       return -1;
   }
 
+  // Load the permuter to use for the test.
+  // TODO(ashmrtn): Consider making a line in the test file which specifies the
+  // permuter to use?
+  cout << "Loading permuter" << endl;
+  if (test_harness.permuter_load_class(permuter.c_str()) != SUCCESS) {
+    test_harness.cleanup_harness();
+      return -1;
+  }
+
   // Update dirty_expire_time.
   cout << "Updating dirty_expire_time_centisecs" << endl;
   const char* old_expire_time =
@@ -106,7 +120,8 @@ int main(int argc, char** argv) {
     return -1;
   }
 
-  // Partition drive so LVM won't complain later.
+  // Partition drive.
+  // TODO(ashmrtn): Consider making a flag for this?
   cout << "Wiping test device" << endl;
   if (test_harness.wipe_paritions() != SUCCESS) {
     cerr << "Error wiping paritions on test device" << endl;
@@ -129,6 +144,7 @@ int main(int argc, char** argv) {
     return -1;
   }
 
+  // TODO(ashmrtn): Consider making a flag for this?
   cout << "Clearing caches" << endl;
   if (test_harness.clear_caches() != SUCCESS) {
     cerr << "Error clearing caches" << endl;
