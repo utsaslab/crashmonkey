@@ -6,7 +6,7 @@
 #include <cstring>
 #include <cstdlib>
 
-#include "../test_case.h"
+#include "BaseTestCase.h"
 
 using std::calloc;
 
@@ -21,10 +21,11 @@ using std::calloc;
 // TODO(ashmrtn): Make helper function to concatenate file paths.
 // TODO(ashmrtn): Pass mount path and test device names to tests somehow.
 namespace fs_testing {
+namespace tests {
 
 using std::strlen;
 
-class echo_sub_dir : public test_case {
+class echo_sub_dir : public BaseTestCase {
  public:
   virtual int setup() override {
     int res = mkdir(TEST_MNT "/" TEST_DIR, 0777);
@@ -116,12 +117,13 @@ class echo_sub_dir : public test_case {
   }
 };
 
+}  // namespace tests
 }  // namespace fs_testing
 
-extern "C" fs_testing::test_case *test_case_get_instance() {
-  return new fs_testing::echo_sub_dir;
+extern "C" fs_testing::tests::BaseTestCase *test_case_get_instance() {
+  return new fs_testing::tests::echo_sub_dir;
 }
 
-extern "C" void test_case_delete_instance(fs_testing::test_case *tc) {
+extern "C" void test_case_delete_instance(fs_testing::tests::BaseTestCase *tc) {
   delete tc;
 }

@@ -6,7 +6,7 @@
 #include <cstring>
 #include <cstdlib>
 
-#include "../test_case.h"
+#include "BaseTestCase.h"
 
 using std::calloc;
 
@@ -17,11 +17,12 @@ using std::calloc;
 #define TEST_FILE_PERMS  ((mode_t) (S_IRWXU | S_IRWXG | S_IRWXO))
 
 namespace fs_testing {
+namespace tests {
 
 using std::cerr;
 using std::strlen;
 
-class echo_root_dir : public test_case {
+class echo_root_dir : public BaseTestCase {
  public:
   virtual int setup() override {
     return 0;
@@ -102,12 +103,13 @@ class echo_root_dir : public test_case {
   }
 };
 
+}  // namespace tests
 }  // namespace fs_testing
 
-extern "C" fs_testing::test_case *test_case_get_instance() {
-  return new fs_testing::echo_root_dir;
+extern "C" fs_testing::tests::BaseTestCase *test_case_get_instance() {
+  return new fs_testing::tests::echo_root_dir;
 }
 
-extern "C" void test_case_delete_instance(fs_testing::test_case *tc) {
+extern "C" void test_case_delete_instance(fs_testing::tests::BaseTestCase *tc) {
   delete tc;
 }

@@ -11,7 +11,7 @@
 #include <iostream>
 #include <memory>
 
-#include "hellow_ioctl.h"
+#include "../hellow_ioctl.h"
 #include "Tester.h"
 
 #define TEST_CLASS_FACTORY        "test_case_get_instance"
@@ -60,8 +60,8 @@ using std::shared_ptr;
 using std::string;
 using std::vector;
 
-using fs_testing::test_create_t;
-using fs_testing::test_destroy_t;
+using fs_testing::tests::test_create_t;
+using fs_testing::tests::test_destroy_t;
 using fs_testing::permuter::Permuter;
 using fs_testing::permuter::permuter_create_t;
 using fs_testing::permuter::permuter_destroy_t;

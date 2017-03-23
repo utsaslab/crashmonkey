@@ -5,7 +5,7 @@
 #include <vector>
 
 #include "Permuter.h"
-#include "../utils.h"
+#include "../utils/utils.h"
 
 namespace fs_testing {
 namespace permuter {

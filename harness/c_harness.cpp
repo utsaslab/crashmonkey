@@ -9,11 +9,12 @@
 #include <string>
 #include <vector>
 
-#include "utils.h"
+#include "../utils/utils.h"
 #include "Tester.h"
-#include "test_case.h"
+#include "../tests/BaseTestCase.h"
 
-#define SO_PATH "tests/"
+#define TEST_SO_PATH "../tests/"
+#define PERMUTER_SO_PATH "../permuter/"
 // TODO(ashmrtn): Find a good delay time to use for tests.
 #define TEST_DIRTY_EXPIRE_TIME "500"
 #define WRITE_DELAY 10
@@ -44,7 +45,7 @@ int main(int argc, char** argv) {
   string fs_type("ext4");
   string test_dev("/dev/ram0");
   string mount_opts("");
-  string permuter("permuters/RandomPermuter.so");
+  string permuter(PERMUTER_SO_PATH "RandomPermuter.so");
   bool dry_run = false;
   bool no_lvm = false;
   bool no_snap = false;

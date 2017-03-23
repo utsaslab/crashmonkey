@@ -4,10 +4,10 @@
 #include <string>
 #include <vector>
 
-#include "ClassLoader.h"
-#include "permuter/Permuter.h"
-#include "test_case.h"
-#include "utils.h"
+#include "../utils/ClassLoader.h"
+#include "../permuter/Permuter.h"
+#include "../tests/BaseTestCase.h"
+#include "../utils/utils.h"
 
 #define SUCCESS                  0
 #define DRIVE_CLONE_ERR          -1
@@ -86,7 +86,7 @@ class Tester {
   void cleanup_harness();
 
  private:
-  fs_testing::utils::ClassLoader<test_case> test_loader;
+  fs_testing::utils::ClassLoader<fs_testing::tests::BaseTestCase> test_loader;
   fs_testing::utils::ClassLoader<fs_testing::permuter::Permuter>
     permuter_loader;
 
