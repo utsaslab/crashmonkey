@@ -14,21 +14,7 @@
 #include "utils.h"
 
 namespace fs_testing {
-
-namespace {
-
-bool is_async_write(const disk_write& write) {
-  return (
-      !((write.metadata.bi_rw & REQ_SYNC) ||
-        (write.metadata.bi_rw & REQ_FUA) ||
-        (write.metadata.bi_rw & REQ_FLUSH) ||
-        (write.metadata.bi_rw & REQ_FLUSH_SEQ) ||
-        (write.metadata.bi_rw & REQ_SOFTBARRIER)) &&
-      write.metadata.bi_rw & REQ_WRITE);
-}
-
-}  // namespace
-
+namespace utils {
 using std::cout;
 using std::memcpy;
 using std::mt19937;
@@ -38,6 +24,25 @@ using std::shared_ptr;
 using std::tie;
 using std::uniform_int_distribution;
 using std::vector;
+
+bool disk_write::is_async_write() {
+  return (
+      !((metadata.bi_rw & REQ_SYNC) ||
+        (metadata.bi_rw & REQ_FUA) ||
+        (metadata.bi_rw & REQ_FLUSH) ||
+        (metadata.bi_rw & REQ_FLUSH_SEQ) ||
+        (metadata.bi_rw & REQ_SOFTBARRIER)) &&
+        metadata.bi_rw & REQ_WRITE);
+}
+
+bool disk_write::is_barrier_write() {
+  return (
+      ((metadata.bi_rw & REQ_FUA) ||
+        (metadata.bi_rw & REQ_FLUSH) ||
+        (metadata.bi_rw & REQ_FLUSH_SEQ) ||
+        (metadata.bi_rw & REQ_SOFTBARRIER)) &&
+        metadata.bi_rw & REQ_WRITE);
+}
 
 disk_write::disk_write(const struct disk_write_op_meta& m,
     const void* d) {
@@ -99,111 +104,5 @@ shared_ptr<void> disk_write::get_data() {
   return data;
 }
 
-permuter::permuter(const vector<disk_write>* data) : original(*data) {
-  for (int i = 0; i < original.size(); ++i) {
-    if (is_async_write(original.at(i))) {
-      struct permute_info info;
-      info.write = original.at(i);
-      info.shift = 0;
-      ordering.push_back(info);
-    }
-  }
-  current = original;
-  // TODO(ashmrtn): Make a flag to make it random or not.
-  rand = mt19937(42);
-  //done = unorderd_set<vector<disk_write>>();
-}
-
-permuter& permuter::operator=(const permuter& other) {
-  original = other.original;
-  ordering = other.ordering;
-  current = original;
-  //done = unorderd_set<vector<disk_write>>();
-}
-
-bool permuter::permute(vector<disk_write>* res) {
-  disk_write unordered;
-  bool last_permutation = true;
-  // Checks to see if we have gone through all the permutations possible. If we
-  // have then return the first permutation that we got.
-  for (int idx = ordering.size() - 1, cur_idx = current.size() - 1; idx >= 0;
-      --idx, --cur_idx) {
-    if (ordering.at(idx).write != current.at(cur_idx)) {
-      last_permutation = false;
-      unordered = ordering.at(idx).write;
-      //cout << "unordered element set to: " << unordered << " at index: " << idx
-      //  << std::endl;
-      break;
-    }
-  }
-  if (last_permutation) {
-    return false;
-  }
-  int move_idx = 0;
-  for (int i = 0; i < ordering.size(); ++i) {
-    if (ordering.at(i).write == unordered) {
-      move_idx = i;
-      ordering.at(move_idx++).shift += 1;
-      break;
-    }
-  }
-
-  current = original;
-  for (int i = move_idx; i < ordering.size(); ++i) {
-    ordering.at(i).shift = 0;
-  }
-  for (permute_info info : ordering) {
-    if (info.shift == 0) {
-      continue;
-    }
-
-    int pos = 0;
-    for (int i = 0; i < current.size(); ++i) {
-      if (current.at(i) == info.write) {
-        pos = i;
-        break;
-      }
-    }
-
-    for (int i = 0, idx = pos; i < info.shift; ++i, ++idx) {
-      current.at(idx) = current.at(idx + 1);
-    }
-    current.at(pos + info.shift) = info.write;
-  }
-  *res = current;
-  return true;
-}
-
-bool permuter::permute_nth(std::vector<disk_write>* res, int n) {
-  for (int i = 0; i < n - 1; ++i) {
-    if (!permute(res)) {
-      return false;
-    }
-  }
-  return true;
-}
-
-void permuter::permute_random(std::vector<disk_write>* res) {
-  const int size = original.size();
-  *res = original;
-  for (permute_info info : ordering) {
-    // Find where in the vector the current movable write is.
-    int pos = 0;
-    for (int i = 0; i < current.size(); ++i) {
-      if (current.at(i) == info.write) {
-        pos = i;
-        break;
-      }
-    }
-    uniform_int_distribution<int> uid(0, size - pos - 1);
-    const int shift = uid(rand);
-
-    // Move everything over and then place the write we're moving.
-    for (int i = 0, idx = pos; i < shift; ++i, ++idx) {
-      res->at(idx) = res->at(idx + 1);
-    }
-    res->at(pos + shift) = info.write;
-  }
-}
-
+}  // namespace utils
 }  // namespace fs_testing
