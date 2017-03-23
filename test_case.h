@@ -11,8 +11,8 @@ class test_case {
   virtual int check_test() = 0;
 };
 
-typedef test_case* create_t();
-typedef void destroy_t(test_case*);
+typedef test_case* test_create_t();
+typedef void test_destroy_t(test_case*);
 
 }  // namespace fs_testing
 
