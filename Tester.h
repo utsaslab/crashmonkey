@@ -4,6 +4,8 @@
 #include <string>
 #include <vector>
 
+#include "ClassLoader.h"
+#include "permuter/Permuter.h"
 #include "test_case.h"
 #include "utils.h"
 
@@ -12,9 +14,6 @@
 #define DRIVE_CLONE_RESTORE_ERR  -2
 #define DRIVE_CLONE_EXISTS_ERR   -3
 #define TEST_TEST_ERR            -4
-#define TEST_CASE_HANDLE_ERR     -8
-#define TEST_CASE_INIT_ERR       -9
-#define TEST_CASE_DEST_ERR       -10
 #define TEST_CASE_FILE_ERR       -11
 #define MNT_BAD_DEV_ERR          -12
 #define MNT_MNT_ERR              -13
@@ -58,10 +57,14 @@ class Tester {
   int clone_device();
   int clone_device_restore();
 
+  int permuter_load_class(const char* path);
+  void permuter_unload_class();
+
   int test_load_class(const char* path);
   void test_unload_class();
   int test_setup();
   int test_run();
+  int test_check_permutations(const int num_rounds);
   int test_check_random_permutations(const int num_rounds);
   int test_restore_log();
   int test_check_current();
@@ -83,10 +86,9 @@ class Tester {
   void cleanup_harness();
 
  private:
-  void* loader_handle = NULL;
-  void* test_factory = NULL;
-  void* test_killer = NULL;
-  test_case* test = NULL;
+  fs_testing::utils::ClassLoader<test_case> test_loader;
+  fs_testing::utils::ClassLoader<fs_testing::permuter::Permuter>
+    permuter_loader;
 
   char dirty_expire_time[DIRTY_EXPIRE_TIME_SIZE];
   const std::string fs_type;
@@ -98,7 +100,7 @@ class Tester {
   bool disk_mounted = false;
 
   int ioctl_fd = -1;
-  std::vector<disk_write> log_data;
+  std::vector<fs_testing::utils::disk_write> log_data;
 
   int mount_device(const char* dev, const char* opts);
 
@@ -106,8 +108,8 @@ class Tester {
   bool write_dirty_expire_time(int fd, const char* time);
 
   bool test_write_data(const int disk_fd,
-      const std::vector<disk_write>::iterator& start,
-      const std::vector<disk_write>::iterator& end);
+      const std::vector<fs_testing::utils::disk_write>::iterator& start,
+      const std::vector<fs_testing::utils::disk_write>::iterator& end);
 };
 
 }  // namespace fs_testing

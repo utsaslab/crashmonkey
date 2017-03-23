@@ -1,4 +1,3 @@
-#include <dlfcn.h>
 #include <fcntl.h>
 #include <string.h>
 #include <sys/mount.h>
@@ -15,8 +14,10 @@
 #include "hellow_ioctl.h"
 #include "Tester.h"
 
-#define TEST_CLASS_FACTORY    "get_instance"
-#define TEST_CLASS_DEFACTORY  "delete_instance"
+#define TEST_CLASS_FACTORY        "test_case_get_instance"
+#define TEST_CLASS_DEFACTORY      "test_case_delete_instance"
+#define PERMUTER_CLASS_FACTORY    "permuter_get_instance"
+#define PERMUTER_CLASS_DEFACTORY  "permuter_delete_instance"
 
 #define DIRTY_EXPIRE_TIME_PATH "/proc/sys/vm/dirty_expire_centisecs"
 #define DROP_CACHES_PATH       "/proc/sys/vm/drop_caches"
@@ -59,8 +60,12 @@ using std::shared_ptr;
 using std::string;
 using std::vector;
 
-using fs_testing::create_t;
-using fs_testing::destroy_t;
+using fs_testing::test_create_t;
+using fs_testing::test_destroy_t;
+using fs_testing::permuter::Permuter;
+using fs_testing::permuter::permuter_create_t;
+using fs_testing::permuter::permuter_destroy_t;
+using fs_testing::utils::disk_write;
 
 Tester::Tester(const string f_type, const string target_test_device, bool v) :
   fs_type(f_type), device_raw(target_test_device), verbose(v) {
@@ -308,49 +313,21 @@ void Tester::clear_wrapper_log() {
 }
 
 int Tester::test_load_class(const char* path) {
-  const char* dl_error = NULL;
-
-  loader_handle = dlopen(path, RTLD_LAZY);
-  if (loader_handle == NULL) {
-    cerr << "Error loading test from class " << path << endl << dlerror()
-      << endl;
-    return TEST_CASE_HANDLE_ERR;
-  }
-
-  // Get needed methods from loaded class.
-  test_factory = dlsym(loader_handle, TEST_CLASS_FACTORY);
-  dl_error = dlerror();
-  if (dl_error) {
-    cerr << "Error gettig factory method " << dl_error << endl;
-    dlclose(loader_handle);
-    test_factory = NULL;
-    test_killer = NULL;
-    loader_handle = NULL;
-    return TEST_CASE_INIT_ERR;
-  }
-  test_killer = dlsym(loader_handle, TEST_CLASS_DEFACTORY);
-  dl_error = dlerror();
-  if (dl_error) {
-    cerr << "Error gettig deleter method " << dl_error << endl;
-    dlclose(loader_handle);
-    test_factory = NULL;
-    test_killer = NULL;
-    loader_handle = NULL;
-    return TEST_CASE_DEST_ERR;
-  }
-  test = ((create_t*)(test_factory))();
-  return SUCCESS;
+  return test_loader.load_class<test_create_t *>(path, TEST_CLASS_FACTORY,
+      TEST_CLASS_DEFACTORY);
 }
 
 void Tester::test_unload_class() {
-  if (loader_handle != NULL && test != NULL) {
-    ((destroy_t*)(test_killer))(test);
-    dlclose(loader_handle);
-    test_factory = NULL;
-    test_killer = NULL;
-    loader_handle = NULL;
-    test = NULL;
-  }
+    test_loader.unload_class<test_destroy_t *>();
+}
+
+int Tester::permuter_load_class(const char* path) {
+  return permuter_loader.load_class<permuter_create_t *>(path,
+      PERMUTER_CLASS_FACTORY, PERMUTER_CLASS_DEFACTORY);
+}
+
+void Tester::permuter_unload_class() {
+    permuter_loader.unload_class<permuter_destroy_t *>();
 }
 
 const char* Tester::update_dirty_expire_time(const char* time) {
@@ -436,17 +413,18 @@ int Tester::format_drive() {
 }
 
 int Tester::test_setup() {
-  return test->setup();
+  return test_loader.get_instance()->setup();
 }
 
 int Tester::test_run() {
-  return test->run();
+  return test_loader.get_instance()->run();
 }
 
 int Tester::test_check_random_permutations(const int num_rounds) {
   std::fill(test_test_stats, test_test_stats + 6, 0);
   test_test_stats[TESTS_TESTS_RUN] = 0;
-  permuter p = permuter(&log_data);
+  Permuter *p = permuter_loader.get_instance();
+  p->set_data(&log_data);
   vector<disk_write> permutes = log_data;
   const auto start_itr = permutes.begin();
   for (int rounds = 0; rounds < num_rounds; ++rounds) {
@@ -494,7 +472,7 @@ int Tester::test_check_random_permutations(const int num_rounds) {
           ++test_test_stats[TESTS_TEST_FSCK_FAIL];
           continue;
         }
-        const int test_check_res = test->check_test();
+        const int test_check_res = test_loader.get_instance()->check_test();
         if (test_check_res < 0) {
           ++test_test_stats[TESTS_TEST_BAD_DATA];
         } else if (test_check_res == 0 && fsck_res != 0) {
@@ -508,7 +486,7 @@ int Tester::test_check_random_permutations(const int num_rounds) {
         umount_device();
       }
     }
-    p.permute_random(&permutes);
+    p->permute(&permutes);
   }
   cout << endl;
   return SUCCESS;
@@ -532,7 +510,7 @@ int Tester::test_check_current() {
       cerr << "Error mounting file system" << endl;
       return TEST_TEST_ERR;
     }
-    const int test_check_res = test->check_test();
+    const int test_check_res = test_loader.get_instance()->check_test();
     if (test_check_res < 0) {
       cerr << "Bad data" << endl;
       return TEST_TEST_ERR;
@@ -616,6 +594,7 @@ void Tester::cleanup_harness() {
     return;
   }
 
+  permuter_unload_class();
   test_unload_class();
 }
 

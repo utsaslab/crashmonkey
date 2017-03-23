@@ -104,10 +104,10 @@ class echo_root_dir : public test_case {
 
 }  // namespace fs_testing
 
-extern "C" fs_testing::test_case* get_instance() {
+extern "C" fs_testing::test_case *test_case_get_instance() {
   return new fs_testing::echo_root_dir;
 }
 
-extern "C" void delete_instance(fs_testing::test_case* tc) {
+extern "C" void test_case_delete_instance(fs_testing::test_case *tc) {
   delete tc;
 }
