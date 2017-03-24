@@ -81,6 +81,7 @@ void RandomPermuter::set_data(vector<disk_write> *data) {
 }
 
 bool RandomPermuter::permute(vector<disk_write> *res) {
+  res->clear();
   res = new vector<disk_write>(log_length);
   int current_index = 0;
   for (struct epoch current_epoch : epochs) {
