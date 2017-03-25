@@ -19,7 +19,7 @@ class disk_write {
 
   struct disk_write_op_meta metadata;
 
-  disk_write& operator=(const disk_write& other);
+  void operator=(const disk_write& other);
   friend bool operator==(const disk_write& a, const disk_write& b);
   friend bool operator!=(const disk_write& a, const disk_write& b);
 

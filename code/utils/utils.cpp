@@ -59,7 +59,7 @@ disk_write::disk_write(const disk_write& other) {
   data = other.data;
 }
 
-disk_write& disk_write::operator=(const disk_write& other) {
+void disk_write::operator=(const disk_write& other) {
   metadata = other.metadata;
   data = other.data;
 }
