@@ -1,0 +1,277 @@
+hwm: Hello World from module
+hwm: Wrapping device /dev/fs_consist_test/fs_consist_test_snap
+hwm: initialized
+EXT4-fs (hwm): barriers disabled
+EXT4-fs (hwm): mounted filesystem with ordered data mode. Opts: nobarrier
+hwm: clearing data logs
+hwm: turning on data logging
+hwm: bio rw of size 1024 headed for 0x438c00 (sector 0x21c6) has flags:
+	raw rw flags: 0x0060
+	meta
+	prio
+hwm: bio rw of size 1024 headed for 0x8008400 (sector 0x40042) has flags:
+	raw rw flags: 0x0060
+	meta
+	prio
+hwm: bio rw of size 1024 headed for 0x83f8400 (sector 0x41fc2) has flags:
+	raw rw flags: 0x0060
+	meta
+	prio
+hwm: bio rw of size 1024 headed for 0x8004400 (sector 0x40022) has flags:
+	raw rw flags: 0x0060
+	meta
+	prio
+hwm: bio rw of size 126976 headed for 0x144c00 (sector 0xa26) has flags:
+	raw rw flags: 0x0001
+	write
+hwm: bio rw of size 126976 headed for 0x163c00 (sector 0xb1e) has flags:
+	raw rw flags: 0x0001
+	write
+hwm: bio rw of size 4096 headed for 0x182c00 (sector 0xc16) has flags:
+	raw rw flags: 0x0001
+	write
+hwm: bio rw of size 126976 headed for 0x183c00 (sector 0xc1e) has flags:
+	raw rw flags: 0x0001
+	write
+hwm: bio rw of size 126976 headed for 0x1a2c00 (sector 0xd16) has flags:
+	raw rw flags: 0x0001
+	write
+hwm: bio rw of size 4096 headed for 0x1c1c00 (sector 0xe0e) has flags:
+	raw rw flags: 0x0001
+	write
+hwm: bio rw of size 126976 headed for 0x1c2c00 (sector 0xe16) has flags:
+	raw rw flags: 0x0001
+	write
+hwm: bio rw of size 126976 headed for 0x1e1c00 (sector 0xf0e) has flags:
+	raw rw flags: 0x0001
+	write
+hwm: bio rw of size 4096 headed for 0x200c00 (sector 0x1006) has flags:
+	raw rw flags: 0x0001
+	write
+hwm: bio rw of size 1024 headed for 0x7000400 (sector 0x38002) has flags:
+	raw rw flags: 0x0411
+	write
+	sync
+	no idle
+hwm: bio rw of size 126976 headed for 0x201c00 (sector 0x100e) has flags:
+	raw rw flags: 0x0001
+	write
+hwm: bio rw of size 126976 headed for 0x220c00 (sector 0x1106) has flags:
+	raw rw flags: 0x0001
+	write
+hwm: bio rw of size 4096 headed for 0x23fc00 (sector 0x11fe) has flags:
+	raw rw flags: 0x0001
+	write
+hwm: bio rw of size 1024 headed for 0x7000800 (sector 0x38004) has flags:
+	raw rw flags: 0x0411
+	write
+	sync
+	no idle
+hwm: bio rw of size 1024 headed for 0x7000c00 (sector 0x38006) has flags:
+	raw rw flags: 0x0411
+	write
+	sync
+	no idle
+hwm: bio rw of size 1024 headed for 0x7001000 (sector 0x38008) has flags:
+	raw rw flags: 0x0411
+	write
+	sync
+	no idle
+hwm: bio rw of size 1024 headed for 0x7001400 (sector 0x3800a) has flags:
+	raw rw flags: 0x0411
+	write
+	sync
+	no idle
+hwm: bio rw of size 1024 headed for 0x7001800 (sector 0x3800c) has flags:
+	raw rw flags: 0x0411
+	write
+	sync
+	no idle
+hwm: bio rw of size 1024 headed for 0x7001c00 (sector 0x3800e) has flags:
+	raw rw flags: 0x0411
+	write
+	sync
+	no idle
+hwm: bio rw of size 1024 headed for 0x7002000 (sector 0x38010) has flags:
+	raw rw flags: 0x0411
+	write
+	sync
+	no idle
+hwm: bio rw of size 126976 headed for 0x240c00 (sector 0x1206) has flags:
+	raw rw flags: 0x0001
+	write
+hwm: bio rw of size 126976 headed for 0x25fc00 (sector 0x12fe) has flags:
+	raw rw flags: 0x0001
+	write
+hwm: bio rw of size 4096 headed for 0x27ec00 (sector 0x13f6) has flags:
+	raw rw flags: 0x0001
+	write
+hwm: bio rw of size 126976 headed for 0x27fc00 (sector 0x13fe) has flags:
+	raw rw flags: 0x0001
+	write
+hwm: bio rw of size 126976 headed for 0x29ec00 (sector 0x14f6) has flags:
+	raw rw flags: 0x0001
+	write
+hwm: bio rw of size 4096 headed for 0x2bdc00 (sector 0x15ee) has flags:
+	raw rw flags: 0x0001
+	write
+hwm: bio rw of size 126976 headed for 0x2bec00 (sector 0x15f6) has flags:
+	raw rw flags: 0x0001
+	write
+hwm: bio rw of size 126976 headed for 0x2ddc00 (sector 0x16ee) has flags:
+	raw rw flags: 0x0001
+	write
+hwm: bio rw of size 4096 headed for 0x2fcc00 (sector 0x17e6) has flags:
+	raw rw flags: 0x0001
+	write
+hwm: bio rw of size 126976 headed for 0x2fdc00 (sector 0x17ee) has flags:
+	raw rw flags: 0x0001
+	write
+hwm: bio rw of size 126976 headed for 0x31cc00 (sector 0x18e6) has flags:
+	raw rw flags: 0x0001
+	write
+hwm: bio rw of size 4096 headed for 0x33bc00 (sector 0x19de) has flags:
+	raw rw flags: 0x0001
+	write
+hwm: bio rw of size 126976 headed for 0x33cc00 (sector 0x19e6) has flags:
+	raw rw flags: 0x0001
+	write
+hwm: bio rw of size 126976 headed for 0x35bc00 (sector 0x1ade) has flags:
+	raw rw flags: 0x0001
+	write
+hwm: bio rw of size 4096 headed for 0x37ac00 (sector 0x1bd6) has flags:
+	raw rw flags: 0x0001
+	write
+hwm: bio rw of size 1024 headed for 0x8000400 (sector 0x40002) has flags:
+	raw rw flags: 0x0060
+	meta
+	prio
+hwm: bio rw of size 1024 headed for 0x8800400 (sector 0x44002) has flags:
+	raw rw flags: 0x0001
+	write
+hwm: bio rw of size 126976 headed for 0x37bc00 (sector 0x1bde) has flags:
+	raw rw flags: 0x0001
+	write
+hwm: bio rw of size 126976 headed for 0x39ac00 (sector 0x1cd6) has flags:
+	raw rw flags: 0x0001
+	write
+hwm: bio rw of size 4096 headed for 0x3b9c00 (sector 0x1dce) has flags:
+	raw rw flags: 0x0001
+	write
+hwm: bio rw of size 126976 headed for 0x3bac00 (sector 0x1dd6) has flags:
+	raw rw flags: 0x0001
+	write
+hwm: bio rw of size 126976 headed for 0x3d9c00 (sector 0x1ece) has flags:
+	raw rw flags: 0x0001
+	write
+hwm: bio rw of size 4096 headed for 0x3f8c00 (sector 0x1fc6) has flags:
+	raw rw flags: 0x0001
+	write
+hwm: bio rw of size 1024 headed for 0x7002400 (sector 0x38012) has flags:
+	raw rw flags: 0x0411
+	write
+	sync
+	no idle
+hwm: bio rw of size 1024 headed for 0x7002800 (sector 0x38014) has flags:
+	raw rw flags: 0x0411
+	write
+	sync
+	no idle
+hwm: bio rw of size 1024 headed for 0x7002c00 (sector 0x38016) has flags:
+	raw rw flags: 0x0411
+	write
+	sync
+	no idle
+hwm: bio rw of size 1024 headed for 0x7003000 (sector 0x38018) has flags:
+	raw rw flags: 0x0411
+	write
+	sync
+	no idle
+hwm: bio rw of size 1024 headed for 0x7003400 (sector 0x3801a) has flags:
+	raw rw flags: 0x0411
+	write
+	sync
+	no idle
+hwm: bio rw of size 126976 headed for 0x3f9c00 (sector 0x1fce) has flags:
+	raw rw flags: 0x0001
+	write
+hwm: bio rw of size 126976 headed for 0x418c00 (sector 0x20c6) has flags:
+	raw rw flags: 0x0001
+	write
+hwm: bio rw of size 4096 headed for 0x437c00 (sector 0x21be) has flags:
+	raw rw flags: 0x0001
+	write
+hwm: bio rw of size 126976 headed for 0x8008800 (sector 0x40044) has flags:
+	raw rw flags: 0x0001
+	write
+hwm: bio rw of size 130048 headed for 0x8027800 (sector 0x4013c) has flags:
+	raw rw flags: 0x0001
+	write
+hwm: bio rw of size 1024 headed for 0x400 (sector 0x2) has flags:
+	raw rw flags: 0x0001
+	write
+hwm: bio rw of size 1024 headed for 0x8000800 (sector 0x40004) has flags:
+	raw rw flags: 0x0061
+	write
+	meta
+	prio
+hwm: bio rw of size 1024 headed for 0x8004400 (sector 0x40022) has flags:
+	raw rw flags: 0x0061
+	write
+	meta
+	prio
+hwm: bio rw of size 1024 headed for 0x8008400 (sector 0x40042) has flags:
+	raw rw flags: 0x0061
+	write
+	meta
+	prio
+hwm: bio rw of size 1024 headed for 0x83f8400 (sector 0x41fc2) has flags:
+	raw rw flags: 0x0061
+	write
+	meta
+	prio
+hwm: bio rw of size 1024 headed for 0x7003800 (sector 0x3801c) has flags:
+	raw rw flags: 0x0411
+	write
+	sync
+	no idle
+hwm: bio rw of size 1024 headed for 0x7003c00 (sector 0x3801e) has flags:
+	raw rw flags: 0x0411
+	write
+	sync
+	no idle
+hwm: bio rw of size 1024 headed for 0x7004000 (sector 0x38020) has flags:
+	raw rw flags: 0x0411
+	write
+	sync
+	no idle
+hwm: bio rw of size 1024 headed for 0x800 (sector 0x4) has flags:
+	raw rw flags: 0x0471
+	write
+	sync
+	meta
+	prio
+	no idle
+hwm: bio rw of size 1024 headed for 0x7000400 (sector 0x38002) has flags:
+	raw rw flags: 0x0411
+	write
+	sync
+	no idle
+hwm: bio rw of size 1024 headed for 0x7000400 (sector 0x38002) has flags:
+	raw rw flags: 0x0411
+	write
+	sync
+	no idle
+hwm: bio rw of size 1024 headed for 0x7000400 (sector 0x38002) has flags:
+	raw rw flags: 0x0411
+	write
+	sync
+	no idle
+hwm: bio rw of size 1024 headed for 0x400 (sector 0x2) has flags:
+	raw rw flags: 0x0411
+	write
+	sync
+	no idle
+hwm: turning off data logging
+hwm: no log entry here 
+hwm: Cleaning up bye!

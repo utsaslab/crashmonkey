@@ -1,0 +1,45 @@
+probe kernel.function("blkdev_issue_flush") {
+  printf("[% .5u.%.3u] ", cpu_clock_ms(0) / 1000, cpu_clock_ms(0) % 1000);
+  printf("[blkdev_issue_flush] device number %d\n", $bdev->bd_disk->major);
+}
+
+probe kernel.function("submit_bio") {
+  if ($bio->bi_bdev->bd_disk->major == 251 ||
+      $bio->bi_bdev->bd_disk->major == 253) {
+    printf("[% .5u.%.3u] ", cpu_clock_ms(0) / 1000, cpu_clock_ms(0) % 1000);
+    printf("[submit_bio] device number %d with flags 0x%0.8lx\n",
+      $bio->bi_bdev->bd_disk->major, $rw);
+  }
+}
+
+probe module("hellow").function("hellow_bio") {
+  printf("[% .5u.%.3u] ", cpu_clock_ms(0) / 1000, cpu_clock_ms(0) % 1000);
+  printf("[hellow_bio] device number %d with flags 0x%0.8lx\n",
+      $bio->bi_bdev->bd_disk->major, $bio->bi_rw);
+}
+
+probe module("hellow").function("hellow_init") {
+  printf("[% .5u.%.3u] ", cpu_clock_ms(0) / 1000, cpu_clock_ms(0) % 1000);
+  printf("[hello_init] called\n");
+}
+
+/*
+probe kernel.function("blkdev_issue_flush") {
+  printf("in blkdev_issue_flush\n");
+  if ($bdev->bd_disk) {
+    printf("have disk\n");
+    if ($bdev->bd_disk->queue) {
+      printf("have q\n");
+      if ($bdev->bd_disk->queue->make_request_fn) {
+        printf("have request fn\n");
+      } else {
+        printf("have no request fn\n");
+      }
+    } else {
+      printf("have no q\n");
+    }
+  } else {
+    printf("have no disk\n");
+  }
+}
+*/

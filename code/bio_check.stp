@@ -1,0 +1,5 @@
+probe kernel.function("bio_endio") {
+  if ($bio->bi_bdev->bd_disk->major == 253) {
+    printf("ending io on bio %p\n", $bio);
+  }
+}

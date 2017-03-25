@@ -13,8 +13,8 @@
 #include "Tester.h"
 #include "../tests/BaseTestCase.h"
 
-#define TEST_SO_PATH "../tests/"
-#define PERMUTER_SO_PATH "../permuter/"
+#define TEST_SO_PATH "tests/"
+#define PERMUTER_SO_PATH "permuter/"
 // TODO(ashmrtn): Find a good delay time to use for tests.
 #define TEST_DIRTY_EXPIRE_TIME "500"
 #define WRITE_DELAY 10
@@ -315,7 +315,7 @@ int main(int argc, char** argv) {
 
   if (!dry_run) {
     cout << "Writing profiled data to block device and checking with fsck\n";
-    test_harness.test_check_random_permutations(1);
+    test_harness.test_check_random_permutations(3);
 
     cout << "Ran " << test_harness.test_test_stats[TESTS_TESTS_RUN] << " tests"
           << endl

@@ -33,7 +33,7 @@ class ClassLoader {
 
     loader_handle = dlopen(path, RTLD_LAZY);
     if (loader_handle == NULL) {
-      std::cerr << "Error loading test from class " << path << std::endl
+      std::cerr << "Error loading class " << path << std::endl
         << dlerror() << std::endl;
       return CASE_HANDLE_ERR;
     }

@@ -3,6 +3,10 @@
 #include <numeric>
 #include <vector>
 
+#include <iostream>
+using std::cout;
+using std::endl;
+
 #include "RandomPermuter.h"
 
 namespace fs_testing {
@@ -23,6 +27,7 @@ bool epoch_op::is_null() {
 }
 
 void RandomPermuter::init_data_vector(vector<disk_write> *data) {
+  cout << "[RandomPermuter::init_data_vector] start" << endl;
   log_length = data->size();
   unsigned int index = 0;
   while (index < data->size()) {
@@ -55,7 +60,7 @@ void RandomPermuter::init_data_vector(vector<disk_write> *data) {
     // Check is the op at the current index is a "barrier." If it is then add it
     // to the special spot in the epoch, otherwise just push the current epoch
     // onto the list and move to the next segment of the log.
-    if ((data->at(index)).is_barrier_write()) {
+    if (index < data->size() && (data->at(index)).is_barrier_write()) {
       ++current_epoch.length;
       current_epoch.barrier_op.write = data->at(index);
       current_epoch.barrier_op.nearest_sync = epoch_sync_index;
@@ -63,6 +68,7 @@ void RandomPermuter::init_data_vector(vector<disk_write> *data) {
     }
     epochs.push_back(current_epoch);
   }
+  cout << "[RandomPermuter::init_data_vector] done" << endl;
 }
 
 RandomPermuter::RandomPermuter() {
@@ -81,18 +87,26 @@ void RandomPermuter::set_data(vector<disk_write> *data) {
 }
 
 bool RandomPermuter::permute(vector<disk_write> *res) {
-  res->clear();
-  res = new vector<disk_write>(log_length);
+  cout << "[RandomPermuter::permute] starting with log of size "
+    << log_length << endl;
+  //res->clear();
+  //*res = vector<disk_write>(log_length);
   int current_index = 0;
   for (struct epoch current_epoch : epochs) {
+    cout << "[RandomPermuter::permute] permuting epoch starting at "
+      << current_index << endl;
     current_index = permute_epoch(res, current_index, current_epoch);
   }
 
+  cout << "[RandomPermuter::permute] done" << endl;
   return true;
 }
 
 int RandomPermuter::permute_epoch(vector<disk_write> *res,
     const int start_index, epoch& epoch) {
+  cout << "[RandomPermuter::permute_epoch] starting to permute epoch of size "
+    << epoch.length << " with " << epoch.async_ops.size() << " async ops and "
+    << epoch.sync_ops.size() << " sync ops" << endl;
 
   unsigned int slots = epoch.length;
 
@@ -108,6 +122,12 @@ int RandomPermuter::permute_epoch(vector<disk_write> *res,
   // [0, epoch.length - 2).
   list<unsigned int> empty_slots(slots);
   iota(empty_slots.begin(), empty_slots.end(), 0);
+  cout << "[RandomPermuter::permute_epoch] made vector of empty slots with"
+    << endl;
+  for (const auto& i : empty_slots) {
+    cout << i << " ";
+  }
+  cout << endl;
 
   // TODO(ashmrtn): Fixme.
   unsigned int current_sync_index = -1;
@@ -117,12 +137,19 @@ int RandomPermuter::permute_epoch(vector<disk_write> *res,
     // current_sync_index we need to add more sync ops so that we maintain an
     // ordering.
     while (op.nearest_sync > current_sync_index) {
-      res->at(current_index++) = epoch.sync_ops.at(++current_sync_index).write;
+      cout << "[RandomPermuter::permute_epoch] adding sync op" << endl;
+      ++current_sync_index;
+      res->at(current_index) = epoch.sync_ops.at(current_sync_index).write;
+      ++current_index;
     }
-    uniform_int_distribution<unsigned int> uid(0, empty_slots.size());
+    cout << "[RandomPermuter::permute_epoch] calculating async position "
+      << empty_slots.size() << " slots left" << endl;
+    uniform_int_distribution<unsigned int> uid(0, empty_slots.size() - 1);
     auto shift = empty_slots.begin();
     advance(shift, uid(rand));
-    res->at(current_index + *shift) = op.write;
+    cout << "[RandomPermuter::permute_epoch] placing async op at "
+      << start_index + *shift << endl;
+    res->at(start_index + *shift) = op.write;
     ++current_index;
     empty_slots.erase(shift);
   }
@@ -131,11 +158,19 @@ int RandomPermuter::permute_epoch(vector<disk_write> *res,
   // Increment current_sync_index by one because until now it has been tracking
   // the last sync_op we HAVE placed. Now we want to place any remaining
   // sync_ops which would be sync_ops we HAVEN'T YET placed.
+  cout << "[RandomPermuter::permute_epoch] placing remaining sync ops" << endl;
   ++current_sync_index;
-  while (current_sync_index < epoch.sync_ops.size()) {
-    res->at(current_index++) = epoch.sync_ops.at(++current_sync_index).write;
+  while (!empty_slots.empty()) {
+    cout << "[RandomPermuter::permute_epoch] placing sync op at slot "
+      << current_sync_index << " in slot "
+      << start_index + empty_slots.front() << endl;
+    res->at(start_index + empty_slots.front()) =
+      epoch.sync_ops.at(current_sync_index).write;
+    empty_slots.pop_front();
+    ++current_sync_index;
   }
 
+  cout << "[RandomPermuter::permute_epoch] done" << endl;
   return start_index + epoch.length;
 }
 

@@ -1,0 +1,812 @@
+hwm: Hello World from module
+hwm: Wrapping device /dev/vdb1
+ hwm: hwm1
+hwm: initialized
+EXT4-fs (hwm1): barriers disabled
+EXT4-fs (hwm1): mounted filesystem with ordered data mode. Opts: nobarrier
+hwm: clearing data logs
+hwm: turning on data logging
+hwm: bio rw of size 4096 headed for 0x2261000 (sector 0x11308) has flags:
+	raw rw flags: 0x0060
+	meta
+	prio
+hwm: bio rw of size 4096 headed for 0x80120000 (sector 0x400900) has flags:
+	raw rw flags: 0x0060
+	meta
+	prio
+hwm: bio rw of size 4096 headed for 0x82120000 (sector 0x410900) has flags:
+	raw rw flags: 0x0060
+	meta
+	prio
+hwm: bio rw of size 4096 headed for 0x80110000 (sector 0x400880) has flags:
+	raw rw flags: 0x0060
+	meta
+	prio
+hwm: bio rw of size 126976 headed for 0x661000 (sector 0x3308) has flags:
+	raw rw flags: 0x0001
+	write
+hwm: bio rw of size 126976 headed for 0x680000 (sector 0x3400) has flags:
+	raw rw flags: 0x0001
+	write
+hwm: bio rw of size 126976 headed for 0x69f000 (sector 0x34f8) has flags:
+	raw rw flags: 0x0001
+	write
+hwm: bio rw of size 126976 headed for 0x6be000 (sector 0x35f0) has flags:
+	raw rw flags: 0x0001
+	write
+hwm: bio rw of size 126976 headed for 0x6dd000 (sector 0x36e8) has flags:
+	raw rw flags: 0x0001
+	write
+hwm: bio rw of size 126976 headed for 0x6fc000 (sector 0x37e0) has flags:
+	raw rw flags: 0x0001
+	write
+hwm: bio rw of size 126976 headed for 0x71b000 (sector 0x38d8) has flags:
+	raw rw flags: 0x0001
+	write
+hwm: bio rw of size 126976 headed for 0x73a000 (sector 0x39d0) has flags:
+	raw rw flags: 0x0001
+	write
+hwm: bio rw of size 126976 headed for 0x759000 (sector 0x3ac8) has flags:
+	raw rw flags: 0x0001
+	write
+hwm: bio rw of size 126976 headed for 0x778000 (sector 0x3bc0) has flags:
+	raw rw flags: 0x0001
+	write
+hwm: bio rw of size 126976 headed for 0x797000 (sector 0x3cb8) has flags:
+	raw rw flags: 0x0001
+	write
+hwm: bio rw of size 126976 headed for 0x7b6000 (sector 0x3db0) has flags:
+	raw rw flags: 0x0001
+	write
+hwm: bio rw of size 126976 headed for 0x7d5000 (sector 0x3ea8) has flags:
+	raw rw flags: 0x0001
+	write
+hwm: bio rw of size 126976 headed for 0x7f4000 (sector 0x3fa0) has flags:
+	raw rw flags: 0x0001
+	write
+hwm: bio rw of size 126976 headed for 0x813000 (sector 0x4098) has flags:
+	raw rw flags: 0x0001
+	write
+hwm: bio rw of size 126976 headed for 0x832000 (sector 0x4190) has flags:
+	raw rw flags: 0x0001
+	write
+hwm: bio rw of size 65536 headed for 0x851000 (sector 0x4288) has flags:
+	raw rw flags: 0x0001
+	write
+hwm: bio rw of size 126976 headed for 0x861000 (sector 0x4308) has flags:
+	raw rw flags: 0x0001
+	write
+hwm: bio rw of size 126976 headed for 0x880000 (sector 0x4400) has flags:
+	raw rw flags: 0x0001
+	write
+hwm: bio rw of size 126976 headed for 0x89f000 (sector 0x44f8) has flags:
+	raw rw flags: 0x0001
+	write
+hwm: bio rw of size 126976 headed for 0x8be000 (sector 0x45f0) has flags:
+	raw rw flags: 0x0001
+	write
+hwm: bio rw of size 126976 headed for 0x8dd000 (sector 0x46e8) has flags:
+	raw rw flags: 0x0001
+	write
+hwm: bio rw of size 126976 headed for 0x8fc000 (sector 0x47e0) has flags:
+	raw rw flags: 0x0001
+	write
+hwm: bio rw of size 126976 headed for 0x91b000 (sector 0x48d8) has flags:
+	raw rw flags: 0x0001
+	write
+hwm: bio rw of size 126976 headed for 0x93a000 (sector 0x49d0) has flags:
+	raw rw flags: 0x0001
+	write
+hwm: bio rw of size 126976 headed for 0x959000 (sector 0x4ac8) has flags:
+	raw rw flags: 0x0001
+	write
+hwm: bio rw of size 126976 headed for 0x978000 (sector 0x4bc0) has flags:
+	raw rw flags: 0x0001
+	write
+hwm: bio rw of size 126976 headed for 0x997000 (sector 0x4cb8) has flags:
+	raw rw flags: 0x0001
+	write
+hwm: bio rw of size 126976 headed for 0x9b6000 (sector 0x4db0) has flags:
+	raw rw flags: 0x0001
+	write
+hwm: bio rw of size 126976 headed for 0x9d5000 (sector 0x4ea8) has flags:
+	raw rw flags: 0x0001
+	write
+hwm: bio rw of size 126976 headed for 0x9f4000 (sector 0x4fa0) has flags:
+	raw rw flags: 0x0001
+	write
+hwm: bio rw of size 126976 headed for 0xa13000 (sector 0x5098) has flags:
+	raw rw flags: 0x0001
+	write
+hwm: bio rw of size 126976 headed for 0xa32000 (sector 0x5190) has flags:
+	raw rw flags: 0x0001
+	write
+hwm: bio rw of size 65536 headed for 0xa51000 (sector 0x5288) has flags:
+	raw rw flags: 0x0001
+	write
+hwm: bio rw of size 126976 headed for 0xa61000 (sector 0x5308) has flags:
+	raw rw flags: 0x0001
+	write
+hwm: bio rw of size 126976 headed for 0xa80000 (sector 0x5400) has flags:
+	raw rw flags: 0x0001
+	write
+hwm: bio rw of size 126976 headed for 0xa9f000 (sector 0x54f8) has flags:
+	raw rw flags: 0x0001
+	write
+hwm: bio rw of size 126976 headed for 0xabe000 (sector 0x55f0) has flags:
+	raw rw flags: 0x0001
+	write
+hwm: bio rw of size 126976 headed for 0xadd000 (sector 0x56e8) has flags:
+	raw rw flags: 0x0001
+	write
+hwm: bio rw of size 126976 headed for 0xafc000 (sector 0x57e0) has flags:
+	raw rw flags: 0x0001
+	write
+hwm: bio rw of size 126976 headed for 0xb1b000 (sector 0x58d8) has flags:
+	raw rw flags: 0x0001
+	write
+hwm: bio rw of size 126976 headed for 0xb3a000 (sector 0x59d0) has flags:
+	raw rw flags: 0x0001
+	write
+hwm: bio rw of size 126976 headed for 0xb59000 (sector 0x5ac8) has flags:
+	raw rw flags: 0x0001
+	write
+hwm: bio rw of size 126976 headed for 0xb78000 (sector 0x5bc0) has flags:
+	raw rw flags: 0x0001
+	write
+hwm: bio rw of size 126976 headed for 0xb97000 (sector 0x5cb8) has flags:
+	raw rw flags: 0x0001
+	write
+hwm: bio rw of size 126976 headed for 0xbb6000 (sector 0x5db0) has flags:
+	raw rw flags: 0x0001
+	write
+hwm: bio rw of size 126976 headed for 0xbd5000 (sector 0x5ea8) has flags:
+	raw rw flags: 0x0001
+	write
+hwm: bio rw of size 126976 headed for 0xbf4000 (sector 0x5fa0) has flags:
+	raw rw flags: 0x0001
+	write
+hwm: bio rw of size 126976 headed for 0xc13000 (sector 0x6098) has flags:
+	raw rw flags: 0x0001
+	write
+hwm: bio rw of size 126976 headed for 0xc32000 (sector 0x6190) has flags:
+	raw rw flags: 0x0001
+	write
+hwm: bio rw of size 65536 headed for 0xc51000 (sector 0x6288) has flags:
+	raw rw flags: 0x0001
+	write
+hwm: bio rw of size 126976 headed for 0xc61000 (sector 0x6308) has flags:
+	raw rw flags: 0x0001
+	write
+hwm: bio rw of size 126976 headed for 0xc80000 (sector 0x6400) has flags:
+	raw rw flags: 0x0001
+	write
+hwm: bio rw of size 126976 headed for 0xc9f000 (sector 0x64f8) has flags:
+	raw rw flags: 0x0001
+	write
+hwm: bio rw of size 126976 headed for 0xcbe000 (sector 0x65f0) has flags:
+	raw rw flags: 0x0001
+	write
+hwm: bio rw of size 126976 headed for 0xcdd000 (sector 0x66e8) has flags:
+	raw rw flags: 0x0001
+	write
+hwm: bio rw of size 126976 headed for 0xcfc000 (sector 0x67e0) has flags:
+	raw rw flags: 0x0001
+	write
+hwm: bio rw of size 126976 headed for 0xd1b000 (sector 0x68d8) has flags:
+	raw rw flags: 0x0001
+	write
+hwm: bio rw of size 126976 headed for 0xd3a000 (sector 0x69d0) has flags:
+	raw rw flags: 0x0001
+	write
+hwm: bio rw of size 126976 headed for 0xd59000 (sector 0x6ac8) has flags:
+	raw rw flags: 0x0001
+	write
+hwm: bio rw of size 126976 headed for 0xd78000 (sector 0x6bc0) has flags:
+	raw rw flags: 0x0001
+	write
+hwm: bio rw of size 126976 headed for 0xd97000 (sector 0x6cb8) has flags:
+	raw rw flags: 0x0001
+	write
+hwm: bio rw of size 126976 headed for 0xdb6000 (sector 0x6db0) has flags:
+	raw rw flags: 0x0001
+	write
+hwm: bio rw of size 126976 headed for 0xdd5000 (sector 0x6ea8) has flags:
+	raw rw flags: 0x0001
+	write
+hwm: bio rw of size 126976 headed for 0xdf4000 (sector 0x6fa0) has flags:
+	raw rw flags: 0x0001
+	write
+hwm: bio rw of size 126976 headed for 0xe13000 (sector 0x7098) has flags:
+	raw rw flags: 0x0001
+	write
+hwm: bio rw of size 126976 headed for 0xe32000 (sector 0x7190) has flags:
+	raw rw flags: 0x0001
+	write
+hwm: bio rw of size 65536 headed for 0xe51000 (sector 0x7288) has flags:
+	raw rw flags: 0x0001
+	write
+hwm: bio rw of size 126976 headed for 0xe61000 (sector 0x7308) has flags:
+	raw rw flags: 0x0001
+	write
+hwm: bio rw of size 126976 headed for 0xe80000 (sector 0x7400) has flags:
+	raw rw flags: 0x0001
+	write
+hwm: bio rw of size 126976 headed for 0xe9f000 (sector 0x74f8) has flags:
+	raw rw flags: 0x0001
+	write
+hwm: bio rw of size 126976 headed for 0xebe000 (sector 0x75f0) has flags:
+	raw rw flags: 0x0001
+	write
+hwm: bio rw of size 126976 headed for 0xedd000 (sector 0x76e8) has flags:
+	raw rw flags: 0x0001
+	write
+hwm: bio rw of size 126976 headed for 0xefc000 (sector 0x77e0) has flags:
+	raw rw flags: 0x0001
+	write
+hwm: bio rw of size 126976 headed for 0xf1b000 (sector 0x78d8) has flags:
+	raw rw flags: 0x0001
+	write
+hwm: bio rw of size 126976 headed for 0xf3a000 (sector 0x79d0) has flags:
+	raw rw flags: 0x0001
+	write
+hwm: bio rw of size 126976 headed for 0xf59000 (sector 0x7ac8) has flags:
+	raw rw flags: 0x0001
+	write
+hwm: bio rw of size 126976 headed for 0xf78000 (sector 0x7bc0) has flags:
+	raw rw flags: 0x0001
+	write
+hwm: bio rw of size 126976 headed for 0xf97000 (sector 0x7cb8) has flags:
+	raw rw flags: 0x0001
+	write
+hwm: bio rw of size 126976 headed for 0xfb6000 (sector 0x7db0) has flags:
+	raw rw flags: 0x0001
+	write
+hwm: bio rw of size 126976 headed for 0xfd5000 (sector 0x7ea8) has flags:
+	raw rw flags: 0x0001
+	write
+hwm: bio rw of size 126976 headed for 0xff4000 (sector 0x7fa0) has flags:
+	raw rw flags: 0x0001
+	write
+hwm: bio rw of size 126976 headed for 0x1013000 (sector 0x8098) has flags:
+	raw rw flags: 0x0001
+	write
+hwm: bio rw of size 126976 headed for 0x1032000 (sector 0x8190) has flags:
+	raw rw flags: 0x0001
+	write
+hwm: bio rw of size 65536 headed for 0x1051000 (sector 0x8288) has flags:
+	raw rw flags: 0x0001
+	write
+hwm: bio rw of size 126976 headed for 0x1061000 (sector 0x8308) has flags:
+	raw rw flags: 0x0001
+	write
+hwm: bio rw of size 126976 headed for 0x1080000 (sector 0x8400) has flags:
+	raw rw flags: 0x0001
+	write
+hwm: bio rw of size 126976 headed for 0x109f000 (sector 0x84f8) has flags:
+	raw rw flags: 0x0001
+	write
+hwm: bio rw of size 126976 headed for 0x10be000 (sector 0x85f0) has flags:
+	raw rw flags: 0x0001
+	write
+hwm: bio rw of size 126976 headed for 0x10dd000 (sector 0x86e8) has flags:
+	raw rw flags: 0x0001
+	write
+hwm: bio rw of size 126976 headed for 0x10fc000 (sector 0x87e0) has flags:
+	raw rw flags: 0x0001
+	write
+hwm: bio rw of size 126976 headed for 0x111b000 (sector 0x88d8) has flags:
+	raw rw flags: 0x0001
+	write
+hwm: bio rw of size 126976 headed for 0x113a000 (sector 0x89d0) has flags:
+	raw rw flags: 0x0001
+	write
+hwm: bio rw of size 126976 headed for 0x1159000 (sector 0x8ac8) has flags:
+	raw rw flags: 0x0001
+	write
+hwm: bio rw of size 126976 headed for 0x1178000 (sector 0x8bc0) has flags:
+	raw rw flags: 0x0001
+	write
+hwm: bio rw of size 126976 headed for 0x1197000 (sector 0x8cb8) has flags:
+	raw rw flags: 0x0001
+	write
+hwm: bio rw of size 126976 headed for 0x11b6000 (sector 0x8db0) has flags:
+	raw rw flags: 0x0001
+	write
+hwm: bio rw of size 126976 headed for 0x11d5000 (sector 0x8ea8) has flags:
+	raw rw flags: 0x0001
+	write
+hwm: bio rw of size 126976 headed for 0x11f4000 (sector 0x8fa0) has flags:
+	raw rw flags: 0x0001
+	write
+hwm: bio rw of size 126976 headed for 0x1213000 (sector 0x9098) has flags:
+	raw rw flags: 0x0001
+	write
+hwm: bio rw of size 126976 headed for 0x1232000 (sector 0x9190) has flags:
+	raw rw flags: 0x0001
+	write
+hwm: bio rw of size 65536 headed for 0x1251000 (sector 0x9288) has flags:
+	raw rw flags: 0x0001
+	write
+hwm: bio rw of size 4096 headed for 0x88100000 (sector 0x440800) has flags:
+	raw rw flags: 0x0411
+	write
+	sync
+	no idle
+hwm: bio rw of size 4096 headed for 0x88101000 (sector 0x440808) has flags:
+	raw rw flags: 0x0411
+	write
+	sync
+	no idle
+hwm: bio rw of size 4096 headed for 0x88102000 (sector 0x440810) has flags:
+	raw rw flags: 0x0411
+	write
+	sync
+	no idle
+hwm: bio rw of size 4096 headed for 0x88103000 (sector 0x440818) has flags:
+	raw rw flags: 0x0411
+	write
+	sync
+	no idle
+hwm: bio rw of size 4096 headed for 0x88104000 (sector 0x440820) has flags:
+	raw rw flags: 0x0411
+	write
+	sync
+	no idle
+hwm: bio rw of size 4096 headed for 0x88105000 (sector 0x440828) has flags:
+	raw rw flags: 0x0411
+	write
+	sync
+	no idle
+hwm: bio rw of size 4096 headed for 0x88106000 (sector 0x440830) has flags:
+	raw rw flags: 0x0411
+	write
+	sync
+	no idle
+hwm: bio rw of size 4096 headed for 0x88107000 (sector 0x440838) has flags:
+	raw rw flags: 0x0411
+	write
+	sync
+	no idle
+hwm: bio rw of size 126976 headed for 0x1261000 (sector 0x9308) has flags:
+	raw rw flags: 0x0001
+	write
+hwm: bio rw of size 126976 headed for 0x1280000 (sector 0x9400) has flags:
+	raw rw flags: 0x0001
+	write
+hwm: bio rw of size 126976 headed for 0x129f000 (sector 0x94f8) has flags:
+	raw rw flags: 0x0001
+	write
+hwm: bio rw of size 126976 headed for 0x12be000 (sector 0x95f0) has flags:
+	raw rw flags: 0x0001
+	write
+hwm: bio rw of size 126976 headed for 0x12dd000 (sector 0x96e8) has flags:
+	raw rw flags: 0x0001
+	write
+hwm: bio rw of size 126976 headed for 0x12fc000 (sector 0x97e0) has flags:
+	raw rw flags: 0x0001
+	write
+hwm: bio rw of size 126976 headed for 0x131b000 (sector 0x98d8) has flags:
+	raw rw flags: 0x0001
+	write
+hwm: bio rw of size 126976 headed for 0x133a000 (sector 0x99d0) has flags:
+	raw rw flags: 0x0001
+	write
+hwm: bio rw of size 126976 headed for 0x1359000 (sector 0x9ac8) has flags:
+	raw rw flags: 0x0001
+	write
+hwm: bio rw of size 126976 headed for 0x1378000 (sector 0x9bc0) has flags:
+	raw rw flags: 0x0001
+	write
+hwm: bio rw of size 126976 headed for 0x1397000 (sector 0x9cb8) has flags:
+	raw rw flags: 0x0001
+	write
+hwm: bio rw of size 126976 headed for 0x13b6000 (sector 0x9db0) has flags:
+	raw rw flags: 0x0001
+	write
+hwm: bio rw of size 126976 headed for 0x13d5000 (sector 0x9ea8) has flags:
+	raw rw flags: 0x0001
+	write
+hwm: bio rw of size 126976 headed for 0x13f4000 (sector 0x9fa0) has flags:
+	raw rw flags: 0x0001
+	write
+hwm: bio rw of size 126976 headed for 0x1413000 (sector 0xa098) has flags:
+	raw rw flags: 0x0001
+	write
+hwm: bio rw of size 126976 headed for 0x1432000 (sector 0xa190) has flags:
+	raw rw flags: 0x0001
+	write
+hwm: bio rw of size 65536 headed for 0x1451000 (sector 0xa288) has flags:
+	raw rw flags: 0x0001
+	write
+hwm: bio rw of size 126976 headed for 0x1461000 (sector 0xa308) has flags:
+	raw rw flags: 0x0001
+	write
+hwm: bio rw of size 126976 headed for 0x1480000 (sector 0xa400) has flags:
+	raw rw flags: 0x0001
+	write
+hwm: bio rw of size 126976 headed for 0x149f000 (sector 0xa4f8) has flags:
+	raw rw flags: 0x0001
+	write
+hwm: bio rw of size 126976 headed for 0x14be000 (sector 0xa5f0) has flags:
+	raw rw flags: 0x0001
+	write
+hwm: bio rw of size 126976 headed for 0x14dd000 (sector 0xa6e8) has flags:
+	raw rw flags: 0x0001
+	write
+hwm: bio rw of size 126976 headed for 0x14fc000 (sector 0xa7e0) has flags:
+	raw rw flags: 0x0001
+	write
+hwm: bio rw of size 126976 headed for 0x151b000 (sector 0xa8d8) has flags:
+	raw rw flags: 0x0001
+	write
+hwm: bio rw of size 126976 headed for 0x153a000 (sector 0xa9d0) has flags:
+	raw rw flags: 0x0001
+	write
+hwm: bio rw of size 126976 headed for 0x1559000 (sector 0xaac8) has flags:
+	raw rw flags: 0x0001
+	write
+hwm: bio rw of size 126976 headed for 0x1578000 (sector 0xabc0) has flags:
+	raw rw flags: 0x0001
+	write
+hwm: bio rw of size 126976 headed for 0x1597000 (sector 0xacb8) has flags:
+	raw rw flags: 0x0001
+	write
+hwm: bio rw of size 126976 headed for 0x15b6000 (sector 0xadb0) has flags:
+	raw rw flags: 0x0001
+	write
+hwm: bio rw of size 126976 headed for 0x15d5000 (sector 0xaea8) has flags:
+	raw rw flags: 0x0001
+	write
+hwm: bio rw of size 126976 headed for 0x15f4000 (sector 0xafa0) has flags:
+	raw rw flags: 0x0001
+	write
+hwm: bio rw of size 126976 headed for 0x1613000 (sector 0xb098) has flags:
+	raw rw flags: 0x0001
+	write
+hwm: bio rw of size 126976 headed for 0x1632000 (sector 0xb190) has flags:
+	raw rw flags: 0x0001
+	write
+hwm: bio rw of size 65536 headed for 0x1651000 (sector 0xb288) has flags:
+	raw rw flags: 0x0001
+	write
+hwm: bio rw of size 126976 headed for 0x1661000 (sector 0xb308) has flags:
+	raw rw flags: 0x0001
+	write
+hwm: bio rw of size 126976 headed for 0x1680000 (sector 0xb400) has flags:
+	raw rw flags: 0x0001
+	write
+hwm: bio rw of size 126976 headed for 0x169f000 (sector 0xb4f8) has flags:
+	raw rw flags: 0x0001
+	write
+hwm: bio rw of size 126976 headed for 0x16be000 (sector 0xb5f0) has flags:
+	raw rw flags: 0x0001
+	write
+hwm: bio rw of size 126976 headed for 0x16dd000 (sector 0xb6e8) has flags:
+	raw rw flags: 0x0001
+	write
+hwm: bio rw of size 126976 headed for 0x16fc000 (sector 0xb7e0) has flags:
+	raw rw flags: 0x0001
+	write
+hwm: bio rw of size 126976 headed for 0x171b000 (sector 0xb8d8) has flags:
+	raw rw flags: 0x0001
+	write
+hwm: bio rw of size 126976 headed for 0x173a000 (sector 0xb9d0) has flags:
+	raw rw flags: 0x0001
+	write
+hwm: bio rw of size 126976 headed for 0x1759000 (sector 0xbac8) has flags:
+	raw rw flags: 0x0001
+	write
+hwm: bio rw of size 126976 headed for 0x1778000 (sector 0xbbc0) has flags:
+	raw rw flags: 0x0001
+	write
+hwm: bio rw of size 126976 headed for 0x1797000 (sector 0xbcb8) has flags:
+	raw rw flags: 0x0001
+	write
+hwm: bio rw of size 126976 headed for 0x17b6000 (sector 0xbdb0) has flags:
+	raw rw flags: 0x0001
+	write
+hwm: bio rw of size 126976 headed for 0x17d5000 (sector 0xbea8) has flags:
+	raw rw flags: 0x0001
+	write
+hwm: bio rw of size 126976 headed for 0x17f4000 (sector 0xbfa0) has flags:
+	raw rw flags: 0x0001
+	write
+hwm: bio rw of size 126976 headed for 0x1813000 (sector 0xc098) has flags:
+	raw rw flags: 0x0001
+	write
+hwm: bio rw of size 126976 headed for 0x1832000 (sector 0xc190) has flags:
+	raw rw flags: 0x0001
+	write
+hwm: bio rw of size 65536 headed for 0x1851000 (sector 0xc288) has flags:
+	raw rw flags: 0x0001
+	write
+hwm: bio rw of size 4096 headed for 0x90100000 (sector 0x480800) has flags:
+	raw rw flags: 0x0001
+	write
+hwm: bio rw of size 126976 headed for 0x1861000 (sector 0xc308) has flags:
+	raw rw flags: 0x0001
+	write
+hwm: bio rw of size 126976 headed for 0x1880000 (sector 0xc400) has flags:
+	raw rw flags: 0x0001
+	write
+hwm: bio rw of size 126976 headed for 0x189f000 (sector 0xc4f8) has flags:
+	raw rw flags: 0x0001
+	write
+hwm: bio rw of size 126976 headed for 0x18be000 (sector 0xc5f0) has flags:
+	raw rw flags: 0x0001
+	write
+hwm: bio rw of size 126976 headed for 0x18dd000 (sector 0xc6e8) has flags:
+	raw rw flags: 0x0001
+	write
+hwm: bio rw of size 126976 headed for 0x18fc000 (sector 0xc7e0) has flags:
+	raw rw flags: 0x0001
+	write
+hwm: bio rw of size 126976 headed for 0x191b000 (sector 0xc8d8) has flags:
+	raw rw flags: 0x0001
+	write
+hwm: bio rw of size 126976 headed for 0x193a000 (sector 0xc9d0) has flags:
+	raw rw flags: 0x0001
+	write
+hwm: bio rw of size 126976 headed for 0x1959000 (sector 0xcac8) has flags:
+	raw rw flags: 0x0001
+	write
+hwm: bio rw of size 126976 headed for 0x1978000 (sector 0xcbc0) has flags:
+	raw rw flags: 0x0001
+	write
+hwm: bio rw of size 126976 headed for 0x1997000 (sector 0xccb8) has flags:
+	raw rw flags: 0x0001
+	write
+hwm: bio rw of size 126976 headed for 0x19b6000 (sector 0xcdb0) has flags:
+	raw rw flags: 0x0001
+	write
+hwm: bio rw of size 126976 headed for 0x19d5000 (sector 0xcea8) has flags:
+	raw rw flags: 0x0001
+	write
+hwm: bio rw of size 126976 headed for 0x19f4000 (sector 0xcfa0) has flags:
+	raw rw flags: 0x0001
+	write
+hwm: bio rw of size 126976 headed for 0x1a13000 (sector 0xd098) has flags:
+	raw rw flags: 0x0001
+	write
+hwm: bio rw of size 126976 headed for 0x1a32000 (sector 0xd190) has flags:
+	raw rw flags: 0x0001
+	write
+hwm: bio rw of size 65536 headed for 0x1a51000 (sector 0xd288) has flags:
+	raw rw flags: 0x0001
+	write
+hwm: bio rw of size 126976 headed for 0x1a61000 (sector 0xd308) has flags:
+	raw rw flags: 0x0001
+	write
+hwm: bio rw of size 126976 headed for 0x1a80000 (sector 0xd400) has flags:
+	raw rw flags: 0x0001
+	write
+hwm: bio rw of size 126976 headed for 0x1a9f000 (sector 0xd4f8) has flags:
+	raw rw flags: 0x0001
+	write
+hwm: bio rw of size 126976 headed for 0x1abe000 (sector 0xd5f0) has flags:
+	raw rw flags: 0x0001
+	write
+hwm: bio rw of size 126976 headed for 0x1add000 (sector 0xd6e8) has flags:
+	raw rw flags: 0x0001
+	write
+hwm: bio rw of size 126976 headed for 0x1afc000 (sector 0xd7e0) has flags:
+	raw rw flags: 0x0001
+	write
+hwm: bio rw of size 126976 headed for 0x1b1b000 (sector 0xd8d8) has flags:
+	raw rw flags: 0x0001
+	write
+hwm: bio rw of size 126976 headed for 0x1b3a000 (sector 0xd9d0) has flags:
+	raw rw flags: 0x0001
+	write
+hwm: bio rw of size 126976 headed for 0x1b59000 (sector 0xdac8) has flags:
+	raw rw flags: 0x0001
+	write
+hwm: bio rw of size 126976 headed for 0x1b78000 (sector 0xdbc0) has flags:
+	raw rw flags: 0x0001
+	write
+hwm: bio rw of size 126976 headed for 0x1b97000 (sector 0xdcb8) has flags:
+	raw rw flags: 0x0001
+	write
+hwm: bio rw of size 126976 headed for 0x1bb6000 (sector 0xddb0) has flags:
+	raw rw flags: 0x0001
+	write
+hwm: bio rw of size 126976 headed for 0x1bd5000 (sector 0xdea8) has flags:
+	raw rw flags: 0x0001
+	write
+hwm: bio rw of size 126976 headed for 0x1bf4000 (sector 0xdfa0) has flags:
+	raw rw flags: 0x0001
+	write
+hwm: bio rw of size 126976 headed for 0x1c13000 (sector 0xe098) has flags:
+	raw rw flags: 0x0001
+	write
+hwm: bio rw of size 126976 headed for 0x1c32000 (sector 0xe190) has flags:
+	raw rw flags: 0x0001
+	write
+hwm: bio rw of size 65536 headed for 0x1c51000 (sector 0xe288) has flags:
+	raw rw flags: 0x0001
+	write
+hwm: bio rw of size 126976 headed for 0x1c61000 (sector 0xe308) has flags:
+	raw rw flags: 0x0001
+	write
+hwm: bio rw of size 126976 headed for 0x1c80000 (sector 0xe400) has flags:
+	raw rw flags: 0x0001
+	write
+hwm: bio rw of size 126976 headed for 0x1c9f000 (sector 0xe4f8) has flags:
+	raw rw flags: 0x0001
+	write
+hwm: bio rw of size 126976 headed for 0x1cbe000 (sector 0xe5f0) has flags:
+	raw rw flags: 0x0001
+	write
+hwm: bio rw of size 126976 headed for 0x1cdd000 (sector 0xe6e8) has flags:
+	raw rw flags: 0x0001
+	write
+hwm: bio rw of size 126976 headed for 0x1cfc000 (sector 0xe7e0) has flags:
+	raw rw flags: 0x0001
+	write
+hwm: bio rw of size 126976 headed for 0x1d1b000 (sector 0xe8d8) has flags:
+	raw rw flags: 0x0001
+	write
+hwm: bio rw of size 126976 headed for 0x1d3a000 (sector 0xe9d0) has flags:
+	raw rw flags: 0x0001
+	write
+hwm: bio rw of size 126976 headed for 0x1d59000 (sector 0xeac8) has flags:
+	raw rw flags: 0x0001
+	write
+hwm: bio rw of size 126976 headed for 0x1d78000 (sector 0xebc0) has flags:
+	raw rw flags: 0x0001
+	write
+hwm: bio rw of size 126976 headed for 0x1d97000 (sector 0xecb8) has flags:
+	raw rw flags: 0x0001
+	write
+hwm: bio rw of size 126976 headed for 0x1db6000 (sector 0xedb0) has flags:
+	raw rw flags: 0x0001
+	write
+hwm: bio rw of size 126976 headed for 0x1dd5000 (sector 0xeea8) has flags:
+	raw rw flags: 0x0001
+	write
+hwm: bio rw of size 126976 headed for 0x1df4000 (sector 0xefa0) has flags:
+	raw rw flags: 0x0001
+	write
+hwm: bio rw of size 126976 headed for 0x1e13000 (sector 0xf098) has flags:
+	raw rw flags: 0x0001
+	write
+hwm: bio rw of size 126976 headed for 0x1e32000 (sector 0xf190) has flags:
+	raw rw flags: 0x0001
+	write
+hwm: bio rw of size 65536 headed for 0x1e51000 (sector 0xf288) has flags:
+	raw rw flags: 0x0001
+	write
+hwm: bio rw of size 126976 headed for 0x1e61000 (sector 0xf308) has flags:
+	raw rw flags: 0x0001
+	write
+hwm: bio rw of size 126976 headed for 0x1e80000 (sector 0xf400) has flags:
+	raw rw flags: 0x0001
+	write
+hwm: bio rw of size 126976 headed for 0x1e9f000 (sector 0xf4f8) has flags:
+	raw rw flags: 0x0001
+	write
+hwm: bio rw of size 126976 headed for 0x1ebe000 (sector 0xf5f0) has flags:
+	raw rw flags: 0x0001
+	write
+hwm: bio rw of size 126976 headed for 0x1edd000 (sector 0xf6e8) has flags:
+	raw rw flags: 0x0001
+	write
+hwm: bio rw of size 126976 headed for 0x1efc000 (sector 0xf7e0) has flags:
+	raw rw flags: 0x0001
+	write
+hwm: bio rw of size 126976 headed for 0x1f1b000 (sector 0xf8d8) has flags:
+	raw rw flags: 0x0001
+	write
+hwm: bio rw of size 126976 headed for 0x1f3a000 (sector 0xf9d0) has flags:
+	raw rw flags: 0x0001
+	write
+hwm: bio rw of size 126976 headed for 0x1f59000 (sector 0xfac8) has flags:
+	raw rw flags: 0x0001
+	write
+hwm: bio rw of size 126976 headed for 0x1f78000 (sector 0xfbc0) has flags:
+	raw rw flags: 0x0001
+	write
+hwm: bio rw of size 126976 headed for 0x1f97000 (sector 0xfcb8) has flags:
+	raw rw flags: 0x0001
+	write
+hwm: bio rw of size 126976 headed for 0x1fb6000 (sector 0xfdb0) has flags:
+	raw rw flags: 0x0001
+	write
+hwm: bio rw of size 126976 headed for 0x1fd5000 (sector 0xfea8) has flags:
+	raw rw flags: 0x0001
+	write
+hwm: bio rw of size 126976 headed for 0x1ff4000 (sector 0xffa0) has flags:
+	raw rw flags: 0x0001
+	write
+hwm: bio rw of size 126976 headed for 0x2013000 (sector 0x10098) has flags:
+	raw rw flags: 0x0001
+	write
+hwm: bio rw of size 126976 headed for 0x2032000 (sector 0x10190) has flags:
+	raw rw flags: 0x0001
+	write
+hwm: bio rw of size 65536 headed for 0x2051000 (sector 0x10288) has flags:
+	raw rw flags: 0x0001
+	write
+hwm: bio rw of size 4096 headed for 0x100000 (sector 0x800) has flags:
+	raw rw flags: 0x0001
+	write
+hwm: bio rw of size 4096 headed for 0x80110000 (sector 0x400880) has flags:
+	raw rw flags: 0x0061
+	write
+	meta
+	prio
+hwm: bio rw of size 4096 headed for 0x82120000 (sector 0x410900) has flags:
+	raw rw flags: 0x0061
+	write
+	meta
+	prio
+hwm: bio rw of size 4096 headed for 0x88108000 (sector 0x440840) has flags:
+	raw rw flags: 0x0411
+	write
+	sync
+	no idle
+hwm: bio rw of size 4096 headed for 0x88109000 (sector 0x440848) has flags:
+	raw rw flags: 0x0411
+	write
+	sync
+	no idle
+hwm: bio rw of size 4096 headed for 0x8810a000 (sector 0x440850) has flags:
+	raw rw flags: 0x0411
+	write
+	sync
+	no idle
+hwm: bio rw of size 4096 headed for 0x8810b000 (sector 0x440858) has flags:
+	raw rw flags: 0x0411
+	write
+	sync
+	no idle
+hwm: bio rw of size 4096 headed for 0x8810c000 (sector 0x440860) has flags:
+	raw rw flags: 0x0411
+	write
+	sync
+	no idle
+hwm: bio rw of size 4096 headed for 0x101000 (sector 0x808) has flags:
+	raw rw flags: 0x0471
+	write
+	sync
+	meta
+	prio
+	no idle
+hwm: bio rw of size 4096 headed for 0x80102000 (sector 0x400810) has flags:
+	raw rw flags: 0x0471
+	write
+	sync
+	meta
+	prio
+	no idle
+hwm: bio rw of size 4096 headed for 0x80120000 (sector 0x400900) has flags:
+	raw rw flags: 0x0471
+	write
+	sync
+	meta
+	prio
+	no idle
+hwm: bio rw of size 4096 headed for 0x88100000 (sector 0x440800) has flags:
+	raw rw flags: 0x0411
+	write
+	sync
+	no idle
+hwm: bio rw of size 4096 headed for 0x88100000 (sector 0x440800) has flags:
+	raw rw flags: 0x0411
+	write
+	sync
+	no idle
+hwm: bio rw of size 4096 headed for 0x88100000 (sector 0x440800) has flags:
+	raw rw flags: 0x0411
+	write
+	sync
+	no idle
+hwm: bio rw of size 4096 headed for 0x100000 (sector 0x800) has flags:
+	raw rw flags: 0x0411
+	write
+	sync
+	no idle
+hwm: turning off data logging
+hwm: no log entry here 
+hwm: Cleaning up bye!

@@ -4,6 +4,7 @@
 
 #include <cstring>
 
+#include <ios>
 #include <iostream>
 #include <memory>
 #include <random>
@@ -84,7 +85,7 @@ bool operator!=(const disk_write& a, const disk_write& b) {
 }
 
 ostream& operator<<(ostream& os, const disk_write& dw) {
-  os << dw.metadata.bi_rw;
+  os << "0x" << std::hex << dw.metadata.bi_rw << std::dec;
   return os;
 }
 

@@ -27,7 +27,7 @@ harness_huge: harness/c_harness.cpp default utils/utils.h utils/utils.cpp hellow
 	$(GPP) $(GOPTS) harness/c_harness.cpp harness/Tester.cpp utils/utils.cpp \
 		-I /usr/src/linux-headers-$(shell uname -r)/include/ -ldl -o harness/c_harness
 
-harness_huge: harness/c_harness.cpp default utils/utils.h utils/utils.cpp hellow_ioctl.h \
+harness_big: harness/c_harness.cpp default utils/utils.h utils/utils.cpp hellow_ioctl.h \
 	harness/Tester.cpp harness/Tester.h tests/echo_sub_dir_big.so tests/BaseTestCase.h \
 	permuter/Permuter.h  permuter/RandomPermuter.so
 	$(GPP) $(GOPTS) harness/c_harness.cpp harness/Tester.cpp utils/utils.cpp \

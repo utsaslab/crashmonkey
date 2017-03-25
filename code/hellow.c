@@ -147,21 +147,19 @@ static const struct block_device_operations hellow_ops = {
 };
 
 static void print_rw_flags(unsigned long rw, unsigned long flags) {
-  printk(KERN_INFO "\traw rw flags: 0x%.4lx\n", rw);
+  printk(KERN_INFO "\traw rw flags: 0x%.8lx\n", rw);
   int i;
   for (i = __REQ_WRITE; i < __REQ_NR_BITS; i++) {
     if (rw & (1ULL << i)) {
       printk(KERN_INFO "\t%s\n", flag_names[i]);
     }
   }
-  /*
-  printk(KERN_INFO "\traw flags flags: %lx\n", flags);
+  printk(KERN_INFO "\traw flags flags: %.8lx\n", flags);
   for (i = __REQ_WRITE; i < __REQ_NR_BITS; i++) {
     if (flags & (1ULL << i)) {
       printk(KERN_INFO "\t%s\n", flag_names[i]);
     }
   }
-  */
 }
 
 // TODO(ashmrtn): Currently not thread safe/reentrant. Make it so.

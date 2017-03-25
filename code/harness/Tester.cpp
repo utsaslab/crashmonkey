@@ -429,10 +429,15 @@ int Tester::test_check_random_permutations(const int num_rounds) {
   const auto start_itr = permutes.begin();
   for (int rounds = 0; rounds < num_rounds; ++rounds) {
 
+    for (const auto& write : permutes) {
+      cout << write << endl;
+    }
+    cout << endl;
+
     for (auto end_itr = start_itr; end_itr != permutes.end(); ++end_itr) {
     //for (auto end_itr = permutes.end() - 1; end_itr != permutes.end(); ++end_itr) {
       ++test_test_stats[TESTS_TESTS_RUN];
-      cout << '.' << std::flush;
+      //cout << '.' << std::flush;
 
       // Restore disk clone.
       if (clone_device_restore() != SUCCESS) {

@@ -1,0 +1,49 @@
+//probe kernel.function("journal_submit_inode_data_buffers") {
+probe kernel.statement("journal_submit_inode_data_buffers@fs/jbd2/commit.c:204") {
+  printf("in journal_submit_inode_data_buffers\n");
+  printf("params are %s\n", $$parms);
+  //printf("submitting inode %d\n", $mapping->inode->i_ino);
+}
+
+//probe kernel.function("journal_submit_data_buffers") {
+probe kernel.statement("journal_submit_data_buffers@fs/jbd2/commit.c:227") {
+  printf("in journal_submit_data_buffers\n");
+  //printf("locals are %s\n", $$locals);
+  //printf("params are %s\n", $$parms);
+  //printf("mapping is %s\n", $$mapping);
+}
+
+/*
+probe kernel.function("generic_make_request") {
+  if ($bio->bi_bdev->bd_disk->major == 1) {
+    printf("write flags: %lx\n", $bio->bi_rw);
+    printf("generic_make_request<-%s\n", caller());
+  }
+}
+
+probe kernel.function("submit_bio") {
+  if ($bio->bi_bdev->bd_disk->major == 1) {
+    printf("submit_bio<-%s\n", caller());
+  }
+}
+
+probe kernel.function("_submit_bh") {
+  printf("_submit_bh<-%s\n", caller());
+}
+
+probe kernel.function("submit_bh") {
+  printf("submit_bh<-%s\n", caller());
+}
+
+probe kernel.function("__block_write_full_page") {
+  printf("__block_write_full_page<-%s\n", caller());
+}
+
+   block_write_full_page_endio
+   jbd2_journal_commit_transaction
+   journal_submit_commit_record.isra.13
+   ext4_io_submit
+   ext4_find_entry
+   ll_rw_block
+   ext4_bread
+*/
