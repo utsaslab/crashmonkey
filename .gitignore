@@ -11,3 +11,4 @@ Module.symvers
 tests/*.so
 permuter/*.so
 c_harness
+*.a
