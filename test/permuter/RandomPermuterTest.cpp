@@ -40,16 +40,58 @@
 // your tests organized.  You may also throw in additional tests as
 // needed.
 
+// Hack to allow us to determine different bio flags based on kernel code. This
+// mus now be compiled with kernel headers.
+#include <linux/blk_types.h>
+
+#include <vector>
+
 #include "../../code/permuter/RandomPermuter.h"
+#include "../../code/utils/utils.h"
 #include "gtest/gtest.h"
 
 namespace fs_testing {
 namespace test {
+using std::vector;
+
+using fs_testing::utils::disk_write;
 using fs_testing::permuter::RandomPermuter;
 
 // Tests the default c'tor.
 TEST(RandomPermuter, DefaultConstructor) {
   const RandomPermuter rp;
+}
+
+TEST(RandomPermuter, PermuteSingleEpoch) {
+  unsigned int num_regular_writes = 9;
+  vector<disk_write> test_epoch;
+
+  for (unsigned int i = 0; i < num_regular_writes; ++i) {
+    disk_write write;
+    write.metadata.write_sector = 50 * i;
+    write.metadata.size = 4096;
+    write.metadata.bi_flags = REQ_WRITE;
+    write.metadata.bi_rw = REQ_WRITE;
+
+    // Make a sync operation.
+    if (i % 3 == 0) {
+      write.metadata.bi_flags |= REQ_SYNC;
+      write.metadata.bi_rw |= REQ_SYNC;
+    }
+    test_epoch.push_back(write);
+  }
+
+  disk_write barrier;
+  barrier.metadata.bi_flags = REQ_FUA;
+  barrier.metadata.bi_rw = REQ_FUA;
+  barrier.metadata.write_sector = 42;
+  barrier.metadata.size = 8192;
+  test_epoch.push_back(barrier);
+
+  RandomPermuter rp;
+  rp.set_data(&test_epoch);
+  vector<disk_write> result;
+  rp.permute(&result);
 }
 
 /*
