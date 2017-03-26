@@ -29,9 +29,12 @@ bool epoch_op::is_null() {
 void RandomPermuter::init_data_vector(vector<disk_write> *data) {
   cout << "[RandomPermuter::init_data_vector] start" << endl;
   log_length = data->size();
+  cout << "[RandomPermuter::init_data_vector] set epoch size to "
+    << log_length << endl;
   unsigned int index = 0;
   while (index < data->size()) {
     struct epoch current_epoch;
+    current_epoch.length = 0;
     // Epochs don't have to start with a sync op.
     int epoch_sync_index = -1;
 
@@ -68,6 +71,8 @@ void RandomPermuter::init_data_vector(vector<disk_write> *data) {
     }
     epochs.push_back(current_epoch);
   }
+  cout << "[RandomPermuter::init_data_vector] epoch size is " << log_length
+    << endl;
   cout << "[RandomPermuter::init_data_vector] done" << endl;
 }
 
@@ -89,8 +94,8 @@ void RandomPermuter::set_data(vector<disk_write> *data) {
 bool RandomPermuter::permute(vector<disk_write> *res) {
   cout << "[RandomPermuter::permute] starting with log of size "
     << log_length << endl;
-  //res->clear();
-  //*res = vector<disk_write>(log_length);
+  res->clear();
+  *res = vector<disk_write>(log_length);
   int current_index = 0;
   for (struct epoch current_epoch : epochs) {
     cout << "[RandomPermuter::permute] permuting epoch starting at "
@@ -114,6 +119,7 @@ int RandomPermuter::permute_epoch(vector<disk_write> *res,
   // exists (i.e. we won't cause extra shifting when adding the other elements).
   // Decrement out count of empty slots since we have filled one.
   if (!epoch.barrier_op.is_null()) {
+    cout << "[RandomPermuter::permute_epoch] placing barrier operation" << endl;
     res->at(start_index + slots - 1) = epoch.barrier_op.write;
     --slots;
   }
@@ -129,10 +135,12 @@ int RandomPermuter::permute_epoch(vector<disk_write> *res,
   }
   cout << endl;
 
-  // TODO(ashmrtn): Fixme.
-  unsigned int current_sync_index = -1;
+  int current_sync_index = -1;
   unsigned int current_index = start_index;
   for (struct epoch_op op : epoch.async_ops) {
+    cout << "[RandomPermuter::permute_epoch] looking at op with nearest_sync "
+      "of " << op.nearest_sync << " and sync_index of " << current_sync_index
+      << endl;
     // If the closest sync operation for this async_op is greater than our
     // current_sync_index we need to add more sync ops so that we maintain an
     // ordering.
@@ -140,6 +148,7 @@ int RandomPermuter::permute_epoch(vector<disk_write> *res,
       cout << "[RandomPermuter::permute_epoch] adding sync op" << endl;
       ++current_sync_index;
       res->at(current_index) = epoch.sync_ops.at(current_sync_index).write;
+      empty_slots.remove(current_index);
       ++current_index;
     }
     cout << "[RandomPermuter::permute_epoch] calculating async position "

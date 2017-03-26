@@ -17,7 +17,7 @@ struct epoch_op {
   // Index is the index into the sync_ops field and doesn't necessarily
   // correspond to the index in the original logged data of the nearest sync
   // operation.
-  unsigned int nearest_sync;
+  int nearest_sync;
 
   bool is_null();
 };
