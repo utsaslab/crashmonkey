@@ -91,7 +91,7 @@ RandomPermuterTest.o : $(USER_DIR)/permuter/RandomPermuterTest.cpp \
 			$(CODE_DIR)/utils/utils.h $(CODE_DIR)/hellow_ioctl.h \
 			$(CODE_DIR)/permuter/RandomPermuter.h $(CODE_DIR)/permuter/Permuter.h \
 			$(GTEST_HEADERS)
-	$(CXX) $(CPPFLAGS) $(CXXFLAGS) $(GOPTS) \
+	$(CXX) $(CPPFLAGS) $(CXXFLAGS) $(GOPTS) $(SYS_HEADERS) \
 		-c $(USER_DIR)/permuter/RandomPermuterTest.cpp
 
 RandomPermuterTest : RandomPermuterTest.o gtest_main.a \
