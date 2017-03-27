@@ -18,12 +18,11 @@ struct epoch_op {
   // correspond to the index in the original logged data of the nearest sync
   // operation.
   int nearest_sync;
-
-  bool is_null();
 };
 
 struct epoch {
   unsigned int length;
+  bool has_barrier;
   struct epoch_op barrier_op;
   std::vector<struct epoch_op> sync_ops;
   std::vector<struct epoch_op> async_ops;
@@ -38,7 +37,7 @@ class RandomPermuter : public Permuter {
 
  private:
   void init_data_vector(std::vector<fs_testing::utils::disk_write> *data);
-  int permute_epoch(std::vector<fs_testing::utils::disk_write> *res,
+  void permute_epoch(std::vector<fs_testing::utils::disk_write> *res,
       const int start_index, epoch& epoch);
   unsigned int log_length;
   std::vector<struct epoch> epochs;
