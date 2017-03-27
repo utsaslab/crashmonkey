@@ -19,19 +19,19 @@ harness: harness/c_harness.cpp default utils/utils.h utils/utils.cpp hellow_ioct
 	harness/Tester.cpp harness/Tester.h tests/echo_sub_dir.so tests/BaseTestCase.h \
 	permuter/Permuter.h  permuter/RandomPermuter.so
 	$(GPP) $(GOPTS) harness/c_harness.cpp harness/Tester.cpp utils/utils.cpp \
-		-I /usr/src/linux-headers-$(shell uname -r)/include/ -ldl -o harness/c_harness
+		-I /usr/src/linux-headers-$(shell uname -r)/include/ -ldl -o c_harness
 
 harness_huge: harness/c_harness.cpp default utils/utils.h utils/utils.cpp hellow_ioctl.h \
 	harness/Tester.cpp harness/Tester.h tests/echo_sub_dir_huge.so tests/BaseTestCase.h \
 	permuter/Permuter.h  permuter/RandomPermuter.so
 	$(GPP) $(GOPTS) harness/c_harness.cpp harness/Tester.cpp utils/utils.cpp \
-		-I /usr/src/linux-headers-$(shell uname -r)/include/ -ldl -o harness/c_harness
+		-I /usr/src/linux-headers-$(shell uname -r)/include/ -ldl -o c_harness
 
 harness_big: harness/c_harness.cpp default utils/utils.h utils/utils.cpp hellow_ioctl.h \
 	harness/Tester.cpp harness/Tester.h tests/echo_sub_dir_big.so tests/BaseTestCase.h \
 	permuter/Permuter.h  permuter/RandomPermuter.so
 	$(GPP) $(GOPTS) harness/c_harness.cpp harness/Tester.cpp utils/utils.cpp \
-		-I /usr/src/linux-headers-$(shell uname -r)/include/ -ldl -o harness/c_harness
+		-I /usr/src/linux-headers-$(shell uname -r)/include/ -ldl -o c_harness
 
 tests_c_harness: tests/test_get_log_ent_size.c
 	gcc tests/test_get_log_ent_size.c -o tests/test_get_log_ent_size
@@ -64,4 +64,4 @@ permuter/RandomPermuter.so: permuter/RandomPermuter.cpp \
 
 clean:
 	$(MAKE) -C $(KDIR) M=$(PWD) clean
-	rm -f $(TESTING) tests/*.so harness/c_harness permute *.o *.so permuter/*.so
+	rm -f $(TESTING) tests/*.so c_harness permute *.o *.so permuter/*.so
