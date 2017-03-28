@@ -4,6 +4,8 @@
 
 #include <cstring>
 
+#include <fstream>
+#include <istream>
 #include <ios>
 #include <iostream>
 #include <memory>
@@ -17,6 +19,8 @@
 namespace fs_testing {
 namespace utils {
 using std::cout;
+using std::fstream;
+using std::istream;
 using std::memcpy;
 using std::mt19937;
 using std::ostream;
@@ -84,8 +88,33 @@ bool operator!=(const disk_write& a, const disk_write& b) {
   return !(a == b);
 }
 
+static disk_write deserialize(istream& is) {
+  disk_write_op_meta meta;
+  is >> meta.bi_flags
+    >> meta.bi_rw
+    >> meta.write_sector
+    >> meta.size;
+
+  char *data = new char[meta.size];
+  is >> data;
+  return disk_write(meta, (void *) data);
+}
+
+/*
+ * Output all data for a single object on a single line.
+ */
+fstream& operator<<(fstream& fs, const disk_write& dw) {
+  fs << dw.metadata.bi_flags << " "
+    << dw.metadata.bi_rw << " "
+    << dw.metadata.write_sector << " "
+    << dw.metadata.size << " "
+    << dw.data;
+  return fs;
+}
+
 ostream& operator<<(ostream& os, const disk_write& dw) {
-  os << "0x" << std::hex << dw.metadata.bi_rw << std::dec;
+  os << std::hex << std::showbase << dw.metadata.bi_rw << std::noshowbase
+    << std::dec;
   return os;
 }
 
