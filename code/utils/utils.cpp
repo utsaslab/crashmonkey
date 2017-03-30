@@ -50,10 +50,10 @@ bool disk_write::is_barrier_write() {
 }
 
 disk_write::disk_write(const struct disk_write_op_meta& m,
-    const void* d) {
+    const char *d) {
   metadata = m;
   if (metadata.size > 0 && d != NULL) {
-    data = shared_ptr<void>(new char[metadata.size]);
+    data = shared_ptr<char>(new char[metadata.size]);
     memcpy(data.get(), d, metadata.size);
   }
 }
@@ -117,7 +117,7 @@ disk_write disk_write::deserialize(ifstream& is) {
   char *data = new char[meta.size];
   is >> data;
   is.copyfmt(prev_format);
-  disk_write res(meta, (void *) data);
+  disk_write res(meta, data);
   delete[] data;
   return res;
 }
@@ -144,15 +144,15 @@ bool disk_write::has_write_flag() {
   return metadata.bi_rw & REQ_WRITE;
 }
 
-shared_ptr<void> disk_write::set_data(const void* d) {
+shared_ptr<char> disk_write::set_data(const char *d) {
   if (metadata.size > 0 && d != NULL) {
-    data = shared_ptr<void>(new char[metadata.size]);
+    data = shared_ptr<char>(new char[metadata.size]);
     memcpy(data.get(), d, metadata.size);
   }
   return data;
 }
 
-shared_ptr<void> disk_write::get_data() {
+shared_ptr<char> disk_write::get_data() {
   return data;
 }
 

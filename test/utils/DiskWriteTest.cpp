@@ -35,7 +35,7 @@ TEST(DiskWrite, Serialize_Deserialize) {
   for (unsigned int i = 0; i < test_write.metadata.size; ++i) {
     data[i] = 1;
   }
-  test_write.set_data((void *) data);
+  test_write.set_data(data);
 
   // Get a temp file to write and read to/from.
   char *temp_file = strdup("/tmp/disk_write_serializeXXXXXX");

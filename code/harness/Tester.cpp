@@ -278,7 +278,7 @@ int Tester::get_wrapper_log() {
       }
 
       char* data = new char[meta.size];
-      result = ioctl(ioctl_fd, HWM_GET_LOG_DATA, (void*) data);
+      result = ioctl(ioctl_fd, HWM_GET_LOG_DATA, data);
       if (result == -1) {
         if (errno == ENODATA) {
           // Should never reach here as loop will break when getting the size
@@ -290,7 +290,7 @@ int Tester::get_wrapper_log() {
           return WRAPPER_MEM_ERR;
         }
       }
-      log_data.emplace_back(meta, (void*) data);
+      log_data.emplace_back(meta, data);
       delete[] data;
 
       result = ioctl(ioctl_fd, HWM_NEXT_ENT);
