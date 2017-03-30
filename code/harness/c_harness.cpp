@@ -20,7 +20,7 @@
 #define WRITE_DELAY 10
 #define MOUNT_DELAY 3
 
-#define OPTS_STRING "d:m:np:st:v"
+#define OPTS_STRING "d:l:m:np:st:v"
 
 using std::cerr;
 using std::cout;
@@ -34,6 +34,7 @@ static const option long_options[] = {
   {"verbose", no_argument, NULL, 'v'},
   {"fs-type", required_argument, NULL, 't'},
   {"test-dev", required_argument, NULL, 'd'},
+  {"log-file", required_argument, NULL, 'l'},
   {"mount-opts", required_argument, NULL, 'm'},
   {"permuter", required_argument, NULL, 'p'},
   {0, 0, 0, 0},
@@ -45,6 +46,7 @@ int main(int argc, char** argv) {
   string fs_type("ext4");
   string test_dev("/dev/ram0");
   string mount_opts("");
+  string log_file("");
   string permuter(PERMUTER_SO_PATH "RandomPermuter.so");
   bool dry_run = false;
   bool no_lvm = false;
@@ -60,6 +62,9 @@ int main(int argc, char** argv) {
     switch (c) {
       case 'd':
         test_dev = string(optarg);
+        break;
+      case 'l':
+        log_file = string(optarg);
         break;
       case 'm':
         mount_opts = string(optarg);
@@ -280,6 +285,11 @@ int main(int argc, char** argv) {
     cerr << "Error cleaning up: remove wrapper module\n";
     test_harness.cleanup_harness();
     return -1;
+  }
+
+  // Write log data out to file if we're given a file.
+  if (!log_file.empty()) {
+    test_harness.log_profile(log_file);
   }
 
   /***************************************************/

@@ -6,6 +6,7 @@
 #include <unistd.h>
 
 #include <algorithm>
+#include <fstream>
 #include <cerrno>
 #include <cstdlib>
 #include <iostream>
@@ -56,6 +57,7 @@ using std::cerr;
 using std::cout;
 using std::endl;
 using std::free;
+using std::ofstream;
 using std::shared_ptr;
 using std::string;
 using std::vector;
@@ -618,6 +620,14 @@ int Tester::clear_caches() {
   } while (res < 1);
   close(cache_fd);
   return SUCCESS;
+}
+
+void Tester::log_profile(string log_file) {
+  // TODO(ashmrtn): What happens if this fails?
+  ofstream log(log_file, std::ofstream::trunc);
+  for (const disk_write& dw : log_data) {
+    disk_write::serialize(log, dw);
+  }
 }
 
 }  // namespace fs_testing

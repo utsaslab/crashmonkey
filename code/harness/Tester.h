@@ -84,6 +84,7 @@ class Tester {
 
   int clear_caches();
   void cleanup_harness();
+  void log_profile(std::string log_file);
 
  private:
   fs_testing::utils::ClassLoader<fs_testing::tests::BaseTestCase> test_loader;
