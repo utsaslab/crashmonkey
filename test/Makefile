@@ -29,7 +29,7 @@ CXXFLAGS += -g -Wall -Wextra -pthread
 
 # All tests produced by this Makefile.  Remember to add new tests you
 # created to the list.
-TESTS = RandomPermuterTest
+TESTS = RandomPermuterTest DiskWriteTest
 
 # All Google Test headers.  Usually you shouldn't change this
 # definition.
@@ -96,4 +96,13 @@ RandomPermuterTest.o : $(USER_DIR)/permuter/RandomPermuterTest.cpp \
 
 RandomPermuterTest : RandomPermuterTest.o gtest_main.a \
 			$(CODE_DIR)/permuter/RandomPermuter.cpp $(CODE_DIR)/utils/utils.cpp
+	$(CXX) $(CPPFLAGS) $(CXXFLAGS) $(GOPTS) $(SYS_HEADERS) -lpthread $^ -o $@
+
+DiskWriteTest.o : $(USER_DIR)/utils/DiskWriteTest.cpp \
+			$(CODE_DIR)/utils/utils.h $(CODE_DIR)/hellow_ioctl.h \
+			$(GTEST_HEADERS)
+	$(CXX) $(CPPFLAGS) $(CXXFLAGS) $(GOPTS) $(SYS_HEADERS) \
+		-c $(USER_DIR)/utils/DiskWriteTest.cpp
+
+DiskWriteTest : DiskWriteTest.o gtest_main.a $(CODE_DIR)/utils/utils.cpp
 	$(CXX) $(CPPFLAGS) $(CXXFLAGS) $(GOPTS) $(SYS_HEADERS) -lpthread $^ -o $@
