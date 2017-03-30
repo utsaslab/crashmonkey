@@ -88,7 +88,7 @@ bool operator!=(const disk_write& a, const disk_write& b) {
   return !(a == b);
 }
 
-void disk_write::serialize(std::ofstream& fs, disk_write& dw) {
+void disk_write::serialize(std::ofstream& fs, const disk_write& dw) {
   ios prev_format(NULL);
   prev_format.copyfmt(fs);
   fs << std::hex;

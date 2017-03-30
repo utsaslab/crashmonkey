@@ -29,7 +29,7 @@ class disk_write {
   bool is_barrier_write();
   bool is_async_write();
 
-  static void serialize(std::ofstream& fs, disk_write& dw);
+  static void serialize(std::ofstream& fs, const disk_write& dw);
   static disk_write deserialize(std::ifstream& is);
 
   // Returns a pointer to the data which was assigned or NULL if data could not
