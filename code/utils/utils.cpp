@@ -5,7 +5,6 @@
 #include <cstring>
 
 #include <fstream>
-#include <istream>
 #include <ios>
 #include <iostream>
 #include <memory>
@@ -18,9 +17,10 @@
 
 namespace fs_testing {
 namespace utils {
-using std::cout;
+using std::endl;
 using std::fstream;
-using std::istream;
+using std::ifstream;
+using std::ios;
 using std::memcpy;
 using std::mt19937;
 using std::ostream;
@@ -88,8 +88,27 @@ bool operator!=(const disk_write& a, const disk_write& b) {
   return !(a == b);
 }
 
-static disk_write deserialize(istream& is) {
+void disk_write::serialize(std::fstream& fs, disk_write& dw) {
+  ios prev_format(NULL);
+  prev_format.copyfmt(fs);
+  fs << std::hex;
+  fs << dw.metadata.bi_flags << " ";
+  fs << dw.metadata.bi_rw << " ";
+  fs << dw.metadata.write_sector << " ";
+  fs << dw.metadata.size << " ";
+  char *data = (char *) dw.data.get();
+  for (unsigned int i = 0; i < dw.metadata.size; ++i) {
+    fs << *(data + i);
+  }
+  fs << endl;
+  fs.copyfmt(prev_format);
+}
+
+disk_write disk_write::deserialize(ifstream& is) {
   disk_write_op_meta meta;
+  ios prev_format(NULL);
+  prev_format.copyfmt(is);
+  is >> std::hex;
   is >> meta.bi_flags
     >> meta.bi_rw
     >> meta.write_sector
@@ -97,7 +116,10 @@ static disk_write deserialize(istream& is) {
 
   char *data = new char[meta.size];
   is >> data;
-  return disk_write(meta, (void *) data);
+  is.copyfmt(prev_format);
+  disk_write res(meta, (void *) data);
+  delete[] data;
+  return res;
 }
 
 /*

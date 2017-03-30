@@ -2,7 +2,6 @@
 #define UTILS_H
 
 #include <fstream>
-#include <istream>
 #include <iostream>
 #include <memory>
 #include <utility>
@@ -30,6 +29,9 @@ class disk_write {
   bool is_barrier_write();
   bool is_async_write();
 
+  static void serialize(std::fstream& fs, disk_write& dw);
+  static disk_write deserialize(std::ifstream& is);
+
   // Returns a pointer to the data which was assigned or NULL if data could not
   // be assigned. Pointer is valid only as long as the object exists. The user
   // should not call free on this pointer or otherwise attempt memory management
@@ -44,7 +46,6 @@ class disk_write {
   std::shared_ptr<void> data;
 };
 
-static disk_write deserialize(std::istream& is);
 
 bool operator==(const disk_write& a, const disk_write& b);
 bool operator!=(const disk_write& a, const disk_write& b);
