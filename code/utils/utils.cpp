@@ -92,10 +92,10 @@ void disk_write::serialize(std::fstream& fs, disk_write& dw) {
   ios prev_format(NULL);
   prev_format.copyfmt(fs);
   fs << std::hex;
-  fs << dw.metadata.bi_flags << " ";
-  fs << dw.metadata.bi_rw << " ";
-  fs << dw.metadata.write_sector << " ";
-  fs << dw.metadata.size << " ";
+  fs << dw.metadata.bi_flags << " "
+    << dw.metadata.bi_rw << " "
+    << dw.metadata.write_sector << " "
+    << dw.metadata.size << " ";
   char *data = (char *) dw.data.get();
   for (unsigned int i = 0; i < dw.metadata.size; ++i) {
     fs << *(data + i);
