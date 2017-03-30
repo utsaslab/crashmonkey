@@ -18,11 +18,11 @@
 namespace fs_testing {
 namespace utils {
 using std::endl;
-using std::fstream;
 using std::ifstream;
 using std::ios;
 using std::memcpy;
 using std::mt19937;
+using std::ofstream;
 using std::ostream;
 using std::pair;
 using std::shared_ptr;
@@ -88,7 +88,7 @@ bool operator!=(const disk_write& a, const disk_write& b) {
   return !(a == b);
 }
 
-void disk_write::serialize(std::fstream& fs, disk_write& dw) {
+void disk_write::serialize(std::ofstream& fs, disk_write& dw) {
   ios prev_format(NULL);
   prev_format.copyfmt(fs);
   fs << std::hex;
@@ -125,7 +125,7 @@ disk_write disk_write::deserialize(ifstream& is) {
 /*
  * Output all data for a single object on a single line.
  */
-fstream& operator<<(fstream& fs, const disk_write& dw) {
+ofstream& operator<<(ofstream& fs, const disk_write& dw) {
   fs << dw.metadata.bi_flags << " "
     << dw.metadata.bi_rw << " "
     << dw.metadata.write_sector << " "

@@ -23,13 +23,13 @@ class disk_write {
   void operator=(const disk_write& other);
   friend bool operator==(const disk_write& a, const disk_write& b);
   friend bool operator!=(const disk_write& a, const disk_write& b);
-  friend std::fstream& operator<<(std::fstream& os, const disk_write& dw);
+  friend std::ofstream& operator<<(std::ofstream& os, const disk_write& dw);
 
   bool has_write_flag();
   bool is_barrier_write();
   bool is_async_write();
 
-  static void serialize(std::fstream& fs, disk_write& dw);
+  static void serialize(std::ofstream& fs, disk_write& dw);
   static disk_write deserialize(std::ifstream& is);
 
   // Returns a pointer to the data which was assigned or NULL if data could not
@@ -49,9 +49,6 @@ class disk_write {
 
 bool operator==(const disk_write& a, const disk_write& b);
 bool operator!=(const disk_write& a, const disk_write& b);
-/*
- * Responsible for serializing the object.
- */
 std::ostream& operator<<(std::ostream& os, const disk_write& dw);
 
 }  // namespace utils

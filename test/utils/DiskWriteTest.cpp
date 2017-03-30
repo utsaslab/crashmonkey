@@ -16,8 +16,8 @@
 namespace fs_testing {
 namespace test {
 using std::endl;;
-using std::fstream;
 using std::ifstream;
+using std::ofstream;
 using std::vector;
 
 using fs_testing::utils::disk_write;
@@ -42,7 +42,7 @@ TEST(DiskWrite, Serialize_Deserialize) {
   int temp_fd = mkstemp(temp_file);
   EXPECT_TRUE(temp_fd > 0);
 
-  fstream output(temp_file);
+  ofstream output(temp_file);
   close(temp_fd);
 
   output << std::hex;
