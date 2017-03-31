@@ -52,7 +52,7 @@ class Tester {
   const char* update_dirty_expire_time(const char* time);
 
   int partition_drive();
-  int wipe_paritions();
+  int wipe_partitions();
   int format_drive();
   int clone_device();
   int clone_device_restore();

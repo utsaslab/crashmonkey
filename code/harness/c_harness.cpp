@@ -129,7 +129,7 @@ int main(int argc, char** argv) {
   // Partition drive.
   // TODO(ashmrtn): Consider making a flag for this?
   cout << "Wiping test device" << endl;
-  if (test_harness.wipe_paritions() != SUCCESS) {
+  if (test_harness.wipe_partitions() != SUCCESS) {
     cerr << "Error wiping paritions on test device" << endl;
     test_harness.cleanup_harness();
     return -1;

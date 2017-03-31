@@ -395,7 +395,7 @@ int Tester::partition_drive() {
   return SUCCESS;
 }
 
-int Tester::wipe_paritions() {
+int Tester::wipe_partitions() {
   string command(PART_DEL_PART_DRIVE + device_raw);
   if (!verbose) {
     command += SILENT;
