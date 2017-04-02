@@ -2,6 +2,7 @@
 // changed to something more palatable if possible.
 #include <linux/blk_types.h>
 
+#include <cassert>
 #include <cstring>
 
 #include <fstream>
@@ -9,6 +10,7 @@
 #include <iostream>
 #include <memory>
 #include <random>
+#include <string>
 #include <tuple>
 #include <utility>
 #include <vector>
@@ -98,24 +100,36 @@ void disk_write::serialize(std::ofstream& fs, const disk_write& dw) {
     << dw.metadata.size << " ";
   char *data = (char *) dw.data.get();
   for (unsigned int i = 0; i < dw.metadata.size; ++i) {
+    // TODO(ashmrtn): Change to put?
     fs << *(data + i);
   }
   fs << endl;
   fs.copyfmt(prev_format);
 }
 
+// TODO(ashmrtn): Greatly refactor this so that it is much more flexible and
+// complete. Think about removing whitespace between fields and just checking
+// for newlines? But then what happens if your data is all newlines?
 disk_write disk_write::deserialize(ifstream& is) {
   disk_write_op_meta meta;
   ios prev_format(NULL);
   prev_format.copyfmt(is);
+  is >> std::skipws;
   is >> std::hex;
   is >> meta.bi_flags
     >> meta.bi_rw
     >> meta.write_sector
     >> meta.size;
 
+  char nl;
+  // Eat single space between size of data and data.
+  is.get(nl);
+  assert(nl == ' ');
   char *data = new char[meta.size];
-  is >> data;
+  is.read(data, meta.size);
+  // Make sure that the meta.size field matches the actual data size in the log.
+  is.get(nl);
+  assert(nl == '\n');
   is.copyfmt(prev_format);
   disk_write res(meta, data);
   delete[] data;
