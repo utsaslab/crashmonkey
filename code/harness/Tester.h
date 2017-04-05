@@ -14,6 +14,7 @@
 #define DRIVE_CLONE_RESTORE_ERR  -2
 #define DRIVE_CLONE_EXISTS_ERR   -3
 #define TEST_TEST_ERR            -4
+#define LOG_CLONE_ERR            -5
 #define TEST_CASE_FILE_ERR       -11
 #define MNT_BAD_DEV_ERR          -12
 #define MNT_MNT_ERR              -13
@@ -46,8 +47,6 @@ class Tester {
   const bool verbose = false;
 
   int test_test_stats[5];
-  unsigned long int device_size;
-  char* device_clone = NULL;
 
   const char* update_dirty_expire_time(const char* time);
 
@@ -55,7 +54,7 @@ class Tester {
   int wipe_partitions();
   int format_drive();
   int clone_device();
-  int clone_device_restore();
+  int clone_device_restore(bool reread);
 
   int permuter_load_class(const char* path);
   void permuter_unload_class();
@@ -84,9 +83,17 @@ class Tester {
 
   int clear_caches();
   void cleanup_harness();
-  void log_profile(std::string log_file);
+  // TODO(ashmrtn): Save the fstype in the log file so that we don't
+  // accidentally mix logs of one fs type with mount options for another?
+  int log_profile_save(std::string log_file);
+  int log_profile_load(std::string log_file);
+  int log_snapshot_save(std::string log_file);
+  int log_snapshot_load(std::string log_file);
 
+  // TODO(ashmrtn): Figure out why making these private slows things down a lot.
  private:
+  unsigned long int device_size;
+  char* device_clone = NULL;
   fs_testing::utils::ClassLoader<fs_testing::tests::BaseTestCase> test_loader;
   fs_testing::utils::ClassLoader<fs_testing::permuter::Permuter>
     permuter_loader;
@@ -95,6 +102,7 @@ class Tester {
   const std::string fs_type;
   const std::string device_raw;
   std::string device_mount;
+
 
   bool wrapper_inserted = false;
 
@@ -111,6 +119,10 @@ class Tester {
   bool test_write_data(const int disk_fd,
       const std::vector<fs_testing::utils::disk_write>::iterator& start,
       const std::vector<fs_testing::utils::disk_write>::iterator& end);
+
+  #ifdef TEST_CASE
+    friend class TestTester;
+  #endif
 };
 
 }  // namespace fs_testing

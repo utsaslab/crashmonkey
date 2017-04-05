@@ -5,10 +5,12 @@
 #include <sys/types.h>
 #include <unistd.h>
 
-#include <algorithm>
-#include <fstream>
+#include <cassert>
 #include <cerrno>
 #include <cstdlib>
+
+#include <algorithm>
+#include <fstream>
 #include <iostream>
 #include <memory>
 
@@ -57,6 +59,7 @@ using std::cerr;
 using std::cout;
 using std::endl;
 using std::free;
+using std::ifstream;
 using std::ofstream;
 using std::shared_ptr;
 using std::string;
@@ -106,9 +109,10 @@ Tester::Tester(const string f_type, const string target_test_device, bool v) :
     // Null terminate string.
     size_buf[bytes_read] = '\0';
     device_size = strtol(size_buf, NULL, 10) * SECTOR_SIZE;
-  };
+}
 
 int Tester::clone_device() {
+  std::cout << "cloning device " << device_raw << std::endl;
   if (device_clone != NULL) {
     cerr << "Device clone already exists" << endl;
     return DRIVE_CLONE_EXISTS_ERR;
@@ -145,7 +149,7 @@ int Tester::clone_device() {
   return SUCCESS;
 }
 
-int Tester::clone_device_restore() {
+int Tester::clone_device_restore(bool reread) {
   if (device_clone == NULL) {
     cerr << "No device clone to restore" << endl;
     return DRIVE_CLONE_ERR;
@@ -171,6 +175,16 @@ int Tester::clone_device_restore() {
   int res = fsync(raw_dev_fd);
   if (res < 0) {
     cerr << "Error flushing restored image" << endl;
+  }
+  if (reread) {
+    // TODO(ashmrtn): Fixme by moving me to a better place.
+    do {
+      res = ioctl(raw_dev_fd, BLKRRPART, NULL);
+    } while (errno == EBUSY);
+    if (res < 0) {
+      int errnum = errno;
+      cerr << "Error re-reading partition table " << errnum << endl;
+    }
   }
   close(raw_dev_fd);
 
@@ -309,6 +323,8 @@ int Tester::get_wrapper_log() {
       }
     }
   }
+  std::cout << "fetched " << log_data.size() << " log data entries"
+      << std::endl;
   return SUCCESS;
 }
 
@@ -441,7 +457,7 @@ int Tester::test_check_random_permutations(const int num_rounds) {
       cout << '.' << std::flush;
 
       // Restore disk clone.
-      if (clone_device_restore() != SUCCESS) {
+      if (clone_device_restore(false) != SUCCESS) {
         cout << endl;
         return DRIVE_CLONE_RESTORE_ERR;
       }
@@ -622,12 +638,69 @@ int Tester::clear_caches() {
   return SUCCESS;
 }
 
-void Tester::log_profile(string log_file) {
+int Tester::log_profile_save(string log_file) {
   // TODO(ashmrtn): What happens if this fails?
+  // Open with append flags. We should remove the log file argument and use a
+  // class specific one that is set at class creation time. That way people
+  // don't break our logging system.
+  std::cout << "saving " << log_data.size() << " disk operations" << endl;
   ofstream log(log_file, std::ofstream::trunc);
   for (const disk_write& dw : log_data) {
     disk_write::serialize(log, dw);
   }
+  log.close();
+  return SUCCESS;
+}
+
+int Tester::log_profile_load(string log_file) {
+  ifstream log(log_file);
+  while (log.peek() != EOF) {
+    log_data.push_back(disk_write::deserialize(log));
+  }
+  bool err = log.fail();
+  int errnum = errno;
+  log.close();
+  if (err) {
+    std::cout << "error " << strerror(errnum) << std::endl;
+    return LOG_CLONE_ERR;
+  }
+  std::cout << "loaded " << log_data.size() << " disk operations" << endl;
+  return SUCCESS;
+}
+
+int Tester::log_snapshot_save(string log_file) {
+  if (device_clone == NULL) {
+    return LOG_CLONE_ERR;
+  }
+  // TODO(ashmrtn): What happens if this fails?
+  ofstream log(log_file, std::ofstream::trunc);
+  log.write(device_clone, device_size);
+  bool err = log.fail();
+  log.flush();
+  log.close();
+  if (err) {
+    return LOG_CLONE_ERR;
+  }
+  return SUCCESS;
+}
+
+int Tester::log_snapshot_load(string log_file) {
+  // TODO(ashmrtn): What happens if this fails?
+  if (device_clone != NULL) {
+    delete[] device_clone;
+  }
+  ifstream log(log_file);
+  device_clone = new char[device_size];
+  log.read(device_clone, device_size);
+  bool err = log.fail();
+  int errnum = errno;
+  assert(log.peek() == EOF);
+  log.close();
+  if (err) {
+    std::cout << "error " << strerror(errnum) << std::endl;
+    return LOG_CLONE_ERR;
+  }
+  return SUCCESS;
 }
 
 }  // namespace fs_testing
