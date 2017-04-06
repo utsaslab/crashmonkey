@@ -103,7 +103,9 @@ int main(int argc, char** argv) {
     return -1;
   }
 
-  Tester test_harness(fs_type, test_dev, verbose);
+  Tester test_harness(verbose);
+  test_harness.set_fs_type(fs_type);
+  test_harness.set_device(test_dev);
 
   // Load the class being tested.
   cout << "Loading test case" << endl;

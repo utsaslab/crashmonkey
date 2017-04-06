@@ -40,11 +40,22 @@
 #define TESTS_TEST_ERR         5
 
 namespace fs_testing {
+#ifdef TEST_CASE
+namespace test {
+  class TestTester;
+}  // namespace test
+#endif
+
 class Tester {
+  #ifdef TEST_CASE
+  friend class fs_testing::test::TestTester;
+  #endif
+
  public:
-  Tester(const std::string f_type, const std::string target_test_device,
-      bool v);
+  Tester(const bool verbosity);
   const bool verbose = false;
+  void set_fs_type(const std::string type);
+  void set_device(const std::string device_path);
 
   int test_test_stats[5];
 
@@ -99,8 +110,8 @@ class Tester {
     permuter_loader;
 
   char dirty_expire_time[DIRTY_EXPIRE_TIME_SIZE];
-  const std::string fs_type;
-  const std::string device_raw;
+  std::string fs_type;
+  std::string device_raw;
   std::string device_mount;
 
 
@@ -119,10 +130,6 @@ class Tester {
   bool test_write_data(const int disk_fd,
       const std::vector<fs_testing::utils::disk_write>::iterator& start,
       const std::vector<fs_testing::utils::disk_write>::iterator& end);
-
-  #ifdef TEST_CASE
-    friend class TestTester;
-  #endif
 };
 
 }  // namespace fs_testing

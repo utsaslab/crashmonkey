@@ -72,43 +72,48 @@ using fs_testing::permuter::permuter_create_t;
 using fs_testing::permuter::permuter_destroy_t;
 using fs_testing::utils::disk_write;
 
-Tester::Tester(const string f_type, const string target_test_device, bool v) :
-  fs_type(f_type), device_raw(target_test_device), verbose(v) {
-    // Start off by assuming we will make a partition for ourselves and use that
-    // parition.
-    device_mount = device_raw + "1";
+Tester::Tester(const bool verbosity) : verbose(verbosity) {}
 
-    // /sys/block/<dev> has the number of 512 byte sectors on the disk.
-    string dev = device_raw.substr(device_raw.find_last_of("/") + 1);
-    string path(DEV_SECTORS_PATH + dev + DEV_SECTORS_PATH_2);
-    int size_fd = open(path.c_str(), O_RDONLY);
-    if (size_fd < 0) {
+void Tester::set_fs_type(const string type) {
+  fs_type = type;
+}
+
+void Tester::set_device(const string device_path) {
+  device_raw = device_path;
+  // Start off by assuming we will make a partition for ourselves and use that
+  // parition.
+  device_mount = device_raw + "1";
+
+  // /sys/block/<dev> has the number of 512 byte sectors on the disk.
+  string dev = device_raw.substr(device_raw.find_last_of("/") + 1);
+  string path(DEV_SECTORS_PATH + dev + DEV_SECTORS_PATH_2);
+  int size_fd = open(path.c_str(), O_RDONLY);
+  if (size_fd < 0) {
+    cerr << "Unable to device size file " << errno << endl;
+    device_size = 0;
+    return;
+  }
+  unsigned int buf_size = 50;
+  char size_buf[buf_size];
+  unsigned int bytes_read = 0;
+  int res = 0;
+  do {
+    res = read(size_fd, size_buf + bytes_read, buf_size - 1 - bytes_read);
+    if (res < 0) {
       int err = errno;
-      cerr << "Unable to device size file " << errno << endl;
       device_size = 0;
+      cerr << "Unable to get device size " << err << endl;
+      close(size_fd);
       return;
     }
-    unsigned int buf_size = 50;
-    char size_buf[buf_size];
-    unsigned int bytes_read = 0;
-    int res = 0;
-    do {
-      res = read(size_fd, size_buf + bytes_read, buf_size - 1 - bytes_read);
-      if (res < 0) {
-        int err = errno;
-        device_size = 0;
-        cerr << "Unable to get device size " << err << endl;
-        close(size_fd);
-        return;
-      }
 
-      bytes_read += res;
-    } while (res != 0 && bytes_read < buf_size - 1);
-    close(size_fd);
+    bytes_read += res;
+  } while (res != 0 && bytes_read < buf_size - 1);
+  close(size_fd);
 
-    // Null terminate string.
-    size_buf[bytes_read] = '\0';
-    device_size = strtol(size_buf, NULL, 10) * SECTOR_SIZE;
+  // Null terminate string.
+  size_buf[bytes_read] = '\0';
+  device_size = strtol(size_buf, NULL, 10) * SECTOR_SIZE;
 }
 
 int Tester::clone_device() {
@@ -192,6 +197,9 @@ int Tester::clone_device_restore(bool reread) {
 }
 
 int Tester::mount_device_raw(const char* opts) {
+  if (device_mount.empty()) {
+    return MNT_BAD_DEV_ERR;
+  }
   return mount_device(device_mount.c_str(), opts);
 }
 
@@ -400,6 +408,9 @@ bool Tester::write_dirty_expire_time(const int fd, const char* time) {
 }
 
 int Tester::partition_drive() {
+  if (device_raw.empty()) {
+    return PART_PART_ERR;
+  }
   string command(PART_PART_DRIVE + device_raw);
   if (!verbose) {
     command += SILENT;
@@ -412,6 +423,9 @@ int Tester::partition_drive() {
 }
 
 int Tester::wipe_partitions() {
+  if (device_raw.empty()) {
+    return PART_PART_ERR;
+  }
   string command(PART_DEL_PART_DRIVE + device_raw);
   if (!verbose) {
     command += SILENT;
@@ -424,6 +438,9 @@ int Tester::wipe_partitions() {
 }
 
 int Tester::format_drive() {
+  if (device_raw.empty()) {
+    return PART_PART_ERR;
+  }
   string command(FMT_FMT_DRIVE + fs_type + " " +  device_mount);
   if (!verbose) {
     command += SILENT;
@@ -582,7 +599,7 @@ bool Tester::test_write_data(const int disk_fd,
     if (lseek(disk_fd, byte_addr, SEEK_SET) < 0) {
       return false;
     }
-    int bytes_written = 0;
+    unsigned int bytes_written = 0;
     shared_ptr<void> data = current->get_data();
     void* data_base_addr = data.get();
     do {

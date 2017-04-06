@@ -29,7 +29,7 @@ CXXFLAGS += -g -Wall -Wextra -pthread
 
 # All tests produced by this Makefile.  Remember to add new tests you
 # created to the list.
-TESTS = RandomPermuterTest DiskWriteTest
+TESTS = RandomPermuterTest DiskWriteTest TesterTest
 
 # All Google Test headers.  Usually you shouldn't change this
 # definition.
@@ -106,3 +106,14 @@ DiskWriteTest.o : $(USER_DIR)/utils/DiskWriteTest.cpp \
 
 DiskWriteTest : DiskWriteTest.o gtest_main.a $(CODE_DIR)/utils/utils.cpp
 	$(CXX) $(CPPFLAGS) $(CXXFLAGS) $(GOPTS) $(SYS_HEADERS) -lpthread $^ -o $@
+
+TesterTest.o : $(USER_DIR)/harness/TesterTest.cpp $(CODE_DIR)/utils/utils.h \
+			$(CODE_DIR)/permuter/Permuter.h \
+			$(GTEST_HEADERS)
+	$(CXX) $(CPPFLAGS) $(CXXFLAGS) $(GOPTS) $(SYS_HEADERS) -D TEST_CASE=1 \
+		-c $(USER_DIR)/harness/TesterTest.cpp
+
+TesterTest : TesterTest.o gtest_main.a $(USER_DIR)/harness/TestTester.cpp \
+			$(CODE_DIR)/harness/Tester.cpp $(CODE_DIR)/utils/utils.cpp
+	$(CXX) $(CPPFLAGS) $(CXXFLAGS) $(GOPTS) $(SYS_HEADERS) -lpthread \
+		-D TEST_CASE=1 $^ -ldl -o $@
