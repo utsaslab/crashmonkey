@@ -64,6 +64,7 @@ class echo_sub_dir : public BaseTestCase {
         goto out;
       }
     }
+    fsync(fd);
     close(fd);
     return 0;
 
@@ -109,11 +110,8 @@ class echo_sub_dir : public BaseTestCase {
     close(fd);
 
     if (bytes_read != size) {
-      std::cout << "[echo_sub_dir] read data was too short" << std::endl;
       res2 = -1;
     } else if (memcmp(TEXT, buf, TEST_TEXT_SIZE) != 0) {
-      std::cout << "[echo_sub_dir] expected\n\t\t" << TEXT
-          << "\n\t but found\n\t\t" << buf << std::endl;
       res2 = -1;
     }
 
