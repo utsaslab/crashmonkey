@@ -12,13 +12,13 @@ probe kernel.function("submit_bio") {
   }
 }
 
-probe module("hellow").function("hellow_bio") {
+probe module("disk_wrapper").function("disk_wrapper_bio") {
   printf("[% .5u.%.3u] ", cpu_clock_ms(0) / 1000, cpu_clock_ms(0) % 1000);
-  printf("[hellow_bio] device number %d with flags 0x%0.8lx\n",
+  printf("[disk_wrapper_bio] device number %d with flags 0x%0.8lx\n",
       $bio->bi_bdev->bd_disk->major, $bio->bi_rw);
 }
 
-probe module("hellow").function("hellow_init") {
+probe module("disk_wrapper").function("disk_wrapper_init") {
   printf("[% .5u.%.3u] ", cpu_clock_ms(0) / 1000, cpu_clock_ms(0) % 1000);
   printf("[hello_init] called\n");
 }

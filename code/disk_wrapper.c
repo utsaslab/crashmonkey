@@ -9,7 +9,7 @@
 #include <linux/moduleparam.h>
 #include <linux/slab.h>
 
-#include "hellow_ioctl.h"
+#include "disk_wrapper_ioctl.h"
 
 #define KERNEL_SECTOR_SIZE 512
 
@@ -67,7 +67,7 @@ static void free_logs(void) {
 }
 
 // TODO(ashmrtn): Add mutexes/locking to make thread-safe.
-static int hellow_ioctl(struct block_device* bdev, fmode_t mode,
+static int disk_wrapper_ioctl(struct block_device* bdev, fmode_t mode,
     unsigned int cmd, unsigned long arg) {
   int ret = 0;
 
@@ -141,9 +141,9 @@ static int hellow_ioctl(struct block_device* bdev, fmode_t mode,
 }
 
 // The device operations structure.
-static const struct block_device_operations hellow_ops = {
+static const struct block_device_operations disk_wrapper_ops = {
   .owner   = THIS_MODULE,
-  .ioctl   = hellow_ioctl,
+  .ioctl   = disk_wrapper_ioctl,
 };
 
 static void print_rw_flags(unsigned long rw, unsigned long flags) {
@@ -163,7 +163,7 @@ static void print_rw_flags(unsigned long rw, unsigned long flags) {
 }
 
 // TODO(ashmrtn): Currently not thread safe/reentrant. Make it so.
-static void hellow_bio(struct request_queue* q, struct bio* bio) {
+static void disk_wrapper_bio(struct request_queue* q, struct bio* bio) {
   struct hwm_device* hwm;
   struct request_queue* target_queue;
 
@@ -254,7 +254,7 @@ static void hellow_bio(struct request_queue* q, struct bio* bio) {
 }
 
 // TODO(ashmrtn): Fix error when wrong device path is passed.
-static int __init hellow_init(void) {
+static int __init disk_wrapper_init(void) {
   printk(KERN_INFO "hwm: Hello World from module\n");
   if (strlen(target_device_path) == 0) {
     return -ENOTTY;
@@ -301,14 +301,14 @@ static int __init hellow_init(void) {
   Device.gd->minors = Device.target_dev->bd_disk->minors;
   set_capacity(Device.gd, get_capacity(Device.target_dev->bd_disk));
   strcpy(Device.gd->disk_name, "hwm");
-  Device.gd->fops = &hellow_ops;
+  Device.gd->fops = &disk_wrapper_ops;
 
   // Get a request queue.
   Device.gd->queue = blk_alloc_queue(GFP_KERNEL);
   if (Device.gd->queue == NULL) {
     goto out;
   }
-  blk_queue_make_request(Device.gd->queue, hellow_bio);
+  blk_queue_make_request(Device.gd->queue, disk_wrapper_bio);
   // Make this queue have the same flags as the queue we're feeding into.
   Device.gd->queue->flush_flags = Device.target_dev->bd_queue->flush_flags;
   Device.gd->queue->queue_flags = Device.target_dev->bd_queue->queue_flags;
@@ -336,5 +336,5 @@ static void __exit hello_cleanup(void) {
   printk(KERN_INFO "hwm: Cleaning up bye!\n");
 }
 
-module_init(hellow_init);
+module_init(disk_wrapper_init);
 module_exit(hello_cleanup);

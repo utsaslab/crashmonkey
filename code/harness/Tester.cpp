@@ -14,7 +14,7 @@
 #include <iostream>
 #include <memory>
 
-#include "../hellow_ioctl.h"
+#include "../disk_wrapper_ioctl.h"
 #include "Tester.h"
 
 #define TEST_CLASS_FACTORY        "test_case_get_instance"
@@ -40,7 +40,7 @@
 #define PART_DEL_PART_DRIVE_2 " << EOF\no\nw\nEOF\n"
 #define FMT_FMT_DRIVE   "mkfs -t "
 
-#define INSMOD_MODULE_NAME "hellow.ko"
+#define INSMOD_MODULE_NAME "disk_wrapper.ko"
 #define WRAPPER_INSMOD      "insmod " INSMOD_MODULE_NAME " target_device_path="
 #define WRAPPER_RMMOD       "rmmod " INSMOD_MODULE_NAME
 

@@ -8,7 +8,7 @@
 #include <sys/types.h>
 #include <unistd.h>
 
-#include "../hellow_ioctl.h"
+#include "../disk_wrapper_ioctl.h"
 
 #define TEXT "hello great big world out there"
 

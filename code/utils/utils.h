@@ -7,7 +7,7 @@
 #include <utility>
 #include <vector>
 
-#include "../hellow_ioctl.h"
+#include "../disk_wrapper_ioctl.h"
 
 namespace fs_testing {
 namespace utils {

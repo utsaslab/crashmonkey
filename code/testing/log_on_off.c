@@ -4,7 +4,7 @@
 #include <sys/stat.h>
 #include <sys/types.h>
 
-#include "../hellow_ioctl.h"
+#include "../disk_wrapper_ioctl.h"
 
 // Assumes that the hwm module is already inserted into the kernel and is
 // properly running.

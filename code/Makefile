@@ -1,5 +1,5 @@
 TESTING := testing/log_on_off testing/test_get_log_ent_size
-obj-m := hellow.o
+obj-m := disk_wrapper.o
 KDIR := /lib/modules/$(shell uname -r)/build
 DEBUG_FLAGS += -g -DDEBUG
 GPP = g++
@@ -7,7 +7,7 @@ GOPTS = -std=c++11
 GOTPSSO = -shared -fPIC
 default:
 	$(MAKE) -C $(KDIR) M=$(PWD) modules EXTRA_CFLAGS="$(DEBUG_FLAGS)"
-	sudo cp hellow.ko /lib/modules/$(shell uname -r)/custom/
+	sudo cp disk_wrapper.ko /lib/modules/$(shell uname -r)/custom/
 
 test_log_on_off: testing/log_on_off.c
 	gcc testing/log_on_off.c -o testing/log_on_off
@@ -15,19 +15,19 @@ test_log_on_off: testing/log_on_off.c
 test_get_ent_size: testing/test_get_log_ent_size.c
 	gcc testing/test_get_log_ent_size.c -o testing/test_get_log_ent_size
 
-harness: harness/c_harness.cpp default utils/utils.h utils/utils.cpp hellow_ioctl.h \
+harness: harness/c_harness.cpp default utils/utils.h utils/utils.cpp disk_wrapper_ioctl.h \
 	harness/Tester.cpp harness/Tester.h tests/echo_sub_dir.so tests/BaseTestCase.h \
 	permuter/Permuter.h  permuter/RandomPermuter.so
 	$(GPP) $(GOPTS) harness/c_harness.cpp harness/Tester.cpp utils/utils.cpp \
 		-I /usr/src/linux-headers-$(shell uname -r)/include/ -ldl -o c_harness
 
-harness_huge: harness/c_harness.cpp default utils/utils.h utils/utils.cpp hellow_ioctl.h \
+harness_huge: harness/c_harness.cpp default utils/utils.h utils/utils.cpp disk_wrapper_ioctl.h \
 	harness/Tester.cpp harness/Tester.h tests/echo_sub_dir_huge.so tests/BaseTestCase.h \
 	permuter/Permuter.h  permuter/RandomPermuter.so
 	$(GPP) $(GOPTS) harness/c_harness.cpp harness/Tester.cpp utils/utils.cpp \
 		-I /usr/src/linux-headers-$(shell uname -r)/include/ -ldl -o c_harness
 
-harness_big: harness/c_harness.cpp default utils/utils.h utils/utils.cpp hellow_ioctl.h \
+harness_big: harness/c_harness.cpp default utils/utils.h utils/utils.cpp disk_wrapper_ioctl.h \
 	harness/Tester.cpp harness/Tester.h tests/echo_sub_dir_big.so tests/BaseTestCase.h \
 	permuter/Permuter.h  permuter/RandomPermuter.so
 	$(GPP) $(GOPTS) harness/c_harness.cpp harness/Tester.cpp utils/utils.cpp \
@@ -52,12 +52,12 @@ tests/echo_sub_dir_huge.so: tests/echo_sub_dir_huge.cpp
 	$(GPP) $(GOPTS) $(GOTPSSO) -Wl,-soname,echo_sub_dir_huge.so \
 		-o tests/echo_sub_dir_huge.so tests/echo_sub_dir_huge.cpp
 
-permute: permute.cpp utils/utils.h utils/utils.cpp hellow_ioctl.h
+permute: permute.cpp utils/utils.h utils/utils.cpp disk_wrapper_ioctl.h
 	$(GPP) $(GOPTS) permute.cpp utils/utils.cpp \
 		-I /usr/src/linux-headers-$(shell uname -r)/include/ -o permute
 
 permuter/RandomPermuter.so: permuter/RandomPermuter.cpp \
-	permuter/RandomPermuter.h utils/utils.h  utils/utils.cpp  hellow_ioctl.h
+	permuter/RandomPermuter.h utils/utils.h  utils/utils.cpp  disk_wrapper_ioctl.h
 	$(GPP) $(GOPTS) $(GOTPSSO) -Wl,-soname,RandomPermuter.so \
 		-o permuter/RandomPermuter.so permuter/RandomPermuter.cpp utils/utils.cpp \
 		-I /usr/src/linux-headers-$(shell uname -r)/include/
