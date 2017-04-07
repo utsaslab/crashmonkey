@@ -175,11 +175,16 @@ static void hellow_bio(struct request_queue* q, struct bio* bio) {
   // Log information about writes, fua, and flush/flush_seq events in kernel
   // memory.
   if (Device.log_on) {
+    /*
     if (bio->bi_rw & REQ_FLUSH ||
         bio->bi_rw & REQ_FUA || bio->bi_rw & REQ_FLUSH_SEQ ||
         bio->bi_rw & REQ_WRITE || bio->bi_rw & REQ_DISCARD ||
         bio->bi_flags & REQ_FLUSH || bio->bi_flags & REQ_FUA ||
         bio->bi_flags & REQ_WRITE) {
+    */
+    if (bio->bi_rw & REQ_FLUSH ||
+        bio->bi_rw & REQ_FUA || bio->bi_rw & REQ_FLUSH_SEQ ||
+        bio->bi_rw & REQ_WRITE || bio->bi_rw & REQ_DISCARD) {
 
       //printk(KERN_INFO "hwm: logging above bio\n");
       printk(KERN_INFO "hwm: bio rw of size %u headed for 0x%lx (sector 0x%lx)"
