@@ -80,9 +80,7 @@ void Tester::set_fs_type(const string type) {
 
 void Tester::set_device(const string device_path) {
   device_raw = device_path;
-  // Start off by assuming we will make a partition for ourselves and use that
-  // parition.
-  device_mount = device_raw + "1";
+  device_mount = device_raw;
 
   // /sys/block/<dev> has the number of 512 byte sectors on the disk.
   string dev = device_raw.substr(device_raw.find_last_of("/") + 1);
@@ -155,6 +153,7 @@ int Tester::clone_device() {
 }
 
 int Tester::clone_device_restore(bool reread) {
+  assert(device_size != 0);
   if (device_clone == NULL) {
     cerr << "No device clone to restore" << endl;
     return DRIVE_CLONE_ERR;
@@ -207,7 +206,7 @@ int Tester::mount_wrapper_device(const char* opts) {
   // TODO(ashmrtn): Make some sort of boolean that tracks if we should use the
   // first parition or not?
   string dev(MNT_WRAPPER_DEV_PATH);
-  dev += "1";
+  //dev += "1";
   return mount_device(dev.c_str(), opts);
 }
 
@@ -419,6 +418,8 @@ int Tester::partition_drive() {
   if (system(command.c_str()) != 0) {
     return PART_PART_ERR;
   }
+  // Since we added a parition on the drive we should use the first partition.
+  device_mount = device_raw + "1";
   return SUCCESS;
 }
 
@@ -460,7 +461,6 @@ int Tester::test_run() {
 }
 
 int Tester::test_check_random_permutations(const int num_rounds) {
-  std::fill(test_test_stats, test_test_stats + 6, 0);
   test_test_stats[TESTS_TESTS_RUN] = 0;
   Permuter *p = permuter_loader.get_instance();
   p->set_data(&log_data);

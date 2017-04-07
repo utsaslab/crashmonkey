@@ -32,12 +32,15 @@
 
 #define DIRTY_EXPIRE_TIME_SIZE 10
 
-#define TESTS_TESTS_RUN        0
-#define TESTS_TEST_FSCK_FAIL   1
-#define TESTS_TEST_BAD_DATA    2
-#define TESTS_TEST_FSCK_FIX    3
-#define TESTS_TEST_PASS        4
-#define TESTS_TEST_ERR         5
+enum test_stat {
+  TESTS_TESTS_RUN,
+  TESTS_TEST_FSCK_FAIL,
+  TESTS_TEST_BAD_DATA,
+  TESTS_TEST_FSCK_FIX,
+  TESTS_TEST_PASS,
+  TESTS_TEST_ERR,
+  TESTS_TEST_NUM,
+};
 
 namespace fs_testing {
 #ifdef TEST_CASE
@@ -57,7 +60,7 @@ class Tester {
   void set_fs_type(const std::string type);
   void set_device(const std::string device_path);
 
-  int test_test_stats[5];
+  int test_test_stats[TESTS_TEST_NUM] = {0};
 
   const char* update_dirty_expire_time(const char* time);
 
