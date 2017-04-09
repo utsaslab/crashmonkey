@@ -42,6 +42,7 @@
 
 #define INSMOD_MODULE_NAME "disk_wrapper.ko"
 #define WRAPPER_INSMOD      "insmod " INSMOD_MODULE_NAME " target_device_path="
+#define WRAPPER_INSMOD2      " flags_device_path="
 #define WRAPPER_RMMOD       "rmmod " INSMOD_MODULE_NAME
 
 #define DEV_SECTORS_PATH    "/sys/block/"
@@ -112,6 +113,10 @@ void Tester::set_device(const string device_path) {
   // Null terminate string.
   size_buf[bytes_read] = '\0';
   device_size = strtol(size_buf, NULL, 10) * SECTOR_SIZE;
+}
+
+void Tester::set_flag_device(const std::string device_path) {
+  flags_device = device_path;
 }
 
 int Tester::clone_device() {
@@ -233,7 +238,7 @@ int Tester::umount_device() {
 int Tester::insert_wrapper() {
   if (!wrapper_inserted) {
     string command(WRAPPER_INSMOD);
-    command += device_mount;
+    command += device_mount + WRAPPER_INSMOD2 + flags_device;
     if (!verbose) {
       command += SILENT;
     }

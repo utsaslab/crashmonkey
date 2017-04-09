@@ -20,6 +20,9 @@ MODULE_DESCRIPTION("test hello world");
 static char* target_device_path = "";
 module_param(target_device_path, charp, 0);
 
+static char* flags_device_path = "";
+module_param(flags_device_path, charp, 0);
+
 const char* const flag_names[] = {
   "write", "fail fast dev", "fail fast transport", "fail fast driver", "sync",
   "meta", "prio", "discard", "secure", "write same", "no idle", "fua", "flush",
@@ -70,6 +73,7 @@ static void free_logs(void) {
 static int disk_wrapper_ioctl(struct block_device* bdev, fmode_t mode,
     unsigned int cmd, unsigned long arg) {
   int ret = 0;
+  unsigned int not_copied;
 
   switch (cmd) {
     case HWM_LOG_OFF:
@@ -94,7 +98,7 @@ static int disk_wrapper_ioctl(struct block_device* bdev, fmode_t mode,
         return -EFAULT;
       }
       // Copy metadata.
-      unsigned int not_copied = sizeof(struct disk_write_op_meta);
+      not_copied = sizeof(struct disk_write_op_meta);
       while (not_copied != 0) {
         unsigned int offset = sizeof(struct disk_write_op_meta) - not_copied;
         not_copied = copy_to_user((void*) (arg + offset),
@@ -147,8 +151,8 @@ static const struct block_device_operations disk_wrapper_ops = {
 };
 
 static void print_rw_flags(unsigned long rw, unsigned long flags) {
-  printk(KERN_INFO "\traw rw flags: 0x%.8lx\n", rw);
   int i;
+  printk(KERN_INFO "\traw rw flags: 0x%.8lx\n", rw);
   for (i = __REQ_WRITE; i < __REQ_NR_BITS; i++) {
     if (rw & (1ULL << i)) {
       printk(KERN_INFO "\t%s\n", flag_names[i]);
@@ -164,8 +168,10 @@ static void print_rw_flags(unsigned long rw, unsigned long flags) {
 
 // TODO(ashmrtn): Currently not thread safe/reentrant. Make it so.
 static void disk_wrapper_bio(struct request_queue* q, struct bio* bio) {
+  int copied_data;
+  int i;
+  struct disk_write_op *write;
   struct hwm_device* hwm;
-  struct request_queue* target_queue;
 
   /*
   printk(KERN_INFO "hwm: bio rw of size %u headed for 0x%lx (sector 0x%lx)"
@@ -185,6 +191,7 @@ static void disk_wrapper_bio(struct request_queue* q, struct bio* bio) {
     if (bio->bi_rw & REQ_FLUSH ||
         bio->bi_rw & REQ_FUA || bio->bi_rw & REQ_FLUSH_SEQ ||
         bio->bi_rw & REQ_WRITE || bio->bi_rw & REQ_DISCARD) {
+      struct bio_vec* vec;
 
       //printk(KERN_INFO "hwm: logging above bio\n");
       printk(KERN_INFO "hwm: bio rw of size %u headed for 0x%lx (sector 0x%lx)"
@@ -192,8 +199,7 @@ static void disk_wrapper_bio(struct request_queue* q, struct bio* bio) {
       print_rw_flags(bio->bi_rw, bio->bi_flags);
 
       // Log data to disk logs.
-      struct disk_write_op* write =
-        kzalloc(sizeof(struct disk_write_op), GFP_NOIO);
+      write = kzalloc(sizeof(struct disk_write_op), GFP_NOIO);
       if (write == NULL) {
         printk(KERN_WARNING "hwm: unable to make new write node\n");
         goto passthrough;
@@ -221,10 +227,9 @@ static void disk_wrapper_bio(struct request_queue* q, struct bio* bio) {
         kfree(write);
         goto passthrough;
       }
-      int copied_data = 0;
+      copied_data = 0;
 
-      int i = 0;
-      struct bio_vec* vec;
+      i = 0;
       bio_for_each_segment(vec, bio, i) {
         //printk(KERN_INFO "hwm: making new page for segment of data\n");
 
@@ -248,18 +253,24 @@ static void disk_wrapper_bio(struct request_queue* q, struct bio* bio) {
  passthrough:
   // Pass request off to normal device driver.
   hwm = (struct hwm_device*) q->queuedata;
-  target_queue = hwm->target_dev->bd_queue;
   bio->bi_bdev = hwm->target_dev;
-  target_queue->make_request_fn(target_queue, bio);
+  submit_bio(bio->bi_rw, bio);
 }
 
 // TODO(ashmrtn): Fix error when wrong device path is passed.
 static int __init disk_wrapper_init(void) {
+  unsigned int flush_flags;
+  unsigned long queue_flags;
+  struct block_device *flags_device;
   printk(KERN_INFO "hwm: Hello World from module\n");
   if (strlen(target_device_path) == 0) {
     return -ENOTTY;
   }
-  printk(KERN_INFO "hwm: Wrapping device %s\n", target_device_path);
+  if (strlen(flags_device_path) == 0) {
+    return -ENOTTY;
+  }
+  printk(KERN_INFO "hwm: Wrapping device %s with flags device %s\n",
+      target_device_path, flags_device_path);
   // Get memory for our starting disk epoch node.
   Device.log_on = false;
 
@@ -286,6 +297,20 @@ static int __init disk_wrapper_init(void) {
     goto out;
   }
 
+  // Get the device we should copy flags from and copy those flags into locals.
+  flags_device = blkdev_get_by_path(flags_device_path, FMODE_READ, &Device);
+  if (!flags_device) {
+    printk(KERN_WARNING "hwm: unable to grab device to clone flags\n");
+    goto out;
+  }
+  if (!flags_device->bd_queue) {
+    printk(KERN_WARNING "hwm: attempt to wrap device with no request queue\n");
+    goto out;
+  }
+  flush_flags = flags_device->bd_queue->flush_flags;
+  queue_flags = flags_device->bd_queue->queue_flags;
+  blkdev_put(flags_device, FMODE_READ);
+
   // Set up our internal device.
   spin_lock_init(&Device.lock);
 
@@ -310,9 +335,11 @@ static int __init disk_wrapper_init(void) {
   }
   blk_queue_make_request(Device.gd->queue, disk_wrapper_bio);
   // Make this queue have the same flags as the queue we're feeding into.
-  Device.gd->queue->flush_flags = Device.target_dev->bd_queue->flush_flags;
-  Device.gd->queue->queue_flags = Device.target_dev->bd_queue->queue_flags;
+  Device.gd->queue->flush_flags = flush_flags;
+  Device.gd->queue->queue_flags = queue_flags;
   Device.gd->queue->queuedata = &Device;
+  printk(KERN_INFO "hwm: working with queue with:\n\tflush flags: 0x%x\n\tflags"
+      " 0x%lx\n", Device.gd->queue->flush_flags, Device.gd->queue->queue_flags);
   //blk_queue_hardsect_size(Queue, hardsect_size);
 
   add_disk(Device.gd);

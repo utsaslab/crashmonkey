@@ -59,6 +59,7 @@ class Tester {
   const bool verbose = false;
   void set_fs_type(const std::string type);
   void set_device(const std::string device_path);
+  void set_flag_device(const std::string device_path);
 
   int test_test_stats[TESTS_TEST_NUM] = {0};
 
@@ -116,6 +117,7 @@ class Tester {
   std::string fs_type;
   std::string device_raw;
   std::string device_mount;
+  std::string flags_device;
 
 
   bool wrapper_inserted = false;

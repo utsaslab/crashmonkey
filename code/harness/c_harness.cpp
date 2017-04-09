@@ -17,10 +17,10 @@
 #define PERMUTER_SO_PATH "permuter/"
 // TODO(ashmrtn): Find a good delay time to use for tests.
 #define TEST_DIRTY_EXPIRE_TIME "500"
-#define WRITE_DELAY 30
+#define WRITE_DELAY 20
 #define MOUNT_DELAY 3
 
-#define OPTS_STRING "d:il:m:np:r:st:v"
+#define OPTS_STRING "f:d:il:m:np:r:st:v"
 
 using std::cerr;
 using std::cout;
@@ -29,6 +29,7 @@ using std::string;
 using fs_testing::Tester;
 
 static const option long_options[] = {
+  {"flag-device", required_argument, NULL, 'f'},
   {"no-snap", no_argument, NULL, 's'},
   {"in-memory", no_argument, NULL, 'i'},
   {"dry-run", no_argument, NULL, 'n'},
@@ -46,6 +47,7 @@ int main(int argc, char** argv) {
   string dirty_expire_time_centisecs(TEST_DIRTY_EXPIRE_TIME);
   unsigned long int test_sleep_delay = WRITE_DELAY;
   string fs_type("ext4");
+  string flags_dev("/dev/vda");
   string test_dev("/dev/ram0");
   string mount_opts("");
   string log_file_save("");
@@ -68,6 +70,9 @@ int main(int argc, char** argv) {
         c != -1;
         c = getopt_long(argc, argv, OPTS_STRING, long_options, &option_idx)) {
     switch (c) {
+      case 'f':
+        flags_dev = string(optarg);
+        break;
       case 'd':
         test_dev = string(optarg);
         in_memory = false;
@@ -156,6 +161,11 @@ int main(int argc, char** argv) {
 
   // Run the normal test setup stuff if we don't have a log file.
   if (log_file_load.empty()) {
+    if (flags_dev.empty()) {
+      cerr << "No device to copy flags from given" << endl;
+      return -1;
+    }
+    test_harness.set_flag_device(flags_dev);
 
     if (!in_memory) {
       // Create a new partition table on test device.
