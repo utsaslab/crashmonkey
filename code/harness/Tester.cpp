@@ -506,8 +506,10 @@ int Tester::test_check_random_permutations(const int num_rounds) {
       }
       const int fsck_res = system(command.c_str());
       if (!(fsck_res == 0 || WEXITSTATUS(fsck_res) == 1)) {
+        /*
         cerr << "Error running fsck on snapshot file system: " <<
           WEXITSTATUS(fsck_res) << "\n";
+        */
         ++test_test_stats[TESTS_TEST_FSCK_FAIL];
       } else {
         // TODO(ashmrtn): Consider mounting with options specified for test
@@ -525,7 +527,9 @@ int Tester::test_check_random_permutations(const int num_rounds) {
           ++test_test_stats[TESTS_TEST_PASS];
         } else {
           ++test_test_stats[TESTS_TEST_ERR];
+          /*
           cerr << "test errored for other reason" << endl;
+          */
         }
         umount_device();
       }
