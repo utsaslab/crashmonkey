@@ -399,7 +399,7 @@ int main(int argc, char** argv) {
 
   if (!dry_run) {
     cout << "Writing profiled data to block device and checking with fsck\n";
-    test_harness.test_check_random_permutations(1);
+    test_harness.test_check_random_permutations(5);
 
     cout << "Ran " << test_harness.test_test_stats[TESTS_TESTS_RUN] << " tests"
           << endl
