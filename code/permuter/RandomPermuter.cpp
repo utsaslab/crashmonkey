@@ -26,8 +26,6 @@ void RandomPermuter::init_data_vector(vector<disk_write> *data) {
     struct epoch current_epoch;
     current_epoch.has_barrier = false;
     current_epoch.length = 0;
-    // Epochs don't have to start with a sync op.
-    int epoch_sync_index = -1;
 
     // Get all ops in this epoch and add them to either the sync_op or async_op
     // lists.
@@ -35,19 +33,7 @@ void RandomPermuter::init_data_vector(vector<disk_write> *data) {
       ++current_epoch.length;
       struct epoch_op info;
       info.write = data->at(index);
-      // Since we start with an invalid index we need to pre-increment for
-      // actual sync operations.
-      if (!info.write.is_async_write()) {
-        ++epoch_sync_index;
-      }
-      info.nearest_sync = epoch_sync_index;
-
-      if (info.write.is_async_write()) {
-        current_epoch.async_ops.push_back(info);
-      } else {
-        current_epoch.sync_ops.push_back(info);
-      }
-
+      current_epoch.ops.push_back(info);
       ++index;
     }
 
@@ -57,7 +43,6 @@ void RandomPermuter::init_data_vector(vector<disk_write> *data) {
     if (index < data->size() && (data->at(index)).is_barrier_write()) {
       ++current_epoch.length;
       current_epoch.barrier_op.write = data->at(index);
-      current_epoch.barrier_op.nearest_sync = epoch_sync_index;
       ++index;
       current_epoch.has_barrier = true;
     }
@@ -109,17 +94,7 @@ void RandomPermuter::permute_epoch(vector<disk_write> *res,
   list<unsigned int> empty_slots(slots);
   iota(empty_slots.begin(), empty_slots.end(), 0);
 
-  int current_sync_index = -1;
-  for (struct epoch_op op : epoch.async_ops) {
-    // If the closest sync operation for this async_op is greater than our
-    // current_sync_index we need to add more sync ops so that we maintain an
-    // ordering.
-    while (op.nearest_sync > current_sync_index) {
-      ++current_sync_index;
-      res->at(empty_slots.front()) =
-        epoch.sync_ops.at(current_sync_index).write;
-      empty_slots.pop_front();
-    }
+  for (struct epoch_op op : epoch.ops) {
     // Uniform distribution includes both ends, so we need to subtract 1 from
     // the size.
     uniform_int_distribution<unsigned int> uid(0, empty_slots.size() - 1);
@@ -129,18 +104,7 @@ void RandomPermuter::permute_epoch(vector<disk_write> *res,
     empty_slots.erase(shift);
   }
 
-  // Finish off by placing the rest of the sync ops in order in the result.
-  // Increment current_sync_index by one because until now it has been tracking
-  // the last sync_op we HAVE placed. Now we want to place any remaining
-  // sync_ops which would be sync_ops we HAVEN'T YET placed.
-  ++current_sync_index;
-  assert(empty_slots.size() == epoch.sync_ops.size() - current_sync_index);
-  while (!empty_slots.empty()) {
-    res->at(start_index + empty_slots.front()) =
-      epoch.sync_ops.at(current_sync_index).write;
-    empty_slots.pop_front();
-    ++current_sync_index;
-  }
+  assert(empty_slots.empty());
 }
 
 }  // namespace permuter

@@ -12,20 +12,13 @@ namespace permuter {
 
 struct epoch_op {
   fs_testing::utils::disk_write write;
-  // Index of the closest sync operation prior to this info. If the current info
-  // refers to a sync operation then it could be the sync operation itself.
-  // Index is the index into the sync_ops field and doesn't necessarily
-  // correspond to the index in the original logged data of the nearest sync
-  // operation.
-  int nearest_sync;
 };
 
 struct epoch {
   unsigned int length;
   bool has_barrier;
   struct epoch_op barrier_op;
-  std::vector<struct epoch_op> sync_ops;
-  std::vector<struct epoch_op> async_ops;
+  std::vector<struct epoch_op> ops;
 };
 
 class RandomPermuter : public Permuter {
