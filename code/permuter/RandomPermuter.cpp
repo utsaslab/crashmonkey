@@ -34,6 +34,7 @@ void RandomPermuter::init_data_vector(vector<disk_write> *data) {
       struct epoch_op info;
       info.write = data->at(index);
       current_epoch.ops.push_back(info);
+      current_epoch.num_meta += data->at(index).is_meta();
       ++index;
     }
 
@@ -43,6 +44,7 @@ void RandomPermuter::init_data_vector(vector<disk_write> *data) {
     if (index < data->size() && (data->at(index)).is_barrier_write()) {
       ++current_epoch.length;
       current_epoch.barrier_op.write = data->at(index);
+      current_epoch.num_meta += data->at(index).is_meta();
       ++index;
       current_epoch.has_barrier = true;
     }
@@ -65,19 +67,40 @@ void RandomPermuter::set_data(vector<disk_write> *data) {
   init_data_vector(data);
 }
 
-bool RandomPermuter::permute(vector<disk_write> *res) {
-  res->clear();
-  *res = vector<disk_write>(log_length);
-  int current_index = 0;
-  for (struct epoch current_epoch : epochs) {
-    permute_epoch(res, current_index, current_epoch);
-    current_index += current_epoch.length;
+bool RandomPermuter::permute(vector<disk_write>& res) {
+  unsigned int total_elements = 0;
+  // Find how many elements we will be returning (randomly determined).
+  uniform_int_distribution<unsigned int> permute_epochs(1, epochs.size());
+  unsigned int num_epochs = permute_epochs(rand);
+  // Don't subtract 1 from this size so that we can send a complete epoch if we
+  // want.
+  uniform_int_distribution<unsigned int> permute_requests(0,
+      epochs.at(num_epochs - 1).length);
+  unsigned int num_requests = permute_requests(rand);
+  //for (unsigned int i = 0; i < num_epochs - 1; ++i) {
+  for (unsigned int i = 0; i < num_epochs; ++i) {
+    total_elements += epochs.at(i).length;
   }
+  //total_elements += num_requests;
+  res.resize(total_elements);
+
+  int current_index = 0;
+  for (unsigned int i = 0; i < num_epochs; ++i) {
+    permute_epoch(res, current_index, epochs.at(i));
+    current_index += epochs.at(i).length;
+  }
+  // Trim the last epoch to a random number of requests.
+  auto cutoff = res.begin();
+  // Move the iterator to the start of the epoch we're trimming.
+  advance(cutoff, current_index - epochs.at(num_epochs - 1).length);
+  advance(cutoff, num_requests);
+  // Trim off all requests at or after the one we selected above.
+  res.erase(cutoff, res.end());
 
   return true;
 }
 
-void RandomPermuter::permute_epoch(vector<disk_write> *res,
+void RandomPermuter::permute_epoch(vector<disk_write>& res,
     const int start_index, epoch& epoch) {
   unsigned int slots = epoch.length;
 
@@ -85,7 +108,7 @@ void RandomPermuter::permute_epoch(vector<disk_write> *res,
   // exists (i.e. we won't cause extra shifting when adding the other elements).
   // Decrement out count of empty slots since we have filled one.
   if (epoch.has_barrier) {
-    res->at(start_index + slots - 1) = epoch.barrier_op.write;
+    res.at(start_index + slots - 1) = epoch.barrier_op.write;
     --slots;
   }
 
@@ -100,7 +123,7 @@ void RandomPermuter::permute_epoch(vector<disk_write> *res,
     uniform_int_distribution<unsigned int> uid(0, empty_slots.size() - 1);
     auto shift = empty_slots.begin();
     advance(shift, uid(rand));
-    res->at(start_index + *shift) = op.write;
+    res.at(start_index + *shift) = op.write;
     empty_slots.erase(shift);
   }
 

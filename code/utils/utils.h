@@ -28,6 +28,7 @@ class disk_write {
   bool has_write_flag();
   bool is_barrier_write();
   bool is_async_write();
+  bool is_meta();
 
   static void serialize(std::ofstream& fs, const disk_write& dw);
   static disk_write deserialize(std::ifstream& is);

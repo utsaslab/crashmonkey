@@ -51,6 +51,10 @@ bool disk_write::is_barrier_write() {
         metadata.bi_rw & REQ_WRITE);
 }
 
+bool disk_write::is_meta() {
+  return (metadata.bi_rw & REQ_META);
+}
+
 disk_write::disk_write(const struct disk_write_op_meta& m,
     const char *d) {
   metadata = m;

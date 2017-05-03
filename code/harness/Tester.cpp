@@ -469,70 +469,67 @@ int Tester::test_check_random_permutations(const int num_rounds) {
   test_test_stats[TESTS_TESTS_RUN] = 0;
   Permuter *p = permuter_loader.get_instance();
   p->set_data(&log_data);
-  vector<disk_write> permutes = log_data;
+  vector<disk_write> permutes;
   for (int rounds = 0; rounds < num_rounds; ++rounds) {
-    p->permute(&permutes);
-    const auto start_itr = permutes.begin();
+    p->permute(permutes);
 
-    for (auto end_itr = start_itr; end_itr != permutes.end(); ++end_itr) {
-      ++test_test_stats[TESTS_TESTS_RUN];
-      cout << '.' << std::flush;
+    ++test_test_stats[TESTS_TESTS_RUN];
+    cout << '.' << std::flush;
 
-      // Restore disk clone.
-      if (clone_device_restore(false) != SUCCESS) {
-        cout << endl;
-        return DRIVE_CLONE_RESTORE_ERR;
-      }
+    // Restore disk clone.
+    if (clone_device_restore(false) != SUCCESS) {
+      cout << endl;
+      return DRIVE_CLONE_RESTORE_ERR;
+    }
 
-      // Write recorded data out to block device in different orders so that we
-      // can if they are all valid or not.
-      const int sn_fd = open(device_raw.c_str(), O_WRONLY);
-      if (sn_fd < 0) {
-        cout << endl;
-        return TEST_CASE_FILE_ERR;
-      }
-      if (!test_write_data(sn_fd, start_itr, end_itr)) {
-        ++test_test_stats[TESTS_TEST_ERR];
-        cout << "test errored in writing data" << endl;
-        close(sn_fd);
+    // Write recorded data out to block device in different orders so that we
+    // can if they are all valid or not.
+    const int sn_fd = open(device_raw.c_str(), O_WRONLY);
+    if (sn_fd < 0) {
+      cout << endl;
+      return TEST_CASE_FILE_ERR;
+    }
+    if (!test_write_data(sn_fd, permutes.begin(), permutes.end())) {
+      ++test_test_stats[TESTS_TEST_ERR];
+      cout << "test errored in writing data" << endl;
+      close(sn_fd);
+      continue;
+    }
+    close(sn_fd);
+
+    string command(TEST_CASE_FSCK + fs_type + " " + device_mount
+        + " -- -y");
+    if (!verbose) {
+      command += SILENT;
+    }
+    const int fsck_res = system(command.c_str());
+    if (!(fsck_res == 0 || WEXITSTATUS(fsck_res) == 1)) {
+      /*
+      cerr << "Error running fsck on snapshot file system: " <<
+        WEXITSTATUS(fsck_res) << "\n";
+      */
+      ++test_test_stats[TESTS_TEST_FSCK_FAIL];
+    } else {
+      // TODO(ashmrtn): Consider mounting with options specified for test
+      // profile?
+      if (mount_device_raw(NULL) != SUCCESS) {
+        ++test_test_stats[TESTS_TEST_FSCK_FAIL];
         continue;
       }
-      close(sn_fd);
-
-      string command(TEST_CASE_FSCK + fs_type + " " + device_mount
-          + " -- -y");
-      if (!verbose) {
-        command += SILENT;
-      }
-      const int fsck_res = system(command.c_str());
-      if (!(fsck_res == 0 || WEXITSTATUS(fsck_res) == 1)) {
-        /*
-        cerr << "Error running fsck on snapshot file system: " <<
-          WEXITSTATUS(fsck_res) << "\n";
-        */
-        ++test_test_stats[TESTS_TEST_FSCK_FAIL];
+      const int test_check_res = test_loader.get_instance()->check_test();
+      if (test_check_res < 0) {
+        ++test_test_stats[TESTS_TEST_BAD_DATA];
+      } else if (test_check_res == 0 && fsck_res != 0) {
+        ++test_test_stats[TESTS_TEST_FSCK_FIX];
+      } else if (test_check_res == 0 && fsck_res == 0) {
+        ++test_test_stats[TESTS_TEST_PASS];
       } else {
-        // TODO(ashmrtn): Consider mounting with options specified for test
-        // profile?
-        if (mount_device_raw(NULL) != SUCCESS) {
-          ++test_test_stats[TESTS_TEST_FSCK_FAIL];
-          continue;
-        }
-        const int test_check_res = test_loader.get_instance()->check_test();
-        if (test_check_res < 0) {
-          ++test_test_stats[TESTS_TEST_BAD_DATA];
-        } else if (test_check_res == 0 && fsck_res != 0) {
-          ++test_test_stats[TESTS_TEST_FSCK_FIX];
-        } else if (test_check_res == 0 && fsck_res == 0) {
-          ++test_test_stats[TESTS_TEST_PASS];
-        } else {
-          ++test_test_stats[TESTS_TEST_ERR];
-          /*
-          cerr << "test errored for other reason" << endl;
-          */
-        }
-        umount_device();
+        ++test_test_stats[TESTS_TEST_ERR];
+        /*
+        cerr << "test errored for other reason" << endl;
+        */
       }
+      umount_device();
     }
   }
   cout << endl;
