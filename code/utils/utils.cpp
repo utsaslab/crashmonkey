@@ -59,7 +59,8 @@ disk_write::disk_write(const struct disk_write_op_meta& m,
     const char *d) {
   metadata = m;
   if (metadata.size > 0 && d != NULL) {
-    data = shared_ptr<char>(new char[metadata.size]);
+    data = shared_ptr<char>(new char[metadata.size],
+        [](char* c) {delete[] c;});
     memcpy(data.get(), d, metadata.size);
   }
 }
