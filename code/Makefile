@@ -62,6 +62,20 @@ permuter/RandomPermuter.so: permuter/RandomPermuter.cpp \
 		-o permuter/RandomPermuter.so permuter/RandomPermuter.cpp utils/utils.cpp \
 		-I /usr/src/linux-headers-$(shell uname -r)/include/
 
+run_norm: c_harness
+	sudo insmod /lib/modules/$(shell uname -r)/kernel/drivers/block/brd.ko \
+		rd_size=524288
+	sudo ./c_harness -f /dev/vda -t ext4 -m barrier -d /dev/ram0 -i \
+		-l /home/ashmrtn/research/harness_profiles/$(LOG) tests/echo_sub_dir.so
+	sudo rmmod brd
+
+run_norm_log: c_harness
+	sudo insmod /lib/modules/$(shell uname -r)/kernel/drivers/block/brd.ko \
+		rd_size=524288
+	sudo ./c_harness -f /dev/vda -t ext4 -m barrier -d /dev/ram0 -i \
+		-r /home/ashmrtn/research/harness_profiles/$(LOG) tests/echo_sub_dir.so
+	sudo rmmod brd
+
 clean:
 	$(MAKE) -C $(KDIR) M=$(PWD) clean
 	rm -f $(TESTING) tests/*.so c_harness permute *.o *.so permuter/*.so
