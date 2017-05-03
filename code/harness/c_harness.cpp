@@ -30,7 +30,6 @@ using fs_testing::Tester;
 
 static const option long_options[] = {
   {"flag-device", required_argument, NULL, 'f'},
-  {"no-snap", no_argument, NULL, 's'},
   {"in-memory", no_argument, NULL, 'i'},
   {"dry-run", no_argument, NULL, 'n'},
   {"verbose", no_argument, NULL, 'v'},
@@ -40,6 +39,7 @@ static const option long_options[] = {
   {"reload-log-file", required_argument, NULL, 'r'},
   {"mount-opts", required_argument, NULL, 'm'},
   {"permuter", required_argument, NULL, 'p'},
+  {"iterations", required_argument, NULL, 's'},
   {0, 0, 0, 0},
 };
 
@@ -55,8 +55,8 @@ int main(int argc, char** argv) {
   string permuter(PERMUTER_SO_PATH "RandomPermuter.so");
   bool dry_run = false;
   bool no_lvm = false;
-  bool no_snap = false;
   bool verbose = false;
+  unsigned int iterations = 1000;
   // TODO(ashmrtn): Find a better way to track whether we are using a ramdisk or
   // not. ramdisks don't need paritioned and will fail if we try to run fdisk
   // (the partitioning steps) on them so we need to detect them and change our
@@ -96,8 +96,7 @@ int main(int argc, char** argv) {
         log_file_load = string(optarg);
         break;
       case 's':
-        no_snap = 1;
-        dry_run = 1;
+        iterations = atoi(optarg);
         break;
       case 't':
         fs_type = string(optarg);
@@ -115,6 +114,11 @@ int main(int argc, char** argv) {
 
   if (test_case_idx == argc) {
     cerr << "Please give a .so test case to load" << endl;
+    return -1;
+  }
+
+  if (iterations < 0) {
+    cerr << "Please give a positive number of iterations to run" << endl;
     return -1;
   }
 
@@ -220,21 +224,19 @@ int main(int argc, char** argv) {
     }
 
     // Create snapshot of disk for testing.
-    if (!no_snap) {
-      cout << "Making new snapshot\n";
-      if (test_harness.clone_device() != SUCCESS) {
+    cout << "Making new snapshot\n";
+    if (test_harness.clone_device() != SUCCESS) {
+      test_harness.cleanup_harness();
+      return -1;
+    }
+
+    // If we're logging this test run then also save the snapshot.
+    if (!log_file_save.empty()) {
+      cout << "Saving snapshot to log file" << endl;
+      if (test_harness.log_snapshot_save(log_file_save + "_snap")
+          != SUCCESS) {
         test_harness.cleanup_harness();
         return -1;
-      }
-
-      // If we're logging this test run then also save the snapshot.
-      if (!log_file_save.empty()) {
-        cout << "Saving snapshot to log file" << endl;
-        if (test_harness.log_snapshot_save(log_file_save + "_snap")
-            != SUCCESS) {
-          test_harness.cleanup_harness();
-          return -1;
-        }
       }
     }
   } else {
@@ -399,7 +401,7 @@ int main(int argc, char** argv) {
 
   if (!dry_run) {
     cout << "Writing profiled data to block device and checking with fsck\n";
-    test_harness.test_check_random_permutations(5);
+    test_harness.test_check_random_permutations(iterations);
 
     cout << "Ran " << test_harness.test_test_stats[TESTS_TESTS_RUN] << " tests"
           << endl
