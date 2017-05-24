@@ -10,16 +10,12 @@
 namespace fs_testing {
 namespace permuter {
 
-struct epoch_op {
-  fs_testing::utils::disk_write write;
-};
-
 struct epoch {
   unsigned int length;
   unsigned int num_meta;
   bool has_barrier;
-  struct epoch_op barrier_op;
-  std::vector<struct epoch_op> ops;
+  bool overlaps;
+  std::vector<struct fs_testing::utils::disk_write> ops;
 };
 
 class RandomPermuter : public Permuter {
