@@ -83,6 +83,8 @@ bool operator==(const disk_write& a, const disk_write& b) {
     if ((a.data.get() == NULL && b.data.get() != NULL) ||
         (a.data.get() != NULL && b.data.get() == NULL)) {
       return false;
+    } else if (a.data.get() == NULL && b.data.get() == NULL) {
+      return true;
     }
     if (memcmp(a.data.get(), b.data.get(), a.metadata.size) == 0) {
       return true;
