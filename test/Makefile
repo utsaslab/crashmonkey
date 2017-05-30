@@ -88,7 +88,7 @@ sample1_unittest : sample1.o sample1_unittest.o gtest_main.a
 	$(CXX) $(CPPFLAGS) $(CXXFLAGS) -lpthread $^ -o $@
 
 RandomPermuterTest.o : $(USER_DIR)/permuter/RandomPermuterTest.cpp \
-			$(CODE_DIR)/utils/utils.h $(CODE_DIR)/hellow_ioctl.h \
+			$(CODE_DIR)/utils/utils.h $(CODE_DIR)/disk_wrapper_ioctl.h \
 			$(CODE_DIR)/permuter/RandomPermuter.h $(CODE_DIR)/permuter/Permuter.h \
 			$(GTEST_HEADERS)
 	$(CXX) $(CPPFLAGS) $(CXXFLAGS) $(GOPTS) $(SYS_HEADERS) \
@@ -99,7 +99,7 @@ RandomPermuterTest : RandomPermuterTest.o gtest_main.a \
 	$(CXX) $(CPPFLAGS) $(CXXFLAGS) $(GOPTS) $(SYS_HEADERS) -lpthread $^ -o $@
 
 DiskWriteTest.o : $(USER_DIR)/utils/DiskWriteTest.cpp \
-			$(CODE_DIR)/utils/utils.h $(CODE_DIR)/hellow_ioctl.h \
+			$(CODE_DIR)/utils/utils.h $(CODE_DIR)/disk_wrapper_ioctl.h \
 			$(GTEST_HEADERS)
 	$(CXX) $(CPPFLAGS) $(CXXFLAGS) $(GOPTS) $(SYS_HEADERS) \
 		-c $(USER_DIR)/utils/DiskWriteTest.cpp
