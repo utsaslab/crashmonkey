@@ -82,8 +82,8 @@ TEST(RandomPermuter, PermuteSingleEpoch) {
   }
 
   disk_write barrier;
-  barrier.metadata.bi_flags = REQ_FUA;
-  barrier.metadata.bi_rw = REQ_FUA;
+  barrier.metadata.bi_flags = REQ_FUA | REQ_WRITE;
+  barrier.metadata.bi_rw = REQ_FUA | REQ_WRITE;
   barrier.metadata.write_sector = 42;
   barrier.metadata.size = 8192;
   test_epoch.push_back(barrier);
@@ -91,44 +91,76 @@ TEST(RandomPermuter, PermuteSingleEpoch) {
   RandomPermuter rp;
   rp.set_data(&test_epoch);
   vector<disk_write> result;
-  rp.permute(&result);
+  rp.permute(result);
 }
 
-/*
-const char kHelloString[] = "Hello, world!";
+TEST(RandomPermuter, FindOverlaps) {
+  unsigned int num_regular_writes = 9;
+  vector<disk_write> test_epoch;
+  unsigned int write_size = 4096;
 
-// Tests the c'tor that accepts a C string.
-TEST(MyString, ConstructorFromCString) {
-  const MyString s(kHelloString);
-  EXPECT_EQ(0, strcmp(s.c_string(), kHelloString));
-  EXPECT_EQ(sizeof(kHelloString)/sizeof(kHelloString[0]) - 1,
-            s.Length());
+  for (unsigned int i = 0; i < num_regular_writes; ++i) {
+    disk_write write;
+    write.metadata.write_sector = write_size * i;
+    write.metadata.size = write_size;
+    write.metadata.bi_flags = REQ_WRITE;
+    write.metadata.bi_rw = REQ_WRITE;
+
+    test_epoch.push_back(write);
+  }
+
+  disk_write barrier;
+  barrier.metadata.bi_flags = REQ_FUA | REQ_WRITE;
+  barrier.metadata.bi_rw = REQ_FUA | REQ_WRITE;
+  barrier.metadata.write_sector = 0;
+  barrier.metadata.size = 2 * write_size;
+  test_epoch.push_back(barrier);
+
+  RandomPermuter rp;
+  rp.set_data(&test_epoch);
+  vector<disk_write> result;
+  rp.permute(result);
+
+  EXPECT_NE(test_epoch, result);
 }
 
-// Tests the copy c'tor.
-TEST(MyString, CopyConstructor) {
-  const MyString s1(kHelloString);
-  const MyString s2 = s1;
-  EXPECT_EQ(0, strcmp(s2.c_string(), kHelloString));
+TEST(RandomPermuter, FindNoOverlapsMultiEpoch) {
+  unsigned int num_epochs = 3;
+  unsigned int num_regular_writes = 9;
+  vector<disk_write> test_epoch;
+  unsigned int write_size = 4096;
+
+  for (unsigned int epoch = 0; epoch < num_epochs; ++epoch) {
+    for (unsigned int i = 0; i < num_regular_writes; ++i) {
+      disk_write write;
+      write.metadata.write_sector = write_size * i;
+      write.metadata.size = write_size;
+      write.metadata.bi_flags = REQ_WRITE;
+      write.metadata.bi_rw = REQ_WRITE;
+
+      test_epoch.push_back(write);
+    }
+
+    disk_write barrier;
+    barrier.metadata.bi_flags = REQ_FUA | REQ_WRITE;
+    barrier.metadata.bi_rw = REQ_FUA | REQ_WRITE;
+    barrier.metadata.write_sector = (num_regular_writes + 1) * write_size;
+    barrier.metadata.size = 2 * write_size;
+    test_epoch.push_back(barrier);
+  }
+
+  RandomPermuter rp;
+  rp.set_data(&test_epoch);
+  vector<disk_write> result;
+  rp.permute(result);
+
+  // The very first epoch should be the same since we have no overlaps in it as
+  // long as multiple epochs are written to disk.
+  EXPECT_TRUE(result.size() > num_regular_writes + 1);
+  for (unsigned int i = 0; i < num_regular_writes + 1; ++i) {
+    EXPECT_EQ(test_epoch.at(i), result.at(i));
+  }
 }
-
-// Tests the Set method.
-TEST(MyString, Set) {
-  MyString s;
-
-  s.Set(kHelloString);
-  EXPECT_EQ(0, strcmp(s.c_string(), kHelloString));
-
-  // Set should work when the input pointer is the same as the one
-  // already in the MyString object.
-  s.Set(s.c_string());
-  EXPECT_EQ(0, strcmp(s.c_string(), kHelloString));
-
-  // Can we set the MyString to NULL?
-  s.Set(NULL);
-  EXPECT_STREQ(NULL, s.c_string());
-}
-*/
 
 }  // namespace test
 }  // namespace fs_testing

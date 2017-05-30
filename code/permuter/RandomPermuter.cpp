@@ -18,18 +18,55 @@ using std::vector;
 
 using fs_testing::utils::disk_write;
 
+namespace {
+
+struct range {
+  unsigned int start;
+  unsigned int end;
+};
+
+}  // namespace
+
 void RandomPermuter::init_data_vector(vector<disk_write> *data) {
   epochs.clear();
   log_length = data->size();
   unsigned int index = 0;
+  list<range> overlaps;
   while (index < data->size()) {
     struct epoch current_epoch;
     current_epoch.has_barrier = false;
+    current_epoch.overlaps = false;
     current_epoch.length = 0;
 
     // Get all ops in this epoch and add them to either the sync_op or async_op
     // lists.
     while (index < data->size() && !(data->at(index)).is_barrier_write()) {
+      disk_write curr = data->at(index);
+      // Find overlapping ranges.
+      unsigned int start = curr.metadata.write_sector;
+      unsigned int end = start + curr.metadata.size;
+      for (auto range_iter = overlaps.begin(); range_iter != overlaps.end();
+          range_iter++) {
+        range r = *range_iter;
+        if ((r.start <= start && r.end >= start)
+            || (r.start <= end && r.end >= end)) {
+          if (r.start > start) {
+            r.start = start;
+          }
+          if (r.end < end) {
+            r.end = end;
+          }
+          current_epoch.overlaps = true;
+          break;
+        } else if (r.start > end) {
+          // Since this is an ordered list, if the next spot is past where we're
+          // looking now then we won't find anything past here. We may as well
+          // insert an item here.
+          range new_range = {start, end};
+          overlaps.insert(range_iter, new_range);
+        }
+      }
+
       ++current_epoch.length;
       current_epoch.ops.push_back(data->at(index));
       current_epoch.num_meta += data->at(index).is_meta();
@@ -72,7 +109,7 @@ bool RandomPermuter::permute(vector<disk_write>& res) {
   unsigned int num_epochs = permute_epochs(rand);
   // Don't subtract 1 from this size so that we can send a complete epoch if we
   // want.
-  uniform_int_distribution<unsigned int> permute_requests(0,
+  uniform_int_distribution<unsigned int> permute_requests(1,
       epochs.at(num_epochs - 1).length);
   unsigned int num_requests = permute_requests(rand);
   // TODO(ashmrtn): Optimize so that we resize to exactly the number of elements
@@ -83,23 +120,35 @@ bool RandomPermuter::permute(vector<disk_write>& res) {
   res.resize(total_elements);
 
   int current_index = 0;
+  auto curr_iter = res.begin();
+  auto cutoff = res.begin();
   for (unsigned int i = 0; i < num_epochs; ++i) {
-    if (epochs.at(i).overlaps) {
+    if (epochs.at(i).overlaps || i == num_epochs - 1) {
       permute_epoch(res, current_index, epochs.at(i));
     } else {
-      auto ins = res.begin();
-      advance(ins, current_index);
-      res.insert(ins, epochs.at(i).ops.begin(), epochs.at(i).ops.end());
+      res.insert(curr_iter, epochs.at(i).ops.begin(), epochs.at(i).ops.end());
     }
     current_index += epochs.at(i).length;
+
+    /* TODO(ashmrtn): Figure out why we can't set the cutoff iterator up here.
+    // Set this here so that we don't have to move it all the way to the start
+    // below.
+    if (i == num_epochs - 1) {
+      std::cout << "setting cutoff itrator" << std::endl;
+      cutoff = curr_iter;
+    } else {
+      advance(curr_iter, epochs.at(i).length);
+    }
+    */
+    advance(curr_iter, epochs.at(i).length);
   }
   // Trim the last epoch to a random number of requests.
-  auto cutoff = res.begin();
-  // Move the iterator to the start of the epoch we're trimming.
-  advance(cutoff, current_index - epochs.at(num_epochs - 1).length);
-  advance(cutoff, num_requests);
+  cutoff = res.begin();
+  advance(cutoff, total_elements - epochs.at(num_epochs - 1).length);
+  advance(cutoff, num_requests - 1);
   // Trim off all requests at or after the one we selected above.
   res.erase(cutoff, res.end());
+  //res.erase(curr_iter, res.end());
 
   return true;
 }
@@ -121,7 +170,7 @@ void RandomPermuter::permute_epoch(vector<disk_write>& res,
   list<unsigned int> empty_slots(slots);
   iota(empty_slots.begin(), empty_slots.end(), 0);
 
-  for (int i = 0; i < slots; ++i) {
+  for (unsigned int i = 0; i < slots; ++i) {
     // Uniform distribution includes both ends, so we need to subtract 1 from
     // the size.
     uniform_int_distribution<unsigned int> uid(0, empty_slots.size() - 1);
