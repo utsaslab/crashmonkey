@@ -123,10 +123,17 @@ bool RandomPermuter::permute(vector<disk_write>& res) {
   auto curr_iter = res.begin();
   auto cutoff = res.begin();
   for (unsigned int i = 0; i < num_epochs; ++i) {
-    if (epochs.at(i).overlaps || i == num_epochs - 1) {
-      permute_epoch(res, current_index, epochs.at(i));
-    } else {
-      res.insert(curr_iter, epochs.at(i).ops.begin(), epochs.at(i).ops.end());
+    auto res_iter = curr_iter;
+    // Use a for loop since vector::insert inserts new elements and we resized
+    // above to the exact size we will have.
+    unsigned int adv = (i == num_epochs - 1) ? num_requests
+                                             : epochs.at(i).length;
+    auto epoch_end = epochs.at(i).ops.begin();
+    advance(epoch_end, adv);
+    for (auto epoch_iter = epochs.at(i).ops.begin(); epoch_iter != epoch_end;
+        ++epoch_iter) {
+      *res_iter = *epoch_iter;
+      ++res_iter;
     }
     current_index += epochs.at(i).length;
 
