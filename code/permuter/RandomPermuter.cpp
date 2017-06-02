@@ -123,36 +123,30 @@ bool RandomPermuter::permute(vector<disk_write>& res) {
   auto curr_iter = res.begin();
   auto cutoff = res.begin();
   for (unsigned int i = 0; i < num_epochs; ++i) {
-    auto res_iter = curr_iter;
-    // Use a for loop since vector::insert inserts new elements and we resized
-    // above to the exact size we will have.
-    unsigned int adv = (i == num_epochs - 1) ? num_requests
-                                             : epochs.at(i).length;
-    auto epoch_end = epochs.at(i).ops.begin();
-    advance(epoch_end, adv);
-    for (auto epoch_iter = epochs.at(i).ops.begin(); epoch_iter != epoch_end;
-        ++epoch_iter) {
-      *res_iter = *epoch_iter;
-      ++res_iter;
+    if (epochs.at(i).overlaps || i == num_epochs - 1) {
+      permute_epoch(res, current_index, epochs.at(i));
+    } else {
+      auto res_iter = curr_iter;
+      // Use a for loop since vector::insert inserts new elements and we resized
+      // above to the exact size we will have.
+      unsigned int adv = (i == num_epochs - 1) ? num_requests
+                                               : epochs.at(i).length;
+      auto epoch_end = epochs.at(i).ops.begin();
+      advance(epoch_end, adv);
+      for (auto epoch_iter = epochs.at(i).ops.begin(); epoch_iter != epoch_end;
+          ++epoch_iter) {
+        *res_iter = *epoch_iter;
+        ++res_iter;
+      }
     }
     current_index += epochs.at(i).length;
 
-    /* TODO(ashmrtn): Figure out why we can't set the cutoff iterator up here.
-    // Set this here so that we don't have to move it all the way to the start
-    // below.
-    if (i == num_epochs - 1) {
-      std::cout << "setting cutoff itrator" << std::endl;
-      cutoff = curr_iter;
-    } else {
-      advance(curr_iter, epochs.at(i).length);
-    }
-    */
     advance(curr_iter, epochs.at(i).length);
   }
   // Trim the last epoch to a random number of requests.
   cutoff = res.begin();
-  advance(cutoff, total_elements - epochs.at(num_epochs - 1).length);
-  advance(cutoff, num_requests - 1);
+  advance(cutoff, total_elements - epochs.at(num_epochs - 1).length
+      + num_requests);
   // Trim off all requests at or after the one we selected above.
   res.erase(cutoff, res.end());
   //res.erase(curr_iter, res.end());
