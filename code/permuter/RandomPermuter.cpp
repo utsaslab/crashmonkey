@@ -149,7 +149,6 @@ bool RandomPermuter::permute(vector<disk_write>& res) {
       + num_requests);
   // Trim off all requests at or after the one we selected above.
   res.erase(cutoff, res.end());
-  //res.erase(curr_iter, res.end());
 
   return true;
 }
