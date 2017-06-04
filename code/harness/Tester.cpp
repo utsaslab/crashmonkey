@@ -10,6 +10,7 @@
 #include <cstdlib>
 
 #include <algorithm>
+#include <chrono>
 #include <fstream>
 #include <iostream>
 #include <memory>
@@ -57,10 +58,15 @@ namespace fs_testing {
 
 using std::calloc;
 using std::cerr;
+using std::chrono::steady_clock;
+using std::chrono::duration_cast;
+using std::chrono::milliseconds;
+using std::chrono::time_point;
 using std::cout;
 using std::endl;
 using std::free;
 using std::ifstream;
+using std::ostream;
 using std::ofstream;
 using std::shared_ptr;
 using std::string;
@@ -466,21 +472,34 @@ int Tester::test_run() {
 }
 
 int Tester::test_check_random_permutations(const int num_rounds) {
+  time_point<steady_clock> start_time = steady_clock::now();
   test_test_stats[TESTS_TESTS_RUN] = 0;
   Permuter *p = permuter_loader.get_instance();
   p->set_data(&log_data);
   vector<disk_write> permutes;
   for (int rounds = 0; rounds < num_rounds; ++rounds) {
+    // Begin permute timing.
+    time_point<steady_clock> permute_start_time = steady_clock::now();
     p->permute(permutes);
+    time_point<steady_clock> permute_end_time = steady_clock::now();
+    timing_stats[PERMUTE_TIME] +=
+        duration_cast<milliseconds>(permute_end_time - permute_start_time);
+    // End permute timing.
 
     ++test_test_stats[TESTS_TESTS_RUN];
     cout << '.' << std::flush;
 
     // Restore disk clone.
+    // Begin snapshot timing.
+    time_point<steady_clock> snapshot_start_time = steady_clock::now();
     if (clone_device_restore(false) != SUCCESS) {
       cout << endl;
       return DRIVE_CLONE_RESTORE_ERR;
     }
+    time_point<steady_clock> snapshot_end_time = steady_clock::now();
+    timing_stats[SNAPSHOT_TIME] +=
+        duration_cast<milliseconds>(snapshot_end_time - snapshot_start_time);
+    // End snapshot timing.
 
     // Write recorded data out to block device in different orders so that we
     // can if they are all valid or not.
@@ -489,7 +508,13 @@ int Tester::test_check_random_permutations(const int num_rounds) {
       cout << endl;
       return TEST_CASE_FILE_ERR;
     }
-    if (!test_write_data(sn_fd, permutes.begin(), permutes.end())) {
+    time_point<steady_clock> bio_write_start_time = steady_clock::now();
+    const int write_data_res =
+      test_write_data(sn_fd, permutes.begin(), permutes.end());
+    time_point<steady_clock> bio_write_end_time = steady_clock::now();
+    timing_stats[BIO_WRITE_TIME] +=
+        duration_cast<milliseconds>(bio_write_end_time - bio_write_start_time);
+    if (!write_data_res) {
       ++test_test_stats[TESTS_TEST_ERR];
       cout << "test errored in writing data" << endl;
       close(sn_fd);
@@ -502,7 +527,13 @@ int Tester::test_check_random_permutations(const int num_rounds) {
     if (!verbose) {
       command += SILENT;
     }
+    // Begin fsck timing.
+    time_point<steady_clock> fsck_start_time = steady_clock::now();
     const int fsck_res = system(command.c_str());
+    time_point<steady_clock> fsck_end_time = steady_clock::now();
+    timing_stats[FSCK_TIME] +=
+        duration_cast<milliseconds>(fsck_end_time - fsck_start_time);
+    // End fsck timing.
     if (!(fsck_res == 0 || WEXITSTATUS(fsck_res) == 1)) {
       /*
       cerr << "Error running fsck on snapshot file system: " <<
@@ -516,7 +547,13 @@ int Tester::test_check_random_permutations(const int num_rounds) {
         ++test_test_stats[TESTS_TEST_FSCK_FAIL];
         continue;
       }
+      // Begin test case timing.
+      time_point<steady_clock> test_case_start_time = steady_clock::now();
       const int test_check_res = test_loader.get_instance()->check_test();
+      time_point<steady_clock> test_case_end_time = steady_clock::now();
+      timing_stats[TEST_CASE_TIME] += duration_cast<milliseconds>(
+        test_case_end_time - test_case_start_time);
+      // End test case timing.
       if (test_check_res < 0) {
         ++test_test_stats[TESTS_TEST_BAD_DATA];
       } else if (test_check_res == 0 && fsck_res != 0) {
@@ -533,6 +570,8 @@ int Tester::test_check_random_permutations(const int num_rounds) {
     }
   }
   cout << endl;
+  time_point<steady_clock> end_time = steady_clock::now();
+  timing_stats[TOTAL_TIME] = duration_cast<milliseconds>(end_time - start_time);
   return SUCCESS;
 }
 
@@ -726,4 +765,60 @@ int Tester::log_snapshot_load(string log_file) {
   return SUCCESS;
 }
 
+std::chrono::milliseconds Tester::get_timing_stat(time_stats timing_stat) {
+  return timing_stats[timing_stat];
+}
+
 }  // namespace fs_testing
+
+std::ostream& operator<<(std::ostream& os, test_stat test) {
+  switch (test) {
+    case TESTS_TESTS_RUN:
+      os << "total tests";
+      break;
+    case TESTS_TEST_FSCK_FAIL:
+      os << "fsck fail ";
+      break;
+    case TESTS_TEST_BAD_DATA:
+      os << "bad data";
+      break;
+    case TESTS_TEST_FSCK_FIX:
+      os << "fsck fix";
+      break;
+    case TESTS_TEST_PASS:
+      os << "test pass";
+      break;
+    case TESTS_TEST_ERR:
+      os << "test fail";
+      break;
+    default:
+      os.setstate(std::ios_base::failbit);
+  }
+  return os;
+}
+
+std::ostream& operator<<(std::ostream& os, time_stats time) {
+  switch (time) {
+    case PERMUTE_TIME:
+      os << "permute time";
+      break;
+    case SNAPSHOT_TIME:
+      os << "snapshot restore time";
+      break;
+    case BIO_WRITE_TIME:
+      os << "bio write time";
+      break;
+    case FSCK_TIME:
+      os << "fsck time";
+      break;
+    case TEST_CASE_TIME:
+      os << "test case time";
+      break;
+    case TOTAL_TIME:
+      os << "total time";
+      break;
+    default:
+      os.setstate(std::ios_base::failbit);
+  }
+  return os;
+}

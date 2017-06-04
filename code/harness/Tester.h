@@ -1,6 +1,8 @@
 #ifndef TESTER_H
 #define TESTER_H
 
+#include <chrono>
+#include <iostream>
 #include <string>
 #include <vector>
 
@@ -41,6 +43,20 @@ enum test_stat {
   TESTS_TEST_ERR,
   TESTS_TEST_NUM,
 };
+
+std::ostream& operator<<(std::ostream& os, test_stat test);
+
+enum time_stats {
+  PERMUTE_TIME,
+  SNAPSHOT_TIME,
+  BIO_WRITE_TIME,
+  FSCK_TIME,
+  TEST_CASE_TIME,
+  TOTAL_TIME,
+  NUM_TIME,
+};
+
+std::ostream& operator<<(std::ostream& os, time_stats time);
 
 namespace fs_testing {
 #ifdef TEST_CASE
@@ -105,6 +121,8 @@ class Tester {
   int log_snapshot_save(std::string log_file);
   int log_snapshot_load(std::string log_file);
 
+  std::chrono::milliseconds get_timing_stat(time_stats timing_stat);
+
   // TODO(ashmrtn): Figure out why making these private slows things down a lot.
  private:
   unsigned long int device_size;
@@ -135,6 +153,10 @@ class Tester {
   bool test_write_data(const int disk_fd,
       const std::vector<fs_testing::utils::disk_write>::iterator& start,
       const std::vector<fs_testing::utils::disk_write>::iterator& end);
+
+  std::chrono::milliseconds timing_stats[NUM_TIME] =
+      {std::chrono::milliseconds(0)};
+
 };
 
 }  // namespace fs_testing

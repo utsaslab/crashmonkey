@@ -415,6 +415,13 @@ int main(int argc, char** argv) {
           << " tests passed" << endl
       << '\t' << test_harness.test_test_stats[TESTS_TEST_ERR]
           << " tests errored" << endl;
+    cout << "Time stats:" << endl;
+
+    for (unsigned int i = PERMUTE_TIME; i < NUM_TIME; ++i) {
+      cout << "\t" << (time_stats) i << ": "
+        << test_harness.get_timing_stat((time_stats) i).count() << " ms"
+        << endl;
+    }
   }
 
   // Finish cleaning everything up.
