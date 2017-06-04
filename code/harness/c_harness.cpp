@@ -403,23 +403,23 @@ int main(int argc, char** argv) {
     cout << "Writing profiled data to block device and checking with fsck\n";
     test_harness.test_check_random_permutations(iterations);
 
-    cout << "Ran " << test_harness.test_test_stats[TESTS_TESTS_RUN] << " tests"
+    cout << "Ran " << test_harness.test_test_stats[Tester::TESTS_RUN] << " tests"
           << endl
-      << '\t' << test_harness.test_test_stats[TESTS_TEST_FSCK_FAIL]
+      << '\t' << test_harness.test_test_stats[Tester::TEST_FSCK_FAIL]
           << " tests fsck failed" << endl
-      << '\t' << test_harness.test_test_stats[TESTS_TEST_BAD_DATA]
+      << '\t' << test_harness.test_test_stats[Tester::TEST_BAD_DATA]
           << " tests bad data" << endl
-      << '\t' << test_harness.test_test_stats[TESTS_TEST_FSCK_FIX]
+      << '\t' << test_harness.test_test_stats[Tester::TEST_FSCK_FIX]
           << " tests fsck fix" << endl
-      << '\t' << test_harness.test_test_stats[TESTS_TEST_PASS]
+      << '\t' << test_harness.test_test_stats[Tester::TEST_PASS]
           << " tests passed" << endl
-      << '\t' << test_harness.test_test_stats[TESTS_TEST_ERR]
+      << '\t' << test_harness.test_test_stats[Tester::TEST_ERR]
           << " tests errored" << endl;
     cout << "Time stats:" << endl;
 
-    for (unsigned int i = PERMUTE_TIME; i < NUM_TIME; ++i) {
-      cout << "\t" << (time_stats) i << ": "
-        << test_harness.get_timing_stat((time_stats) i).count() << " ms"
+    for (unsigned int i = 0; i < Tester::NUM_TIME; ++i) {
+      cout << "\t" << (Tester::time_stats) i << ": "
+        << test_harness.get_timing_stat((Tester::time_stats) i).count() << " ms"
         << endl;
     }
   }

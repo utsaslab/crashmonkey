@@ -34,30 +34,6 @@
 
 #define DIRTY_EXPIRE_TIME_SIZE 10
 
-enum test_stat {
-  TESTS_TESTS_RUN,
-  TESTS_TEST_FSCK_FAIL,
-  TESTS_TEST_BAD_DATA,
-  TESTS_TEST_FSCK_FIX,
-  TESTS_TEST_PASS,
-  TESTS_TEST_ERR,
-  TESTS_TEST_NUM,
-};
-
-std::ostream& operator<<(std::ostream& os, test_stat test);
-
-enum time_stats {
-  PERMUTE_TIME,
-  SNAPSHOT_TIME,
-  BIO_WRITE_TIME,
-  FSCK_TIME,
-  TEST_CASE_TIME,
-  TOTAL_TIME,
-  NUM_TIME,
-};
-
-std::ostream& operator<<(std::ostream& os, time_stats time);
-
 namespace fs_testing {
 #ifdef TEST_CASE
 namespace test {
@@ -71,13 +47,33 @@ class Tester {
   #endif
 
  public:
+  enum test_stats {
+    TESTS_RUN,
+    TEST_FSCK_FAIL,
+    TEST_BAD_DATA,
+    TEST_FSCK_FIX,
+    TEST_PASS,
+    TEST_ERR,
+    TEST_NUM,
+  };
+
+  enum time_stats {
+    PERMUTE_TIME,
+    SNAPSHOT_TIME,
+    BIO_WRITE_TIME,
+    FSCK_TIME,
+    TEST_CASE_TIME,
+    TOTAL_TIME,
+    NUM_TIME,
+  };
+
   Tester(const bool verbosity);
   const bool verbose = false;
   void set_fs_type(const std::string type);
   void set_device(const std::string device_path);
   void set_flag_device(const std::string device_path);
 
-  int test_test_stats[TESTS_TEST_NUM] = {0};
+  int test_test_stats[TEST_NUM] = {0};
 
   const char* update_dirty_expire_time(const char* time);
 
@@ -160,5 +156,8 @@ class Tester {
 };
 
 }  // namespace fs_testing
+
+std::ostream& operator<<(std::ostream& os, fs_testing::Tester::test_stats test);
+std::ostream& operator<<(std::ostream& os, fs_testing::Tester::time_stats time);
 
 #endif

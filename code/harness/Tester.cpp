@@ -473,7 +473,7 @@ int Tester::test_run() {
 
 int Tester::test_check_random_permutations(const int num_rounds) {
   time_point<steady_clock> start_time = steady_clock::now();
-  test_test_stats[TESTS_TESTS_RUN] = 0;
+  test_test_stats[TESTS_RUN] = 0;
   Permuter *p = permuter_loader.get_instance();
   p->set_data(&log_data);
   vector<disk_write> permutes;
@@ -486,7 +486,7 @@ int Tester::test_check_random_permutations(const int num_rounds) {
         duration_cast<milliseconds>(permute_end_time - permute_start_time);
     // End permute timing.
 
-    ++test_test_stats[TESTS_TESTS_RUN];
+    ++test_test_stats[TESTS_RUN];
     cout << '.' << std::flush;
 
     // Restore disk clone.
@@ -515,7 +515,7 @@ int Tester::test_check_random_permutations(const int num_rounds) {
     timing_stats[BIO_WRITE_TIME] +=
         duration_cast<milliseconds>(bio_write_end_time - bio_write_start_time);
     if (!write_data_res) {
-      ++test_test_stats[TESTS_TEST_ERR];
+      ++test_test_stats[TEST_ERR];
       cout << "test errored in writing data" << endl;
       close(sn_fd);
       continue;
@@ -539,12 +539,12 @@ int Tester::test_check_random_permutations(const int num_rounds) {
       cerr << "Error running fsck on snapshot file system: " <<
         WEXITSTATUS(fsck_res) << "\n";
       */
-      ++test_test_stats[TESTS_TEST_FSCK_FAIL];
+      ++test_test_stats[TEST_FSCK_FAIL];
     } else {
       // TODO(ashmrtn): Consider mounting with options specified for test
       // profile?
       if (mount_device_raw(NULL) != SUCCESS) {
-        ++test_test_stats[TESTS_TEST_FSCK_FAIL];
+        ++test_test_stats[TEST_FSCK_FAIL];
         continue;
       }
       // Begin test case timing.
@@ -555,13 +555,13 @@ int Tester::test_check_random_permutations(const int num_rounds) {
         test_case_end_time - test_case_start_time);
       // End test case timing.
       if (test_check_res < 0) {
-        ++test_test_stats[TESTS_TEST_BAD_DATA];
+        ++test_test_stats[TEST_BAD_DATA];
       } else if (test_check_res == 0 && fsck_res != 0) {
-        ++test_test_stats[TESTS_TEST_FSCK_FIX];
+        ++test_test_stats[TEST_FSCK_FIX];
       } else if (test_check_res == 0 && fsck_res == 0) {
-        ++test_test_stats[TESTS_TEST_PASS];
+        ++test_test_stats[TEST_PASS];
       } else {
-        ++test_test_stats[TESTS_TEST_ERR];
+        ++test_test_stats[TEST_ERR];
         /*
         cerr << "test errored for other reason" << endl;
         */
@@ -771,24 +771,25 @@ std::chrono::milliseconds Tester::get_timing_stat(time_stats timing_stat) {
 
 }  // namespace fs_testing
 
-std::ostream& operator<<(std::ostream& os, test_stat test) {
+std::ostream& operator<<(std::ostream& os, fs_testing::Tester::test_stats test)
+{
   switch (test) {
-    case TESTS_TESTS_RUN:
+    case fs_testing::Tester::TESTS_RUN:
       os << "total tests";
       break;
-    case TESTS_TEST_FSCK_FAIL:
+    case fs_testing::Tester::TEST_FSCK_FAIL:
       os << "fsck fail ";
       break;
-    case TESTS_TEST_BAD_DATA:
+    case fs_testing::Tester::TEST_BAD_DATA:
       os << "bad data";
       break;
-    case TESTS_TEST_FSCK_FIX:
+    case fs_testing::Tester::TEST_FSCK_FIX:
       os << "fsck fix";
       break;
-    case TESTS_TEST_PASS:
+    case fs_testing::Tester::TEST_PASS:
       os << "test pass";
       break;
-    case TESTS_TEST_ERR:
+    case fs_testing::Tester::TEST_ERR:
       os << "test fail";
       break;
     default:
@@ -797,24 +798,25 @@ std::ostream& operator<<(std::ostream& os, test_stat test) {
   return os;
 }
 
-std::ostream& operator<<(std::ostream& os, time_stats time) {
+std::ostream& operator<<(std::ostream& os, fs_testing::Tester::time_stats time)
+{
   switch (time) {
-    case PERMUTE_TIME:
+    case fs_testing::Tester::PERMUTE_TIME:
       os << "permute time";
       break;
-    case SNAPSHOT_TIME:
+    case fs_testing::Tester::SNAPSHOT_TIME:
       os << "snapshot restore time";
       break;
-    case BIO_WRITE_TIME:
+    case fs_testing::Tester::BIO_WRITE_TIME:
       os << "bio write time";
       break;
-    case FSCK_TIME:
+    case fs_testing::Tester::FSCK_TIME:
       os << "fsck time";
       break;
-    case TEST_CASE_TIME:
+    case fs_testing::Tester::TEST_CASE_TIME:
       os << "test case time";
       break;
-    case TOTAL_TIME:
+    case fs_testing::Tester::TOTAL_TIME:
       os << "total time";
       break;
     default:
