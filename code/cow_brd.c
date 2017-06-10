@@ -340,8 +340,13 @@ static void brd_make_request(struct request_queue *q, struct bio *bio)
   int err = -EIO;
 
   sector = bio->bi_sector;
-  if (bio_end_sector(bio) > get_capacity(bdev->bd_disk))
+  if (bio_end_sector(bio) > get_capacity(bdev->bd_disk)) {
     goto out;
+  }
+
+  if ((bio->bi_rw & WRITE || bio->bi_rw & REQ_DISCARD) && !brd->is_writable) {
+    goto out;
+  }
 
   if (unlikely(bio->bi_rw & REQ_DISCARD)) {
     err = 0;
@@ -350,15 +355,17 @@ static void brd_make_request(struct request_queue *q, struct bio *bio)
   }
 
   rw = bio_rw(bio);
-  if (rw == READA)
+  if (rw == READA) {
     rw = READ;
+  }
 
   bio_for_each_segment(bvec, bio, i) {
     unsigned int len = bvec->bv_len;
     err = brd_do_bvec(brd, bvec->bv_page, len,
           bvec->bv_offset, rw, sector);
-    if (err)
+    if (err) {
       break;
+    }
     sector += len >> SECTOR_SHIFT;
   }
 
