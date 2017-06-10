@@ -1,13 +1,14 @@
 TESTING := testing/log_on_off testing/test_get_log_ent_size
-obj-m := disk_wrapper.o cow_brd.o
+MODULES = cow_brd.c disk_wrapper.c
+obj-m := $(addsuffix .o, $(basename $(MODULES)))
 KDIR := /lib/modules/$(shell uname -r)/build
 DEBUG_FLAGS += -g -DDEBUG
 GPP = g++
 GOPTS = -std=c++11
 GOTPSSO = -shared -fPIC
-default:
+cow_brd.ko disk_wrapper.ko default: $(MODULES)
 	$(MAKE) -C $(KDIR) M=$(PWD) modules EXTRA_CFLAGS="$(DEBUG_FLAGS)"
-	sudo cp $(addsuffix .ko, $(basename $(obj-m))) \
+	sudo cp $(addsuffix .ko, $(basename $(MODULES))) \
 		/lib/modules/$(shell uname -r)/custom/
 
 test_log_on_off: testing/log_on_off.c
@@ -90,9 +91,10 @@ brd_test:
 	sudo fdisk -l /dev/ram0
 	sudo rmmod brd
 
-cow_brd:
-	sudo insmod cow_brd.ko rd_size=524288 rd_nr=1
-	sudo fdisk -l /dev/ram0
+cow_brd_test: cow_brd.ko
+	sudo insmod cow_brd.ko disk_size=512000 num_disks=3 num_snapshots=3
+	-sudo fdisk -l /dev/cow_ram0
+	-ls /dev | grep "cow"
 	sudo rmmod cow_brd
 
 clean:
