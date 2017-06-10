@@ -769,10 +769,7 @@ std::chrono::milliseconds Tester::get_timing_stat(time_stats timing_stat) {
   return timing_stats[timing_stat];
 }
 
-}  // namespace fs_testing
-
-std::ostream& operator<<(std::ostream& os, fs_testing::Tester::test_stats test)
-{
+std::ostream& operator<<(std::ostream& os, Tester::test_stats test) {
   switch (test) {
     case fs_testing::Tester::TESTS_RUN:
       os << "total tests";
@@ -798,8 +795,7 @@ std::ostream& operator<<(std::ostream& os, fs_testing::Tester::test_stats test)
   return os;
 }
 
-std::ostream& operator<<(std::ostream& os, fs_testing::Tester::time_stats time)
-{
+std::ostream& operator<<(std::ostream& os, Tester::time_stats time) {
   switch (time) {
     case fs_testing::Tester::PERMUTE_TIME:
       os << "permute time";
@@ -824,3 +820,5 @@ std::ostream& operator<<(std::ostream& os, fs_testing::Tester::time_stats time)
   }
   return os;
 }
+
+}  // namespace fs_testing

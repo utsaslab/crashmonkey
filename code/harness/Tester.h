@@ -155,9 +155,9 @@ class Tester {
 
 };
 
-}  // namespace fs_testing
+std::ostream& operator<<(std::ostream& os, Tester::test_stats test);
+std::ostream& operator<<(std::ostream& os, Tester::time_stats time);
 
-std::ostream& operator<<(std::ostream& os, fs_testing::Tester::test_stats test);
-std::ostream& operator<<(std::ostream& os, fs_testing::Tester::time_stats time);
+}  // namespace fs_testing
 
 #endif
