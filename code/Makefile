@@ -1,5 +1,5 @@
 TESTING := testing/log_on_off testing/test_get_log_ent_size
-obj-m := disk_wrapper.o
+obj-m := disk_wrapper.o cow_brd.o
 KDIR := /lib/modules/$(shell uname -r)/build
 DEBUG_FLAGS += -g -DDEBUG
 GPP = g++
@@ -7,7 +7,8 @@ GOPTS = -std=c++11
 GOTPSSO = -shared -fPIC
 default:
 	$(MAKE) -C $(KDIR) M=$(PWD) modules EXTRA_CFLAGS="$(DEBUG_FLAGS)"
-	sudo cp disk_wrapper.ko /lib/modules/$(shell uname -r)/custom/
+	sudo cp $(addsuffix .ko, $(basename $(obj-m))) \
+		/lib/modules/$(shell uname -r)/custom/
 
 test_log_on_off: testing/log_on_off.c
 	gcc testing/log_on_off.c -o testing/log_on_off
@@ -82,6 +83,17 @@ run_norm_log: harness
 	sudo ./c_harness -f /dev/vda -t ext4 -m barrier -d /dev/ram0 -i \
 		-r /home/ashmrtn/research/harness_profiles/$(LOG) tests/echo_sub_dir.so
 	sudo rmmod brd
+
+brd_test:
+	sudo insmod /lib/modules/$(shell uname -r)/kernel/drivers/block/brd.ko \
+		rd_size=524288 rd_nr=1
+	sudo fdisk -l /dev/ram0
+	sudo rmmod brd
+
+cow_brd:
+	sudo insmod cow_brd.ko rd_size=524288 rd_nr=1
+	sudo fdisk -l /dev/ram0
+	sudo rmmod cow_brd
 
 clean:
 	$(MAKE) -C $(KDIR) M=$(PWD) clean
