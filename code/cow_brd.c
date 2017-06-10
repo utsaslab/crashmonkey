@@ -22,9 +22,11 @@
 
 #include <asm/uaccess.h>
 
-#define SECTOR_SHIFT		9
-#define PAGE_SECTORS_SHIFT	(PAGE_SHIFT - SECTOR_SHIFT)
-#define PAGE_SECTORS		(1 << PAGE_SECTORS_SHIFT)
+#define SECTOR_SHIFT        9
+#define PAGE_SECTORS_SHIFT  (PAGE_SHIFT - SECTOR_SHIFT)
+#define PAGE_SECTORS        (1 << PAGE_SECTORS_SHIFT)
+#define DEFAULT_COW_RD_SIZE 512000
+#define DEVICE_NAME         "cow_brd"
 
 /*
  * Each block ramdisk device has a radix_tree brd_pages of pages that stores
@@ -35,6 +37,10 @@
  */
 struct brd_device {
 	int		brd_number;
+
+  // Denotes whether or not a cow_ram is writable and snapshots are active.
+  bool  is_writable;
+  bool  is_snapshot;
 
 	struct request_queue	*brd_queue;
 	struct gendisk		*brd_disk;
@@ -428,19 +434,23 @@ static const struct block_device_operations brd_fops = {
 /*
  * And now the modules code and kernel interface.
  */
-static int rd_nr;
-int rd_size = CONFIG_BLK_DEV_RAM_SIZE;
+int major_num = 0;
+static int num_disks = 1;
+static int num_snapshots = 1;
+int disk_size = DEFAULT_COW_RD_SIZE;
 static int max_part;
 static int part_shift;
-module_param(rd_nr, int, S_IRUGO);
-MODULE_PARM_DESC(rd_nr, "Maximum number of brd devices");
-module_param(rd_size, int, S_IRUGO);
-MODULE_PARM_DESC(rd_size, "Size of each RAM disk in kbytes.");
+module_param(num_disks, int, S_IRUGO);
+MODULE_PARM_DESC(num_disks, "Maximum number of ram block devices");
+module_param(num_snapshots, int, S_IRUGO);
+MODULE_PARM_DESC(num_snapshots, "Number of ram block snapshot devices where "
+    "each disk gets it's own snapshot");
+module_param(disk_size, int, S_IRUGO);
+MODULE_PARM_DESC(disk_size, "Size of each RAM disk in kbytes.");
 module_param(max_part, int, S_IRUGO);
 MODULE_PARM_DESC(max_part, "Maximum number of partitions per RAM disk");
 MODULE_LICENSE("GPL");
 MODULE_ALIAS_BLOCKDEV_MAJOR(RAMDISK_MAJOR);
-MODULE_ALIAS("rd");
 
 #ifndef MODULE
 /* Legacy boot options - nonmodular */
@@ -468,6 +478,11 @@ static struct brd_device *brd_alloc(int i)
 	if (!brd)
 		goto out;
 	brd->brd_number		= i;
+
+  // True on disks until "snapshot" ioctl is called.
+	brd->is_writable  = i < num_disks;
+	brd->is_snapshot  = !brd->is_writable;
+
 	spin_lock_init(&brd->brd_lock);
 	INIT_RADIX_TREE(&brd->brd_pages, GFP_ATOMIC);
 
@@ -486,14 +501,19 @@ static struct brd_device *brd_alloc(int i)
 	disk = brd->brd_disk = alloc_disk(1 << part_shift);
 	if (!disk)
 		goto out_free_queue;
-	disk->major		= RAMDISK_MAJOR;
+	disk->major		= major_num;
 	disk->first_minor	= i << part_shift;
 	disk->fops		= &brd_fops;
 	disk->private_data	= brd;
 	disk->queue		= brd->brd_queue;
 	disk->flags |= GENHD_FL_SUPPRESS_PARTITION_INFO;
-	sprintf(disk->disk_name, "ram%d", i);
-	set_capacity(disk, rd_size * 2);
+  if (brd->is_snapshot) {
+    sprintf(disk->disk_name, "cow_ram_snapshot%d_%d", i / num_disks,
+        i % num_disks);
+  } else {
+    sprintf(disk->disk_name, "cow_ram%d", i);
+  }
+	set_capacity(disk, disk_size * 2);
 
 	return brd;
 
@@ -554,9 +574,16 @@ static struct kobject *brd_probe(dev_t dev, int *part, void *data)
 
 static int __init brd_init(void)
 {
-	int i, nr;
+	int i;
+  const int nr = num_disks * (1 + num_snapshots);
 	unsigned long range;
 	struct brd_device *brd, *next;
+
+  major_num = register_blkdev(major_num, DEVICE_NAME);
+  if (major_num <= 0) {
+    printk(KERN_WARNING DEVICE_NAME ": unable to get major number\n");
+    return -EIO;
+  }
 
 	/*
 	 * brd module now has a feature to instantiate underlying device
@@ -588,27 +615,23 @@ static int __init brd_init(void)
 		max_part = (1UL << part_shift) - 1;
 	}
 
-	if ((1UL << part_shift) > DISK_MAX_PARTS)
+	if ((1UL << part_shift) > DISK_MAX_PARTS) {
 		return -EINVAL;
+  }
 
-	if (rd_nr > 1UL << (MINORBITS - part_shift))
+	if (nr > 1UL << (MINORBITS - part_shift)) {
 		return -EINVAL;
+  }
 
-	if (rd_nr) {
-		nr = rd_nr;
-		range = rd_nr << part_shift;
-	} else {
-		nr = CONFIG_BLK_DEV_RAM_COUNT;
-		range = 1UL << MINORBITS;
-	}
+  range = nr << part_shift;
 
-	if (register_blkdev(RAMDISK_MAJOR, "ramdisk"))
-		return -EIO;
-
+  // The first num_disks devices are the actual disks, the rest are snapshot
+  // devices.
 	for (i = 0; i < nr; i++) {
 		brd = brd_alloc(i);
-		if (!brd)
+		if (!brd) {
 			goto out_free;
+    }
 		list_add_tail(&brd->brd_list, &brd_devices);
 	}
 
@@ -620,7 +643,7 @@ static int __init brd_init(void)
 	blk_register_region(MKDEV(RAMDISK_MAJOR, 0), range,
 				  THIS_MODULE, brd_probe, NULL, NULL);
 
-	printk(KERN_INFO "brd: module loaded\n");
+	printk(KERN_INFO DEVICE_NAME ": module loaded\n");
 	return 0;
 
 out_free:
@@ -628,7 +651,7 @@ out_free:
 		list_del(&brd->brd_list);
 		brd_free(brd);
 	}
-	unregister_blkdev(RAMDISK_MAJOR, "ramdisk");
+	unregister_blkdev(major_num, DEVICE_NAME);
 
 	return -ENOMEM;
 }
@@ -638,13 +661,14 @@ static void __exit brd_exit(void)
 	unsigned long range;
 	struct brd_device *brd, *next;
 
-	range = rd_nr ? rd_nr << part_shift : 1UL << MINORBITS;
+	range = (num_disks * (1 + num_snapshots)) << part_shift;
 
 	list_for_each_entry_safe(brd, next, &brd_devices, brd_list)
 		brd_del_one(brd);
 
-	blk_unregister_region(MKDEV(RAMDISK_MAJOR, 0), range);
-	unregister_blkdev(RAMDISK_MAJOR, "ramdisk");
+	blk_unregister_region(MKDEV(major_num, 0), range);
+	unregister_blkdev(major_num, DEVICE_NAME);
+	printk(KERN_INFO DEVICE_NAME ": module unloaded\n");
 }
 
 module_init(brd_init);
