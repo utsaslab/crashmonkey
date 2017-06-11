@@ -22,6 +22,8 @@
 
 #include <asm/uaccess.h>
 
+#include "disk_wrapper_ioctl.h"
+
 #define SECTOR_SHIFT        9
 #define PAGE_SECTORS_SHIFT  (PAGE_SHIFT - SECTOR_SHIFT)
 #define PAGE_SECTORS        (1 << PAGE_SECTORS_SHIFT)
@@ -442,33 +444,32 @@ static int brd_direct_access(struct block_device *bdev, sector_t sector,
 static int brd_ioctl(struct block_device *bdev, fmode_t mode,
       unsigned int cmd, unsigned long arg)
 {
-  int error;
+  int error = 0;
   struct brd_device *brd = bdev->bd_disk->private_data;
+  struct brd_device *snapshots;
 
-  if (cmd != BLKFLSBUF)
-    return -ENOTTY;
-
-  /*
-   * ram device BLKFLSBUF has special semantics, we want to actually
-   * release and destroy the ramdisk data.
-   */
-  mutex_lock(&brd_mutex);
-  mutex_lock(&bdev->bd_mutex);
-  error = -EBUSY;
-  if (bdev->bd_openers <= 1) {
-    /*
-     * Kill the cache first, so it isn't written back to the
-     * device.
-     *
-     * Another thread might instantiate more buffercache here,
-     * but there is not much we can do to close that race.
-     */
-    kill_bdev(bdev);
-    brd_free_pages(brd);
-    error = 0;
+  switch (cmd) {
+    case COW_BRD_SNAPSHOT:
+      if (brd->is_snapshot) {
+        return -ENOTTY;
+      }
+      brd->is_writable = false;
+      break;
+    case COW_BRD_UNSNAPSHOT:
+      if (brd->is_snapshot) {
+        return -ENOTTY;
+      }
+      brd->is_writable = true;
+      break;
+    case COW_BRD_RESTORE_SNAPSHOT:
+      if (!brd->is_snapshot) {
+        return -ENOTTY;
+      }
+      brd_free_pages(brd);
+      break;
+    default:
+      error = -ENOTTY;
   }
-  mutex_unlock(&bdev->bd_mutex);
-  mutex_unlock(&brd_mutex);
 
   return error;
 }
@@ -530,8 +531,8 @@ static struct brd_device *brd_alloc(int i)
   brd->brd_number   = i;
 
   // True on disks until "snapshot" ioctl is called.
-  brd->is_writable  = i < num_disks;
-  brd->is_snapshot  = !brd->is_writable;
+  brd->is_writable  = true;
+  brd->is_snapshot  = i >= num_disks;
 
   spin_lock_init(&brd->brd_lock);
   INIT_RADIX_TREE(&brd->brd_pages, GFP_ATOMIC);

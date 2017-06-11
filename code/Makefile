@@ -91,7 +91,7 @@ brd_test:
 	sudo fdisk -l /dev/ram0
 	sudo rmmod brd
 
-cow_brd_test: cow_brd.ko
+cow_brd_test: cow_brd.ko ioctl_test
 	sudo insmod cow_brd.ko disk_size=512000 num_disks=1 num_snapshots=1
 	sudo mkfs -t ext4 /dev/cow_ram0
 	-sudo mount /dev/cow_ram0 /mnt/snapshot
@@ -107,10 +107,18 @@ cow_brd_test: cow_brd.ko
 	-echo "hi world" | sudo tee /mnt/test_dir/bleh > /dev/null
 	-cat /mnt/test_dir/bleh
 	-cat /mnt/snapshot/bleh
-	-sudo umount /mnt/snapshot
 	-sudo umount /mnt/test_dir
+	-sudo ./ioctl_test
+	-sudo mount /dev/cow_ram_snapshot1_0 /mnt/test_dir
+	-cat /mnt/test_dir/bleh
+	-sudo umount /mnt/test_dir
+	-sudo umount /mnt/snapshot
 	sudo rmmod cow_brd
+
+ioctl_test: ioctl_test.c disk_wrapper_ioctl.h
+	gcc $^ -o $@
 
 clean:
 	$(MAKE) -C $(KDIR) M=$(PWD) clean
-	rm -f $(TESTING) tests/*.so c_harness permute *.o *.so permuter/*.so
+	rm -f $(TESTING) tests/*.so c_harness permute *.o *.so permuter/*.so \
+		ioctl_test
