@@ -92,11 +92,23 @@ brd_test:
 	sudo rmmod brd
 
 cow_brd_test: cow_brd.ko
-	sudo insmod cow_brd.ko disk_size=512000 num_disks=3 num_snapshots=3
+	sudo insmod cow_brd.ko disk_size=512000 num_disks=1 num_snapshots=1
+	sudo mkfs -t ext4 /dev/cow_ram0
 	-sudo mount /dev/cow_ram0 /mnt/snapshot
+	-echo "hello world" | sudo tee /mnt/snapshot/bleh > /dev/null
+	-sync
+	-sudo fsck /dev/cow_ram_snapshot1_0
+	-cat /mnt/snapshot/bleh
 	-sudo mount /dev/cow_ram_snapshot1_0 /mnt/test_dir
-	-sudo echo "hello world" > /mnt/snapshot/bleh
-	-sudo cat /mnt/test_dir/bleh
+	-cat /mnt/test_dir/bleh
+	-echo "hi world" | sudo tee -a /mnt/test_dir/bleh > /dev/null
+	-cat /mnt/test_dir/bleh
+	-cat /mnt/snapshot/bleh
+	-echo "hi world" | sudo tee /mnt/test_dir/bleh > /dev/null
+	-cat /mnt/test_dir/bleh
+	-cat /mnt/snapshot/bleh
+	-sudo umount /mnt/snapshot
+	-sudo umount /mnt/test_dir
 	sudo rmmod cow_brd
 
 clean:
