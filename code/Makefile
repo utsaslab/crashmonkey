@@ -93,8 +93,10 @@ brd_test:
 
 cow_brd_test: cow_brd.ko
 	sudo insmod cow_brd.ko disk_size=512000 num_disks=3 num_snapshots=3
-	-sudo fdisk -l /dev/cow_ram0
-	-ls /dev | grep "cow"
+	-sudo mount /dev/cow_ram0 /mnt/snapshot
+	-sudo mount /dev/cow_ram_snapshot1_0 /mnt/test_dir
+	-sudo echo "hello world" > /mnt/snapshot/bleh
+	-sudo cat /mnt/test_dir/bleh
 	sudo rmmod cow_brd
 
 clean:

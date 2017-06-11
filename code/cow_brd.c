@@ -37,6 +37,7 @@
  */
 struct brd_device {
   int   brd_number;
+  struct brd_device *parent_brd;
 
   // Denotes whether or not a cow_ram is writable and snapshots are active.
   bool  is_writable;
@@ -239,8 +240,8 @@ static void discard_from_brd(struct brd_device *brd,
 static void copy_to_brd(struct brd_device *brd, const void *src,
       sector_t sector, size_t n)
 {
-  struct page *page;
-  void *dst;
+  struct page *page, *parent_page;
+  void *dst, *parent_src;
   unsigned int offset = (sector & (PAGE_SECTORS-1)) << SECTOR_SHIFT;
   size_t copy;
 
@@ -249,6 +250,17 @@ static void copy_to_brd(struct brd_device *brd, const void *src,
   BUG_ON(!page);
 
   dst = kmap_atomic(page);
+  // Copy over the rest of the page from the parent brd if it exists.
+  if (brd->parent_brd) {
+    parent_page = brd_lookup_page(brd->parent_brd, sector);
+    // This page may not have originally existed in the parent.
+    if (parent_page) {
+      parent_src = kmap_atomic(parent_page);
+      memcpy(dst, parent_src, PAGE_SIZE - copy);
+      kunmap_atomic(parent_src);
+    }
+  }
+
   memcpy(dst + offset, src, copy);
   kunmap_atomic(dst);
 
@@ -260,6 +272,17 @@ static void copy_to_brd(struct brd_device *brd, const void *src,
     BUG_ON(!page);
 
     dst = kmap_atomic(page);
+    // Copy over the rest of the page from the parent brd if it exists.
+    if (brd->parent_brd) {
+      parent_page = brd_lookup_page(brd->parent_brd, sector);
+      // This page may not have originally existed in the parent.
+      if (parent_page) {
+        parent_src = kmap_atomic(parent_page);
+        memcpy(dst + copy, parent_src + copy, PAGE_SIZE - copy);
+        kunmap_atomic(parent_src);
+      }
+    }
+
     memcpy(dst, src, copy);
     kunmap_atomic(dst);
   }
@@ -268,8 +291,8 @@ static void copy_to_brd(struct brd_device *brd, const void *src,
 /*
  * Copy n bytes to dst from the brd starting at sector. Does not sleep.
  */
-static void copy_from_brd(void *dst, struct brd_device *brd,
-      sector_t sector, size_t n)
+static void copy_from_brd(void *dst, struct brd_device *brd, sector_t sector,
+    size_t n)
 {
   struct page *page;
   void *src;
@@ -279,11 +302,21 @@ static void copy_from_brd(void *dst, struct brd_device *brd,
   copy = min_t(size_t, n, PAGE_SIZE - offset);
   page = brd_lookup_page(brd, sector);
   if (page) {
+    // Present in the new radix tree so this page has been modified.
     src = kmap_atomic(page);
     memcpy(dst, src + offset, copy);
     kunmap_atomic(src);
-  } else
+  } else if (brd->parent_brd &&
+      (page = brd_lookup_page(brd->parent_brd, sector))) {
+    // Present in the old radix tree so this page has not been modified.
+    src = kmap_atomic(page);
+    memcpy(dst, src + offset, copy);
+    kunmap_atomic(src);
+  } else {
+    // Page doesn't exist in either radix tree so it must never have been
+    // written.
     memset(dst, 0, copy);
+  }
 
   if (copy < n) {
     dst += copy;
@@ -291,11 +324,21 @@ static void copy_from_brd(void *dst, struct brd_device *brd,
     copy = n - copy;
     page = brd_lookup_page(brd, sector);
     if (page) {
+      // Present in the new radix tree so this page has been modified.
       src = kmap_atomic(page);
       memcpy(dst, src, copy);
       kunmap_atomic(src);
-    } else
+    } else if (brd->parent_brd &&
+        (page = brd_lookup_page(brd->parent_brd, sector))) {
+      // Present in the old radix tree so this page has not been modified.
+      src = kmap_atomic(page);
+      memcpy(dst, src + offset, copy);
+      kunmap_atomic(src);
+    } else {
+      // Page doesn't exist in either radix tree so it must never have been
+      // written.
       memset(dst, 0, copy);
+    }
   }
 }
 
@@ -542,17 +585,30 @@ static void brd_free(struct brd_device *brd)
 
 static struct brd_device *brd_init_one(int i)
 {
-  struct brd_device *brd;
+  struct brd_device *brd, *parent_brd;
 
   list_for_each_entry(brd, &brd_devices, brd_list) {
-    if (brd->brd_number == i)
+    if (brd->brd_number == i) {
       goto out;
+    }
   }
 
   brd = brd_alloc(i);
   if (brd) {
     add_disk(brd->brd_disk);
     list_add_tail(&brd->brd_list, &brd_devices);
+
+    if (i >= num_disks) {
+      // Set the parent pointer for this device.
+      list_for_each_entry(parent_brd, &brd_devices, brd_list) {
+        if (parent_brd->brd_number == i % num_disks) {
+          brd->parent_brd = parent_brd;
+          break;
+        }
+      }
+    } else {
+      brd->parent_brd = NULL;
+    }
   }
 out:
   return brd;
@@ -584,7 +640,7 @@ static int __init brd_init(void)
   int i;
   const int nr = num_disks * (1 + num_snapshots);
   unsigned long range;
-  struct brd_device *brd, *next;
+  struct brd_device *brd, *next, *parent_brd;
 
   major_num = register_blkdev(major_num, DEVICE_NAME);
   if (major_num <= 0) {
@@ -640,6 +696,18 @@ static int __init brd_init(void)
       goto out_free;
     }
     list_add_tail(&brd->brd_list, &brd_devices);
+
+    // Set the parent pointer for this device.
+    if (i >= num_disks) {
+      list_for_each_entry(parent_brd, &brd_devices, brd_list) {
+        if (parent_brd->brd_number == i % num_disks) {
+          brd->parent_brd = parent_brd;
+          break;
+        }
+      }
+    } else {
+      brd->parent_brd = NULL;
+    }
   }
 
   /* point of no return */
