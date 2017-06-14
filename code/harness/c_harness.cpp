@@ -123,6 +123,7 @@ int main(int argc, char** argv) {
   }
 
   Tester test_harness(verbose);
+  test_harness.insert_cow_brd();
   test_harness.set_fs_type(fs_type);
   test_harness.set_device(test_dev);
 
@@ -402,6 +403,7 @@ int main(int argc, char** argv) {
   if (!dry_run) {
     cout << "Writing profiled data to block device and checking with fsck\n";
     test_harness.test_check_random_permutations(iterations);
+    test_harness.remove_cow_brd();
 
     cout << "Ran " << test_harness.test_test_stats[Tester::TESTS_RUN] << " tests"
           << endl

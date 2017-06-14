@@ -467,6 +467,10 @@ static int brd_ioctl(struct block_device *bdev, fmode_t mode,
       }
       brd_free_pages(brd);
       break;
+    case COW_BRD_WIPE:
+      // Assumes no snapshots are being used right now.
+      brd_free_pages(brd);
+      break;
     default:
       error = -ENOTTY;
   }

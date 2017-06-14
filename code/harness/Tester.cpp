@@ -41,10 +41,19 @@
 #define PART_DEL_PART_DRIVE_2 " << EOF\no\nw\nEOF\n"
 #define FMT_FMT_DRIVE   "mkfs -t "
 
-#define INSMOD_MODULE_NAME "disk_wrapper.ko"
-#define WRAPPER_INSMOD      "insmod " INSMOD_MODULE_NAME " target_device_path="
+#define WRAPPER_MODULE_NAME "disk_wrapper.ko"
+#define WRAPPER_INSMOD      "insmod " WRAPPER_MODULE_NAME " target_device_path="
 #define WRAPPER_INSMOD2      " flags_device_path="
-#define WRAPPER_RMMOD       "rmmod " INSMOD_MODULE_NAME
+#define WRAPPER_RMMOD       "rmmod " WRAPPER_MODULE_NAME
+
+#define COW_BRD_MODULE_NAME "cow_brd.ko"
+#define COW_BRD_INSMOD      "insmod " COW_BRD_MODULE_NAME " num_disks="
+#define COW_BRD_INSMOD2      " num_snapshots="
+#define COW_BRD_INSMOD3      " disk_size="
+#define COW_BRD_RMMOD       "rmmod " COW_BRD_MODULE_NAME
+#define NUM_DISKS           "1"
+#define NUM_SNAPSHOTS       "1"
+#define DISK_SIZE           "512000"
 
 #define DEV_SECTORS_PATH    "/sys/block/"
 #define DEV_SECTORS_PATH_2  "/size"
@@ -127,81 +136,28 @@ void Tester::set_flag_device(const std::string device_path) {
 
 int Tester::clone_device() {
   std::cout << "cloning device " << device_raw << std::endl;
-  if (device_clone != NULL) {
-    cerr << "Device clone already exists" << endl;
-    return DRIVE_CLONE_EXISTS_ERR;
-  }
-  int raw_dev_fd = open(device_raw.c_str(), O_RDONLY);
-  if (raw_dev_fd < 0) {
-    cerr << "Error opening raw device" << endl;
+  if (ioctl(cow_brd_fd, COW_BRD_SNAPSHOT) < 0) {
     return DRIVE_CLONE_ERR;
   }
-
-  if (device_size == 0) {
-    cerr << "Device size is 0" << endl;
-    return DRIVE_CLONE_ERR;
-  }
-  device_clone = new char[device_size];
-  unsigned int bytes_read = 0;
-  do {
-    int res = read(raw_dev_fd, device_clone + bytes_read,
-        device_size - bytes_read);
-    if (res < 0) {
-      cerr << "Error reading from raw device" << endl;
-      close(raw_dev_fd);
-      return DRIVE_CLONE_ERR;
-    }
-    bytes_read += res;
-    if (res == 0 && bytes_read < device_size) {
-      cerr << "Reached end of device before device size" << endl;
-      close(raw_dev_fd);
-      return DRIVE_CLONE_ERR;
-    }
-  } while (bytes_read < device_size);
-  close(raw_dev_fd);
 
   return SUCCESS;
 }
 
-int Tester::clone_device_restore(bool reread) {
-  assert(device_size != 0);
-  if (device_clone == NULL) {
-    cerr << "No device clone to restore" << endl;
-    return DRIVE_CLONE_ERR;
+int Tester::clone_device_restore(int snapshot_fd, bool reread) {
+  if (ioctl(snapshot_fd, COW_BRD_RESTORE_SNAPSHOT) < 0) {
+    return DRIVE_CLONE_RESTORE_ERR;
   }
-
-  int raw_dev_fd = open(device_raw.c_str(), O_WRONLY);
-  if (raw_dev_fd < 0) {
-    cerr << "Error opening raw device" << endl;
-    return DRIVE_CLONE_ERR;
-  }
-
-  unsigned int bytes_written = 0;
-  do {
-    int res = write(raw_dev_fd, device_clone + bytes_written,
-        device_size - bytes_written);
-    if (res < 0) {
-      cerr << "Error writing to raw device" << endl;
-      close(raw_dev_fd);
-      return DRIVE_CLONE_RESTORE_ERR;
-    }
-    bytes_written += res;
-  } while (bytes_written < device_size);
-  int res = fsync(raw_dev_fd);
-  if (res < 0) {
-    cerr << "Error flushing restored image" << endl;
-  }
+  int res;
   if (reread) {
     // TODO(ashmrtn): Fixme by moving me to a better place.
     do {
-      res = ioctl(raw_dev_fd, BLKRRPART, NULL);
+      res = ioctl(snapshot_fd, BLKRRPART, NULL);
     } while (errno == EBUSY);
     if (res < 0) {
       int errnum = errno;
       cerr << "Error re-reading partition table " << errnum << endl;
     }
   }
-  close(raw_dev_fd);
 
   return SUCCESS;
 }
@@ -238,6 +194,53 @@ int Tester::umount_device() {
     }
   }
   disk_mounted = false;
+  return SUCCESS;
+}
+
+int Tester::insert_cow_brd() {
+  if (cow_brd_fd < 0) {
+    string command(COW_BRD_INSMOD);
+    command += NUM_DISKS;
+    command += COW_BRD_INSMOD2;
+    command += NUM_SNAPSHOTS;
+    command += COW_BRD_INSMOD3;
+    command += DISK_SIZE;
+    if (!verbose) {
+      command += SILENT;
+    }
+    if (system(command.c_str()) != 0) {
+      cow_brd_fd = -1;
+      return WRAPPER_INSERT_ERR;
+    }
+  }
+  cow_brd_fd = open("/dev/cow_ram0", O_RDONLY);
+  if (cow_brd_fd < 0) {
+    if (system(COW_BRD_RMMOD) != 0) {
+      cow_brd_fd = -1;
+      return WRAPPER_REMOVE_ERR;
+    }
+  }
+  cow_brd_snapshot_fd = open("/dev/cow_ram_snapshot1_0", O_RDONLY);
+  if (cow_brd_snapshot_fd < 0) {
+    close(cow_brd_fd);
+    if (system(COW_BRD_RMMOD) != 0) {
+      cow_brd_snapshot_fd = -1;
+      return WRAPPER_REMOVE_ERR;
+    }
+  }
+  return SUCCESS;
+}
+
+int Tester::remove_cow_brd() {
+  if (cow_brd_fd != -1) {
+    close(cow_brd_snapshot_fd);
+    close(cow_brd_fd);
+    if (system(COW_BRD_RMMOD) != 0) {
+      return WRAPPER_REMOVE_ERR;
+    }
+  }
+  cow_brd_snapshot_fd = -1;
+  cow_brd_fd = -1;
   return SUCCESS;
 }
 
@@ -492,7 +495,7 @@ int Tester::test_check_random_permutations(const int num_rounds) {
     // Restore disk clone.
     // Begin snapshot timing.
     time_point<steady_clock> snapshot_start_time = steady_clock::now();
-    if (clone_device_restore(false) != SUCCESS) {
+    if (clone_device_restore(cow_brd_snapshot_fd, false) != SUCCESS) {
       cout << endl;
       return DRIVE_CLONE_RESTORE_ERR;
     }
@@ -661,18 +664,25 @@ bool Tester::test_write_data(const int disk_fd,
 }
 
 void Tester::cleanup_harness() {
-  delete[] device_clone;
-  device_clone = NULL;
   device_size = 0;
 
   if (umount_device() != SUCCESS) {
     cerr << "Unable to unmount device" << endl;
+    permuter_unload_class();
     test_unload_class();
     return;
   }
 
   if (remove_wrapper() != SUCCESS) {
     cerr << "Unable to remove wrapper device" << endl;
+    permuter_unload_class();
+    test_unload_class();
+    return;
+  }
+
+  if (remove_cow_brd() != SUCCESS) {
+    cerr << "Unable to remove cow_brd device" << endl;
+    permuter_unload_class();
     test_unload_class();
     return;
   }
@@ -731,10 +741,20 @@ int Tester::log_profile_load(string log_file) {
 }
 
 int Tester::log_snapshot_save(string log_file) {
-  if (device_clone == NULL) {
-    return LOG_CLONE_ERR;
-  }
   // TODO(ashmrtn): What happens if this fails?
+  // TODO(ashmrtn): Change device_clone to be an mmap of the disk we need to get
+  // stuff on.
+  char device_clone[device_size];
+  unsigned int bytes_read = 0;
+  do {
+    int res = read(cow_brd_fd, device_clone + bytes_read,
+        device_size - bytes_read);
+    if (res < 0) {
+      cerr << "error reading from raw device to log disk snapshot" << endl;
+      break;
+    }
+    bytes_read += res;
+  } while (bytes_read < device_size);
   ofstream log(log_file, std::ofstream::trunc);
   log.write(device_clone, device_size);
   bool err = log.fail();
@@ -748,11 +768,12 @@ int Tester::log_snapshot_save(string log_file) {
 
 int Tester::log_snapshot_load(string log_file) {
   // TODO(ashmrtn): What happens if this fails?
-  if (device_clone != NULL) {
-    delete[] device_clone;
+  int res = ioctl(cow_brd_fd, COW_BRD_WIPE);
+  if (res < 0) {
+    cerr << "error wiping old disk snapshot" << endl;
   }
   ifstream log(log_file);
-  device_clone = new char[device_size];
+  char device_clone[device_size];
   log.read(device_clone, device_size);
   bool err = log.fail();
   int errnum = errno;
@@ -762,6 +783,17 @@ int Tester::log_snapshot_load(string log_file) {
     std::cout << "error " << strerror(errnum) << std::endl;
     return LOG_CLONE_ERR;
   }
+  // TODO(ashmrtn): Change device_clone to be an mmap of the disk we need to put
+  // stuff on.
+  size_t bytes_written = 0;
+  do {
+    int res = write(cow_brd_fd, (void*) bytes_written,
+        device_size - bytes_written);
+    if (res < 0) {
+      cerr << "error restoring snapshot from log" << endl;
+    }
+    bytes_written += res;
+  } while (bytes_written < device_size);
   return SUCCESS;
 }
 

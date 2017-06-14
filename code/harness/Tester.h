@@ -81,7 +81,7 @@ class Tester {
   int wipe_partitions();
   int format_drive();
   int clone_device();
-  int clone_device_restore(bool reread);
+  int clone_device_restore(int snapshot_fd, bool reread);
 
   int permuter_load_class(const char* path);
   void permuter_unload_class();
@@ -98,6 +98,9 @@ class Tester {
   int mount_device_raw(const char* opts);
   int mount_wrapper_device(const char* opts);
   int umount_device();
+
+  int insert_cow_brd();
+  int remove_cow_brd();
 
   int insert_wrapper();
   int remove_wrapper();
@@ -122,7 +125,6 @@ class Tester {
   // TODO(ashmrtn): Figure out why making these private slows things down a lot.
  private:
   unsigned long int device_size;
-  char* device_clone = NULL;
   fs_testing::utils::ClassLoader<fs_testing::tests::BaseTestCase> test_loader;
   fs_testing::utils::ClassLoader<fs_testing::permuter::Permuter>
     permuter_loader;
@@ -135,6 +137,8 @@ class Tester {
 
 
   bool wrapper_inserted = false;
+  int cow_brd_fd = -1;
+  int cow_brd_snapshot_fd = -1;
 
   bool disk_mounted = false;
 

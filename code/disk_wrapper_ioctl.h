@@ -11,6 +11,7 @@
 #define COW_BRD_SNAPSHOT          0xff06
 #define COW_BRD_UNSNAPSHOT        0xff07
 #define COW_BRD_RESTORE_SNAPSHOT  0xff08
+#define COW_BRD_WIPE              0xff09
 
 // For ease of transferring data to user-land.
 struct disk_write_op_meta {
