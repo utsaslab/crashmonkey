@@ -53,7 +53,9 @@
 #define COW_BRD_RMMOD       "rmmod " COW_BRD_MODULE_NAME
 #define NUM_DISKS           "1"
 #define NUM_SNAPSHOTS       "1"
-#define DISK_SIZE           "512000"
+#define DISK_SIZE           "524288"
+#define SNAPSHOT_PATH       "/dev/cow_ram_snapshot1_0"
+#define COW_BRD_PATH        "/dev/cow_ram0"
 
 #define DEV_SECTORS_PATH    "/sys/block/"
 #define DEV_SECTORS_PATH_2  "/size"
@@ -213,18 +215,12 @@ int Tester::insert_cow_brd() {
       return WRAPPER_INSERT_ERR;
     }
   }
+  cow_brd_inserted = true;
   cow_brd_fd = open("/dev/cow_ram0", O_RDONLY);
   if (cow_brd_fd < 0) {
     if (system(COW_BRD_RMMOD) != 0) {
       cow_brd_fd = -1;
-      return WRAPPER_REMOVE_ERR;
-    }
-  }
-  cow_brd_snapshot_fd = open("/dev/cow_ram_snapshot1_0", O_RDONLY);
-  if (cow_brd_snapshot_fd < 0) {
-    close(cow_brd_fd);
-    if (system(COW_BRD_RMMOD) != 0) {
-      cow_brd_snapshot_fd = -1;
+      cow_brd_inserted = false;
       return WRAPPER_REMOVE_ERR;
     }
   }
@@ -232,22 +228,27 @@ int Tester::insert_cow_brd() {
 }
 
 int Tester::remove_cow_brd() {
-  if (cow_brd_fd != -1) {
-    close(cow_brd_snapshot_fd);
-    close(cow_brd_fd);
+  if (cow_brd_inserted) {
+    if (cow_brd_fd != -1) {
+      close(cow_brd_fd);
+      cow_brd_fd = -1;
+      cow_brd_inserted = false;
+    }
     if (system(COW_BRD_RMMOD) != 0) {
+      cow_brd_inserted = true;
       return WRAPPER_REMOVE_ERR;
     }
   }
-  cow_brd_snapshot_fd = -1;
-  cow_brd_fd = -1;
   return SUCCESS;
 }
 
 int Tester::insert_wrapper() {
   if (!wrapper_inserted) {
     string command(WRAPPER_INSMOD);
-    command += device_mount + WRAPPER_INSMOD2 + flags_device;
+    // TODO(ashmrtn): Make this much MUCH cleaner...
+    command += "/dev/cow_ram_snapshot1_0";
+    command += WRAPPER_INSMOD2;
+    command += flags_device;
     if (!verbose) {
       command += SILENT;
     }
@@ -493,6 +494,10 @@ int Tester::test_check_random_permutations(const int num_rounds) {
     cout << '.' << std::flush;
 
     // Restore disk clone.
+    int cow_brd_snapshot_fd = open(SNAPSHOT_PATH, O_WRONLY);
+    if (cow_brd_snapshot_fd < 0) {
+      cerr << "error opening snapshot to write permuted bios" << endl;
+    }
     // Begin snapshot timing.
     time_point<steady_clock> snapshot_start_time = steady_clock::now();
     if (clone_device_restore(cow_brd_snapshot_fd, false) != SUCCESS) {
@@ -506,26 +511,21 @@ int Tester::test_check_random_permutations(const int num_rounds) {
 
     // Write recorded data out to block device in different orders so that we
     // can if they are all valid or not.
-    const int sn_fd = open(device_raw.c_str(), O_WRONLY);
-    if (sn_fd < 0) {
-      cout << endl;
-      return TEST_CASE_FILE_ERR;
-    }
     time_point<steady_clock> bio_write_start_time = steady_clock::now();
     const int write_data_res =
-      test_write_data(sn_fd, permutes.begin(), permutes.end());
+      test_write_data(cow_brd_snapshot_fd, permutes.begin(), permutes.end());
     time_point<steady_clock> bio_write_end_time = steady_clock::now();
     timing_stats[BIO_WRITE_TIME] +=
         duration_cast<milliseconds>(bio_write_end_time - bio_write_start_time);
     if (!write_data_res) {
       ++test_test_stats[TEST_ERR];
       cout << "test errored in writing data" << endl;
-      close(sn_fd);
+      close(cow_brd_snapshot_fd);
       continue;
     }
-    close(sn_fd);
+    close(cow_brd_snapshot_fd);
 
-    string command(TEST_CASE_FSCK + fs_type + " " + device_mount
+    string command(TEST_CASE_FSCK + fs_type + " " + SNAPSHOT_PATH
         + " -- -y");
     if (!verbose) {
       command += SILENT;
@@ -546,7 +546,7 @@ int Tester::test_check_random_permutations(const int num_rounds) {
     } else {
       // TODO(ashmrtn): Consider mounting with options specified for test
       // profile?
-      if (mount_device_raw(NULL) != SUCCESS) {
+      if (mount_device(SNAPSHOT_PATH, NULL) != SUCCESS) {
         ++test_test_stats[TEST_FSCK_FAIL];
         continue;
       }
@@ -785,15 +785,28 @@ int Tester::log_snapshot_load(string log_file) {
   }
   // TODO(ashmrtn): Change device_clone to be an mmap of the disk we need to put
   // stuff on.
-  size_t bytes_written = 0;
+  int device_fd = open(COW_BRD_PATH, O_WRONLY);
+  res = lseek(device_fd, 0, SEEK_SET);
+  if (res < 0) {
+    cerr << "error seeking to start of test device" << endl;
+  }
+  unsigned int bytes_written = 0;
   do {
-    int res = write(cow_brd_fd, (void*) bytes_written,
+    int res = write(device_fd, (void*) (device_clone + bytes_written),
         device_size - bytes_written);
     if (res < 0) {
-      cerr << "error restoring snapshot from log" << endl;
+      int err = errno;
+      cerr << "error writing snapshot to test device " << errno << endl;
+      cerr << "aborting copy after " << bytes_written << endl;
     }
     bytes_written += res;
   } while (bytes_written < device_size);
+  fsync(device_fd);
+  close(device_fd);
+  res = ioctl(cow_brd_fd, COW_BRD_SNAPSHOT);
+  if (res < 0) {
+    cerr << "error restoring snapshot from log" << endl;
+  }
   return SUCCESS;
 }
 

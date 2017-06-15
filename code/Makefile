@@ -73,11 +73,8 @@ run_norm: harness
 		-l /home/ashmrtn/research/harness_profiles/$(LOG) tests/echo_sub_dir.so
 
 run_norm_log: harness
-	sudo insmod /lib/modules/$(shell uname -r)/kernel/drivers/block/brd.ko \
-		rd_size=524288 rd_nr=1
-	sudo ./c_harness -f /dev/vda -t ext4 -m barrier -d /dev/ram0 -i \
+	sudo ./c_harness -f /dev/vda -t ext4 -m barrier -d /dev/cow_ram0 -i \
 		-r /home/ashmrtn/research/harness_profiles/$(LOG) tests/echo_sub_dir.so
-	sudo rmmod brd
 
 brd_test:
 	sudo insmod /lib/modules/$(shell uname -r)/kernel/drivers/block/brd.ko \

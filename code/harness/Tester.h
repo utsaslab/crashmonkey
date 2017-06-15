@@ -137,8 +137,8 @@ class Tester {
 
 
   bool wrapper_inserted = false;
+  bool cow_brd_inserted = false;
   int cow_brd_fd = -1;
-  int cow_brd_snapshot_fd = -1;
 
   bool disk_mounted = false;
 
