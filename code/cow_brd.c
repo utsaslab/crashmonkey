@@ -386,10 +386,14 @@ static void brd_make_request(struct request_queue *q, struct bio *bio)
 
   sector = bio->bi_sector;
   if (bio_end_sector(bio) > get_capacity(bdev->bd_disk)) {
+    printk(KERN_INFO DEVICE_NAME ": cow_brd%d past end of disk, EIO\n",
+        brd->brd_number);
     goto out;
   }
 
   if ((bio->bi_rw & WRITE || bio->bi_rw & REQ_DISCARD) && !brd->is_writable) {
+    printk(KERN_INFO DEVICE_NAME ": cow_brd%d not writable, EIO\n",
+        brd->brd_number);
     goto out;
   }
 
@@ -468,6 +472,9 @@ static int brd_ioctl(struct block_device *bdev, fmode_t mode,
       brd_free_pages(brd);
       break;
     case COW_BRD_WIPE:
+      if (brd->is_snapshot) {
+        return -ENOTTY;
+      }
       // Assumes no snapshots are being used right now.
       brd_free_pages(brd);
       break;
@@ -723,7 +730,8 @@ static int __init brd_init(void)
   blk_register_region(MKDEV(RAMDISK_MAJOR, 0), range,
           THIS_MODULE, brd_probe, NULL, NULL);
 
-  printk(KERN_INFO DEVICE_NAME ": module loaded\n");
+  printk(KERN_INFO DEVICE_NAME ": module loaded with %d disks and %d snapshots"
+      "\n", num_disks, num_disks * num_snapshots);
   return 0;
 
 out_free:
