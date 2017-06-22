@@ -65,15 +65,15 @@ permuter/RandomPermuter.so: permuter/RandomPermuter.cpp \
 		-I /usr/src/linux-headers-$(shell uname -r)/include/
 
 run_no_log: harness
-	sudo ./c_harness -f /dev/vda -t ext4 -m barrier -d /dev/cow_ram0 -i \
+	sudo ./c_harness -f /dev/sda -t ext4 -m barrier -d /dev/cow_ram0 -i \
 		tests/echo_sub_dir.so
 
 run_norm: harness
-	sudo ./c_harness -f /dev/vda -t ext4 -m barrier -d /dev/cow_ram0 -i \
+	sudo ./c_harness -f /dev/sda -t ext4 -m barrier -d /dev/cow_ram0 -i \
 		-l /home/ashmrtn/research/harness_profiles/$(LOG) tests/echo_sub_dir.so
 
 run_norm_log: harness
-	sudo ./c_harness -f /dev/vda -t ext4 -m barrier -d /dev/cow_ram0 -i \
+	sudo ./c_harness -f /dev/sda -t ext4 -m barrier -d /dev/cow_ram0 -i \
 		-r /home/ashmrtn/research/harness_profiles/$(LOG) tests/echo_sub_dir.so
 
 brd_test:
