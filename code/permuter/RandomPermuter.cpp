@@ -68,7 +68,8 @@ void RandomPermuter::init_data_vector(vector<disk_write> *data) {
       }
 
       ++current_epoch.length;
-      current_epoch.ops.push_back(data->at(index));
+      epoch_op curr_op = {index, data->at(index)};
+      current_epoch.ops.push_back(curr_op);
       current_epoch.num_meta += data->at(index).is_meta();
       ++index;
     }
@@ -78,7 +79,8 @@ void RandomPermuter::init_data_vector(vector<disk_write> *data) {
     // onto the list and move to the next segment of the log.
     if (index < data->size() && (data->at(index)).is_barrier_write()) {
       ++current_epoch.length;
-      current_epoch.ops.push_back(data->at(index));
+      epoch_op curr_op = {index, data->at(index)};
+      current_epoch.ops.push_back(curr_op);
       current_epoch.num_meta += data->at(index).is_meta();
       current_epoch.has_barrier = true;
       ++index;
@@ -135,7 +137,7 @@ bool RandomPermuter::permute(vector<disk_write>& res) {
       advance(epoch_end, adv);
       for (auto epoch_iter = epochs.at(i).ops.begin(); epoch_iter != epoch_end;
           ++epoch_iter) {
-        *res_iter = *epoch_iter;
+        *res_iter = epoch_iter->op;
         ++res_iter;
       }
     }
@@ -161,7 +163,7 @@ void RandomPermuter::permute_epoch(vector<disk_write>& res,
   // exists (i.e. we won't cause extra shifting when adding the other elements).
   // Decrement out count of empty slots since we have filled one.
   if (epoch.has_barrier) {
-    res.at(start_index + slots - 1) = epoch.ops.back();
+    res.at(start_index + slots - 1) = epoch.ops.back().op;
     --slots;
   }
 
@@ -176,7 +178,7 @@ void RandomPermuter::permute_epoch(vector<disk_write>& res,
     uniform_int_distribution<unsigned int> uid(0, empty_slots.size() - 1);
     auto shift = empty_slots.begin();
     advance(shift, uid(rand));
-    res.at(start_index + *shift) = epoch.ops.at(i);
+    res.at(start_index + *shift) = epoch.ops.at(i).op;
     empty_slots.erase(shift);
   }
 
