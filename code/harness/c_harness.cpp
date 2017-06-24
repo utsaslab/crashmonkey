@@ -316,6 +316,7 @@ int main(int argc, char** argv) {
           test_harness.cleanup_harness();
           return -1;
         }
+        cout << "Waiting for writeback delay\n";
         sleep(WRITE_DELAY);
 
         // Wait a small amount of time for writes to propogate to the block
