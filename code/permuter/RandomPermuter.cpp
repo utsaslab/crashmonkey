@@ -116,83 +116,91 @@ bool RandomPermuter::permute(vector<disk_write>& res) {
     uniform_int_distribution<unsigned int> permute_requests(1,
         epochs.at(num_epochs - 1).length);
     unsigned int num_requests = permute_requests(rand);
-    // TODO(ashmrtn): Optimize so that we resize to exactly the number of elements
-    // we will have, not the number of elements in all the epochs.
-    for (unsigned int i = 0; i < num_epochs; ++i) {
+    for (unsigned int i = 0; i < num_epochs - 1; ++i) {
       total_elements += epochs.at(i).length;
     }
+    total_elements += num_requests;
     res.resize(total_elements);
     // Add all of the elements as some of the epochs could have been reordered
     // if they overlapped.
     permuted_epoch.resize(total_elements);
-    permuted_epoch.at(0) = total_elements;
 
-    int current_index = 0;
     auto curr_iter = res.begin();
-    auto cutoff = res.begin();
+    auto permute_iter = permuted_epoch.begin();
     for (unsigned int i = 0; i < num_epochs; ++i) {
       if (epochs.at(i).overlaps || i == num_epochs - 1) {
-        permute_epoch(res, current_index, epochs.at(i), permuted_epoch);
+        unsigned int size =
+          (i != num_epochs - 1) ? epochs.at(i).length : num_requests;
+        auto res_end = curr_iter + size;
+        permute_epoch(curr_iter, res_end, permute_iter, epochs.at(i));
+
+        curr_iter = res_end;
+        advance(permute_iter, size);
       } else {
-        auto res_iter = curr_iter;
         // Use a for loop since vector::insert inserts new elements and we
         // resized above to the exact size we will have.
-        unsigned int adv = (i == num_epochs - 1) ? num_requests
-                                                 : epochs.at(i).length;
-        auto epoch_end = epochs.at(i).ops.begin();
-        advance(epoch_end, adv);
+        // We will only ever be placing the full epoch here because the above if
+        // will catch the case where we place only part of an epoch.
         for (auto epoch_iter = epochs.at(i).ops.begin();
-            epoch_iter != epoch_end; ++epoch_iter) {
-          *res_iter = epoch_iter->op;
-          ++res_iter;
+            epoch_iter != epochs.at(i).ops.end(); ++epoch_iter) {
+          *curr_iter = epoch_iter->op;
+          ++curr_iter;
+          *permute_iter = epoch_iter->abs_index;
+          ++permute_iter;
         }
       }
-      current_index += epochs.at(i).length;
-
-      advance(curr_iter, epochs.at(i).length);
     }
-    // Trim the last epoch to a random number of requests.
-    cutoff = res.begin();
-    advance(cutoff, total_elements - epochs.at(num_epochs - 1).length
-        + num_requests);
-    // Trim off all requests at or after the one we selected above.
-    res.erase(cutoff, res.end());
   } while (completed_permutations.count(permuted_epoch));
   completed_permutations.insert(permuted_epoch);
 
   return true;
 }
 
-void RandomPermuter::permute_epoch(vector<disk_write>& res,
-    const int start_index, epoch& epoch, vector<unsigned int>& permuted_order) {
-  unsigned int slots = epoch.length;
+void RandomPermuter::permute_epoch(
+      vector<disk_write>::iterator& res_start,
+      vector<disk_write>::iterator& res_end,
+      vector<unsigned int>::iterator& order_start,
+      epoch& epoch) {
+  assert(distance(res_start, res_end) <= epoch.length);
 
-  // Place the barrier operation if it exists since the entire vector already
-  // exists (i.e. we won't cause extra shifting when adding the other elements).
-  // Decrement out count of empty slots since we have filled one.
-  if (epoch.has_barrier) {
-    res.at(start_index + slots - 1) = epoch.ops.back().op;
-    permuted_order.at(start_index + slots - 1) = epoch.ops.back().abs_index;
-    --slots;
-  }
+  // Even if the number of bios we're placing is less than the number in the
+  // epoch, allow any bio but the barrier (if present) to be picked.
+  unsigned int slots = (epoch.has_barrier) ? epoch.length - 1 : epoch.length;
 
-  // Fill the list with the empty slots, either [0, epoch.length - 1) or
-  // [0, epoch.length - 2).
+  // Fill the list with the empty slots, either [0, epoch.length - 1] or
+  // [0, epoch.length - 2]. Prefer a list so that removals are fast. We have
+  // this so that each time we pick a number we can find a bio which we haven't
+  // already placed.
   list<unsigned int> empty_slots(slots);
   iota(empty_slots.begin(), empty_slots.end(), 0);
 
-  for (unsigned int i = 0; i < slots; ++i) {
+  // First case is when we are placing a subset of the bios, the second is when
+  // we are placing all the bios but a barrier operation is present.
+  while (res_start != res_end && !empty_slots.empty()) {
     // Uniform distribution includes both ends, so we need to subtract 1 from
     // the size.
     uniform_int_distribution<unsigned int> uid(0, empty_slots.size() - 1);
     auto shift = empty_slots.begin();
     advance(shift, uid(rand));
-    res.at(start_index + *shift) = epoch.ops.at(i).op;
-    permuted_order.at(start_index + *shift) = epoch.ops.at(i).abs_index;
+    *res_start = epoch.ops.at(*shift).op;
+    ++res_start;
+    *order_start = epoch.ops.at(*shift).abs_index;
+    ++order_start;
     empty_slots.erase(shift);
   }
 
-  assert(empty_slots.empty());
+  // We are only placing part of an epoch so we need to return here.
+  if (res_start == res_end) {
+    return;
+  }
+
+  assert(epoch.has_barrier);
+
+  // Place the barrier operation if it exists since the entire vector already
+  // exists (i.e. we won't cause extra shifting when adding the other elements).
+  // Decrement out count of empty slots since we have filled one.
+  *res_start = epoch.ops.back().op;
+  *order_start = epoch.ops.back().abs_index;
 }
 
 }  // namespace permuter

@@ -58,16 +58,14 @@ class RandomPermuter : public Permuter {
 
  private:
   void init_data_vector(std::vector<fs_testing::utils::disk_write> *data);
-  void permute_epoch(std::vector<fs_testing::utils::disk_write>& res,
-      const int start_index, epoch& epoch,
-      std::vector<unsigned int>& permuted_order);
+  void permute_epoch(
+      std::vector<fs_testing::utils::disk_write>::iterator& res_start,
+      std::vector<fs_testing::utils::disk_write>::iterator& res_end,
+      std::vector<unsigned int>::iterator& order_start,
+      epoch& epoch);
   unsigned int log_length;
   std::vector<struct epoch> epochs;
   std::mt19937 rand;
-  // TODO(ashmrtn): Add some sort of hash_set or something that tracks the
-  // permutations already completed so that we don't repeat stuff. It's probably
-  // easiest to hash something like the deltas of the bios relative to where
-  // they were in the original or something like that.
   std::unordered_set<std::vector<unsigned int>, BioVectorHash, BioVectorEqual>
     completed_permutations;
 };
