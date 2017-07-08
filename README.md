@@ -7,7 +7,7 @@ CrashMonkey is a file-system agnostic testing framework for file-system consiste
 1. user space test harness which coordinates everything
 1. user space, user defined test cases which specify the workload to be tested and, optionally, data consistency tests to run on each generated crash state.
 
-The HotStorage'17 paper *CrashMonkey: A Framework to Automatically Test File-System Crash Consistency* has a more detailed explanation of the internals of CrashMonkey (Note: link coming soon!).
+The HotStorage'17 paper *CrashMonkey: A Framework to Automatically Test File-System Crash Consistency* has a more detailed explanation of the internals of CrashMonkey. [Link]( http://www.cs.utexas.edu/~vijay/papers/hotstorage17-crashmonkey.pdf)
 
 CrashMonkey also makes use of common Linux file system checker and repair programs like `fsck`.
 
