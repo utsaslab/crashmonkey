@@ -1,4 +1,4 @@
-# README #
+# CrashMonkey #
 ### What is CrashMonkey? ###
 
 CrashMonkey is a file-system agnostic testing framework for file-system consistency. It is meant to explore many crash states that are possible when a computer crashes in the middle of a write operation. CrashMonkey is made up of 3 main parts:
@@ -12,18 +12,37 @@ The HotStorage'17 paper *CrashMonkey: A Framework to Automatically Test File-Sys
 CrashMonkey also makes use of common Linux file system checker and repair programs like `fsck`.
 
 ### Getting Setup ###
-The easiest (and recommended) way to start working on (or using) CrashMonkey is to setup a virtual machine and run everything in the VM. This is partly so that any bugs in the kernel module don't bring down your whole system and partly because I just find it easier. In the future I may try to get a Docker running with all the needed packages and files so that things are easy to setup and get running. In the meantime, I would recommend using `vmbuilder`, `libvert`, `qemu`, `kvm`, and the `vmbuilder` script in the repo to get everything setup (script generously provided by Ian Neal).
+
+#### Setting Up a VM ####
+The easiest (and recommended) way to start working on (or using) CrashMonkey is to setup a virtual machine and run everything in the VM. This is partly so that any bugs in the kernel module don't bring down your whole system and partly because I just find it easier. In the future I may try to get a Docker running with all the needed packages and files so that things are easy to setup and get running. In the meantime, you should spin up an Ubuntu 14.04 LTS VM and work on there. Since the kernel versions changed between Ubuntu 14.04 and Ubuntu 16.04, I am not sure (and have not tested) whether CrashMoneky will work on 16.04 yet. The Ubuntu VM that you create will need the following packages to properly build and run CrashMonkey:
+
+* make
+* git
+* gcc
+* g++
+* linux kernel headers
+      * install with `sudo apt-get install linux-headers-$(uname -r)`
+
+Furthermore, the VM should have enough disk space to build and compile CrashMonkey as well as enough RAM to run any tests you want. I mention RAM because CrashMonkey uses a RAM block device during its tests, so you will need to give it at least as much RAM as the largest test you plan on running. For small tests, a 20 GB hard drive for the Ubuntu install and also all other files (I'm lazy and don't feel like trimming it down more than that) and 2-4 GB of RAM should be more than enough.
+
+If you are new to building and running VMs and would like to try something other than VirtualBox, I would recommend using `vmbuilder`, `libvert`, `qemu`, `kvm`, and the `vmbuilder` script in the repo to get everything setup (script generously provided by Ian Neal).
 
 To get everything working:
 
 1. Follow steps 1-3 [on this random website about setting up kvm on Ubuntu 16.04 LTS](https://www.cyberciti.biz/faq/installing-kvm-on-ubuntu-16-04-lts-server/)
+1. To fix some odd permission issue with libvirt, run:
+    1. `sudo apt-get install apparmor-profiles apparmor-utils`
+    1. `sudo aa-complain /usr/lib/libvirt/virt-aa-helper`
 1. `git clone` CrashMonkey repo into a directory of your choosing
 1. edit `setup/ceate_vm.sh` to point to the directory you want the VM disk in, add any additional packages you may want, change user names
 1. `setup/create_vm.sh <VM name> <VM IP>` to create a new VM and register it with `libvirt`
     1. Note that you may have to comment out line 153 in `/usr/lib/python2.7/dist-packages/VMBuilder/plugins/ubuntu/dapper.py` of `vmbuilder` python code in order to get it to run properly. Otherwise, it may have an issue with copying over sudo templates.
     1. Sit back and drink some coffee as this process may take a little while
 1. Fire up the newly created VM and `ssh` into it
-1. `git clone` CrashMonkey repo into a directory of your choosing
+
+#### Pulling Source Files Onto the VM ####
+
+1. `git clone --recursive` CrashMonkey repo into a directory of your choosing
     1. sorry, I'll edit the `vmbuilder` script at some point to just copy these files over
 
 ### Compiling CrashMonkey ###
@@ -38,7 +57,7 @@ User defined tests reside in the `code/tests` directory. They can be compiled in
 Some tests for CrashMonkey reside in the `test` directory of the repo. Tests leverage `googletests` and are used to ensure the correctness and functionality of some of the user space portions of CrashMonkey (ex. the descendants of the `Permuter` class). Right now you'll have to examine the outputted binary names to determine what each binary tests. In the future, the build system will be updated to run the tests after compiling them.
 
 ### Running CrashMonkey ###
-Pre-specified runs can be performed with `make run_no_log` or `make run_no_log_big NUM_TESTS=<number of crash states to test>`. If you would like to run CrashMonkey by hand, you must run the `c_harness` binary and at least provide the following:
+Pre-specified runs can be performed with `make run_no_log` or `make run_no_log_big NUM_TESTS=<number of crash states to test>`. Before running either of these tests, you will have to create a directory at `/mnt/snapshot` for the test harness to mount test devices at. If you would like to run CrashMonkey by hand, you must run the `c_harness` binary and at least provide the following:
 
 * `-f` - block device to copy device queue flags from. This controls what flags (FUA, flush, etc) will be allowed to propagate to the device wrapper
 * `-t` - file system type, right now CrashMonkey is only tested on ext4
