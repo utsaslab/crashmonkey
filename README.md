@@ -38,6 +38,12 @@ To get everything working:
 1. `setup/create_vm.sh <VM name> <VM IP>` to create a new VM and register it with `libvirt`
     1. Note that you may have to comment out line 153 in `/usr/lib/python2.7/dist-packages/VMBuilder/plugins/ubuntu/dapper.py` of `vmbuilder` python code in order to get it to run properly. Otherwise, it may have an issue with copying over sudo templates.
     1. Sit back and drink some coffee as this process may take a little while
+1. `virsh edit <vm name>` and fix the disk that is passed into the VM as the
+   boot drive. It defaults to the random alphanumeric name that `vmbuilder`
+   generates, but the last few lines of the script moves it to the name of the
+   VM itself.
+    1. Note that you may also have to edit the name of the bridge by running
+       `virsh edit <VM name>` depending on your system.
 1. Fire up the newly created VM and `ssh` into it
 
 #### Pulling Source Files Onto the VM ####
