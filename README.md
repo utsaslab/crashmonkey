@@ -46,6 +46,8 @@ Pre-specified runs can be performed with `make run_no_log` or `make run_no_log_b
 
 To run your own CrashMonkey, use: `./c_harness <flags> <user defined workload>`
 
+A full listing of flags for CrashMonkey can be found in `code/haress/c_harness.c`
+
 ### Contribution guidelines ###
 
 * Contributed code should follow [Google's C++ Style Guide](https://google.github.io/styleguide/cppguide.html) (the current code loosely follows that already).
