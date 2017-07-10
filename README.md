@@ -19,17 +19,12 @@ To get everything working:
 1. Follow steps 1-3 [on this random website about setting up kvm on Ubuntu 16.04 LTS](https://www.cyberciti.biz/faq/installing-kvm-on-ubuntu-16-04-lts-server/)
 1. `git clone` CrashMonkey repo into a directory of your choosing
 1. edit `setup/ceate_vm.sh` to point to the directory you want the VM disk in, add any additional packages you may want, change user names
-1. `setup/create_vm.sh <VM name> <VM IP> to create a new VM and register it with `libvirt`
-    1. Note that you may have to go edit some of the `vmbuilder` python code in order to get it to run properly. It may have some issue with copying over sudo templates. If this happens, you should be able to just comment out the underlying python code which is trying to copy over the file.
-    1. Sit back and drink some coffee as this process may take a while
-1. Download, recompile, and install the kernel for the new VM, this time making the `brd` (aka. block ram device) module a real module instead of compiled into the kernel.
-1. Compile and install the `brd` module in the VM for the new kernel
-1. Setup the new VM to boot using the newly compiled kernel and `brd` module
+1. `setup/create_vm.sh <VM name> <VM IP>` to create a new VM and register it with `libvirt`
+    1. Note that you may have to comment out line 153 in `/usr/lib/python2.7/dist-packages/VMBuilder/plugins/ubuntu/dapper.py` of `vmbuilder` python code in order to get it to run properly. Otherwise, it may have an issue with copying over sudo templates.
+    1. Sit back and drink some coffee as this process may take a little while
 1. Fire up the newly created VM and `ssh` into it
 1. `git clone` CrashMonkey repo into a directory of your choosing
     1. sorry, I'll edit the `vmbuilder` script at some point to just copy these files over
-
-In the future, the disk_wrapper module in CrashMonkey will also act as a ramdisk so it will no longer be necessary to recompile the VM kernel to gain access to the `brd` module (apparently building it into the kernel was a bug introduced a while back, the fix for which was never really merged into 14.04 LTS).
 
 ### Compiling CrashMonkey ###
 The test harness and test portion of CrashMonkey can be compiled with `cd code; make harness`. This will build the kernel module, test harness, and a single test case in the `code/tests` directory.
@@ -41,6 +36,15 @@ User defined tests reside in the `code/tests` directory. They can be compiled in
 
 ### Compiling Tests for CrashMonkey ###
 Some tests for CrashMonkey reside in the `test` directory of the repo. Tests leverage `googletests` and are used to ensure the correctness and functionality of some of the user space portions of CrashMonkey (ex. the descendants of the `Permuter` class). Right now you'll have to examine the outputted binary names to determine what each binary tests. In the future, the build system will be updated to run the tests after compiling them.
+
+### Running CrashMonkey ###
+Pre-specified runs can be performed with `make run_no_log` or `make run_no_log_big NUM_TESTS=<number of crash states to test>`. If you would like to run CrashMonkey by hand, you must run the `c_harness` binary and at least provide the following:
+
+* `-f` - block device to copy device queue flags from. This controls what flags (FUA, flush, etc) will be allowed to propagate to the device wrapper
+* `-t` - file system type, right now CrashMonkey is only tested on ext4
+* `-d` - device to run tests on. Currently the only valid option is `/dev/cow_ram0`. This flag should hopefully go away soon.
+
+To run your own CrashMonkey, use: `./c_harness <flags> <user defined workload>`
 
 ### Contribution guidelines ###
 
@@ -73,6 +77,7 @@ If you run into system crashes etc. from a buggy CrashMonkey kernel module you m
     * Make a class to manage kernel modules
     * Make running test cases multi-threaded
     * Make the `disk_wrapper` work on volumes that span multiple block devices
+    * Clean up the interface for generating crash states
 
 ### Repo Owner Contact Info ###
 I can be reached at [ashmrtn@utexas.edu](mailto:ashmrtn@utexas.edu). Please don't spam this email and please begin your subject line with `CrashMonkey:` because I do filter my messages.
