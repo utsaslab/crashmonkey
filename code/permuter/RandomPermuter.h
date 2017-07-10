@@ -53,8 +53,8 @@ class RandomPermuter : public Permuter {
  public:
   RandomPermuter();
   RandomPermuter(std::vector<fs_testing::utils::disk_write> *data);
-  virtual void set_data(std::vector<fs_testing::utils::disk_write> *data);
-  virtual bool permute(std::vector<fs_testing::utils::disk_write>& res);
+  virtual void init_data(std::vector<fs_testing::utils::disk_write> *data);
+  virtual bool gen_one_state(std::vector<fs_testing::utils::disk_write>& res);
 
  private:
   void init_data_vector(std::vector<fs_testing::utils::disk_write> *data);

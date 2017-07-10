@@ -8,9 +8,7 @@ GOPTS = -std=c++11
 GOTPSSO = -shared -fPIC
 
 cow_brd.ko disk_wrapper.ko default: $(MODULES)
-	$(MAKE) -C $(KDIR) M=$(PWD) modules EXTRA_CFLAGS="$(DEBUG_FLAGS)"
-	sudo cp $(addsuffix .ko, $(basename $(MODULES))) \
-		/lib/modules/$(shell uname -r)/custom/
+	$(MAKE) -C $(KDIR) M=$(PWD) modules
 
 harness: harness/c_harness.cpp default utils/utils.h utils/utils.cpp \
 		disk_wrapper_ioctl.h harness/Tester.cpp harness/Tester.h \

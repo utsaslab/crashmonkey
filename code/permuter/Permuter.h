@@ -11,8 +11,8 @@ namespace permuter {
 class Permuter {
  public:
   virtual ~Permuter() {};
-  virtual void set_data(std::vector<fs_testing::utils::disk_write> *data) = 0;
-  virtual bool permute(std::vector<fs_testing::utils::disk_write>& res) = 0;
+  virtual void init_data(std::vector<fs_testing::utils::disk_write> *data) = 0;
+  virtual bool gen_one_state(std::vector<fs_testing::utils::disk_write>& res) = 0;
 };
 
 typedef Permuter *permuter_create_t();

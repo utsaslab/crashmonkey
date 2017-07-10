@@ -100,11 +100,11 @@ RandomPermuter::RandomPermuter(vector<disk_write> *data) {
   rand = mt19937(42);
 }
 
-void RandomPermuter::set_data(vector<disk_write> *data) {
+void RandomPermuter::init_data(vector<disk_write> *data) {
   init_data_vector(data);
 }
 
-bool RandomPermuter::permute(vector<disk_write>& res) {
+bool RandomPermuter::gen_one_state(vector<disk_write>& res) {
   vector<unsigned int> permuted_epoch(0);
   do {
     unsigned int total_elements = 0;
