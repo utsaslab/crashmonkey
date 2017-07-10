@@ -89,9 +89,9 @@ TEST(RandomPermuter, PermuteSingleEpoch) {
   test_epoch.push_back(barrier);
 
   RandomPermuter rp;
-  rp.set_data(&test_epoch);
+  rp.init_data(&test_epoch);
   vector<disk_write> result;
-  rp.permute(result);
+  rp.gen_one_state(result);
 }
 
 TEST(RandomPermuter, FindOverlaps) {
@@ -117,9 +117,9 @@ TEST(RandomPermuter, FindOverlaps) {
   test_epoch.push_back(barrier);
 
   RandomPermuter rp;
-  rp.set_data(&test_epoch);
+  rp.init_data(&test_epoch);
   vector<disk_write> result;
-  rp.permute(result);
+  rp.gen_one_state(result);
 
   EXPECT_NE(test_epoch, result);
 }
@@ -150,9 +150,9 @@ TEST(RandomPermuter, FindNoOverlapsMultiEpoch) {
   }
 
   RandomPermuter rp;
-  rp.set_data(&test_epoch);
+  rp.init_data(&test_epoch);
   vector<disk_write> result;
-  rp.permute(result);
+  rp.gen_one_state(result);
 
   // The very first epoch should be the same since we have no overlaps in it as
   // long as multiple epochs are written to disk.
