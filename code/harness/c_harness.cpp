@@ -20,7 +20,7 @@
 #define WRITE_DELAY 20
 #define MOUNT_DELAY 3
 
-#define OPTS_STRING "f:d:il:m:np:r:st:v"
+#define OPTS_STRING "d:f:e:l:m:np:r:s:t:v"
 
 using std::cerr;
 using std::cout;
@@ -29,17 +29,17 @@ using std::string;
 using fs_testing::Tester;
 
 static const option long_options[] = {
-  {"flag-device", required_argument, NULL, 'f'},
-  {"in-memory", no_argument, NULL, 'i'},
-  {"dry-run", no_argument, NULL, 'n'},
-  {"verbose", no_argument, NULL, 'v'},
-  {"fs-type", required_argument, NULL, 't'},
   {"test-dev", required_argument, NULL, 'd'},
+  {"disk_size", required_argument, NULL, 'e'},
+  {"flag-device", required_argument, NULL, 'f'},
   {"log-file", required_argument, NULL, 'l'},
-  {"reload-log-file", required_argument, NULL, 'r'},
   {"mount-opts", required_argument, NULL, 'm'},
+  {"dry-run", no_argument, NULL, 'n'},
   {"permuter", required_argument, NULL, 'p'},
+  {"reload-log-file", required_argument, NULL, 'r'},
   {"iterations", required_argument, NULL, 's'},
+  {"fs-type", required_argument, NULL, 't'},
+  {"verbose", no_argument, NULL, 'v'},
   {0, 0, 0, 0},
 };
 
@@ -56,13 +56,8 @@ int main(int argc, char** argv) {
   bool dry_run = false;
   bool no_lvm = false;
   bool verbose = false;
-  unsigned int iterations = 1000;
-  // TODO(ashmrtn): Find a better way to track whether we are using a ramdisk or
-  // not. ramdisks don't need paritioned and will fail if we try to run fdisk
-  // (the partitioning steps) on them so we need to detect them and change our
-  // method for them.
-  bool in_memory = true;  // Assume ramdisk.
-
+  int iterations = 1000;
+  int disk_size = 10240;
   int option_idx = 0;
 
   // Parse command line arguments.
@@ -75,10 +70,9 @@ int main(int argc, char** argv) {
         break;
       case 'd':
         test_dev = string(optarg);
-        in_memory = false;
         break;
-      case 'i':
-        in_memory = true;
+      case 'e':
+        disk_size = atoi(optarg);
         break;
       case 'l':
         log_file_save = string(optarg);
@@ -110,6 +104,7 @@ int main(int argc, char** argv) {
     }
   }
 
+
   const unsigned int test_case_idx = optind;
 
   if (test_case_idx == argc) {
@@ -122,8 +117,19 @@ int main(int argc, char** argv) {
     return -1;
   }
 
-  Tester test_harness(verbose);
-  test_harness.insert_cow_brd();
+  if (disk_size <= 0) {
+    cerr << "Please give a positive number for the RAM disk size to use"
+      << endl;
+    return -1;
+  }
+
+  Tester test_harness(disk_size, verbose);
+
+  cout << "Inserting RAM disk module" << endl;
+  if (test_harness.insert_cow_brd() != SUCCESS) {
+    cerr << "Error inserting RAM disk module" << endl;
+    return -1;
+  }
   test_harness.set_fs_type(fs_type);
   test_harness.set_device(test_dev);
 
@@ -153,17 +159,6 @@ int main(int argc, char** argv) {
     return -1;
   }
 
-  if (!in_memory) {
-    // Partition drive.
-    // TODO(ashmrtn): Consider making a flag for this?
-    cout << "Wiping test device" << endl;
-    if (test_harness.wipe_partitions() != SUCCESS) {
-      cerr << "Error wiping paritions on test device" << endl;
-      test_harness.cleanup_harness();
-      return -1;
-    }
-  }
-
   // Run the normal test setup stuff if we don't have a log file.
   if (log_file_load.empty()) {
     if (flags_dev.empty()) {
@@ -171,15 +166,6 @@ int main(int argc, char** argv) {
       return -1;
     }
     test_harness.set_flag_device(flags_dev);
-
-    if (!in_memory) {
-      // Create a new partition table on test device.
-      cout << "Partitioning test drive" << endl;
-      if (test_harness.partition_drive() != SUCCESS) {
-        test_harness.cleanup_harness();
-        return -1;
-      }
-    }
 
     // Format test drive to desired type.
     cout << "Formatting test drive" << endl;

@@ -20,6 +20,8 @@ using std::string;
 #define TEST_TEXT_SIZE (1024)
 #define NUM_TEST_FILES (1)
 
+#define BLOCK_SIZE (512)
+
 // TODO(ashmrtn): Make helper function to concatenate file paths.
 // TODO(ashmrtn): Pass mount path and test device names to tests somehow.
 namespace fs_testing {
@@ -27,7 +29,7 @@ namespace tests {
 
 using std::memcmp;
 
-class echo_sub_dir_big : public BaseTestCase {
+class sub_dir_odirect : public BaseTestCase {
  public:
   virtual int setup() override {
     int res = mkdir(TEST_MNT "/" TEST_DIR, 0777);
@@ -66,11 +68,17 @@ class echo_sub_dir_big : public BaseTestCase {
   }
 
   virtual int run() override {
+    void* data;
+    if (posix_memalign(&data, BLOCK_SIZE, TEST_TEXT_SIZE) < 0) {
+      return -1;
+    }
+    memcpy(data, text, TEST_TEXT_SIZE);
+
     for (unsigned int i = 0; i < NUM_TEST_FILES; ++i) {
       const int old_umask = umask(0000);
       string file_name = string(TEST_MNT "/" TEST_DIR "/" TEST_FILE
           + std::to_string(i));
-      const int fd = open(file_name.c_str(), O_RDWR | O_CREAT,
+      const int fd = open(file_name.c_str(), O_RDWR | O_CREAT | O_DIRECT,
           TEST_FILE_PERMS);
       if (fd == -1) {
         umask(old_umask);
@@ -80,8 +88,8 @@ class echo_sub_dir_big : public BaseTestCase {
 
       unsigned int written = 0;
       do {
-        int res = write(fd, (void*) ((unsigned long) text + written),
-            TEST_TEXT_SIZE - written);
+        int res = write(fd, (void*) ((unsigned long) data + written),
+            BLOCK_SIZE);
         if (res == -1) {
           close(fd);
           return -1;
@@ -90,6 +98,7 @@ class echo_sub_dir_big : public BaseTestCase {
       } while (written != TEST_TEXT_SIZE);
       close(fd);
     }
+    free(data);
     return 0;
   }
 
@@ -152,7 +161,7 @@ class echo_sub_dir_big : public BaseTestCase {
 }  // namespace fs_testing
 
 extern "C" fs_testing::tests::BaseTestCase *test_case_get_instance() {
-  return new fs_testing::tests::echo_sub_dir_big;
+  return new fs_testing::tests::sub_dir_odirect;
 }
 
 extern "C" void test_case_delete_instance(fs_testing::tests::BaseTestCase *tc) {

@@ -30,53 +30,28 @@ permuter/RandomPermuter.so: permuter/RandomPermuter.cpp \
 		-I /usr/src/linux-headers-$(shell uname -r)/include/
 
 run_no_log: harness tests/echo_sub_dir.so
-	sudo ./c_harness -f /dev/sda -t ext4 -m barrier -d /dev/cow_ram0 -i \
-		tests/echo_sub_dir.so
+	sudo ./c_harness -f /dev/sda -t ext4 -m barrier -d /dev/cow_ram0 \
+		-e 10240 tests/echo_sub_dir.so
+
+run_no_log_huge: harness tests/echo_sub_dir_huge.so
+	sudo ./c_harness -f /dev/sda -t ext4 -m barrier -d /dev/cow_ram0 \
+		-e 15360 -s $(NUM_TESTS) tests/echo_sub_dir_huge.so
+
+run_no_log_big: harness tests/echo_sub_dir_big.so
+	sudo ./c_harness -f /dev/sda -t ext4 -m barrier -d /dev/cow_ram0 \
+		-e 10240 -s $(NUM_TESTS) tests/echo_sub_dir_big.so
+
+run_no_log_direct: harness tests/sub_dir_odirect.so
+	sudo ./c_harness -f /dev/sda -t ext4 -m barrier -d /dev/cow_ram0 \
+		-e 10240 -s $(NUM_TESTS) tests/sub_dir_odirect.so
+
+run_no_log_mmap: harness tests/sub_dir_mmap.so
+	sudo ./c_harness -f /dev/sda -t ext4 -m barrier -d /dev/cow_ram0 \
+		-e 10240 -s $(NUM_TESTS) tests/sub_dir_mmap.so
 
 run_no_log_no_sync: harness tests/echo_sub_dir_no_sync.so
-	sudo ./c_harness -f /dev/sda -t ext4 -m barrier -d /dev/cow_ram0 -i \
-		tests/echo_sub_dir_no_sync.so
-
-run_norm: harness tests/echo_sub_dir.so
-	sudo ./c_harness -f /dev/sda -t ext4 -m barrier -d /dev/cow_ram0 -i \
-		-l /home/ashmrtn/research/harness_profiles/$(LOG) tests/echo_sub_dir.so
-
-run_norm_log: harness tests/echo_sub_dir.so
-	sudo ./c_harness -f /dev/sda -t ext4 -m barrier -d /dev/cow_ram0 -i \
-		-r /home/ashmrtn/research/harness_profiles/$(LOG) tests/echo_sub_dir.so
-
-brd_test:
-	sudo insmod /lib/modules/$(shell uname -r)/kernel/drivers/block/brd.ko \
-		rd_size=524288 rd_nr=1
-	sudo fdisk -l /dev/ram0
-	sudo rmmod brd
-
-cow_brd_test: cow_brd.ko ioctl_test
-	sudo insmod cow_brd.ko disk_size=512000 num_disks=1 num_snapshots=1
-	sudo mkfs -t ext4 /dev/cow_ram0
-	-sudo mount /dev/cow_ram0 /mnt/snapshot
-	-echo "hello world" | sudo tee /mnt/snapshot/bleh > /dev/null
-	-sync
-	-sudo fsck /dev/cow_ram_snapshot1_0
-	-cat /mnt/snapshot/bleh
-	-sudo mount /dev/cow_ram_snapshot1_0 /mnt/test_dir
-	-cat /mnt/test_dir/bleh
-	-echo "hi world" | sudo tee -a /mnt/test_dir/bleh > /dev/null
-	-cat /mnt/test_dir/bleh
-	-cat /mnt/snapshot/bleh
-	-echo "hi world" | sudo tee /mnt/test_dir/bleh > /dev/null
-	-cat /mnt/test_dir/bleh
-	-cat /mnt/snapshot/bleh
-	-sudo umount /mnt/test_dir
-	-sudo ./ioctl_test
-	-sudo mount /dev/cow_ram_snapshot1_0 /mnt/test_dir
-	-cat /mnt/test_dir/bleh
-	-sudo umount /mnt/test_dir
-	-sudo umount /mnt/snapshot
-	sudo rmmod cow_brd
-
-ioctl_test: ioctl_test.c disk_wrapper_ioctl.h
-	gcc $^ -o $@
+	sudo ./c_harness -f /dev/sda -t ext4 -m barrier -d /dev/cow_ram0 \
+		-e 10240 tests/echo_sub_dir_no_sync.so
 
 clean:
 	$(MAKE) -C $(KDIR) M=$(PWD) clean

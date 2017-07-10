@@ -1,4 +1,5 @@
 #include <fcntl.h>
+#include <sys/mman.h>
 #include <sys/stat.h>
 #include <sys/types.h>
 #include <unistd.h>
@@ -78,16 +79,18 @@ class echo_sub_dir_big : public BaseTestCase {
       }
       umask(old_umask);
 
-      unsigned int written = 0;
-      do {
-        int res = write(fd, (void*) ((unsigned long) text + written),
-            TEST_TEXT_SIZE - written);
-        if (res == -1) {
-          close(fd);
-          return -1;
-        }
-        written += res;
-      } while (written != TEST_TEXT_SIZE);
+      if (ftruncate(fd, TEST_TEXT_SIZE) < 0) {
+        return -1;
+      }
+
+      void* file_data = mmap(NULL, TEST_TEXT_SIZE, PROT_WRITE, MAP_SHARED, fd,
+          0);
+      if (file_data <= 0) {
+        return -1;
+      }
+      memcpy(file_data, text, TEST_TEXT_SIZE);
+      munmap(file_data, TEST_TEXT_SIZE);
+
       close(fd);
     }
     return 0;

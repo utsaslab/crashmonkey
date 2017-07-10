@@ -53,7 +53,6 @@
 #define COW_BRD_RMMOD       "rmmod " COW_BRD_MODULE_NAME
 #define NUM_DISKS           "1"
 #define NUM_SNAPSHOTS       "1"
-#define DISK_SIZE           "524288"
 #define SNAPSHOT_PATH       "/dev/cow_ram_snapshot1_0"
 #define COW_BRD_PATH        "/dev/cow_ram0"
 
@@ -90,7 +89,8 @@ using fs_testing::permuter::permuter_create_t;
 using fs_testing::permuter::permuter_destroy_t;
 using fs_testing::utils::disk_write;
 
-Tester::Tester(const bool verbosity) : verbose(verbosity) {}
+Tester::Tester(const unsigned int dev_size, const bool verbosity)
+  : device_size(dev_size), verbose(verbosity) {}
 
 void Tester::set_fs_type(const string type) {
   fs_type = type;
@@ -99,37 +99,6 @@ void Tester::set_fs_type(const string type) {
 void Tester::set_device(const string device_path) {
   device_raw = device_path;
   device_mount = device_raw;
-
-  // /sys/block/<dev> has the number of 512 byte sectors on the disk.
-  string dev = device_raw.substr(device_raw.find_last_of("/") + 1);
-  string path(DEV_SECTORS_PATH + dev + DEV_SECTORS_PATH_2);
-  int size_fd = open(path.c_str(), O_RDONLY);
-  if (size_fd < 0) {
-    cerr << "Unable to device size file " << errno << endl;
-    device_size = 0;
-    return;
-  }
-  unsigned int buf_size = 50;
-  char size_buf[buf_size];
-  unsigned int bytes_read = 0;
-  int res = 0;
-  do {
-    res = read(size_fd, size_buf + bytes_read, buf_size - 1 - bytes_read);
-    if (res < 0) {
-      int err = errno;
-      device_size = 0;
-      cerr << "Unable to get device size " << err << endl;
-      close(size_fd);
-      return;
-    }
-
-    bytes_read += res;
-  } while (res != 0 && bytes_read < buf_size - 1);
-  close(size_fd);
-
-  // Null terminate string.
-  size_buf[bytes_read] = '\0';
-  device_size = strtol(size_buf, NULL, 10) * SECTOR_SIZE;
 }
 
 void Tester::set_flag_device(const std::string device_path) {
@@ -206,7 +175,7 @@ int Tester::insert_cow_brd() {
     command += COW_BRD_INSMOD2;
     command += NUM_SNAPSHOTS;
     command += COW_BRD_INSMOD3;
-    command += DISK_SIZE;
+    command += std::to_string(device_size);
     if (!verbose) {
       command += SILENT;
     }
@@ -482,6 +451,10 @@ int Tester::test_check_random_permutations(const int num_rounds) {
   p->set_data(&log_data);
   vector<disk_write> permutes;
   for (int rounds = 0; rounds < num_rounds; ++rounds) {
+    // Print status every 1024 iterations.
+    if (rounds & (~((1 << 10) - 1)) && !(rounds & ((1 << 10) - 1))) {
+      cout << rounds << std::endl;
+    }
     // Begin permute timing.
     time_point<steady_clock> permute_start_time = steady_clock::now();
     p->permute(permutes);
@@ -491,7 +464,7 @@ int Tester::test_check_random_permutations(const int num_rounds) {
     // End permute timing.
 
     ++test_test_stats[TESTS_RUN];
-    cout << '.' << std::flush;
+    //cout << '.' << std::flush;
 
     // Restore disk clone.
     int cow_brd_snapshot_fd = open(SNAPSHOT_PATH, O_WRONLY);
@@ -572,7 +545,7 @@ int Tester::test_check_random_permutations(const int num_rounds) {
       umount_device();
     }
   }
-  cout << endl;
+  //cout << endl;
   time_point<steady_clock> end_time = steady_clock::now();
   timing_stats[TOTAL_TIME] = duration_cast<milliseconds>(end_time - start_time);
   return SUCCESS;
@@ -664,8 +637,6 @@ bool Tester::test_write_data(const int disk_fd,
 }
 
 void Tester::cleanup_harness() {
-  device_size = 0;
-
   if (umount_device() != SUCCESS) {
     cerr << "Unable to unmount device" << endl;
     permuter_unload_class();

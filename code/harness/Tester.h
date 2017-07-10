@@ -67,7 +67,7 @@ class Tester {
     NUM_TIME,
   };
 
-  Tester(const bool verbosity);
+  Tester(const unsigned int device_size, const bool verbosity);
   const bool verbose = false;
   void set_fs_type(const std::string type);
   void set_device(const std::string device_path);
@@ -124,7 +124,7 @@ class Tester {
 
   // TODO(ashmrtn): Figure out why making these private slows things down a lot.
  private:
-  unsigned long int device_size;
+  const unsigned long int device_size;
   fs_testing::utils::ClassLoader<fs_testing::tests::BaseTestCase> test_loader;
   fs_testing::utils::ClassLoader<fs_testing::permuter::Permuter>
     permuter_loader;

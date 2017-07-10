@@ -5,10 +5,12 @@
 
 #include <cstring>
 #include <cstdlib>
+#include <string>
 
 #include "BaseTestCase.h"
 
 using std::calloc;
+using std::string;
 
 #define TEST_FILE "test_file"
 #define TEST_DIR "test_dir"
@@ -16,6 +18,7 @@ using std::calloc;
 
 #define TEST_FILE_PERMS  ((mode_t) (S_IRWXU | S_IRWXG | S_IRWXO))
 #define TEST_TEXT_SIZE (1024 * 1024)
+#define NUM_TEST_FILES (1)
 
 // TODO(ashmrtn): Make helper function to concatenate file paths.
 // TODO(ashmrtn): Pass mount path and test device names to tests somehow.
@@ -63,72 +66,81 @@ class echo_sub_dir_big : public BaseTestCase {
   }
 
   virtual int run() override {
-    const int old_umask = umask(0000);
-    const int fd = open(TEST_MNT "/" TEST_DIR "/" TEST_FILE, O_RDWR | O_CREAT,
-        TEST_FILE_PERMS);
-    if (fd == -1) {
-      umask(old_umask);
-      return -1;
-    }
-    umask(old_umask);
-
-    unsigned int written = 0;
-    do {
-      int res = write(fd, (void*) ((unsigned long) text + written),
-          TEST_TEXT_SIZE - written);
-      if (res == -1) {
-        close(fd);
+    for (unsigned int i = 0; i < NUM_TEST_FILES; ++i) {
+      const int old_umask = umask(0000);
+      string file_name = string(TEST_MNT "/" TEST_DIR "/" TEST_FILE
+          + std::to_string(i));
+      const int fd = open(file_name.c_str(), O_RDWR | O_CREAT,
+          TEST_FILE_PERMS);
+      if (fd == -1) {
+        umask(old_umask);
         return -1;
       }
-      written += res;
-    } while (written != TEST_TEXT_SIZE);
-    close(fd);
+      umask(old_umask);
+
+      unsigned int written = 0;
+      do {
+        int res = write(fd, (void*) ((unsigned long) text + written),
+            TEST_TEXT_SIZE - written);
+        if (res == -1) {
+          close(fd);
+          return -1;
+        }
+        written += res;
+      } while (written != TEST_TEXT_SIZE);
+      close(fd);
+    }
     return 0;
   }
 
   virtual int check_test() override {
     int res2 = 0;
-    struct stat stats;
-    int res = stat(TEST_MNT "/" TEST_DIR "/" TEST_FILE, &stats);
-    if (res < 0) {
-      return -1;
-    }
-    if (!S_ISREG(stats.st_mode)) {
-      return -1;
-    }
-    if (((S_IRWXU | S_IRWXG | S_IRWXO) & stats.st_mode) != TEST_FILE_PERMS) {
-      return -1;
-    }
-    const int fd = open(TEST_MNT "/" TEST_DIR "/" TEST_FILE, O_RDONLY);
-    if (fd < 0) {
-      return -1;
-    }
-
-    unsigned int bytes_read = 0;
-    char* buf = (char*) calloc(TEST_TEXT_SIZE, sizeof(char));
-    if (buf == NULL) {
-      return -2;
-    }
-    do {
-      res = read(fd, buf + bytes_read, TEST_TEXT_SIZE - bytes_read);
+    for (unsigned int i = 0; i < NUM_TEST_FILES; ++i) {
+      const string file_name = string(TEST_MNT "/" TEST_DIR "/" TEST_FILE
+          + std::to_string(i));
+      struct stat stats;
+      int res = stat(file_name.c_str(), &stats);
       if (res < 0) {
-        free(buf);
-        close(fd);
         return -1;
-      } else if (res == 0) {
-        break;
       }
-      bytes_read += res;
-    } while (bytes_read < TEST_TEXT_SIZE);
-    close(fd);
+      if (!S_ISREG(stats.st_mode)) {
+        return -1;
+      }
+      if (((S_IRWXU | S_IRWXG | S_IRWXO) & stats.st_mode) != TEST_FILE_PERMS) {
+        return -1;
+      }
 
-    if (bytes_read != TEST_TEXT_SIZE) {
-      res2 = -1;
-    } else if (memcmp(text, buf, TEST_TEXT_SIZE) != 0) {
-      res2 = -1;
+      const int fd = open(file_name.c_str(), O_RDONLY);
+      if (fd < 0) {
+        return -1;
+      }
+
+      unsigned int bytes_read = 0;
+      char* buf = (char*) calloc(TEST_TEXT_SIZE, sizeof(char));
+      if (buf == NULL) {
+        return -2;
+      }
+      do {
+        res = read(fd, buf + bytes_read, TEST_TEXT_SIZE - bytes_read);
+        if (res < 0) {
+          free(buf);
+          close(fd);
+          return -1;
+        } else if (res == 0) {
+          break;
+        }
+        bytes_read += res;
+      } while (bytes_read < TEST_TEXT_SIZE);
+      close(fd);
+
+      if (bytes_read != TEST_TEXT_SIZE) {
+        res2 = -1;
+      } else if (memcmp(text, buf, TEST_TEXT_SIZE) != 0) {
+        res2 = -1;
+      }
+
+      free(buf);
     }
-
-    free(buf);
     return res2;
   }
 
