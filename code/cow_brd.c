@@ -379,12 +379,12 @@ static void brd_make_request(struct request_queue *q, struct bio *bio)
   struct block_device *bdev = bio->bi_bdev;
   struct brd_device *brd = bdev->bd_disk->private_data;
   int rw;
-  struct bio_vec *bvec;
+  struct bio_vec bvec;
   sector_t sector;
-  int i;
+  struct bvec_iter iter;
   int err = -EIO;
 
-  sector = bio->bi_sector;
+  sector = bio->bi_iter.bi_sector;
   if (bio_end_sector(bio) > get_capacity(bdev->bd_disk)) {
     printk(KERN_INFO DEVICE_NAME ": cow_brd%d past end of disk, EIO\n",
         brd->brd_number);
@@ -399,7 +399,7 @@ static void brd_make_request(struct request_queue *q, struct bio *bio)
 
   if (unlikely(bio->bi_rw & REQ_DISCARD)) {
     err = 0;
-    discard_from_brd(brd, sector, bio->bi_size);
+    discard_from_brd(brd, sector, bio->bi_iter.bi_size);
     goto out;
   }
 
@@ -408,10 +408,10 @@ static void brd_make_request(struct request_queue *q, struct bio *bio)
     rw = READ;
   }
 
-  bio_for_each_segment(bvec, bio, i) {
-    unsigned int len = bvec->bv_len;
-    err = brd_do_bvec(brd, bvec->bv_page, len,
-          bvec->bv_offset, rw, sector);
+  bio_for_each_segment(bvec, bio, iter) {
+    unsigned int len = bvec.bv_len;
+    err = brd_do_bvec(brd, bvec.bv_page, len,
+          bvec.bv_offset, rw, sector);
     if (err) {
       break;
     }
@@ -419,7 +419,8 @@ static void brd_make_request(struct request_queue *q, struct bio *bio)
   }
 
 out:
-  bio_endio(bio, err);
+  bio->bi_error = err;
+  bio_endio(bio);
 }
 
 #ifdef CONFIG_BLK_DEV_XIP

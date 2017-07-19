@@ -169,13 +169,13 @@ static void print_rw_flags(unsigned long rw, unsigned long flags) {
 // TODO(ashmrtn): Currently not thread safe/reentrant. Make it so.
 static void disk_wrapper_bio(struct request_queue* q, struct bio* bio) {
   int copied_data;
-  int i;
+  struct  bvec_iter iter;
   struct disk_write_op *write;
   struct hwm_device* hwm;
 
   /*
   printk(KERN_INFO "hwm: bio rw of size %u headed for 0x%lx (sector 0x%lx)"
-      " has flags:\n", bio->bi_size, bio->bi_sector * 512, bio->bi_sector);
+      " has flags:\n", bio->bi_iter.bi_size, bio->bi_iter.bi_sector * 512, bio->bi_iter.bi_sector);
   print_rw_flags(bio->bi_rw, bio->bi_flags);
   */
   // Log information about writes, fua, and flush/flush_seq events in kernel
@@ -191,11 +191,11 @@ static void disk_wrapper_bio(struct request_queue* q, struct bio* bio) {
     if (bio->bi_rw & REQ_FLUSH ||
         bio->bi_rw & REQ_FUA || bio->bi_rw & REQ_FLUSH_SEQ ||
         bio->bi_rw & REQ_WRITE || bio->bi_rw & REQ_DISCARD) {
-      struct bio_vec* vec;
+      struct bio_vec vec;
 
       //printk(KERN_INFO "hwm: logging above bio\n");
       printk(KERN_INFO "hwm: bio rw of size %u headed for 0x%lx (sector 0x%lx)"
-          " has flags:\n", bio->bi_size, bio->bi_sector * 512, bio->bi_sector);
+          " has flags:\n", bio->bi_iter.bi_size, bio->bi_iter.bi_sector * 512, bio->bi_iter.bi_sector);
       print_rw_flags(bio->bi_rw, bio->bi_flags);
 
       // Log data to disk logs.
@@ -206,8 +206,8 @@ static void disk_wrapper_bio(struct request_queue* q, struct bio* bio) {
       }
       write->metadata.bi_flags = bio->bi_flags;
       write->metadata.bi_rw = bio->bi_rw;
-      write->metadata.write_sector = bio->bi_sector;
-      write->metadata.size = bio->bi_size;
+      write->metadata.write_sector = bio->bi_iter.bi_sector;
+      write->metadata.size = bio->bi_iter.bi_size;
 
       if (Device.current_write == NULL) {
         // This is the first write in the log.
@@ -229,15 +229,14 @@ static void disk_wrapper_bio(struct request_queue* q, struct bio* bio) {
       }
       copied_data = 0;
 
-      i = 0;
-      bio_for_each_segment(vec, bio, i) {
+      bio_for_each_segment(vec, bio, iter) {
         //printk(KERN_INFO "hwm: making new page for segment of data\n");
 
-        void *bio_data = kmap(vec->bv_page);
-        memcpy((void*) (write->data + copied_data), bio_data + vec->bv_offset,
-            vec->bv_len);
+        void *bio_data = kmap(vec.bv_page);
+        memcpy((void*) (write->data + copied_data), bio_data + vec.bv_offset,
+            vec.bv_len);
         kunmap(bio_data);
-        copied_data += vec->bv_len;
+        copied_data += vec.bv_len;
       }
 
       // Sanity check which prints data copied to the log.
