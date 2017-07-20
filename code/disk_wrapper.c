@@ -10,6 +10,7 @@
 #include <linux/slab.h>
 
 #include "disk_wrapper_ioctl.h"
+#include "bio_alias.h"
 
 #define KERNEL_SECTOR_SIZE 512
 
@@ -169,13 +170,12 @@ static void print_rw_flags(unsigned long rw, unsigned long flags) {
 // TODO(ashmrtn): Currently not thread safe/reentrant. Make it so.
 static void disk_wrapper_bio(struct request_queue* q, struct bio* bio) {
   int copied_data;
-  int i;
   struct disk_write_op *write;
   struct hwm_device* hwm;
 
   /*
   printk(KERN_INFO "hwm: bio rw of size %u headed for 0x%lx (sector 0x%lx)"
-      " has flags:\n", bio->bi_size, bio->bi_sector * 512, bio->bi_sector);
+      " has flags:\n", bio->BI_SIZE, bio->BI_SECTOR * 512, bio->BI_SECTOR);
   print_rw_flags(bio->bi_rw, bio->bi_flags);
   */
   // Log information about writes, fua, and flush/flush_seq events in kernel
@@ -191,11 +191,10 @@ static void disk_wrapper_bio(struct request_queue* q, struct bio* bio) {
     if (bio->bi_rw & REQ_FLUSH ||
         bio->bi_rw & REQ_FUA || bio->bi_rw & REQ_FLUSH_SEQ ||
         bio->bi_rw & REQ_WRITE || bio->bi_rw & REQ_DISCARD) {
-      struct bio_vec* vec;
 
       //printk(KERN_INFO "hwm: logging above bio\n");
       printk(KERN_INFO "hwm: bio rw of size %u headed for 0x%lx (sector 0x%lx)"
-          " has flags:\n", bio->bi_size, bio->bi_sector * 512, bio->bi_sector);
+                     " has flags:\n", bio->BI_SIZE, bio->BI_SECTOR * 512, bio->BI_SECTOR);
       print_rw_flags(bio->bi_rw, bio->bi_flags);
 
       // Log data to disk logs.
@@ -206,8 +205,8 @@ static void disk_wrapper_bio(struct request_queue* q, struct bio* bio) {
       }
       write->metadata.bi_flags = bio->bi_flags;
       write->metadata.bi_rw = bio->bi_rw;
-      write->metadata.write_sector = bio->bi_sector;
-      write->metadata.size = bio->bi_size;
+      write->metadata.write_sector = bio->BI_SECTOR;
+      write->metadata.size = bio->BI_SIZE;
 
       if (Device.current_write == NULL) {
         // This is the first write in the log.
@@ -229,8 +228,10 @@ static void disk_wrapper_bio(struct request_queue* q, struct bio* bio) {
       }
       copied_data = 0;
 
-      i = 0;
-      bio_for_each_segment(vec, bio, i) {
+#if LINUX_VERSION_CODE < KERNEL_VERSION(3, 16, 0)
+      struct bio_vec *vec;
+      int iter;
+      bio_for_each_segment(vec, bio, iter) {
         //printk(KERN_INFO "hwm: making new page for segment of data\n");
 
         void *bio_data = kmap(vec->bv_page);
@@ -239,7 +240,19 @@ static void disk_wrapper_bio(struct request_queue* q, struct bio* bio) {
         kunmap(bio_data);
         copied_data += vec->bv_len;
       }
+#else
+    struct bio_vec vec;
+    struct bvec_iter iter;
+    bio_for_each_segment(vec, bio, iter) {
+        //printk(KERN_INFO "hwm: making new page for segment of data\n");
 
+        void *bio_data = kmap(vec.bv_page);
+        memcpy((void*) (write->data + copied_data), bio_data + vec.bv_offset,
+               vec.bv_len);
+        kunmap(bio_data);
+        copied_data += vec.bv_len;
+    }
+#endif
       // Sanity check which prints data copied to the log.
       /*
       printk(KERN_INFO "hwm: copied %ld bytes of from %lx data:"

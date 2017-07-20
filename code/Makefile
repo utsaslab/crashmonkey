@@ -3,28 +3,36 @@ MODULES = cow_brd.c disk_wrapper.c
 obj-m := $(addsuffix .o, $(basename $(MODULES)))
 KDIR := /lib/modules/$(shell uname -r)/build
 DEBUG_FLAGS += -g -DDEBUG
+GCC = gcc
 GPP = g++
 GOPTS = -std=c++11
 GOTPSSO = -shared -fPIC
+UTILS_OBJS = utils/utils_c.o utils/utils.o
 
 cow_brd.ko disk_wrapper.ko default: $(MODULES)
 	$(MAKE) -C $(KDIR) M=$(PWD) modules
 
-harness: harness/c_harness.cpp default utils/utils.h utils/utils.cpp \
+harness: harness/c_harness.cpp default \
 		disk_wrapper_ioctl.h harness/Tester.cpp harness/Tester.h \
 		permuter/Permuter.h permuter/RandomPermuter.so
-	$(GPP) $(GOPTS) harness/c_harness.cpp harness/Tester.cpp utils/utils.cpp \
-		-I /usr/src/linux-headers-$(shell uname -r)/include/ -ldl -o c_harness
+	$(GPP) $(GOPTS) harness/c_harness.cpp harness/Tester.cpp \
+		$(UTILS_OBJS) \
+		-ldl -o c_harness
 
 tests/%.so: tests/$(addsuffix .cpp, %) tests/BaseTestCase.h
 	$(GPP) $(GOPTS) $(GOTPSSO) -Wl,-soname,$(notdir $@) \
 		-o $@ $<
 	
-permuter/RandomPermuter.so: permuter/RandomPermuter.cpp \
-		permuter/RandomPermuter.h utils/utils.h  utils/utils.cpp  \
-		disk_wrapper_ioctl.h
+permuter/RandomPermuter.so: permuter/RandomPermuter.cpp permuter/RandomPermuter.h \
+		disk_wrapper_ioctl.h $(UTILS_OBJS)
 	$(GPP) $(GOPTS) $(GOTPSSO) -Wl,-soname,RandomPermuter.so \
-		-o permuter/RandomPermuter.so permuter/RandomPermuter.cpp utils/utils.cpp \
+		-o permuter/RandomPermuter.so permuter/RandomPermuter.cpp $(UTILS_OBJS)
+
+utils/utils.o: utils/utils.h utils/utils.cpp disk_wrapper_ioctl.h
+	$(GPP) $(GOPTS) -fPIC -o utils/utils.o -c utils/utils.cpp
+
+utils/utils_c.o: utils/utils_c.h utils/utils_c.c disk_wrapper_ioctl.h
+	$(GCC) -o utils/utils_c.o -c utils/utils_c.c \
 		-I /usr/src/linux-headers-$(shell uname -r)/include/
 
 run_no_log: harness tests/echo_sub_dir.so
@@ -53,5 +61,5 @@ run_no_log_no_sync: harness tests/echo_sub_dir_no_sync.so
 
 clean:
 	$(MAKE) -C $(KDIR) M=$(PWD) clean
-	rm -f $(TESTING) tests/*.so c_harness permute *.o *.so permuter/*.so \
+	rm -f $(TESTING) tests/*.so c_harness permute *.o *.so utils/*.o permuter/*.so \
 		ioctl_test

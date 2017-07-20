@@ -23,6 +23,7 @@
 #include <asm/uaccess.h>
 
 #include "disk_wrapper_ioctl.h"
+#include "bio_alias.h"
 
 #define SECTOR_SHIFT        9
 #define PAGE_SECTORS_SHIFT  (PAGE_SHIFT - SECTOR_SHIFT)
@@ -379,12 +380,10 @@ static void brd_make_request(struct request_queue *q, struct bio *bio)
   struct block_device *bdev = bio->bi_bdev;
   struct brd_device *brd = bdev->bd_disk->private_data;
   int rw;
-  struct bio_vec *bvec;
   sector_t sector;
-  int i;
   int err = -EIO;
 
-  sector = bio->bi_sector;
+  sector = bio->BI_SECTOR;
   if (bio_end_sector(bio) > get_capacity(bdev->bd_disk)) {
     printk(KERN_INFO DEVICE_NAME ": cow_brd%d past end of disk, EIO\n",
         brd->brd_number);
@@ -399,7 +398,7 @@ static void brd_make_request(struct request_queue *q, struct bio *bio)
 
   if (unlikely(bio->bi_rw & REQ_DISCARD)) {
     err = 0;
-    discard_from_brd(brd, sector, bio->bi_size);
+    discard_from_brd(brd, sector, bio->BI_SIZE);
     goto out;
   }
 
@@ -408,7 +407,10 @@ static void brd_make_request(struct request_queue *q, struct bio *bio)
     rw = READ;
   }
 
-  bio_for_each_segment(bvec, bio, i) {
+#if LINUX_VERSION_CODE < KERNEL_VERSION(3, 16, 0)
+  struct bio_vec *bvec;
+  int iter;
+  bio_for_each_segment(bvec, bio, iter) {
     unsigned int len = bvec->bv_len;
     err = brd_do_bvec(brd, bvec->bv_page, len,
           bvec->bv_offset, rw, sector);
@@ -417,9 +419,22 @@ static void brd_make_request(struct request_queue *q, struct bio *bio)
     }
     sector += len >> SECTOR_SHIFT;
   }
+#else
+  struct bio_vec bvec;
+  struct bvec_iter iter;
+  bio_for_each_segment(bvec, bio, iter) {
+    unsigned int len = bvec.bv_len;
+    err = brd_do_bvec(brd, bvec.bv_page, len,
+          bvec.bv_offset, rw, sector);
+    if (err) {
+      break;
+    }
+    sector += len >> SECTOR_SHIFT;
+  }
+#endif
 
 out:
-  bio_endio(bio, err);
+  BIO_ENDIO(bio, err);
 }
 
 #ifdef CONFIG_BLK_DEV_XIP
