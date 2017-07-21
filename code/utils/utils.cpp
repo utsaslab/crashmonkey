@@ -33,15 +33,15 @@ using std::uniform_int_distribution;
 using std::vector;
 
 bool disk_write::is_async_write() {
-  return __c_is_async_write(&metadata);
+  return c_is_async_write(&metadata);
 }
 
 bool disk_write::is_barrier_write() {
-  return __c_is_barrier_write(&metadata);
+  return c_is_barrier_write(&metadata);
 }
 
 bool disk_write::is_meta() {
-  return __c_is_meta(&metadata);
+  return c_is_meta(&metadata);
 }
 
 disk_write::disk_write(const struct disk_write_op_meta& m,
@@ -151,7 +151,7 @@ ostream& operator<<(ostream& os, const disk_write& dw) {
 }
 
 bool disk_write::has_write_flag() {
-  return __c_has_write_flag(&metadata);
+  return c_has_write_flag(&metadata);
 }
 
 shared_ptr<char> disk_write::set_data(const char *d) {

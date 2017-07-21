@@ -194,7 +194,8 @@ static void disk_wrapper_bio(struct request_queue* q, struct bio* bio) {
 
       //printk(KERN_INFO "hwm: logging above bio\n");
       printk(KERN_INFO "hwm: bio rw of size %u headed for 0x%lx (sector 0x%lx)"
-                     " has flags:\n", bio->BI_SIZE, bio->BI_SECTOR * 512, bio->BI_SECTOR);
+                       " has flags:\n", bio->BI_SIZE, bio->BI_SECTOR * 512,
+             bio->BI_SECTOR);
       print_rw_flags(bio->bi_rw, bio->bi_flags);
 
       // Log data to disk logs.
@@ -228,7 +229,7 @@ static void disk_wrapper_bio(struct request_queue* q, struct bio* bio) {
       }
       copied_data = 0;
 
-#if LINUX_VERSION_CODE < KERNEL_VERSION(3, 16, 0)
+      #if LINUX_VERSION_CODE < KERNEL_VERSION(3, 16, 0)
       struct bio_vec *vec;
       int iter;
       bio_for_each_segment(vec, bio, iter) {
@@ -236,14 +237,14 @@ static void disk_wrapper_bio(struct request_queue* q, struct bio* bio) {
 
         void *bio_data = kmap(vec->bv_page);
         memcpy((void*) (write->data + copied_data), bio_data + vec->bv_offset,
-            vec->bv_len);
+               vec->bv_len);
         kunmap(bio_data);
         copied_data += vec->bv_len;
       }
-#else
-    struct bio_vec vec;
-    struct bvec_iter iter;
-    bio_for_each_segment(vec, bio, iter) {
+      #else
+      struct bio_vec vec;
+      struct bvec_iter iter;
+      bio_for_each_segment(vec, bio, iter) {
         //printk(KERN_INFO "hwm: making new page for segment of data\n");
 
         void *bio_data = kmap(vec.bv_page);
@@ -251,8 +252,8 @@ static void disk_wrapper_bio(struct request_queue* q, struct bio* bio) {
                vec.bv_len);
         kunmap(bio_data);
         copied_data += vec.bv_len;
-    }
-#endif
+      }
+      #endif
       // Sanity check which prints data copied to the log.
       /*
       printk(KERN_INFO "hwm: copied %ld bytes of from %lx data:"

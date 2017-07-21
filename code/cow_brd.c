@@ -407,7 +407,7 @@ static void brd_make_request(struct request_queue *q, struct bio *bio)
     rw = READ;
   }
 
-#if LINUX_VERSION_CODE < KERNEL_VERSION(3, 16, 0)
+  #if LINUX_VERSION_CODE < KERNEL_VERSION(3, 16, 0)
   struct bio_vec *bvec;
   int iter;
   bio_for_each_segment(bvec, bio, iter) {
@@ -419,7 +419,7 @@ static void brd_make_request(struct request_queue *q, struct bio *bio)
     }
     sector += len >> SECTOR_SHIFT;
   }
-#else
+  #else
   struct bio_vec bvec;
   struct bvec_iter iter;
   bio_for_each_segment(bvec, bio, iter) {
@@ -431,7 +431,7 @@ static void brd_make_request(struct request_queue *q, struct bio *bio)
     }
     sector += len >> SECTOR_SHIFT;
   }
-#endif
+  #endif
 
 out:
   BIO_ENDIO(bio, err);
