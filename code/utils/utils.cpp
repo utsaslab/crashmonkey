@@ -1,6 +1,5 @@
 // Very messy hack to get the defines for different bio operations. Should be
 // changed to something more palatable if possible.
-#include <linux/blk_types.h>
 
 #include <cassert>
 #include <cstring>
@@ -16,6 +15,7 @@
 #include <vector>
 
 #include "utils.h"
+#include "utils_c.h"
 
 namespace fs_testing {
 namespace utils {
@@ -33,26 +33,15 @@ using std::uniform_int_distribution;
 using std::vector;
 
 bool disk_write::is_async_write() {
-  return (
-      !((metadata.bi_rw & REQ_SYNC) ||
-        (metadata.bi_rw & REQ_FUA) ||
-        (metadata.bi_rw & REQ_FLUSH) ||
-        (metadata.bi_rw & REQ_FLUSH_SEQ) ||
-        (metadata.bi_rw & REQ_SOFTBARRIER)) &&
-        metadata.bi_rw & REQ_WRITE);
+  return c_is_async_write(&metadata);
 }
 
 bool disk_write::is_barrier_write() {
-  return (
-      ((metadata.bi_rw & REQ_FUA) ||
-        (metadata.bi_rw & REQ_FLUSH) ||
-        (metadata.bi_rw & REQ_FLUSH_SEQ) ||
-        (metadata.bi_rw & REQ_SOFTBARRIER)) &&
-        metadata.bi_rw & REQ_WRITE);
+  return c_is_barrier_write(&metadata);
 }
 
 bool disk_write::is_meta() {
-  return (metadata.bi_rw & REQ_META);
+  return c_is_meta(&metadata);
 }
 
 disk_write::disk_write(const struct disk_write_op_meta& m,
@@ -162,7 +151,7 @@ ostream& operator<<(ostream& os, const disk_write& dw) {
 }
 
 bool disk_write::has_write_flag() {
-  return metadata.bi_rw & REQ_WRITE;
+  return c_has_write_flag(&metadata);
 }
 
 shared_ptr<char> disk_write::set_data(const char *d) {
