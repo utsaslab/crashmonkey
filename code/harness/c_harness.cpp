@@ -1,15 +1,20 @@
+#include <arpa/inet.h>
 #include <fcntl.h>
 #include <getopt.h>
 #include <string.h>
+#include <sys/socket.h>
 #include <sys/types.h>
+#include <sys/un.h>
 #include <unistd.h>
 #include <wait.h>
 
+#include <cstdint>
 #include <iostream>
 #include <string>
 #include <vector>
 
 #include "../utils/utils.h"
+#include "../user_tools/communication.h"
 #include "Tester.h"
 #include "../tests/BaseTestCase.h"
 
@@ -20,7 +25,7 @@
 #define WRITE_DELAY 20
 #define MOUNT_DELAY 3
 
-#define OPTS_STRING "d:f:e:l:m:np:r:s:t:v"
+#define OPTS_STRING "bd:f:e:l:m:np:r:s:t:v"
 
 using std::cerr;
 using std::cout;
@@ -29,6 +34,7 @@ using std::string;
 using fs_testing::Tester;
 
 static const option long_options[] = {
+  {"background", no_argument, NULL, 'b'},
   {"test-dev", required_argument, NULL, 'd'},
   {"disk_size", required_argument, NULL, 'e'},
   {"flag-device", required_argument, NULL, 'f'},
@@ -43,6 +49,9 @@ static const option long_options[] = {
   {0, 0, 0, 0},
 };
 
+int32_t wait_for_command(int socket, int* client_fd);
+int send_command(int client_fd, int32_t command);
+
 int main(int argc, char** argv) {
   string dirty_expire_time_centisecs(TEST_DIRTY_EXPIRE_TIME);
   unsigned long int test_sleep_delay = WRITE_DELAY;
@@ -53,18 +62,24 @@ int main(int argc, char** argv) {
   string log_file_save("");
   string log_file_load("");
   string permuter(PERMUTER_SO_PATH "RandomPermuter.so");
+  bool background = false;
   bool dry_run = false;
   bool no_lvm = false;
   bool verbose = false;
   int iterations = 1000;
   int disk_size = 10240;
   int option_idx = 0;
+  int socket_fd = -1;
+  int client_fd = -1;
 
   // Parse command line arguments.
   for (int c = getopt_long(argc, argv, OPTS_STRING, long_options, &option_idx);
         c != -1;
         c = getopt_long(argc, argv, OPTS_STRING, long_options, &option_idx)) {
     switch (c) {
+      case 'b':
+        background = true;
+        break;
       case 'f':
         flags_dev = string(optarg);
         break;
@@ -121,6 +136,32 @@ int main(int argc, char** argv) {
     cerr << "Please give a positive number for the RAM disk size to use"
       << endl;
     return -1;
+  }
+
+  // Create a socket to coordinate with the outside world.
+  if (background) {
+    socket_fd = socket(AF_LOCAL, SOCK_STREAM, 0);
+    if (socket_fd < -1) {
+      cerr << "Error opening communication socket in background... exiting"
+        << endl;
+      return -1;
+    }
+    struct sockaddr_un comm;
+    comm.sun_family = AF_LOCAL;
+    strcpy(comm.sun_path, SOCKET_NAME_OUTBOUND);
+    if (bind(socket_fd, (const struct sockaddr*) &comm, SUN_LEN(&comm)) < 0) {
+      cerr << "Error binding name to socket... exiting" << endl;
+      return -1;
+    }
+
+    if (listen(socket_fd, 2) < 0) {
+      int err2 = errno;
+      cerr << "Error listening to socket: " << err2 << endl;
+      return -1;
+    }
+
+    // TODO(ashmrtn): Create socket connection to the process that started this
+    // one so that we can tell them when we're done setting up.
   }
 
   Tester test_harness(disk_size, verbose);
@@ -183,23 +224,47 @@ int main(int argc, char** argv) {
       return -1;
     }
 
-    // Run pre-test setup stuff.
-    cout << "Running pre-test setup\n";
-    {
-      const pid_t child = fork();
-      if (child < 0) {
-        cerr << "Error creating child process to run pre-test setup\n";
-        test_harness.cleanup_harness();
-      } else if (child != 0) {
-        // Parent process should wait for child to terminate before proceeding.
-        pid_t status;
-        wait(&status);
-        if (status != 0) {
-          cerr << "Error in pre-test setup\n";
+    // TODO(ashmrtn): Close startup socket fd here.
+
+    // If running as a background process, let the user run their setup stuff.
+    if (background) {
+      int32_t command = wait_for_command(socket_fd, &client_fd);
+      if (command == -2) {
+        cerr << "Error getting command from socket" << endl;
+        close(socket_fd);
+        unlink(SOCKET_NAME_OUTBOUND);
+        return -1;
+      }
+
+      if (command != HARNESS_BEGIN_LOG) {
+        if (send_command(client_fd, HARNESS_WRONG_COMMAND)) {
+          cerr << "Error sending response to client" << endl;
+          close (client_fd);
+          close(socket_fd);
+          unlink(SOCKET_NAME_OUTBOUND);
           test_harness.cleanup_harness();
+          return -1;
         }
-      } else {
-        return test_harness.test_setup();
+      }
+    } else {
+      // Run pre-test setup stuff.
+      cout << "Running pre-test setup\n";
+      {
+        const pid_t child = fork();
+        if (child < 0) {
+          cerr << "Error creating child process to run pre-test setup\n";
+          test_harness.cleanup_harness();
+        } else if (child != 0) {
+          // Parent process should wait for child to terminate before proceeding.
+          pid_t status;
+          wait(&status);
+          if (status != 0) {
+            cerr << "Error in pre-test setup\n";
+            test_harness.cleanup_harness();
+          }
+        } else {
+          return test_harness.test_setup();
+        }
       }
     }
 
@@ -283,41 +348,78 @@ int main(int argc, char** argv) {
     cout << "Enabling wrapper device logging\n";
     test_harness.begin_wrapper_logging();
 
-    // Fork off a new process and run test profiling. Forking makes it easier to
-    // handle making sure everything is taken care of in profiling and ensures
-    // that even if all file handles aren't closed in the test process the parent
-    // won't hang due to a busy mount point.
-    cout << "Running test profile\n";
-    {
-      const pid_t child = fork();
-      if (child < 0) {
-        cerr << "Error spinning off test process\n";
+    // Tell the user we're ready to log their workload.
+    if (background) {
+      if (send_command(client_fd, HARNESS_LOG_READY) < 0) {
+        cerr << "Error telling user ready for workload" << endl;
+        close(client_fd);
+        close(socket_fd);
+        unlink(SOCKET_NAME_OUTBOUND);
         test_harness.cleanup_harness();
         return -1;
-      } else if (child != 0) {
-        pid_t status;
-        wait(&status);
-        if (status != 0) {
-          cerr << "Error in test process\n";
-          test_harness.cleanup_harness();
-          return -1;
-        }
-        cout << "Waiting for writeback delay\n";
-        sleep(WRITE_DELAY);
-
-        // Wait a small amount of time for writes to propogate to the block
-        // layer and then stop logging writes.
-        cout << "Disabling wrapper device logging" << std::endl;
-        test_harness.end_wrapper_logging();
-        cout << "Getting wrapper data\n";
-        if (test_harness.get_wrapper_log() != SUCCESS) {
-          test_harness.cleanup_harness();
-          return -1;
-        }
-      } else {
-        // Forked process' stuff.
-        return test_harness.test_run();
       }
+      close(client_fd);
+      client_fd = -1;
+    } else {
+      // Fork off a new process and run test profiling. Forking makes it easier
+      // to handle making sure everything is taken care of in profiling and
+      // ensures that even if all file handles aren't closed in the test process
+      // the parent won't hang due to a busy mount point.
+      cout << "Running test profile\n";
+      {
+        const pid_t child = fork();
+        if (child < 0) {
+          cerr << "Error spinning off test process\n";
+          test_harness.cleanup_harness();
+          return -1;
+        } else if (child != 0) {
+          pid_t status;
+          wait(&status);
+          if (status != 0) {
+            cerr << "Error in test process\n";
+            test_harness.cleanup_harness();
+            return -1;
+          }
+          cout << "Waiting for writeback delay\n";
+        } else {
+          // Forked process' stuff.
+          return test_harness.test_run();
+        }
+      }
+    }
+
+    if (background) {
+      // Wait for user to run workload.
+      uint32_t command = wait_for_command(socket_fd, &client_fd);
+      if (command == -2) {
+        cerr << "Error getting command from socket" << endl;
+        close(socket_fd);
+        unlink(SOCKET_NAME_OUTBOUND);
+        return -1;
+      }
+
+      if (command != HARNESS_END_LOG) {
+        if (send_command(client_fd, HARNESS_WRONG_COMMAND)) {
+          cerr << "Error sending response to client" << endl;
+          close (client_fd);
+          close(socket_fd);
+          unlink(SOCKET_NAME_OUTBOUND);
+          test_harness.cleanup_harness();
+          return -1;
+        }
+      }
+    }
+
+    // Wait a small amount of time for writes to propogate to the block
+    // layer and then stop logging writes.
+    sleep(WRITE_DELAY);
+
+    cout << "Disabling wrapper device logging" << std::endl;
+    test_harness.end_wrapper_logging();
+    cout << "Getting wrapper data\n";
+    if (test_harness.get_wrapper_log() != SUCCESS) {
+      test_harness.cleanup_harness();
+      return -1;
     }
 
     cout << "Unmounting wrapper file system after test profiling\n";
@@ -345,6 +447,19 @@ int main(int argc, char** argv) {
         test_harness.cleanup_harness();
         return -1;
       }
+    }
+
+    if (background) {
+      if (send_command(client_fd, HARNESS_LOG_DONE) < 0) {
+        cerr << "Error telling user done logging" << endl;
+        close(client_fd);
+        close(socket_fd);
+        unlink(SOCKET_NAME_OUTBOUND);
+        test_harness.cleanup_harness();
+        return -1;
+      }
+      close(client_fd);
+      client_fd = -1;
     }
   } else {
     // Logged test data given, load it into the test harness.
@@ -387,6 +502,28 @@ int main(int argc, char** argv) {
 
   /***************************************************/
 
+  if (background) {
+    // Wait for user to run workload.
+    uint32_t command = wait_for_command(socket_fd, &client_fd);
+    if (command == -2) {
+      cerr << "Error getting command from socket" << endl;
+      close(socket_fd);
+      unlink(SOCKET_NAME_OUTBOUND);
+      return -1;
+    }
+
+    if (command != HARNESS_RUN_TESTS) {
+      if (send_command(client_fd, HARNESS_WRONG_COMMAND)) {
+        cerr << "Error sending response to client" << endl;
+        close (client_fd);
+        close(socket_fd);
+        unlink(SOCKET_NAME_OUTBOUND);
+        test_harness.cleanup_harness();
+        return -1;
+      }
+    }
+  }
+
   if (!dry_run) {
     cout << "Writing profiled data to block device and checking with fsck\n";
     test_harness.test_check_random_permutations(iterations);
@@ -415,5 +552,61 @@ int main(int argc, char** argv) {
 
   // Finish cleaning everything up.
   test_harness.cleanup_harness();
+
+  /*
+  if (background) {
+    if (send_command(client_fd, HARNESS_TESTS_DONE) < 0) {
+      cerr << "Error telling user done logging" << endl;
+      close(client_fd);
+      close(socket_fd);
+      unlink(SOCKET_NAME_OUTBOUND);
+      test_harness.cleanup_harness();
+      return -1;
+    }
+    close(client_fd);
+    client_fd = -1;
+  }
+  */
+
+  return 0;
+}
+
+int32_t wait_for_command(int socket, int* client_fd) {
+  *client_fd = accept(socket, NULL, NULL);
+  if (*client_fd < 0) {
+    cerr << "Error accepting socket connection" << endl;
+    return -2;
+  }
+
+  int bytes_read = 0;
+  int32_t command;
+  do {
+    int res = recv(*client_fd, (char*) &command + bytes_read, sizeof(command),
+        0);
+    if (res < 0) {
+      cerr << "Error waiting for command for setup" << endl;
+      close(*client_fd);
+      return -2;
+    }
+    bytes_read += res;
+  } while(bytes_read < sizeof(command));
+
+  // Correct the byte order of the command.
+  command = ntohl(command);
+  return command;
+}
+
+int send_command(int client_fd, int32_t command) {
+  uint32_t c = htonl(command);
+  int bytes_written = 0;
+  do {
+    int res = send(client_fd, (char*) &c + bytes_written,
+        sizeof(c), 0);
+    if (res < 0) {
+      cerr << "Error writing command to socket" << endl;
+      return -1;
+    }
+    bytes_written += res;
+  } while (bytes_written < sizeof(c));
   return 0;
 }

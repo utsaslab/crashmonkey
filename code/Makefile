@@ -16,8 +16,7 @@ harness: harness/c_harness.cpp default \
 		disk_wrapper_ioctl.h harness/Tester.cpp harness/Tester.h \
 		permuter/Permuter.h permuter/RandomPermuter.so
 	$(GPP) $(GOPTS) harness/c_harness.cpp harness/Tester.cpp \
-		$(UTILS_OBJS) \
-		-ldl -o c_harness
+		$(UTILS_OBJS) -ldl -o c_harness
 
 tests/%.so: tests/$(addsuffix .cpp, %) tests/BaseTestCase.h
 	$(GPP) $(GOPTS) $(GOTPSSO) -Wl,-soname,$(notdir $@) \
@@ -34,6 +33,13 @@ utils/utils.o: utils/utils.h utils/utils.cpp disk_wrapper_ioctl.h
 utils/utils_c.o: utils/utils_c.h utils/utils_c.c disk_wrapper_ioctl.h
 	$(GCC) -o utils/utils_c.o -c utils/utils_c.c \
 		-I /usr/src/linux-headers-$(shell uname -r)/include/
+
+user_tools/%: user_tools/$(addsuffix .cpp, %) user_tools/helper.h \
+		user_tools/helper.cpp
+	$(GPP) $(GOPTS) -o $@ $^
+
+#user_tools: user_tools/begin_setup user_tools/end_setup user_tools/begin_log
+user_tools: user_tools/begin_log user_tools/end_log user_tools/begin_tests
 
 run_no_log: harness tests/echo_sub_dir.so
 	sudo ./c_harness -f /dev/sda -t ext4 -m barrier -d /dev/cow_ram0 \
