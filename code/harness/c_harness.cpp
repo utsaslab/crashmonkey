@@ -12,6 +12,7 @@
 #include "../utils/utils.h"
 #include "Tester.h"
 #include "../tests/BaseTestCase.h"
+#include "ipc.h"
 
 #define TEST_SO_PATH "tests/"
 #define PERMUTER_SO_PATH "permuter/"
@@ -289,12 +290,16 @@ int main(int argc, char** argv) {
     // won't hang due to a busy mount point.
     cout << "Running test profile\n";
     {
+      char *path = (char *) "harness.socket"; // TMP: test IPC module
       const pid_t child = fork();
       if (child < 0) {
         cerr << "Error spinning off test process\n";
         test_harness.cleanup_harness();
         return -1;
       } else if (child != 0) {
+        // TMP: test IPC module
+        int server = start_server(path);
+        int client = accept_connection(server);
         pid_t status;
         wait(&status);
         if (status != 0) {
@@ -316,7 +321,9 @@ int main(int argc, char** argv) {
         }
       } else {
         // Forked process' stuff.
-        return test_harness.test_run();
+        int r = test_harness.test_run();
+        connect_server(path); // TMP: test IPC module
+        return r;
       }
     }
 

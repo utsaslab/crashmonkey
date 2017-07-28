@@ -14,8 +14,10 @@ cow_brd.ko disk_wrapper.ko default: $(MODULES)
 
 harness: harness/c_harness.cpp default \
 		disk_wrapper_ioctl.h harness/Tester.cpp harness/Tester.h \
-		permuter/Permuter.h permuter/RandomPermuter.so
+		permuter/Permuter.h permuter/RandomPermuter.so \
+		harness/ipc.h harness/ipc.c
 	$(GPP) $(GOPTS) harness/c_harness.cpp harness/Tester.cpp \
+		harness/ipc.c \
 		$(UTILS_OBJS) \
 		-ldl -o c_harness
 
