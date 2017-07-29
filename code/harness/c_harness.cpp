@@ -1,14 +1,12 @@
 #include <fcntl.h>
 #include <getopt.h>
 #include <string.h>
-#include <sys/socket.h>
 #include <sys/stat.h>
 #include <sys/types.h>
 #include <sys/un.h>
 #include <unistd.h>
 #include <wait.h>
 
-#include <cstdint>
 #include <iostream>
 #include <string>
 #include <vector>
@@ -53,9 +51,6 @@ static const option long_options[] = {
   {"verbose", no_argument, NULL, 'v'},
   {0, 0, 0, 0},
 };
-
-int32_t wait_for_command(int socket, int* client_fd);
-int send_command(int client_fd, int32_t command);
 
 int main(int argc, char** argv) {
   string dirty_expire_time_centisecs(TEST_DIRTY_EXPIRE_TIME);
