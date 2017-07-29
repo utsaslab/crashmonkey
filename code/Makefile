@@ -8,15 +8,15 @@ GPP = g++
 GOPTS = -std=c++11
 GOTPSSO = -shared -fPIC
 UTILS_OBJS = utils/utils_c.o utils/utils.o
+BUILD_DIR = ../build
 
 cow_brd.ko disk_wrapper.ko default: $(MODULES)
 	$(MAKE) -C $(KDIR) M=$(PWD) modules
 
-harness: harness/c_harness.cpp default \
-		disk_wrapper_ioctl.h harness/Tester.cpp harness/Tester.h \
-		permuter/Permuter.h permuter/RandomPermuter.so
-	$(GPP) $(GOPTS) harness/c_harness.cpp harness/Tester.cpp \
-		$(UTILS_OBJS) -ldl -o c_harness
+$(BUILD_DIR)/harness harness: harness/c_harness.cpp harness/Tester.cpp \
+		$(UTILS_OBJS) $(BUILD_DIR)/utils/communication/ServerSocket.o \
+		$(BUILD_DIR)/utils/communication/BaseSocket.o
+	$(GPP) $(GOPTS) $^ -ldl -o $(BUILD_DIR)/$@
 
 tests/%.so: tests/$(addsuffix .cpp, %) tests/BaseTestCase.h
 	$(GPP) $(GOPTS) $(GOTPSSO) -Wl,-soname,$(notdir $@) \
@@ -36,10 +36,15 @@ utils/utils_c.o: utils/utils_c.h utils/utils_c.c disk_wrapper_ioctl.h
 
 user_tools/%: user_tools/$(addsuffix .cpp, %) user_tools/helper.h \
 		user_tools/helper.cpp
-	$(GPP) $(GOPTS) -o $@ $^
+	mkdir -p $(BUILD_DIR)/$(dir $@)
+	$(GPP) $(GOPTS) -o $(BUILD_DIR)/$(dir $@)/$* $^
 
 #user_tools: user_tools/begin_setup user_tools/end_setup user_tools/begin_log
 user_tools: user_tools/begin_log user_tools/end_log user_tools/begin_tests
+
+$(BUILD_DIR)/utils/communication/%.o: utils/communication/%.cpp
+	mkdir -p $(dir $@)
+	$(GPP) -c $(GOPTS) -o $@ $<
 
 run_no_log: harness tests/echo_sub_dir.so
 	sudo ./c_harness -f /dev/sda -t ext4 -m barrier -d /dev/cow_ram0 \
@@ -69,3 +74,4 @@ clean:
 	$(MAKE) -C $(KDIR) M=$(PWD) clean
 	rm -f $(TESTING) tests/*.so c_harness permute *.o *.so utils/*.o permuter/*.so \
 		ioctl_test
+	rm -rf $(BUILD_DIR)/*

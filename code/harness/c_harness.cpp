@@ -1,4 +1,3 @@
-#include <arpa/inet.h>
 #include <fcntl.h>
 #include <getopt.h>
 #include <string.h>
@@ -14,7 +13,8 @@
 #include <vector>
 
 #include "../utils/utils.h"
-#include "../user_tools/communication.h"
+#include "../utils/communication/communication.h"
+#include "../utils/communication/ServerSocket.h"
 #include "Tester.h"
 #include "../tests/BaseTestCase.h"
 
@@ -32,6 +32,7 @@ using std::cout;
 using std::endl;
 using std::string;
 using fs_testing::Tester;
+using fs_testing::utils::communication::ServerSocket;
 
 static const option long_options[] = {
   {"background", no_argument, NULL, 'b'},
@@ -69,8 +70,7 @@ int main(int argc, char** argv) {
   int iterations = 1000;
   int disk_size = 10240;
   int option_idx = 0;
-  int socket_fd = -1;
-  int client_fd = -1;
+  ServerSocket* background_com;
 
   // Parse command line arguments.
   for (int c = getopt_long(argc, argv, OPTS_STRING, long_options, &option_idx);
@@ -140,23 +140,10 @@ int main(int argc, char** argv) {
 
   // Create a socket to coordinate with the outside world.
   if (background) {
-    socket_fd = socket(AF_LOCAL, SOCK_STREAM, 0);
-    if (socket_fd < -1) {
-      cerr << "Error opening communication socket in background... exiting"
-        << endl;
-      return -1;
-    }
-    struct sockaddr_un comm;
-    comm.sun_family = AF_LOCAL;
-    strcpy(comm.sun_path, SOCKET_NAME_OUTBOUND);
-    if (bind(socket_fd, (const struct sockaddr*) &comm, SUN_LEN(&comm)) < 0) {
-      cerr << "Error binding name to socket... exiting" << endl;
-      return -1;
-    }
-
-    if (listen(socket_fd, 2) < 0) {
-      int err2 = errno;
-      cerr << "Error listening to socket: " << err2 << endl;
+    background_com = new ServerSocket(SOCKET_NAME_OUTBOUND);
+    if (background_com->Init() < 0) {
+      cerr << "Error starting socket to listen on" << endl;
+      delete background_com;
       return -1;
     }
 
@@ -228,24 +215,25 @@ int main(int argc, char** argv) {
 
     // If running as a background process, let the user run their setup stuff.
     if (background) {
-      int32_t command = wait_for_command(socket_fd, &client_fd);
-      if (command == -2) {
-        cerr << "Error getting command from socket" << endl;
-        close(socket_fd);
-        unlink(SOCKET_NAME_OUTBOUND);
-        return -1;
-      }
-
-      if (command != HARNESS_BEGIN_LOG) {
-        if (send_command(client_fd, HARNESS_WRONG_COMMAND)) {
-          cerr << "Error sending response to client" << endl;
-          close (client_fd);
-          close(socket_fd);
-          unlink(SOCKET_NAME_OUTBOUND);
+      int command;
+      do {
+        if (background_com->WaitForInt(&command) < 0) {
+          cerr << "Error getting command from socket" << endl;
+          delete background_com;
           test_harness.cleanup_harness();
           return -1;
         }
-      }
+
+        if (command != HARNESS_BEGIN_LOG) {
+          if (background_com->SendInt(HARNESS_WRONG_COMMAND) < 0) {
+            cerr << "Error sending response to client" << endl;
+            delete background_com;
+            test_harness.cleanup_harness();
+            return -1;
+          }
+          background_com->CloseClient();
+        }
+      } while (command != HARNESS_BEGIN_LOG);
     } else {
       // Run pre-test setup stuff.
       cout << "Running pre-test setup\n";
@@ -308,7 +296,6 @@ int main(int argc, char** argv) {
     return -1;
   }
 
-
   // No log file given so run the test profile.
   if (log_file_load.empty()) {
 
@@ -350,16 +337,13 @@ int main(int argc, char** argv) {
 
     // Tell the user we're ready to log their workload.
     if (background) {
-      if (send_command(client_fd, HARNESS_LOG_READY) < 0) {
+      if (background_com->SendInt(HARNESS_LOG_READY) < 0) {
         cerr << "Error telling user ready for workload" << endl;
-        close(client_fd);
-        close(socket_fd);
-        unlink(SOCKET_NAME_OUTBOUND);
+        delete background_com;
         test_harness.cleanup_harness();
         return -1;
       }
-      close(client_fd);
-      client_fd = -1;
+      background_com->CloseClient();
     } else {
       // Fork off a new process and run test profiling. Forking makes it easier
       // to handle making sure everything is taken care of in profiling and
@@ -390,24 +374,25 @@ int main(int argc, char** argv) {
 
     if (background) {
       // Wait for user to run workload.
-      uint32_t command = wait_for_command(socket_fd, &client_fd);
-      if (command == -2) {
-        cerr << "Error getting command from socket" << endl;
-        close(socket_fd);
-        unlink(SOCKET_NAME_OUTBOUND);
-        return -1;
-      }
-
-      if (command != HARNESS_END_LOG) {
-        if (send_command(client_fd, HARNESS_WRONG_COMMAND)) {
-          cerr << "Error sending response to client" << endl;
-          close (client_fd);
-          close(socket_fd);
-          unlink(SOCKET_NAME_OUTBOUND);
+      int command;
+      do {
+        if (background_com->WaitForInt(&command) < 0) {
+          cerr << "Error getting command from socket" << endl;
+          delete background_com;
           test_harness.cleanup_harness();
           return -1;
         }
-      }
+
+        if (command != HARNESS_END_LOG) {
+          if (background_com->SendInt(HARNESS_WRONG_COMMAND) < 0) {
+            cerr << "Error sending response to client" << endl;
+            delete background_com;
+            test_harness.cleanup_harness();
+            return -1;
+          }
+          background_com->CloseClient();
+        }
+      } while (command != HARNESS_END_LOG);
     }
 
     // Wait a small amount of time for writes to propogate to the block
@@ -450,16 +435,13 @@ int main(int argc, char** argv) {
     }
 
     if (background) {
-      if (send_command(client_fd, HARNESS_LOG_DONE) < 0) {
+      if (background_com->SendInt(HARNESS_LOG_DONE) < 0) {
         cerr << "Error telling user done logging" << endl;
-        close(client_fd);
-        close(socket_fd);
-        unlink(SOCKET_NAME_OUTBOUND);
+        delete background_com;
         test_harness.cleanup_harness();
         return -1;
       }
-      close(client_fd);
-      client_fd = -1;
+      background_com->CloseClient();
     }
   } else {
     // Logged test data given, load it into the test harness.
@@ -503,25 +485,26 @@ int main(int argc, char** argv) {
   /***************************************************/
 
   if (background) {
-    // Wait for user to run workload.
-    uint32_t command = wait_for_command(socket_fd, &client_fd);
-    if (command == -2) {
-      cerr << "Error getting command from socket" << endl;
-      close(socket_fd);
-      unlink(SOCKET_NAME_OUTBOUND);
-      return -1;
-    }
+    // Wait for user to run tests.
+      int command;
+      do {
+        if (background_com->WaitForInt(&command) < 0) {
+          cerr << "Error getting command from socket" << endl;
+          delete background_com;
+          test_harness.cleanup_harness();
+          return -1;
+        }
 
-    if (command != HARNESS_RUN_TESTS) {
-      if (send_command(client_fd, HARNESS_WRONG_COMMAND)) {
-        cerr << "Error sending response to client" << endl;
-        close (client_fd);
-        close(socket_fd);
-        unlink(SOCKET_NAME_OUTBOUND);
-        test_harness.cleanup_harness();
-        return -1;
-      }
-    }
+        if (command != HARNESS_RUN_TESTS) {
+          if (background_com->SendInt(HARNESS_WRONG_COMMAND) < 0) {
+            cerr << "Error sending response to client" << endl;
+            delete background_com;
+            test_harness.cleanup_harness();
+            return -1;
+          }
+          background_com->CloseClient();
+        }
+      } while (command != HARNESS_RUN_TESTS);
   }
 
   if (!dry_run) {
@@ -555,58 +538,15 @@ int main(int argc, char** argv) {
 
   /*
   if (background) {
-    if (send_command(client_fd, HARNESS_TESTS_DONE) < 0) {
+    if (background_com->SendInt(HARNESS_TESTS_DONE) < 0) {
       cerr << "Error telling user done logging" << endl;
-      close(client_fd);
-      close(socket_fd);
-      unlink(SOCKET_NAME_OUTBOUND);
+      delete background_com;
       test_harness.cleanup_harness();
       return -1;
     }
-    close(client_fd);
-    client_fd = -1;
+    delete background_com;
   }
   */
 
-  return 0;
-}
-
-int32_t wait_for_command(int socket, int* client_fd) {
-  *client_fd = accept(socket, NULL, NULL);
-  if (*client_fd < 0) {
-    cerr << "Error accepting socket connection" << endl;
-    return -2;
-  }
-
-  int bytes_read = 0;
-  int32_t command;
-  do {
-    int res = recv(*client_fd, (char*) &command + bytes_read, sizeof(command),
-        0);
-    if (res < 0) {
-      cerr << "Error waiting for command for setup" << endl;
-      close(*client_fd);
-      return -2;
-    }
-    bytes_read += res;
-  } while(bytes_read < sizeof(command));
-
-  // Correct the byte order of the command.
-  command = ntohl(command);
-  return command;
-}
-
-int send_command(int client_fd, int32_t command) {
-  uint32_t c = htonl(command);
-  int bytes_written = 0;
-  do {
-    int res = send(client_fd, (char*) &c + bytes_written,
-        sizeof(c), 0);
-    if (res < 0) {
-      cerr << "Error writing command to socket" << endl;
-      return -1;
-    }
-    bytes_written += res;
-  } while (bytes_written < sizeof(c));
   return 0;
 }
