@@ -1,7 +1,9 @@
+#include "../utils/communication/ClientCommandSender.h"
 #include "../utils/communication/communication.h"
-#include "../utils/communication/helper.h"
+
+using fs_testing::utils::communication::ClientCommandSender;
 
 int main(int argc, char** argv) {
-  return command_sender(SOCKET_NAME_OUTBOUND, HARNESS_BEGIN_LOG,
-      HARNESS_LOG_READY);
+  return ClientCommandSender(SOCKET_NAME_OUTBOUND, HARNESS_BEGIN_LOG,
+      HARNESS_LOG_READY).Run();
 }

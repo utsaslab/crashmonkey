@@ -34,8 +34,10 @@ utils/utils_c.o: utils/utils_c.h utils/utils_c.c disk_wrapper_ioctl.h
 	$(GCC) -o utils/utils_c.o -c utils/utils_c.c \
 		-I /usr/src/linux-headers-$(shell uname -r)/include/
 
-user_tools/%: user_tools/$(addsuffix .cpp, %) user_tools/helper.h \
-		user_tools/helper.cpp
+user_tools/%: user_tools/$(addsuffix .cpp, %) \
+		$(BUILD_DIR)/utils/communication/ClientSocket.o \
+		$(BUILD_DIR)/utils/communication/BaseSocket.o \
+		$(BUILD_DIR)/utils/communication/ClientCommandSender.o
 	mkdir -p $(BUILD_DIR)/$(dir $@)
 	$(GPP) $(GOPTS) -o $(BUILD_DIR)/$(dir $@)/$* $^
 

@@ -19,7 +19,7 @@ ClientSocket::~ClientSocket() {
 }
 
 int ClientSocket::Init() {
-  int socket_fd = socket(PF_LOCAL, SOCK_STREAM, 0);
+  socket_fd = socket(PF_LOCAL, SOCK_STREAM, 0);
   if (socket_fd < 0) {
     return -1;
   }
@@ -31,6 +31,7 @@ int ClientSocket::Init() {
         sizeof(socket_info)) < 0) {
     return -1;
   }
+  return 0;
 }
 
 int ClientSocket::WaitForInt(int* data) {

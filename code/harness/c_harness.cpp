@@ -536,17 +536,15 @@ int main(int argc, char** argv) {
   // Finish cleaning everything up.
   test_harness.cleanup_harness();
 
-  /*
   if (background) {
     if (background_com->SendInt(HARNESS_TESTS_DONE) < 0) {
-      cerr << "Error telling user done logging" << endl;
+      cerr << "Error telling user done testing" << endl;
       delete background_com;
       test_harness.cleanup_harness();
       return -1;
     }
     delete background_com;
   }
-  */
 
   return 0;
 }

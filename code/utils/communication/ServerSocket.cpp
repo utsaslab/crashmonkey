@@ -44,6 +44,7 @@ int ServerSocket::Init() {
   if (listen(server_socket, 1) < 0) {
     return -1;
   }
+  return 0;
 }
 
 int ServerSocket::WaitForInt(int* data) {
