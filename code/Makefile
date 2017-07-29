@@ -10,11 +10,15 @@ GOTPSSO = -shared -fPIC
 UTILS_OBJS = utils/utils_c.o utils/utils.o
 BUILD_DIR = ../build
 
-cow_brd.ko disk_wrapper.ko default: $(MODULES)
+default: cow_brd.ko disk_wrapper.ko $(UTILS_OBJS) $(BUILD_DIR)/harness \
+		permuter/RandomPermuter.so user_tools
+
+cow_brd.ko disk_wrapper.ko: $(MODULES)
 	$(MAKE) -C $(KDIR) M=$(PWD) modules
 
-$(BUILD_DIR)/harness harness: harness/c_harness.cpp harness/Tester.cpp \
+$(BUILD_DIR)/harness: harness/c_harness.cpp harness/Tester.cpp \
 		$(UTILS_OBJS) $(BUILD_DIR)/utils/communication/ServerSocket.o \
+		$(BUILD_DIR)/utils/communication/ClientSocket.o \
 		$(BUILD_DIR)/utils/communication/BaseSocket.o
 	$(GPP) $(GOPTS) $^ -ldl -o $(BUILD_DIR)/$@
 

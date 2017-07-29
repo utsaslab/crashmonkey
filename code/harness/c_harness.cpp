@@ -2,6 +2,7 @@
 #include <getopt.h>
 #include <string.h>
 #include <sys/socket.h>
+#include <sys/stat.h>
 #include <sys/types.h>
 #include <sys/un.h>
 #include <unistd.h>
@@ -24,6 +25,9 @@
 #define TEST_DIRTY_EXPIRE_TIME "500"
 #define WRITE_DELAY 20
 #define MOUNT_DELAY 3
+
+#define DIRECTORY_PERMS \
+  (S_IRUSR | S_IWUSR | S_IRGRP | S_IWGRP | S_IROTH | S_IWOTH)
 
 #define OPTS_STRING "bd:f:e:l:m:np:r:s:t:v"
 
@@ -138,17 +142,66 @@ int main(int argc, char** argv) {
     return -1;
   }
 
+
   // Create a socket to coordinate with the outside world.
   if (background) {
-    background_com = new ServerSocket(SOCKET_NAME_OUTBOUND);
-    if (background_com->Init() < 0) {
-      cerr << "Error starting socket to listen on" << endl;
+    // TODO(ashmrtn): Fix permissions on the socket.
+    /*
+    struct stat socket_dir;
+    int res = stat(SOCKET_DIR, &socket_dir);
+    // Directory does not exist.
+    if (res < 0 && errno == 2) {
+      if (mkdir(SOCKET_DIR, DIRECTORY_PERMS) < 0) {
+        cerr << "Error creating temp directory" << endl;
+        delete background_com;
+        return -1;
+      }
+    } else if (res < 0) {
+      // Some other error.
+      cerr << "Error trying to find temp directory" << endl;
+      delete background_com;
+      return -1;
+    } else if (!S_ISDIR(socket_dir.st_mode)) {
+      // Something there that's not a directory.
+      cerr << "Something not a directory already exists at " << SOCKET_DIR
+        << endl;
       delete background_com;
       return -1;
     }
 
-    // TODO(ashmrtn): Create socket connection to the process that started this
-    // one so that we can tell them when we're done setting up.
+    // Incorrect permissions.
+    if ((socket_dir.st_mode & DIRECTORY_PERMS) != DIRECTORY_PERMS) {
+      cout << "Changing permissions on " << SOCKET_DIR << " to be world "
+        << "readable and writable" << endl;
+      if (chmod(SOCKET_DIR, DIRECTORY_PERMS) < 0) {
+        cerr << "Error changing permissions on " << SOCKET_DIR << endl;
+        delete background_com;
+        return -1;
+      }
+    }
+    */
+
+    background_com = new ServerSocket(SOCKET_NAME_OUTBOUND);
+    if (background_com->Init() < 0) {
+      int err_no = errno;
+      cerr << "Error starting socket to listen on " << err_no << endl;
+      delete background_com;
+      return -1;
+    }
+
+    // TODO(ashmrtn): Fix permissions so we can still insert kernel modules
+    // after we fork. Then uncomment the following.
+    // We need to phone home and tell the process that made us that we are ready
+    // for users to do things.
+    /*
+    if (bootstrap) {
+      if (background_com->WaitAndSendInt(HARNESS_PREPARE_DONE) < 0) {
+        cerr << "Error contacting stub bootstrap process" << endl;
+        delete background_com;
+        return -1;
+      }
+    }
+    */
   }
 
   Tester test_harness(disk_size, verbose);
@@ -364,7 +417,6 @@ int main(int argc, char** argv) {
             test_harness.cleanup_harness();
             return -1;
           }
-          cout << "Waiting for writeback delay\n";
         } else {
           // Forked process' stuff.
           return test_harness.test_run();
@@ -397,6 +449,7 @@ int main(int argc, char** argv) {
 
     // Wait a small amount of time for writes to propogate to the block
     // layer and then stop logging writes.
+    cout << "Waiting for writeback delay\n";
     sleep(WRITE_DELAY);
 
     cout << "Disabling wrapper device logging" << std::endl;

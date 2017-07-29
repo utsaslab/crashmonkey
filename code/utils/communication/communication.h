@@ -16,6 +16,7 @@
 #define HARNESS_LOG_DONE      6
 #define HARNESS_TESTS_DONE    8
 
-#define SOCKET_NAME_OUTBOUND "/tmp/crash_monkey_harness"
+#define SOCKET_DIR           "/tmp"
+#define SOCKET_NAME_OUTBOUND SOCKET_DIR "/crash_monkey_harness"
 
 #endif

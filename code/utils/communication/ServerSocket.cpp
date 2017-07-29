@@ -34,12 +34,6 @@ int ServerSocket::Init() {
   if (bind(server_socket, (const struct sockaddr*) &comm, sizeof(comm)) < 0) {
     return -1;
   }
-  if (fchmod(server_socket, S_IRUSR | S_IWUSR | S_IRGRP | S_IWGRP | S_IROTH
-        | S_IWOTH) < 0) {
-    close(server_socket);
-    unlink(socket_address.c_str());
-    return -1;
-  }
 
   if (listen(server_socket, 1) < 0) {
     return -1;
@@ -65,6 +59,19 @@ int ServerSocket::SendInt(int data) {
     return -1;
   }
   return ServerSocket::WriteIntToSocket(client_socket, data);
+}
+
+int ServerSocket::WaitAndSendInt(int data) {
+  if (client_socket >= 0) {
+    return -2;
+  }
+  // For now, don't care about getting the client address.
+  client_socket = accept(server_socket, NULL, NULL);
+  if (client_socket < 0) {
+    return -1;
+  }
+
+  return SendInt(data);
 }
 
 void ServerSocket::CloseClient() {

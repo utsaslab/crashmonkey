@@ -17,6 +17,7 @@ class ServerSocket: public BaseSocket {
   int Init();
   int WaitForInt(int* data);
   int SendInt(int data);
+  int WaitAndSendInt(int data);
   void CloseClient();
   void CloseServer();
  private:
