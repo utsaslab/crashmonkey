@@ -12,3 +12,4 @@ tests/*.so
 permuter/*.so
 c_harness
 *.a
+build
