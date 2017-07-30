@@ -129,6 +129,8 @@ int main(int argc, char** argv) {
    ****************************************************************************/
   const unsigned int test_case_idx = optind;
 
+  cout << "========== PHASE 0: Setting up CrashMonkey basics =========="
+    << endl;
   if (test_case_idx == argc) {
     cerr << "Please give a .so test case to load" << endl;
     return -1;
@@ -258,6 +260,8 @@ int main(int argc, char** argv) {
    *    setup methods defined in the test case static object it loaded
    ****************************************************************************/
 
+  cout << endl << "========== PHASE 1: Creating base disk image =========="
+    << endl;
   // Run the normal test setup stuff if we don't have a log file.
   if (log_file_load.empty()) {
     /***************************************************************************
@@ -290,6 +294,7 @@ int main(int argc, char** argv) {
     // TODO(ashmrtn): Close startup socket fd here.
 
     if (background) {
+      cout << "+++++ Please run any needed pre-test setup +++++" << endl;
       /*************************************************************************
        * Background mode user setup. Wait for the user to tell use that they
        * have finished the pre-test setup phase.
@@ -399,6 +404,8 @@ int main(int argc, char** argv) {
    *    methods defined in the test case static object it loaded
    ****************************************************************************/
 
+  cout << endl << "========== PHASE 2: Recording user workload =========="
+    << endl;
   // TODO(ashmrtn): Consider making a flag for this?
   cout << "Clearing caches" << endl;
   if (test_harness.clear_caches() != SUCCESS) {
@@ -466,6 +473,8 @@ int main(int argc, char** argv) {
         return -1;
       }
       background_com->CloseClient();
+
+      cout << "+++++ Please run workload +++++" << endl;
 
       // Wait for the user to tell us they are done with the workload.
       int command;
@@ -631,6 +640,11 @@ int main(int argc, char** argv) {
     } while (command != HARNESS_RUN_TESTS);
   }
 
+  cout << endl
+    << "========== PHASE 3: Running tests based on recorded data =========="
+    << endl;
+
+
   // TODO(ashmrtn): Fix the meaning of "dry-run". Right now it means do
   // everything but run tests (i.e. run setup and profiling but not testing.)
   if (!dry_run) {
@@ -661,6 +675,8 @@ int main(int argc, char** argv) {
         << endl;
     }
   }
+
+  cout << endl << "========== PHASE 4: Cleaning up ==========" << endl;
 
   /*****************************************************************************
    * PHASE 4:
