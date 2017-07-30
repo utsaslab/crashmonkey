@@ -14,7 +14,7 @@ CrashMonkey also makes use of common Linux file system checker and repair progra
 ### Getting Setup ###
 
 #### Setting Up a VM ####
-The easiest (and recommended) way to start working on (or using) CrashMonkey is to setup a virtual machine and run everything in the VM. This is partly so that any bugs in the kernel module don't bring down your whole system and partly because I just find it easier. In the future I may try to get a Docker running with all the needed packages and files so that things are easy to setup and get running. In the meantime, you should spin up an Ubuntu 14.04 LTS VM and work on there. Since the kernel versions changed between Ubuntu 14.04 and Ubuntu 16.04, I am not sure (and have not tested) whether CrashMoneky will work on 16.04 yet. The version of the kernel that CrashMonkey is known to work on is 3.13.0-121-generic. I have heard that the latest updates of 14.04.5 have newer 4.x kernels which are not yet compatible with CrashMonkey. The Ubuntu VM that you create will need the following packages to properly build and run CrashMonkey:
+The easiest (and recommended) way to start working on (or using) CrashMonkey is to setup a virtual machine and run everything in the VM. This is partly so that any bugs in the kernel module don't bring down your whole system and partly because I just find it easier. In the future I may try to get a Docker running with all the needed packages and files so that things are easy to setup and get running. In the meantime, you should spin up an Ubuntu 14.04 LTS or Ubuntu 16.04.2 LTS VM and work on there. **CrashMonkey is known to work on kernel versions 3.13.0-121-generic and 4.4.0-62-generic.** The Ubuntu VM that you create will also need the following packages to properly build and run CrashMonkey:
 
 * make
 * git
@@ -52,7 +52,7 @@ To get everything working:
     1. sorry, I'll edit the `vmbuilder` script at some point to just copy these files over
 
 ### Compiling CrashMonkey ###
-The test harness and test portion of CrashMonkey can be compiled with `cd code; make harness`. This will build the kernel module, test harness, and a single test case in the `code/tests` directory.
+The test harness and test portion of CrashMonkey can be compiled with `cd code; make` or `cd code; make default`. This will build the kernel module, and test harness. Use `make tests/echo_sub_dir_huge.so` to build the `echo_sub_dir_huge` test case in the `code/tests` directory.
 
 In the future the build system will be switched over to either `CMake` or `Bazel` (because everyone has heard of a uses `Bazel` right?).
 
@@ -63,7 +63,10 @@ User defined tests reside in the `code/tests` directory. They can be compiled in
 Some tests for CrashMonkey reside in the `test` directory of the repo. Tests leverage `googletests` and are used to ensure the correctness and functionality of some of the user space portions of CrashMonkey (ex. the descendants of the `Permuter` class). Right now you'll have to examine the outputted binary names to determine what each binary tests. In the future, the build system will be updated to run the tests after compiling them.
 
 ### Running CrashMonkey ###
-Pre-specified runs can be performed with `make run_no_log` or `make run_no_log_big NUM_TESTS=<number of crash states to test>`. Before running either of these tests, you will have to create a directory at `/mnt/snapshot` for the test harness to mount test devices at. If you would like to run CrashMonkey by hand, you must run the `c_harness` binary and at least provide the following:
+CrashMonkey can be run either as a standalone program or as a background program. When in standalone mode, Crashmonkey will automatically load and run the user defined C++ setup and workload methods. In both modes, CrashMonkey will look for user defined data consistency tests in the `.so` test file provided to CrashMonkey on the command line. When run as a background process, the user is allowed to run setup and workload methods outside of CrashMonkey use a series of simple stub programs to communicate with CrashMonkey. In both modes of operation, command line flags have the same meaning.
+
+#### Running as a Standalone Program ####
+Pre-specified runs can be performed with `make run_no_log` or `make run_no_log_big NUM_TESTS=<number of crash states to test>`. **Before running either of these tests, you will have to create a directory at `/mnt/snapshot` for the test harness to mount test devices at.** If you would like to run CrashMonkey by hand, you must run the `c_harness` binary and at least provide the following:
 
 * `-f` - block device to copy device queue flags from. This controls what flags (FUA, flush, etc) will be allowed to propagate to the device wrapper
 * `-t` - file system type, right now CrashMonkey is only tested on ext4
@@ -73,7 +76,25 @@ To run your own CrashMonkey, use: `./c_harness <flags> <user defined workload>`
 
 A full listing of flags for CrashMonkey can be found in `code/haress/c_harness.c`
 
-### Contribution guidelines ###
+#### Running as a Background Process ####
+There are currently no scripts or pre-defined `make` rules for running CrashMonkey as a background process. However, an example of how to run a simple CrashMonkey smoke test in background mode is shown below. **Before running either of these tests, you will have to create a directory at `/mnt/snapshot` for the test harness to mount test devices at.**
+
+1. open 2 shells in you virtual machine and `cd` into the root directory of the repository
+1. shell 1: `cd code`
+1. shell 1: `make default tests/echo_sub_dir.so`
+1. shell 1: `sudo ../build/harness -f /dev/sda -t ext4 -m barrier -d /dev/cow_ram0 -e 10240 -b tests/echo_sub_dir.so`
+    1. `-e` specifies the RAM block device size to use in KB
+1. shell 2: `sudo mkdir /mnt/snapshot/test_dir`
+1. shell 2: `sudo build/user_tools/begin_log`
+1. shell 2: `sudo touch /mnt/snapshot/test_dir/test_file`
+1. shell 2: `sudo chmod 0777 /mnt/snapshot/test_dir/test_file`
+1. shell 2: `echo "hello great big world out there" | sudo tee /mnt/snapshot/test_dir/test_file`
+1. shell 2: `sudo build/user_tools/end_log`
+1. shell 2: `sudo build/user_tools/begin_tests`
+
+Again, a full list of flags for CrashMonkey can be found in `code/harness/c_harness.c`
+
+### Contribution Guidelines ###
 
 * Contributed code should follow [Google's C++ Style Guide](https://google.github.io/styleguide/cppguide.html) (the current code loosely follows that already).
 
