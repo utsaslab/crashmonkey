@@ -8,18 +8,19 @@ GPP = g++
 GOPTS = -std=c++11
 GOTPSSO = -shared -fPIC
 UTILS_OBJS = utils/utils_c.o utils/utils.o
+BUILD_DIR = ../build
 
-cow_brd.ko disk_wrapper.ko default: $(MODULES)
+default: cow_brd.ko disk_wrapper.ko $(UTILS_OBJS) $(BUILD_DIR)/harness \
+		permuter/RandomPermuter.so user_tools
+
+cow_brd.ko disk_wrapper.ko: $(MODULES)
 	$(MAKE) -C $(KDIR) M=$(PWD) modules
 
-harness: harness/c_harness.cpp default \
-		disk_wrapper_ioctl.h harness/Tester.cpp harness/Tester.h \
-		permuter/Permuter.h permuter/RandomPermuter.so \
-		harness/ipc.h harness/ipc.c
-	$(GPP) $(GOPTS) harness/c_harness.cpp harness/Tester.cpp \
-		harness/ipc.c \
-		$(UTILS_OBJS) \
-		-ldl -o c_harness
+$(BUILD_DIR)/harness: harness/c_harness.cpp harness/Tester.cpp \
+		$(UTILS_OBJS) $(BUILD_DIR)/utils/communication/ServerSocket.o \
+		$(BUILD_DIR)/utils/communication/ClientSocket.o \
+		$(BUILD_DIR)/utils/communication/BaseSocket.o
+	$(GPP) $(GOPTS) $^ -ldl -o $(BUILD_DIR)/$@
 
 tests/%.so: tests/$(addsuffix .cpp, %) tests/BaseTestCase.h
 	$(GPP) $(GOPTS) $(GOTPSSO) -Wl,-soname,$(notdir $@) \
@@ -36,6 +37,20 @@ utils/utils.o: utils/utils.h utils/utils.cpp disk_wrapper_ioctl.h
 utils/utils_c.o: utils/utils_c.h utils/utils_c.c disk_wrapper_ioctl.h
 	$(GCC) -o utils/utils_c.o -c utils/utils_c.c \
 		-I /usr/src/linux-headers-$(shell uname -r)/include/
+
+user_tools/%: user_tools/$(addsuffix .cpp, %) \
+		$(BUILD_DIR)/utils/communication/ClientSocket.o \
+		$(BUILD_DIR)/utils/communication/BaseSocket.o \
+		$(BUILD_DIR)/utils/communication/ClientCommandSender.o
+	mkdir -p $(BUILD_DIR)/$(dir $@)
+	$(GPP) $(GOPTS) -o $(BUILD_DIR)/$(dir $@)/$* $^
+
+#user_tools: user_tools/begin_setup user_tools/end_setup user_tools/begin_log
+user_tools: user_tools/begin_log user_tools/end_log user_tools/begin_tests
+
+$(BUILD_DIR)/utils/communication/%.o: utils/communication/%.cpp
+	mkdir -p $(dir $@)
+	$(GPP) -c $(GOPTS) -o $@ $<
 
 run_no_log: harness tests/echo_sub_dir.so
 	sudo ./c_harness -f /dev/sda -t ext4 -m barrier -d /dev/cow_ram0 \
@@ -65,3 +80,4 @@ clean:
 	$(MAKE) -C $(KDIR) M=$(PWD) clean
 	rm -f $(TESTING) tests/*.so c_harness permute *.o *.so utils/*.o permuter/*.so \
 		ioctl_test
+	rm -rf $(BUILD_DIR)/*

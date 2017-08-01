@@ -1,7 +1,9 @@
 #include <fcntl.h>
 #include <getopt.h>
 #include <string.h>
+#include <sys/stat.h>
 #include <sys/types.h>
+#include <sys/un.h>
 #include <unistd.h>
 #include <wait.h>
 
@@ -10,9 +12,10 @@
 #include <vector>
 
 #include "../utils/utils.h"
+#include "../utils/communication/communication.h"
+#include "../utils/communication/ServerSocket.h"
 #include "Tester.h"
 #include "../tests/BaseTestCase.h"
-#include "ipc.h"
 
 #define TEST_SO_PATH "tests/"
 #define PERMUTER_SO_PATH "permuter/"
@@ -21,15 +24,20 @@
 #define WRITE_DELAY 20
 #define MOUNT_DELAY 3
 
-#define OPTS_STRING "d:f:e:l:m:np:r:s:t:v"
+#define DIRECTORY_PERMS \
+  (S_IRUSR | S_IWUSR | S_IRGRP | S_IWGRP | S_IROTH | S_IWOTH)
+
+#define OPTS_STRING "bd:f:e:l:m:np:r:s:t:v"
 
 using std::cerr;
 using std::cout;
 using std::endl;
 using std::string;
 using fs_testing::Tester;
+using fs_testing::utils::communication::ServerSocket;
 
 static const option long_options[] = {
+  {"background", no_argument, NULL, 'b'},
   {"test-dev", required_argument, NULL, 'd'},
   {"disk_size", required_argument, NULL, 'e'},
   {"flag-device", required_argument, NULL, 'f'},
@@ -54,18 +62,23 @@ int main(int argc, char** argv) {
   string log_file_save("");
   string log_file_load("");
   string permuter(PERMUTER_SO_PATH "RandomPermuter.so");
+  bool background = false;
   bool dry_run = false;
   bool no_lvm = false;
   bool verbose = false;
   int iterations = 1000;
   int disk_size = 10240;
   int option_idx = 0;
+  ServerSocket* background_com;
 
   // Parse command line arguments.
   for (int c = getopt_long(argc, argv, OPTS_STRING, long_options, &option_idx);
         c != -1;
         c = getopt_long(argc, argv, OPTS_STRING, long_options, &option_idx)) {
     switch (c) {
+      case 'b':
+        background = true;
+        break;
       case 'f':
         flags_dev = string(optarg);
         break;
@@ -106,8 +119,18 @@ int main(int argc, char** argv) {
   }
 
 
+  /*****************************************************************************
+   * PHASE 0:
+   * Basic setup of the test harness:
+   * 1. check arguments are sane
+   * 2. load up socket connections if/when needed
+   * 3. load basic kernel modules
+   * 4. load static objects for permuter and test case
+   ****************************************************************************/
   const unsigned int test_case_idx = optind;
 
+  cout << "========== PHASE 0: Setting up CrashMonkey basics =========="
+    << endl;
   if (test_case_idx == argc) {
     cerr << "Please give a .so test case to load" << endl;
     return -1;
@@ -122,6 +145,68 @@ int main(int argc, char** argv) {
     cerr << "Please give a positive number for the RAM disk size to use"
       << endl;
     return -1;
+  }
+
+
+  // Create a socket to coordinate with the outside world.
+  if (background) {
+    // TODO(ashmrtn): Fix permissions on the socket.
+    /*
+    struct stat socket_dir;
+    int res = stat(SOCKET_DIR, &socket_dir);
+    // Directory does not exist.
+    if (res < 0 && errno == 2) {
+      if (mkdir(SOCKET_DIR, DIRECTORY_PERMS) < 0) {
+        cerr << "Error creating temp directory" << endl;
+        delete background_com;
+        return -1;
+      }
+    } else if (res < 0) {
+      // Some other error.
+      cerr << "Error trying to find temp directory" << endl;
+      delete background_com;
+      return -1;
+    } else if (!S_ISDIR(socket_dir.st_mode)) {
+      // Something there that's not a directory.
+      cerr << "Something not a directory already exists at " << SOCKET_DIR
+        << endl;
+      delete background_com;
+      return -1;
+    }
+
+    // Incorrect permissions.
+    if ((socket_dir.st_mode & DIRECTORY_PERMS) != DIRECTORY_PERMS) {
+      cout << "Changing permissions on " << SOCKET_DIR << " to be world "
+        << "readable and writable" << endl;
+      if (chmod(SOCKET_DIR, DIRECTORY_PERMS) < 0) {
+        cerr << "Error changing permissions on " << SOCKET_DIR << endl;
+        delete background_com;
+        return -1;
+      }
+    }
+    */
+
+    background_com = new ServerSocket(SOCKET_NAME_OUTBOUND);
+    if (background_com->Init() < 0) {
+      int err_no = errno;
+      cerr << "Error starting socket to listen on " << err_no << endl;
+      delete background_com;
+      return -1;
+    }
+
+    // TODO(ashmrtn): Fix permissions so we can still insert kernel modules
+    // after we fork. Then uncomment the following.
+    // We need to phone home and tell the process that made us that we are ready
+    // for users to do things.
+    /*
+    if (bootstrap) {
+      if (background_com->WaitAndSendInt(HARNESS_PREPARE_DONE) < 0) {
+        cerr << "Error contacting stub bootstrap process" << endl;
+        delete background_com;
+        return -1;
+      }
+    }
+    */
   }
 
   Tester test_harness(disk_size, verbose);
@@ -160,12 +245,34 @@ int main(int argc, char** argv) {
     return -1;
   }
 
+
+  /*****************************************************************************
+   * PHASE 1:
+   * Setup the base image of the disk for snapshots later. This could happen in
+   * one of several ways:
+   * 1. The -r flag specifies that there are log files which contain the disk
+   *    image. These will now be loaded from disk
+   * 2. The -b flag specifies that CrashMonkey is running as a "background"
+   *    process of sorts and should listen on its socket for commands from the
+   *    user telling it when to perform certain actions. The user is responsible
+   *    for running their own pre-test setup methods at the proper times
+   * 3. CrashMonkey is running as a standalone program. It will run the pre-test
+   *    setup methods defined in the test case static object it loaded
+   ****************************************************************************/
+
+  cout << endl << "========== PHASE 1: Creating base disk image =========="
+    << endl;
   // Run the normal test setup stuff if we don't have a log file.
   if (log_file_load.empty()) {
+    /***************************************************************************
+     * Setup for both background operation and standalone mode operation.
+     **************************************************************************/
     if (flags_dev.empty()) {
       cerr << "No device to copy flags from given" << endl;
       return -1;
     }
+
+    // Device flags only need set if we are logging requests.
     test_harness.set_flag_device(flags_dev);
 
     // Format test drive to desired type.
@@ -184,26 +291,63 @@ int main(int argc, char** argv) {
       return -1;
     }
 
-    // Run pre-test setup stuff.
-    cout << "Running pre-test setup\n";
-    {
-      const pid_t child = fork();
-      if (child < 0) {
-        cerr << "Error creating child process to run pre-test setup\n";
-        test_harness.cleanup_harness();
-      } else if (child != 0) {
-        // Parent process should wait for child to terminate before proceeding.
-        pid_t status;
-        wait(&status);
-        if (status != 0) {
-          cerr << "Error in pre-test setup\n";
+    // TODO(ashmrtn): Close startup socket fd here.
+
+    if (background) {
+      cout << "+++++ Please run any needed pre-test setup +++++" << endl;
+      /*************************************************************************
+       * Background mode user setup. Wait for the user to tell use that they
+       * have finished the pre-test setup phase.
+       ************************************************************************/
+      int command;
+      do {
+        if (background_com->WaitForInt(&command) < 0) {
+          cerr << "Error getting command from socket" << endl;
+          delete background_com;
           test_harness.cleanup_harness();
+          return -1;
         }
-      } else {
-        return test_harness.test_setup();
+
+        if (command != HARNESS_BEGIN_LOG) {
+          if (background_com->SendInt(HARNESS_WRONG_COMMAND) < 0) {
+            cerr << "Error sending response to client" << endl;
+            delete background_com;
+            test_harness.cleanup_harness();
+            return -1;
+          }
+          background_com->CloseClient();
+        }
+      } while (command != HARNESS_BEGIN_LOG);
+    } else {
+      /*************************************************************************
+       * Standalone mode user setup. Run the pre-test "setup()" method defined
+       * in the test case. Run as a separate process for the sake of
+       * cleanliness.
+       ************************************************************************/
+      cout << "Running pre-test setup\n";
+      {
+        const pid_t child = fork();
+        if (child < 0) {
+          cerr << "Error creating child process to run pre-test setup\n";
+          test_harness.cleanup_harness();
+        } else if (child != 0) {
+          // Parent process should wait for child to terminate before proceeding.
+          pid_t status;
+          wait(&status);
+          if (status != 0) {
+            cerr << "Error in pre-test setup\n";
+            test_harness.cleanup_harness();
+          }
+        } else {
+          return test_harness.test_setup();
+        }
       }
     }
 
+    /***************************************************************************
+     * Pre-test setup complete. Unmount the test file system and snapshot the
+     * disk for use in workload and tests.
+     **************************************************************************/
     // Unmount the test file system after pre-test setup.
     cout << "Unmounting test file system after pre-test setup\n";
     if (test_harness.umount_device() != SUCCESS) {
@@ -220,6 +364,11 @@ int main(int argc, char** argv) {
 
     // If we're logging this test run then also save the snapshot.
     if (!log_file_save.empty()) {
+      /*************************************************************************
+       * The -l flag specifies that we should save the information for this
+       * harness execution. Therefore, save the disk image we are using as the
+       * base image for our snapshots.
+       ************************************************************************/
       cout << "Saving snapshot to log file" << endl;
       if (test_harness.log_snapshot_save(log_file_save + "_snap")
           != SUCCESS) {
@@ -228,6 +377,10 @@ int main(int argc, char** argv) {
       }
     }
   } else {
+    /***************************************************************************
+     * The -r flag specifies that we should load information from the provided
+     * log file. Load the base disk image for snapshots here.
+     **************************************************************************/
     // Load the snapshot in the log file and then write it to disk.
     cout << "Loading saved snapshot" << endl;
     if (test_harness.log_snapshot_load(log_file_load + "_snap") != SUCCESS) {
@@ -236,6 +389,23 @@ int main(int argc, char** argv) {
     }
   }
 
+
+  /*****************************************************************************
+   * PHASE 2:
+   * Obtain a series of disk epochs to operate on in the test phase of the
+   * harness. Again, this could happen in one of several ways:
+   * 1. The -r flag specifies that there are log files which contain the disk
+   *    epochs. These will now be loaded from disk
+   * 2. The -b flag specifies that CrashMonkey is running as a "background"
+   *    process of sorts and should listen on its socket for commands from the
+   *    user telling it when to perform certain actions. The user is responsible
+   *    for running their own workload methods at the proper times
+   * 3. CrashMonkey is running as a standalone program. It will run the workload
+   *    methods defined in the test case static object it loaded
+   ****************************************************************************/
+
+  cout << endl << "========== PHASE 2: Recording user workload =========="
+    << endl;
   // TODO(ashmrtn): Consider making a flag for this?
   cout << "Clearing caches" << endl;
   if (test_harness.clear_caches() != SUCCESS) {
@@ -244,9 +414,11 @@ int main(int argc, char** argv) {
     return -1;
   }
 
-
   // No log file given so run the test profile.
   if (log_file_load.empty()) {
+    /***************************************************************************
+     * Preparations for both background operation and standalone mode operation.
+     **************************************************************************/
 
     // Insert the disk block wrapper into the kernel.
     cout << "Inserting wrapper module into kernel\n";
@@ -264,6 +436,7 @@ int main(int argc, char** argv) {
       return -1;
     }
 
+    // TODO(ashmrtn): Can probably remove this...
     cout << "Sleeping after mount" << endl;
     unsigned int to_sleep = MOUNT_DELAY;
     do {
@@ -284,47 +457,91 @@ int main(int argc, char** argv) {
     cout << "Enabling wrapper device logging\n";
     test_harness.begin_wrapper_logging();
 
-    // Fork off a new process and run test profiling. Forking makes it easier to
-    // handle making sure everything is taken care of in profiling and ensures
-    // that even if all file handles aren't closed in the test process the parent
-    // won't hang due to a busy mount point.
-    cout << "Running test profile\n";
-    {
-      char *path = (char *) "harness.socket"; // TMP: test IPC module
-      const pid_t child = fork();
-      if (child < 0) {
-        cerr << "Error spinning off test process\n";
+    /***************************************************************************
+     * Run the actual workload that we will be testing.
+     **************************************************************************/
+    if (background) {
+      /************************************************************************
+       * Background mode user workload. Tell the user we have finished workload
+       * preparations and are ready for them to run the workload since we are
+       * now logging requests.
+       ***********************************************************************/
+      if (background_com->SendInt(HARNESS_LOG_READY) < 0) {
+        cerr << "Error telling user ready for workload" << endl;
+        delete background_com;
         test_harness.cleanup_harness();
         return -1;
-      } else if (child != 0) {
-        // TMP: test IPC module
-        int server = start_server(path);
-        int client = accept_connection(server);
-        pid_t status;
-        wait(&status);
-        if (status != 0) {
-          cerr << "Error in test process\n";
-          test_harness.cleanup_harness();
-          return -1;
-        }
-        cout << "Waiting for writeback delay\n";
-        sleep(WRITE_DELAY);
-
-        // Wait a small amount of time for writes to propogate to the block
-        // layer and then stop logging writes.
-        cout << "Disabling wrapper device logging" << std::endl;
-        test_harness.end_wrapper_logging();
-        cout << "Getting wrapper data\n";
-        if (test_harness.get_wrapper_log() != SUCCESS) {
-          test_harness.cleanup_harness();
-          return -1;
-        }
-      } else {
-        // Forked process' stuff.
-        int r = test_harness.test_run();
-        connect_server(path); // TMP: test IPC module
-        return r;
       }
+      background_com->CloseClient();
+
+      cout << "+++++ Please run workload +++++" << endl;
+
+      // Wait for the user to tell us they are done with the workload.
+      int command;
+      do {
+        if (background_com->WaitForInt(&command) < 0) {
+          cerr << "Error getting command from socket" << endl;
+          delete background_com;
+          test_harness.cleanup_harness();
+          return -1;
+        }
+
+        if (command != HARNESS_END_LOG) {
+          if (background_com->SendInt(HARNESS_WRONG_COMMAND) < 0) {
+            cerr << "Error sending response to client" << endl;
+            delete background_com;
+            test_harness.cleanup_harness();
+            return -1;
+          }
+          background_com->CloseClient();
+        }
+      } while (command != HARNESS_END_LOG);
+    } else {
+      /*************************************************************************
+       * Standalone mode user workload. Fork off a new process and run test
+       * profiling. Forking makes it easier to handle making sure everything is
+       * taken care of in profiling and ensures that even if all file handles
+       * aren't closed in the process running the worload, the parent won't hang
+       * due to a busy mount point.
+       ************************************************************************/
+      cout << "Running test profile\n";
+      {
+        const pid_t child = fork();
+        if (child < 0) {
+          cerr << "Error spinning off test process\n";
+          test_harness.cleanup_harness();
+          return -1;
+        } else if (child != 0) {
+          pid_t status;
+          wait(&status);
+          if (status != 0) {
+            cerr << "Error in test process\n";
+            test_harness.cleanup_harness();
+            return -1;
+          }
+        } else {
+          // Forked process' stuff.
+          return test_harness.test_run();
+        }
+      }
+    }
+
+
+    /***************************************************************************
+     * Worload complete, Clean up things and end logging.
+     **************************************************************************/
+
+    // Wait a small amount of time for writes to propogate to the block
+    // layer and then stop logging writes.
+    cout << "Waiting for writeback delay\n";
+    sleep(WRITE_DELAY);
+
+    cout << "Disabling wrapper device logging" << std::endl;
+    test_harness.end_wrapper_logging();
+    cout << "Getting wrapper data\n";
+    if (test_harness.get_wrapper_log() != SUCCESS) {
+      test_harness.cleanup_harness();
+      return -1;
     }
 
     cout << "Unmounting wrapper file system after test profiling\n";
@@ -345,6 +562,11 @@ int main(int argc, char** argv) {
 
     // Write log data out to file if we're given a file.
     if (!log_file_save.empty()) {
+      /*************************************************************************
+       * The -l flag specifies that we should save the information for this
+       * harness execution. Therefore, save the series of disk epochs we just
+       * logged so they can be reused later if the -r flag is given.
+       ************************************************************************/
       cout << "Saving logged profile data to disk" << endl;
       if (test_harness.log_profile_save(log_file_save + "_profile") != SUCCESS) {
         cerr << "Error saving logged test file" << endl;
@@ -353,8 +575,26 @@ int main(int argc, char** argv) {
         return -1;
       }
     }
+
+    /***************************************************************************
+     * Background mode. Tell the user we have finished logging and cleaning up
+     * and that, if they need to, they can do a bit of cleanup on their end
+     * before beginning testing.
+     **************************************************************************/
+    if (background) {
+      if (background_com->SendInt(HARNESS_LOG_DONE) < 0) {
+        cerr << "Error telling user done logging" << endl;
+        delete background_com;
+        test_harness.cleanup_harness();
+        return -1;
+      }
+      background_com->CloseClient();
+    }
   } else {
-    // Logged test data given, load it into the test harness.
+    /***************************************************************************
+     * The -r flag specifies that we should load information from the provided
+     * log file. Load the series of disk epochs which we will be operating on.
+     **************************************************************************/
     cout << "Loading logged profile data from disk" << endl;
     if (test_harness.log_profile_load(log_file_load + "_profile") != SUCCESS) {
       cerr << "Error loading logged test file" << endl;
@@ -363,38 +603,54 @@ int main(int argc, char** argv) {
     }
   }
 
-  /***************************************************/
-  /*
-#define TEST_CASE_FSCK "fsck -T -t "
 
-  // Create a new partition table on test device.
-  cout << "Partitioning test drive" << endl;
-  if (test_harness.partition_drive() != SUCCESS) {
-    test_harness.cleanup_harness();
-    return -1;
+  /*****************************************************************************
+   * PHASE 3:
+   * Now that we have finished gathering data, run tests to see if we can find
+   * file system inconsistencies. Either:
+   * 1. The -b flag specifies that CrashMonkey is running as a "background"
+   *    process of sorts and should listen on its socket for the command telling
+   *    it to begin testing
+   * 2. CrashMonkey is running as a standalone program. It should immediately
+   *    begin testing
+   ****************************************************************************/
+
+  if (background) {
+    /***************************************************************************
+     * Background mode. Wait for the user to tell us to start testing.
+     **************************************************************************/
+    int command;
+    do {
+      if (background_com->WaitForInt(&command) < 0) {
+        cerr << "Error getting command from socket" << endl;
+        delete background_com;
+        test_harness.cleanup_harness();
+        return -1;
+      }
+
+      if (command != HARNESS_RUN_TESTS) {
+        if (background_com->SendInt(HARNESS_WRONG_COMMAND) < 0) {
+          cerr << "Error sending response to client" << endl;
+          delete background_com;
+          test_harness.cleanup_harness();
+          return -1;
+        }
+        background_com->CloseClient();
+      }
+    } while (command != HARNESS_RUN_TESTS);
   }
 
-  cout << "Restoring device clone" << std::endl;
-  if (test_harness.clone_device_restore() != SUCCESS) {
-    test_harness.cleanup_harness();
-    cerr << "Error restoring device clone" << std::endl;
-    return -1;
-  }
+  cout << endl
+    << "========== PHASE 3: Running tests based on recorded data =========="
+    << endl;
 
-  cout << "Restoring log data" << std::endl;
-  if (test_harness.test_restore_log() != SUCCESS) {
-    test_harness.cleanup_harness();
-    cerr << "Error restoring log data" << std::endl;
-    return -1;
-  }
 
-  std::cout << "Result of current test is " << test_harness.test_check_current()
-    << std::endl;
-  */
-
-  /***************************************************/
-
+  // TODO(ashmrtn): Fix the meaning of "dry-run". Right now it means do
+  // everything but run tests (i.e. run setup and profiling but not testing.)
   if (!dry_run) {
+    /***************************************************************************
+     * Run tests and print the results of said tests.
+     **************************************************************************/
     cout << "Writing profiled data to block device and checking with fsck\n";
     test_harness.test_check_random_permutations(iterations);
     test_harness.remove_cow_brd();
@@ -420,7 +676,24 @@ int main(int argc, char** argv) {
     }
   }
 
-  // Finish cleaning everything up.
+  cout << endl << "========== PHASE 4: Cleaning up ==========" << endl;
+
+  /*****************************************************************************
+   * PHASE 4:
+   * We have finished. Clean up the test harness. Tell the user we have finished
+   * testing if the -b flag was given and we are running in background mode.
+   ****************************************************************************/
   test_harness.cleanup_harness();
+
+  if (background) {
+    if (background_com->SendInt(HARNESS_TESTS_DONE) < 0) {
+      cerr << "Error telling user done testing" << endl;
+      delete background_com;
+      test_harness.cleanup_harness();
+      return -1;
+    }
+    delete background_com;
+  }
+
   return 0;
 }
