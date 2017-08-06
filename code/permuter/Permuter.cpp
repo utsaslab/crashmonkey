@@ -20,6 +20,9 @@ struct range {
   unsigned int end;
 };
 
+static const unsigned int kRetryMultiplier = 2;
+static const unsigned int kMinRetries = 1000;
+
 }  // namespace
 
 
@@ -113,30 +116,43 @@ bool Permuter::GenerateCrashState(vector<disk_write>& res) {
   unsigned long retries = 0;
   unsigned int exists = 0;
   bool new_state = true;
+  vector<unsigned int> crash_state_hash;
+
+  unsigned long max_retries =
+    ((kRetryMultiplier * completed_permutations_.size()) < kMinRetries)
+      ? kMinRetries
+      : kRetryMultiplier * completed_permutations_.size();
   do {
     new_state = gen_one_state(crash_state);
 
-    vector<unsigned int> crash_state_hash(crash_state.size());
+    crash_state_hash.clear();
+    crash_state_hash.resize(crash_state.size());
     for (unsigned int i = 0; i < crash_state.size(); ++i) {
       crash_state_hash.at(i) = crash_state.at(i).abs_index;
     }
 
     ++retries;
     exists = completed_permutations_.count(crash_state_hash);
-    if (retries >= 2 * crash_state.size()) {
-      // We've likely found all possible crash states so just break.
+    if (!new_state || retries >= max_retries) {
+      // We've likely found all possible crash states so just break. The
+      // constant in the multiplier was randomly chosen in the hopes that it
+      // would be a good hueristic. This is more to make sure that we don't spin
+      // endlessly than it is for it to be a good way to break out of trying to
+      // make unique permutations.
       break;
     }
   } while (exists > 0);
 
   // Move the permuted crash state data over into the returned crash state
   // vector.
+  res.clear();
   res.resize(crash_state.size());
   for (unsigned int i = 0; i < crash_state.size(); ++i) {
     res.at(i) = crash_state.at(i).op;
   }
 
   if (exists == 0) {
+    completed_permutations_.insert(crash_state_hash);
     // We broke out of the above loop because this state is unique.
     return new_state;
   }

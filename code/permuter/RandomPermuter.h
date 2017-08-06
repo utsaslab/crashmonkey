@@ -2,7 +2,6 @@
 #define RANDOM_PERMUTER_H
 
 #include <random>
-#include <unordered_set>
 #include <vector>
 
 #include "Permuter.h"
