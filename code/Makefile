@@ -19,17 +19,22 @@ cow_brd.ko disk_wrapper.ko: $(MODULES)
 $(BUILD_DIR)/harness: harness/c_harness.cpp harness/Tester.cpp \
 		$(UTILS_OBJS) $(BUILD_DIR)/utils/communication/ServerSocket.o \
 		$(BUILD_DIR)/utils/communication/ClientSocket.o \
-		$(BUILD_DIR)/utils/communication/BaseSocket.o
+		$(BUILD_DIR)/utils/communication/BaseSocket.o \
+		$(BUILD_DIR)/permuter/Permuter.o
 	$(GPP) $(GOPTS) $^ -ldl -o $(BUILD_DIR)/$@
 
 tests/%.so: tests/$(addsuffix .cpp, %) tests/BaseTestCase.h
 	$(GPP) $(GOPTS) $(GOTPSSO) -Wl,-soname,$(notdir $@) \
 		-o $@ $<
 	
-permuter/RandomPermuter.so: permuter/RandomPermuter.cpp permuter/RandomPermuter.h \
-		disk_wrapper_ioctl.h $(UTILS_OBJS)
+$(BUILD_DIR)/permuter/Permuter.o: permuter/Permuter.cpp
+	mkdir -p $(@D)
+	$(GPP) $(GOPTS) -fPIC -c -o $@ $<
+
+permuter/RandomPermuter.so: permuter/RandomPermuter.cpp \
+		$(BUILD_DIR)/permuter/Permuter.o $(UTILS_OBJS)
 	$(GPP) $(GOPTS) $(GOTPSSO) -Wl,-soname,RandomPermuter.so \
-		-o permuter/RandomPermuter.so permuter/RandomPermuter.cpp $(UTILS_OBJS)
+		-o permuter/RandomPermuter.so $^
 
 utils/utils.o: utils/utils.h utils/utils.cpp disk_wrapper_ioctl.h
 	$(GPP) $(GOPTS) -fPIC -o utils/utils.o -c utils/utils.cpp

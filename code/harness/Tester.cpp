@@ -448,7 +448,7 @@ int Tester::test_check_random_permutations(const int num_rounds) {
   time_point<steady_clock> start_time = steady_clock::now();
   test_test_stats[TESTS_RUN] = 0;
   Permuter *p = permuter_loader.get_instance();
-  p->init_data(&log_data);
+  p->InitDataVector(&log_data);
   vector<disk_write> permutes;
   for (int rounds = 0; rounds < num_rounds; ++rounds) {
     // Print status every 1024 iterations.
@@ -457,11 +457,15 @@ int Tester::test_check_random_permutations(const int num_rounds) {
     }
     // Begin permute timing.
     time_point<steady_clock> permute_start_time = steady_clock::now();
-    p->gen_one_state(permutes);
+    bool new_state = p->GenerateCrashState(permutes);
     time_point<steady_clock> permute_end_time = steady_clock::now();
     timing_stats[PERMUTE_TIME] +=
         duration_cast<milliseconds>(permute_end_time - permute_start_time);
     // End permute timing.
+
+    if (!new_state) {
+      break;
+    }
 
     ++test_test_stats[TESTS_RUN];
     //cout << '.' << std::flush;
@@ -548,6 +552,11 @@ int Tester::test_check_random_permutations(const int num_rounds) {
   //cout << endl;
   time_point<steady_clock> end_time = steady_clock::now();
   timing_stats[TOTAL_TIME] = duration_cast<milliseconds>(end_time - start_time);
+
+  if (test_test_stats[TESTS_RUN] < num_rounds) {
+    cout << "=============== Unable to find new unique state, stopping at "
+      << test_test_stats[TESTS_RUN] << " tests ===============" << endl << endl;
+  }
   return SUCCESS;
 }
 
