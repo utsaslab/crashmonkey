@@ -446,7 +446,7 @@ int Tester::test_run() {
 
 int Tester::test_check_random_permutations(const int num_rounds) {
   time_point<steady_clock> start_time = steady_clock::now();
-  test_test_stats[TESTS_RUN] = 0;
+  test_results_.clear();
   Permuter *p = permuter_loader.get_instance();
   p->InitDataVector(&log_data);
   vector<disk_write> permutes;
@@ -455,6 +455,11 @@ int Tester::test_check_random_permutations(const int num_rounds) {
     if (rounds & (~((1 << 10) - 1)) && !(rounds & ((1 << 10) - 1))) {
       cout << rounds << std::endl;
     }
+
+    /***************************************************************************
+     * Generate and write out a crash state.
+     **************************************************************************/
+
     // Begin permute timing.
     time_point<steady_clock> permute_start_time = steady_clock::now();
     bool new_state = p->GenerateCrashState(permutes);
@@ -467,19 +472,26 @@ int Tester::test_check_random_permutations(const int num_rounds) {
       break;
     }
 
-    ++test_test_stats[TESTS_RUN];
+    // Strange semantics, but since the below function has so many different
+    // places the loop can be broken, this is easier than trying to get
+    // everything to exit at the same place.
+    test_results_.push_back({});
+    SingleTestInfo& test_info = test_results_.back();
+
     //cout << '.' << std::flush;
 
     // Restore disk clone.
     int cow_brd_snapshot_fd = open(SNAPSHOT_PATH, O_WRONLY);
     if (cow_brd_snapshot_fd < 0) {
       cerr << "error opening snapshot to write permuted bios" << endl;
+      test_info.fs_test.SetError({FileSystemTestResult::kSnapshotRestore});
+      continue;
     }
     // Begin snapshot timing.
     time_point<steady_clock> snapshot_start_time = steady_clock::now();
     if (clone_device_restore(cow_brd_snapshot_fd, false) != SUCCESS) {
-      cout << endl;
-      return DRIVE_CLONE_RESTORE_ERR;
+      test_info.fs_test.SetError({FileSystemTestResult::kSnapshotRestore});
+      continue;
     }
     time_point<steady_clock> snapshot_end_time = steady_clock::now();
     timing_stats[SNAPSHOT_TIME] +=
@@ -495,12 +507,15 @@ int Tester::test_check_random_permutations(const int num_rounds) {
     timing_stats[BIO_WRITE_TIME] +=
         duration_cast<milliseconds>(bio_write_end_time - bio_write_start_time);
     if (!write_data_res) {
-      ++test_test_stats[TEST_ERR];
-      cout << "test errored in writing data" << endl;
+      test_info.fs_test.SetError({FileSystemTestResult::kBioWrite});
       close(cow_brd_snapshot_fd);
       continue;
     }
     close(cow_brd_snapshot_fd);
+
+    /***************************************************************************
+     * Begin testing the crash state that was just written out.
+     **************************************************************************/
 
     string command(TEST_CASE_FSCK + fs_type + " " + SNAPSHOT_PATH
         + " -- -y");
@@ -509,57 +524,53 @@ int Tester::test_check_random_permutations(const int num_rounds) {
     }
     // Begin fsck timing.
     time_point<steady_clock> fsck_start_time = steady_clock::now();
-    const int fsck_res = system(command.c_str());
+    test_info.fs_test.fs_check_return = system(command.c_str());
     time_point<steady_clock> fsck_end_time = steady_clock::now();
     timing_stats[FSCK_TIME] +=
         duration_cast<milliseconds>(fsck_end_time - fsck_start_time);
     // End fsck timing.
-    if (!(fsck_res == 0 || WEXITSTATUS(fsck_res) == 1)) {
+    if (!(test_info.fs_test.fs_check_return == 0
+          || WEXITSTATUS(test_info.fs_test.fs_check_return) == 1)) {
       /*
       cerr << "Error running fsck on snapshot file system: " <<
         WEXITSTATUS(fsck_res) << "\n";
       */
-      ++test_test_stats[TEST_FSCK_FAIL];
+      test_info.fs_test.SetError({FileSystemTestResult::kCheck});
+      continue;
+    }
+    // TODO(ashmrtn): Consider mounting with options specified for test
+    // profile?
+    if (mount_device(SNAPSHOT_PATH, NULL) != SUCCESS) {
+      test_info.fs_test.SetError({FileSystemTestResult::kUnmountable});
+      continue;
     } else {
-      // TODO(ashmrtn): Consider mounting with options specified for test
-      // profile?
-      if (mount_device(SNAPSHOT_PATH, NULL) != SUCCESS) {
-        ++test_test_stats[TEST_FSCK_FAIL];
-        continue;
-      }
       // Begin test case timing.
       time_point<steady_clock> test_case_start_time = steady_clock::now();
-      const int test_check_res = test_loader.get_instance()->check_test();
+      const int test_check_res =
+          test_loader.get_instance()->check_test(&test_info.data_test);
       time_point<steady_clock> test_case_end_time = steady_clock::now();
       timing_stats[TEST_CASE_TIME] += duration_cast<milliseconds>(
         test_case_end_time - test_case_start_time);
       // End test case timing.
-      if (test_check_res < 0) {
-        ++test_test_stats[TEST_BAD_DATA];
-      } else if (test_check_res == 0 && fsck_res != 0) {
-        ++test_test_stats[TEST_FSCK_FIX];
-      } else if (test_check_res == 0 && fsck_res == 0) {
-        ++test_test_stats[TEST_PASS];
-      } else {
-        ++test_test_stats[TEST_ERR];
-        /*
-        cerr << "test errored for other reason" << endl;
-        */
+
+      if (test_check_res == 0 && test_info.fs_test.fs_check_return != 0) {
+        test_info.fs_test.SetError({FileSystemTestResult::kFixed});
       }
-      umount_device();
     }
+    umount_device();
   }
   //cout << endl;
   time_point<steady_clock> end_time = steady_clock::now();
   timing_stats[TOTAL_TIME] = duration_cast<milliseconds>(end_time - start_time);
 
-  if (test_test_stats[TESTS_RUN] < num_rounds) {
+  if (test_results_.size() < num_rounds) {
     cout << "=============== Unable to find new unique state, stopping at "
-      << test_test_stats[TESTS_RUN] << " tests ===============" << endl << endl;
+      << test_results_.size() << " tests ===============" << endl << endl;
   }
   return SUCCESS;
 }
 
+/*
 int Tester::test_check_current() {
   string command(TEST_CASE_FSCK + fs_type + " " + device_mount
       + " -- -y");
@@ -595,6 +606,7 @@ int Tester::test_check_current() {
 
   return SUCCESS;
 }
+*/
 
 int Tester::test_restore_log() {
   // We need to mount the original device because we intercept bios after they

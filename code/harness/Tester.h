@@ -8,6 +8,7 @@
 
 #include "../utils/ClassLoader.h"
 #include "../permuter/Permuter.h"
+#include "SingleTestInfo.h"
 #include "../tests/BaseTestCase.h"
 #include "../utils/utils.h"
 
@@ -121,6 +122,8 @@ class Tester {
   int log_snapshot_load(std::string log_file);
 
   std::chrono::milliseconds get_timing_stat(time_stats timing_stat);
+  void PrintTimingStats(std::ostream& os);
+  void PrintTestStats(std::ostream& os);
 
   // TODO(ashmrtn): Figure out why making these private slows things down a lot.
  private:
@@ -154,6 +157,7 @@ class Tester {
       const std::vector<fs_testing::utils::disk_write>::iterator& start,
       const std::vector<fs_testing::utils::disk_write>::iterator& end);
 
+  std::vector<SingleTestInfo> test_results_;
   std::chrono::milliseconds timing_stats[NUM_TIME] =
       {std::chrono::milliseconds(0)};
 

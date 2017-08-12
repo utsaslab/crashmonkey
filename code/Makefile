@@ -10,18 +10,23 @@ GOTPSSO = -shared -fPIC
 UTILS_OBJS = utils/utils_c.o utils/utils.o
 BUILD_DIR = ../build
 
-default: cow_brd.ko disk_wrapper.ko $(UTILS_OBJS) $(BUILD_DIR)/harness \
+default: cow_brd.ko disk_wrapper.ko $(UTILS_OBJS) $(BUILD_DIR)/c_harness \
 		permuter/RandomPermuter.so user_tools
 
 cow_brd.ko disk_wrapper.ko: $(MODULES)
 	$(MAKE) -C $(KDIR) M=$(PWD) modules
 
-$(BUILD_DIR)/harness: harness/c_harness.cpp harness/Tester.cpp \
+$(BUILD_DIR)/c_harness: harness/c_harness.cpp harness/Tester.cpp \
 		$(UTILS_OBJS) $(BUILD_DIR)/utils/communication/ServerSocket.o \
 		$(BUILD_DIR)/utils/communication/ClientSocket.o \
 		$(BUILD_DIR)/utils/communication/BaseSocket.o \
-		$(BUILD_DIR)/permuter/Permuter.o
+		$(BUILD_DIR)/permuter/Permuter.o \
+		$(BUILD_DIR)/harness/FileSystemTestResult.o
 	$(GPP) $(GOPTS) $^ -ldl -o $(BUILD_DIR)/$@
+
+$(BUILD_DIR)/harness/FileSystemTestResult.o: harness/FileSystemTestResult.cpp
+	mkdir -p $(@D)
+	$(GPP) $(GOPTS) -fPIC -c -o $@ $<
 
 tests/%.so: tests/$(addsuffix .cpp, %) tests/BaseTestCase.h
 	$(GPP) $(GOPTS) $(GOTPSSO) -Wl,-soname,$(notdir $@) \
