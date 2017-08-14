@@ -3,25 +3,30 @@
 namespace fs_testing {
 namespace tests {
 
-using std::initializer_list;
 using std::ostream;
 
-void DataTestSummary::ResetError() {
-  error_summary_ = 0;
+DataTestResult::DataTestResult() {
+  error_summary_ = DataTestResult::kClean;
 }
 
-void DataTestResult::SetError(initializer_list<ErrorType> errors) {
-  for (const auto& err : errors) {
-    error_summary_ |= err;
-  }
+void DataTestResult::ResetError() {
+  error_summary_ = DataTestResult::kClean;
 }
 
-ostream& PrintErrors(ostream& os) {
+void DataTestResult::SetError(ErrorType err) {
+  error_summary_ = err;
+}
+
+DataTestResult::ErrorType DataTestResult::GetError() const {
+  return error_summary_;
+}
+
+ostream& DataTestResult::PrintErrors(ostream& os) {
   unsigned int noted_errors = error_summary_;
   unsigned int shift = 0;
   while (noted_errors != 0) {
     if (noted_errors & 1) {
-      os << (ErrorType) (1 << shift);
+      os << (DataTestResult::ErrorType) (1 << shift);
     }
     ++shift;
     noted_errors >>= 1;
@@ -30,21 +35,21 @@ ostream& PrintErrors(ostream& os) {
   return os;
 }
 
-ostream& operator<<(ostream& os, ErrorType err) {
+ostream& operator<<(ostream& os, DataTestResult::ErrorType err) {
   switch (err) {
-    case fs_testing::tests::DataTestResult::kOldFilePersisted:
+    case DataTestResult::kOldFilePersisted:
       os << "old_file_persisted";
       break;
-    case fs_testing::tests::DataTestResult::kFileMissing:
+    case DataTestResult::kFileMissing:
       os << "file_missing";
       break;
-    case fs_testing::tests::DataTestResult::kFileDataCorrupted:
+    case DataTestResult::kFileDataCorrupted:
       os << "file_data_corrupted";
       break;
-    case fs_testing::tests::DataTestResult::kFileMetadataCorrupted:
+    case DataTestResult::kFileMetadataCorrupted:
       os << "file_metadata_corrupted";
       break;
-    case fs_testing::tests::DataTestResult::kOther:
+    case DataTestResult::kOther:
       os << "other_error";
       break;
     default:

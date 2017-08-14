@@ -446,7 +446,7 @@ int Tester::test_run() {
 
 int Tester::test_check_random_permutations(const int num_rounds) {
   time_point<steady_clock> start_time = steady_clock::now();
-  test_results_.clear();
+  TestSuiteResult test_suite;
   Permuter *p = permuter_loader.get_instance();
   p->InitDataVector(&log_data);
   vector<disk_write> permutes;
@@ -472,11 +472,7 @@ int Tester::test_check_random_permutations(const int num_rounds) {
       break;
     }
 
-    // Strange semantics, but since the below function has so many different
-    // places the loop can be broken, this is easier than trying to get
-    // everything to exit at the same place.
-    test_results_.push_back({});
-    SingleTestInfo& test_info = test_results_.back();
+    SingleTestInfo test_info;
 
     //cout << '.' << std::flush;
 
@@ -484,13 +480,14 @@ int Tester::test_check_random_permutations(const int num_rounds) {
     int cow_brd_snapshot_fd = open(SNAPSHOT_PATH, O_WRONLY);
     if (cow_brd_snapshot_fd < 0) {
       cerr << "error opening snapshot to write permuted bios" << endl;
-      test_info.fs_test.SetError({FileSystemTestResult::kSnapshotRestore});
+      test_info.fs_test.SetError(FileSystemTestResult::kSnapshotRestore);
       continue;
     }
     // Begin snapshot timing.
     time_point<steady_clock> snapshot_start_time = steady_clock::now();
     if (clone_device_restore(cow_brd_snapshot_fd, false) != SUCCESS) {
-      test_info.fs_test.SetError({FileSystemTestResult::kSnapshotRestore});
+      test_info.fs_test.SetError(FileSystemTestResult::kSnapshotRestore);
+      test_suite.AddCompletedTest(test_info);
       continue;
     }
     time_point<steady_clock> snapshot_end_time = steady_clock::now();
@@ -507,7 +504,8 @@ int Tester::test_check_random_permutations(const int num_rounds) {
     timing_stats[BIO_WRITE_TIME] +=
         duration_cast<milliseconds>(bio_write_end_time - bio_write_start_time);
     if (!write_data_res) {
-      test_info.fs_test.SetError({FileSystemTestResult::kBioWrite});
+      test_info.fs_test.SetError(FileSystemTestResult::kBioWrite);
+      test_suite.AddCompletedTest(test_info);
       close(cow_brd_snapshot_fd);
       continue;
     }
@@ -535,13 +533,15 @@ int Tester::test_check_random_permutations(const int num_rounds) {
       cerr << "Error running fsck on snapshot file system: " <<
         WEXITSTATUS(fsck_res) << "\n";
       */
-      test_info.fs_test.SetError({FileSystemTestResult::kCheck});
+      test_info.fs_test.SetError(FileSystemTestResult::kCheck);
+      test_suite.AddCompletedTest(test_info);
       continue;
     }
     // TODO(ashmrtn): Consider mounting with options specified for test
     // profile?
     if (mount_device(SNAPSHOT_PATH, NULL) != SUCCESS) {
-      test_info.fs_test.SetError({FileSystemTestResult::kUnmountable});
+      test_info.fs_test.SetError(FileSystemTestResult::kUnmountable);
+      test_suite.AddCompletedTest(test_info);
       continue;
     } else {
       // Begin test case timing.
@@ -554,18 +554,20 @@ int Tester::test_check_random_permutations(const int num_rounds) {
       // End test case timing.
 
       if (test_check_res == 0 && test_info.fs_test.fs_check_return != 0) {
-        test_info.fs_test.SetError({FileSystemTestResult::kFixed});
+        test_info.fs_test.SetError(FileSystemTestResult::kFixed);
       }
+      test_suite.AddCompletedTest(test_info);
     }
     umount_device();
   }
   //cout << endl;
+  test_results_.push_back(test_suite);
   time_point<steady_clock> end_time = steady_clock::now();
   timing_stats[TOTAL_TIME] = duration_cast<milliseconds>(end_time - start_time);
 
-  if (test_results_.size() < num_rounds) {
+  if (test_suite.GetCompleted() < num_rounds) {
     cout << "=============== Unable to find new unique state, stopping at "
-      << test_results_.size() << " tests ===============" << endl << endl;
+      << test_suite.GetCompleted() << " tests ===============" << endl << endl;
   }
   return SUCCESS;
 }
@@ -802,34 +804,14 @@ int Tester::log_snapshot_load(string log_file) {
   return SUCCESS;
 }
 
-std::chrono::milliseconds Tester::get_timing_stat(time_stats timing_stat) {
-  return timing_stats[timing_stat];
+void Tester::PrintTestStats(std::ostream& os) {
+  for (const auto& suite : test_results_) {
+    suite.PrintResults(os);
+  }
 }
 
-std::ostream& operator<<(std::ostream& os, Tester::test_stats test) {
-  switch (test) {
-    case fs_testing::Tester::TESTS_RUN:
-      os << "total tests";
-      break;
-    case fs_testing::Tester::TEST_FSCK_FAIL:
-      os << "fsck fail ";
-      break;
-    case fs_testing::Tester::TEST_BAD_DATA:
-      os << "bad data";
-      break;
-    case fs_testing::Tester::TEST_FSCK_FIX:
-      os << "fsck fix";
-      break;
-    case fs_testing::Tester::TEST_PASS:
-      os << "test pass";
-      break;
-    case fs_testing::Tester::TEST_ERR:
-      os << "test fail";
-      break;
-    default:
-      os.setstate(std::ios_base::failbit);
-  }
-  return os;
+std::chrono::milliseconds Tester::get_timing_stat(time_stats timing_stat) {
+  return timing_stats[timing_stat];
 }
 
 std::ostream& operator<<(std::ostream& os, Tester::time_stats time) {

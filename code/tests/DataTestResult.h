@@ -1,7 +1,6 @@
 #ifndef TESTS_DATA_TEST_ERROR_H
 #define TESTS_DATA_TEST_ERROR_H
 
-#include <initializer_list>
 #include <iostream>
 #include <string>
 
@@ -19,6 +18,7 @@ namespace {
 class DataTestResult {
  public:
   enum ErrorType {
+    kClean = 0,
     kOldFilePersisted = (1 << kOldFilePersisted_),
     kFileMissing = (1 << kFileMissing_),
     kFileDataCorrupted = (1 << kFileDataCorrupted_),
@@ -26,12 +26,15 @@ class DataTestResult {
     kOther = (1 << kOther_),
   };
 
-  void SetError(std::initializer_list<ErrorType> errors);
+  DataTestResult();
+  void ResetError();
+  void SetError(ErrorType errors);
+  ErrorType GetError() const;
   std::ostream& PrintErrors(std::ostream& os);
   std::string error_description;
 
  private:
-  unsigned int error_summary_;
+  ErrorType error_summary_;
 
 };
 

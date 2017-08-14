@@ -2,17 +2,22 @@
 
 namespace fs_testing {
 
-using std::initializer_list;
 using std::ostream;
 
-void FileSystemTestResult::ResetError() {
-  error_summary_ = 0;
+FileSystemTestResult::FileSystemTestResult() {
+  error_summary_ = FileSystemTestResult::kClean;
 }
 
-void FileSystemTestResult::SetError(initializer_list<ErrorType> errors) {
-  for (const auto& err : errors) {
-    error_summary_ |= err;
-  }
+void FileSystemTestResult::ResetError() {
+  error_summary_ = FileSystemTestResult::kClean;
+}
+
+void FileSystemTestResult::SetError(ErrorType err) {
+  error_summary_ = err;
+}
+
+FileSystemTestResult::ErrorType FileSystemTestResult::GetError() const {
+  return error_summary_;
 }
 
 ostream& FileSystemTestResult::PrintErrors(ostream& os) {

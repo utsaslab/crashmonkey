@@ -1,7 +1,6 @@
 #ifndef HARNESS_FILE_SYSTEM_TEST_RESULT_H
 #define HARNESS_FILE_SYSTEM_TEST_RESULT_H
 
-#include <initializer_list>
 #include <iostream>
 
 namespace fs_testing {
@@ -18,6 +17,7 @@ namespace {
 class FileSystemTestResult {
  public:
   enum ErrorType {
+    kClean = 0,
     kUnmountable = (1 << kUnmountable_),
     kFixed = (1 << kFixed_),
     kCheck = (1 << kCheck_),
@@ -26,15 +26,17 @@ class FileSystemTestResult {
     kOther = (1 << kOther_),
   };
 
+  FileSystemTestResult();
   void ResetError();
-  void SetError(std::initializer_list<ErrorType> errors);
+  void SetError(ErrorType errors);
+  ErrorType GetError() const;
   std::ostream& PrintErrors(std::ostream& os);
   std::string error_description;
 
   int fs_check_return;
 
  private:
-  unsigned int error_summary_;
+  ErrorType error_summary_;
 };
 
 std::ostream& operator<<(std::ostream& os, FileSystemTestResult::ErrorType err);

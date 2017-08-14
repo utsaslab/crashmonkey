@@ -8,7 +8,7 @@
 
 #include "../utils/ClassLoader.h"
 #include "../permuter/Permuter.h"
-#include "SingleTestInfo.h"
+#include "TestSuiteResult.h"
 #include "../tests/BaseTestCase.h"
 #include "../utils/utils.h"
 
@@ -48,16 +48,6 @@ class Tester {
   #endif
 
  public:
-  enum test_stats {
-    TESTS_RUN,
-    TEST_FSCK_FAIL,
-    TEST_BAD_DATA,
-    TEST_FSCK_FIX,
-    TEST_PASS,
-    TEST_ERR,
-    TEST_NUM,
-  };
-
   enum time_stats {
     PERMUTE_TIME,
     SNAPSHOT_TIME,
@@ -73,8 +63,6 @@ class Tester {
   void set_fs_type(const std::string type);
   void set_device(const std::string device_path);
   void set_flag_device(const std::string device_path);
-
-  int test_test_stats[TEST_NUM] = {0};
 
   const char* update_dirty_expire_time(const char* time);
 
@@ -157,13 +145,12 @@ class Tester {
       const std::vector<fs_testing::utils::disk_write>::iterator& start,
       const std::vector<fs_testing::utils::disk_write>::iterator& end);
 
-  std::vector<SingleTestInfo> test_results_;
+  std::vector<TestSuiteResult> test_results_;
   std::chrono::milliseconds timing_stats[NUM_TIME] =
       {std::chrono::milliseconds(0)};
 
 };
 
-std::ostream& operator<<(std::ostream& os, Tester::test_stats test);
 std::ostream& operator<<(std::ostream& os, Tester::time_stats time);
 
 }  // namespace fs_testing
