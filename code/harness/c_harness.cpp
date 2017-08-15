@@ -655,19 +655,8 @@ int main(int argc, char** argv) {
     test_harness.test_check_random_permutations(iterations);
     test_harness.remove_cow_brd();
 
-    cout << "Ran " << test_harness.test_test_stats[Tester::TESTS_RUN] << " tests"
-          << endl
-      << '\t' << test_harness.test_test_stats[Tester::TEST_FSCK_FAIL]
-          << " tests fsck failed" << endl
-      << '\t' << test_harness.test_test_stats[Tester::TEST_BAD_DATA]
-          << " tests bad data" << endl
-      << '\t' << test_harness.test_test_stats[Tester::TEST_FSCK_FIX]
-          << " tests fsck fix" << endl
-      << '\t' << test_harness.test_test_stats[Tester::TEST_PASS]
-          << " tests passed" << endl
-      << '\t' << test_harness.test_test_stats[Tester::TEST_ERR]
-          << " tests errored" << endl;
-    cout << "Time stats:" << endl;
+    test_harness.PrintTestStats(cout);
+    cout << endl;
 
     for (unsigned int i = 0; i < Tester::NUM_TIME; ++i) {
       cout << "\t" << (Tester::time_stats) i << ": "
