@@ -8,7 +8,7 @@
 
 #include "../utils/ClassLoader.h"
 #include "../permuter/Permuter.h"
-#include "TestSuiteResult.h"
+#include "../results/TestSuiteResult.h"
 #include "../tests/BaseTestCase.h"
 #include "../utils/utils.h"
 

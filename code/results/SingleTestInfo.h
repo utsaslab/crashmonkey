@@ -1,7 +1,7 @@
 #ifndef HARNESS_SINGLE_TEST_INFO_H
 #define HARNESS_SINGLE_TEST_INFO_H
 
-#include "../tests/DataTestResult.h"
+#include "DataTestResult.h"
 #include "FileSystemTestResult.h"
 
 namespace fs_testing {

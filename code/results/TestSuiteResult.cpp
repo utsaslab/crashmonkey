@@ -1,6 +1,6 @@
-#include "TestSuiteResult.h"
+#include "DataTestResult.h"
 #include "FileSystemTestResult.h"
-#include "../tests/DataTestResult.h"
+#include "TestSuiteResult.h"
 
 namespace fs_testing {
 

@@ -1,7 +1,7 @@
 #ifndef TEST_CASE_H
 #define TEST_CASE_H
 
-#include "DataTestResult.h"
+#include "../results/DataTestResult.h"
 
 namespace fs_testing {
 namespace tests {
