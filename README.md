@@ -66,19 +66,20 @@ Some tests for CrashMonkey reside in the `test` directory of the repo. Tests lev
 CrashMonkey can be run either as a standalone program or as a background program. When in standalone mode, Crashmonkey will automatically load and run the user defined C++ setup and workload methods. In both modes, CrashMonkey will look for user defined data consistency tests in the `.so` test file provided to CrashMonkey on the command line. When run as a background process, the user is allowed to run setup and workload methods outside of CrashMonkey use a series of simple stub programs to communicate with CrashMonkey. In both modes of operation, command line flags have the same meaning.
 
 #### Running as a Standalone Program ####
-Pre-specified runs can be performed with `make run_no_log` or `make run_no_log_big NUM_TESTS=<number of crash states to test>`. **Before running either of these tests, you will have to create a directory at `/mnt/snapshot` for the test harness to mount test devices at.** If you would like to run CrashMonkey by hand, you must run the `c_harness` binary and at least provide the following:
+Pre-specified runs can be performed with `make run_no_log_rename`. **Before running either of these tests, you will have to create a directory at `/mnt/snapshot` for the test harness to mount test devices at.** If you would like to run CrashMonkey by hand, you must run the `c_harness` binary and at least provide the following:
 
 * `-f` - block device to copy device queue flags from. This controls what flags (FUA, flush, etc) will be allowed to propagate to the device wrapper
 * `-t` - file system type, right now CrashMonkey is only tested on ext4
 * `-d` - device to run tests on. Currently the only valid option is `/dev/cow_ram0`. This flag should hopefully go away soon.
 
-To run your own CrashMonkey, use: `./c_harness <flags> <user defined workload>`
+To run your own CrashMonkey, use: `../build/c_harness <flags> <user defined workload>`
 
 A full listing of flags for CrashMonkey can be found in `code/haress/c_harness.c`
 
 #### Running as a Background Process ####
 There are currently no scripts or pre-defined `make` rules for running CrashMonkey as a background process. However, an example of how to run a simple CrashMonkey smoke test in background mode is shown below. **Before running either of these tests, you will have to create a directory at `/mnt/snapshot` for the test harness to mount test devices at.**
 
+**Example under construction right now**
 1. open 2 shells in you virtual machine and `cd` into the root directory of the repository
 1. shell 1: `cd code`
 1. shell 1: `make default tests/echo_sub_dir.so`
