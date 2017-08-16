@@ -72,28 +72,33 @@ $(BUILD_DIR)/utils/communication/%.o: utils/communication/%.cpp
 	mkdir -p $(dir $@)
 	$(GPP) -c $(GOPTS) -o $@ $<
 
-run_no_log: harness tests/echo_sub_dir.so
-	sudo ./c_harness -f /dev/sda -t ext4 -m barrier -d /dev/cow_ram0 \
+run_no_log_rename: $(BUILD_DIR)/c_harness cow_brd.ko disk_wrapper.ko \
+		tests/rename_root_to_sub.so permuter/RandomPermuter.so
+	sudo $< -f /dev/sda -t ext2 -d /dev/cow_ram0 -e 10240 -s 325 \
+		tests/rename_root_to_sub.so
+
+run_no_log: $(BUILD_DIR)/c_harness tests/echo_sub_dir.so
+	sudo $< -f /dev/sda -t ext4 -m barrier -d /dev/cow_ram0 \
 		-e 10240 tests/echo_sub_dir.so
 
-run_no_log_huge: harness tests/echo_sub_dir_huge.so
-	sudo ./c_harness -f /dev/sda -t ext4 -m barrier -d /dev/cow_ram0 \
+run_no_log_huge: $(BUILD_DIR)/c_harness tests/echo_sub_dir_huge.so
+	sudo $< -f /dev/sda -t ext4 -m barrier -d /dev/cow_ram0 \
 		-e 15360 -s $(NUM_TESTS) tests/echo_sub_dir_huge.so
 
-run_no_log_big: harness tests/echo_sub_dir_big.so
-	sudo ./c_harness -f /dev/sda -t ext4 -m barrier -d /dev/cow_ram0 \
+run_no_log_big: $(BUILD_DIR)/c_harness tests/echo_sub_dir_big.so
+	sudo $< -f /dev/sda -t ext4 -m barrier -d /dev/cow_ram0 \
 		-e 10240 -s $(NUM_TESTS) tests/echo_sub_dir_big.so
 
-run_no_log_direct: harness tests/sub_dir_odirect.so
-	sudo ./c_harness -f /dev/sda -t ext4 -m barrier -d /dev/cow_ram0 \
+run_no_log_direct: $(BUILD_DIR)/c_harness tests/sub_dir_odirect.so
+	sudo $< -f /dev/sda -t ext4 -m barrier -d /dev/cow_ram0 \
 		-e 10240 -s $(NUM_TESTS) tests/sub_dir_odirect.so
 
-run_no_log_mmap: harness tests/sub_dir_mmap.so
-	sudo ./c_harness -f /dev/sda -t ext4 -m barrier -d /dev/cow_ram0 \
+run_no_log_mmap: $(BUILD_DIR)/c_harness tests/sub_dir_mmap.so
+	sudo $< -f /dev/sda -t ext4 -m barrier -d /dev/cow_ram0 \
 		-e 10240 -s $(NUM_TESTS) tests/sub_dir_mmap.so
 
-run_no_log_no_sync: harness tests/echo_sub_dir_no_sync.so
-	sudo ./c_harness -f /dev/sda -t ext4 -m barrier -d /dev/cow_ram0 \
+run_no_log_no_sync: $(BUILD_DIR)/c_harness tests/echo_sub_dir_no_sync.so
+	sudo $< -f /dev/sda -t ext4 -m barrier -d /dev/cow_ram0 \
 		-e 10240 tests/echo_sub_dir_no_sync.so
 
 clean:
