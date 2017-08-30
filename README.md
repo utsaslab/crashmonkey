@@ -1,4 +1,21 @@
 # CrashMonkey #
+
+## Special About This Version ##
+This version of CrashMonkey is a hacked build that allows users to run the `xfs`
+program from `xfstests` in their test case. Currently the file path for `xfs`
+must be hardcoded. `xfstests` must be present and built on the machine running
+this version of CrashMonkey prior to running the CrashMonkey test case. Check
+`code/test/ext4_regression_bug.cpp`.
+
+Furthermore, this has some extra print statements to aid with reading fsck
+errors. These will print when run in verbose mode. If you do decide to run in
+verbose mode, I recommend using `tee` or file redirection and saving everything
+to file rather than just scrolling the console. It is quite a bit of output.
+
+1. Build with `cd crashmonkey/code; make default tests/ext4_regression_bug.so`
+2. run with `sudo ../build/c_harness -v -d /dev/cow_ram0 -e 10240 -f /dev/vda -t ext4 tests/ext4_regression_bug.so | tee ~/ext4_regression.log`
+    1. `-f /dev/vda` assumes block device `/dev/vda` exists. This is used to copy flags from. It can be changed to another block device, though avoid ramdisks as it will silence flush/fua flags.
+
 ### What is CrashMonkey? ###
 
 CrashMonkey is a file-system agnostic testing framework for file-system consistency. It is meant to explore many crash states that are possible when a computer crashes in the middle of a write operation. CrashMonkey is made up of 3 main parts:
