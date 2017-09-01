@@ -53,7 +53,7 @@ To get everything working:
 
 ### Compiling CrashMonkey ###
 CrashMonkey can be built simply by running `make` in the root directory of the
-repositiory. This will build all the needed kernel modules, tests, and test
+repository. This will build all the needed kernel modules, tests, and test
 harness components needed to run CrashMonkey.
 
 ### Compiling User Defined Tests ###
