@@ -29,6 +29,10 @@
 
 #define OPTS_STRING "bd:f:e:l:m:np:r:s:t:v"
 
+namespace {
+  unsigned int kSocketQueueDepth;
+}  // namespace
+
 using std::cerr;
 using std::cout;
 using std::endl;
@@ -187,7 +191,7 @@ int main(int argc, char** argv) {
     */
 
     background_com = new ServerSocket(SOCKET_NAME_OUTBOUND);
-    if (background_com->Init() < 0) {
+    if (background_com->Init(kSocketQueueDepth) < 0) {
       int err_no = errno;
       cerr << "Error starting socket to listen on " << err_no << endl;
       delete background_com;
@@ -456,6 +460,7 @@ int main(int argc, char** argv) {
     test_harness.clear_wrapper_log();
     cout << "Enabling wrapper device logging\n";
     test_harness.begin_wrapper_logging();
+
 
     /***************************************************************************
      * Run the actual workload that we will be testing.
