@@ -1,108 +1,147 @@
-TESTING := testing/log_on_off testing/test_get_log_ent_size
-MODULES = cow_brd.c disk_wrapper.c
-obj-m := $(addsuffix .o, $(basename $(MODULES)))
-KDIR := /lib/modules/$(shell uname -r)/build
-DEBUG_FLAGS += -g -DDEBUG
 GCC = gcc
 GPP = g++
+DEBUG_FLAGS += -g -DDEBUG
 GOPTS = -std=c++11
 GOTPSSO = -shared -fPIC
-UTILS_OBJS = utils/utils_c.o utils/utils.o
-BUILD_DIR = ../build
 
-default: cow_brd.ko disk_wrapper.ko $(UTILS_OBJS) $(BUILD_DIR)/c_harness \
-		permuter/RandomPermuter.so user_tools
+BUILD_DIR = $(CURDIR)/../build
+TESTING := testing/log_on_off testing/test_get_log_ent_size
 
-cow_brd.ko disk_wrapper.ko: $(MODULES)
-	$(MAKE) -C $(KDIR) M=$(PWD) modules
+MODULES = cow_brd disk_wrapper
+obj-m := $(addsuffix .o, $(MODULES))
+KDIR := /lib/modules/$(shell uname -r)/build
 
-$(BUILD_DIR)/c_harness: harness/c_harness.cpp harness/Tester.cpp \
-		$(UTILS_OBJS) $(BUILD_DIR)/utils/communication/ServerSocket.o \
+CM_TESTS = $(patsubst %.cpp, %.so, $(notdir $(wildcard $(CURDIR)/tests/*.cpp)))
+CM_PERMUTER_EXCLUDE = Permuter.cpp
+CM_PERMUTERS = \
+		$(patsubst %.cpp, %.so, \
+			$(filter-out $(CM_PERMUTER_EXCLUDE), \
+				$(notdir $(wildcard $(CURDIR)/permuter/*.cpp))))
+
+.PHONY: all modules c_harness user_tool $(CM_TESTS) $(CM_PERMUTERS) clean
+
+################################################################################
+# Rules used as shorthand to build things.
+################################################################################
+
+all: \
+		modules \
+		c_harness \
+		user_tools \
+		tests \
+		permuters
+
+modules: \
+		$(foreach MOD, $(MODULES), $(addsuffix .ko, $(BUILD_DIR)/$(MOD)))
+
+c_harness: \
+		$(BUILD_DIR)/c_harness
+
+user_tools: \
+		$(BUILD_DIR)/user_tools/begin_log \
+		$(BUILD_DIR)/user_tools/end_log \
+		$(BUILD_DIR)/user_tools/begin_tests
+
+tests: \
+		$(foreach TEST, $(CM_TESTS), $(BUILD_DIR)/tests/$(TEST))
+
+permuters: \
+		$(foreach PERMUTER, $(CM_PERMUTERS), $(BUILD_DIR)/permuter/$(PERMUTER))
+
+
+################################################################################
+# Rules that actually build things.
+################################################################################
+
+# Rule to make Makefile in build dir so that kbuild will build our modules into
+# a new directory.
+$(BUILD_DIR)/Makefile:
+	mkdir -p $(BUILD_DIR)
+	touch "$@"
+
+$(BUILD_DIR)/%.ko: \
+		%.c \
+		$(BUILD_DIR)/Makefile
+	$(MAKE) -C $(KDIR) M=$(BUILD_DIR) src=$(CURDIR) modules
+
+$(BUILD_DIR)/harness/%.o: \
+		harness/%.cpp
+	mkdir -p $(@D)
+	$(GPP) -std=c++11 $^ -c -o $@
+
+$(BUILD_DIR)/c_harness: \
+		harness/c_harness.cpp \
+		harness/Tester.cpp \
+		$(BUILD_DIR)/utils/utils.o \
+		$(BUILD_DIR)/utils/utils_c.o \
+		$(BUILD_DIR)/utils/communication/ServerSocket.o \
 		$(BUILD_DIR)/utils/communication/BaseSocket.o \
 		$(BUILD_DIR)/permuter/Permuter.o \
 		$(BUILD_DIR)/results/TestSuiteResult.o \
 		$(BUILD_DIR)/results/FileSystemTestResult.o \
 		$(BUILD_DIR)/results/DataTestResult.o
-	$(GPP) $(GOPTS) $^ -ldl -o $(BUILD_DIR)/$@
-
-$(BUILD_DIR)/harness/%.o: harness/%.cpp
 	mkdir -p $(@D)
-	$(GPP) $(GOPTS) -fPIC -c -o $@ $<
+	$(GPP) $(GOPTS) $^ -ldl -o $@
 
-tests/%.so: tests/$(addsuffix .cpp, %) $(BUILD_DIR)/results/DataTestResult.o
+$(BUILD_DIR)/tests/%.so: \
+		tests/%.cpp \
+		$(BUILD_DIR)/results/DataTestResult.o
+	mkdir -p $(@D)
 	$(GPP) $(GOPTS) $(GOTPSSO) -Wl,-soname,$(notdir $@) \
 		-o $@ $^
 
-$(BUILD_DIR)/tests/%.o: tests/$(addsuffix .cpp, %)
+$(BUILD_DIR)/tests/%.o: \
+		tests/%.cpp
 	mkdir -p $(@D)
 	$(GPP) $(GOPTS) -fPIC -c -o $@ $<
 
-$(BUILD_DIR)/results/%.o: results/%.cpp
+$(BUILD_DIR)/results/%.o: \
+		results/%.cpp
 	mkdir -p $(@D)
 	$(GPP) $(GOPTS) -fPIC -c -o $@ $<
 
-	
-$(BUILD_DIR)/permuter/Permuter.o: permuter/Permuter.cpp
+$(BUILD_DIR)/tests/%.so: \
+		tests/%.cpp
 	mkdir -p $(@D)
 	$(GPP) $(GOPTS) -fPIC -c -o $@ $<
 
-permuter/RandomPermuter.so: permuter/RandomPermuter.cpp \
-		$(BUILD_DIR)/permuter/Permuter.o $(UTILS_OBJS)
+$(BUILD_DIR)/permuter/Permuter.o: \
+		permuter/Permuter.cpp
+	mkdir -p $(@D)
+	$(GPP) $(GOPTS) -fPIC -c -o $@ $<
+
+$(BUILD_DIR)/permuter/%.so: \
+		$(BUILD_DIR)/permuter/Permuter.o \
+		$(BUILD_DIR)/utils/utils.o \
+		$(BUILD_DIR)/utils/utils_c.o
+	mkdir -p $(@D)
 	$(GPP) $(GOPTS) $(GOTPSSO) -Wl,-soname,RandomPermuter.so \
-		-o permuter/RandomPermuter.so $^
+		-o $(BUILD_DIR)/permuter/RandomPermuter.so $^
 
-utils/utils.o: utils/utils.h utils/utils.cpp disk_wrapper_ioctl.h
-	$(GPP) $(GOPTS) -fPIC -o utils/utils.o -c utils/utils.cpp
+$(BUILD_DIR)/utils/utils.o: \
+		utils/utils.cpp
+	mkdir -p $(@D)
+	$(GPP) $(GOPTS) -fPIC -c -o $@ $<
 
-utils/utils_c.o: utils/utils_c.h utils/utils_c.c disk_wrapper_ioctl.h
-	$(GCC) -o utils/utils_c.o -c utils/utils_c.c \
-		-I /usr/src/linux-headers-$(shell uname -r)/include/
+$(BUILD_DIR)/utils/utils_c.o: \
+		utils/utils_c.c
+	mkdir -p $(@D)
+	$(GCC) -c -o $@ $< -I /usr/src/linux-headers-$(shell uname -r)/include/
 
-user_tools/%: user_tools/$(addsuffix .cpp, %) \
-		$(BUILD_DIR)/utils/communication/ClientSocket.o \
+$(BUILD_DIR)/user_tools/%: \
+		user_tools/%.cpp \
 		$(BUILD_DIR)/utils/communication/BaseSocket.o \
+		$(BUILD_DIR)/utils/communication/ClientSocket.o \
 		$(BUILD_DIR)/utils/communication/ClientCommandSender.o
-	mkdir -p $(BUILD_DIR)/$(dir $@)
-	$(GPP) $(GOPTS) -o $(BUILD_DIR)/$(dir $@)/$* $^
+	mkdir -p $(@D)
+	$(GPP) $(GOPTS) -o $@ $^
 
-#user_tools: user_tools/begin_setup user_tools/end_setup user_tools/begin_log
-user_tools: user_tools/begin_log user_tools/end_log user_tools/begin_tests
-
-$(BUILD_DIR)/utils/communication/%.o: utils/communication/%.cpp
-	mkdir -p $(dir $@)
+$(BUILD_DIR)/utils/communication/%.o: \
+		utils/communication/%.cpp
+	mkdir -p $(@D)
 	$(GPP) -c $(GOPTS) -o $@ $<
 
-run_no_log_rename: $(BUILD_DIR)/c_harness cow_brd.ko disk_wrapper.ko \
-		tests/rename_root_to_sub.so permuter/RandomPermuter.so
-	sudo $< -f /dev/sda -t ext2 -d /dev/cow_ram0 -e 10240 -s 325 \
-		tests/rename_root_to_sub.so
-
-run_no_log: $(BUILD_DIR)/c_harness tests/echo_sub_dir.so
-	sudo $< -f /dev/sda -t ext4 -m barrier -d /dev/cow_ram0 \
-		-e 10240 tests/echo_sub_dir.so
-
-run_no_log_huge: $(BUILD_DIR)/c_harness tests/echo_sub_dir_huge.so
-	sudo $< -f /dev/sda -t ext4 -m barrier -d /dev/cow_ram0 \
-		-e 15360 -s $(NUM_TESTS) tests/echo_sub_dir_huge.so
-
-run_no_log_big: $(BUILD_DIR)/c_harness tests/echo_sub_dir_big.so
-	sudo $< -f /dev/sda -t ext4 -m barrier -d /dev/cow_ram0 \
-		-e 10240 -s $(NUM_TESTS) tests/echo_sub_dir_big.so
-
-run_no_log_direct: $(BUILD_DIR)/c_harness tests/sub_dir_odirect.so
-	sudo $< -f /dev/sda -t ext4 -m barrier -d /dev/cow_ram0 \
-		-e 10240 -s $(NUM_TESTS) tests/sub_dir_odirect.so
-
-run_no_log_mmap: $(BUILD_DIR)/c_harness tests/sub_dir_mmap.so
-	sudo $< -f /dev/sda -t ext4 -m barrier -d /dev/cow_ram0 \
-		-e 10240 -s $(NUM_TESTS) tests/sub_dir_mmap.so
-
-run_no_log_no_sync: $(BUILD_DIR)/c_harness tests/echo_sub_dir_no_sync.so
-	sudo $< -f /dev/sda -t ext4 -m barrier -d /dev/cow_ram0 \
-		-e 10240 tests/echo_sub_dir_no_sync.so
-
-clean:
-	$(MAKE) -C $(KDIR) M=$(PWD) clean
-	rm -f $(TESTING) tests/*.so c_harness permute *.o *.so utils/*.o permuter/*.so \
-		ioctl_test
-	rm -rf $(BUILD_DIR)/*
+# kbuild complains if the Makefile isn't in the build dir too.
+clean: $(BUILD_DIR)/Makefile
+	$(MAKE) -C $(KDIR) M=$(BUILD_DIR) clean
+	rm -f $(TESTING) ioctl_test

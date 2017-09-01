@@ -52,12 +52,13 @@ To get everything working:
     1. sorry, I'll edit the `vmbuilder` script at some point to just copy these files over
 
 ### Compiling CrashMonkey ###
-The test harness and test portion of CrashMonkey can be compiled with `cd code; make` or `cd code; make default`. This will build the kernel module, and test harness. Use `make tests/echo_sub_dir_huge.so` to build the `echo_sub_dir_huge` test case in the `code/tests` directory.
-
-In the future the build system will be switched over to either `CMake` or `Bazel` (because everyone has heard of a uses `Bazel` right?).
+CrashMonkey can be built simply by running `make` in the root directory of the
+repository. This will build all the needed kernel modules, tests, and test
+harness components needed to run CrashMonkey.
 
 ### Compiling User Defined Tests ###
-User defined tests reside in the `code/tests` directory. They can be compiled into static objects with `cd code; make user_tests`.
+User defined tests reside in the `code/tests` directory. They can be compiled
+into static objects with `make tests`.
 
 ### Compiling Tests for CrashMonkey ###
 Some tests for CrashMonkey reside in the `test` directory of the repo. Tests leverage `googletests` and are used to ensure the correctness and functionality of some of the user space portions of CrashMonkey (ex. the descendants of the `Permuter` class). Right now you'll have to examine the outputted binary names to determine what each binary tests. In the future, the build system will be updated to run the tests after compiling them.
@@ -66,15 +67,18 @@ Some tests for CrashMonkey reside in the `test` directory of the repo. Tests lev
 CrashMonkey can be run either as a standalone program or as a background program. When in standalone mode, Crashmonkey will automatically load and run the user defined C++ setup and workload methods. In both modes, CrashMonkey will look for user defined data consistency tests in the `.so` test file provided to CrashMonkey on the command line. When run as a background process, the user is allowed to run setup and workload methods outside of CrashMonkey use a series of simple stub programs to communicate with CrashMonkey. In both modes of operation, command line flags have the same meaning.
 
 #### Running as a Standalone Program ####
-Pre-specified runs can be performed with `make run_no_log_rename`. **Before running either of these tests, you will have to create a directory at `/mnt/snapshot` for the test harness to mount test devices at.** If you would like to run CrashMonkey by hand, you must run the `c_harness` binary and at least provide the following:
+Before running any tests with CrashMonkey, you will have to create a directory
+at `/mnt/snapshot` for the test harness to mount test devices at. If you would
+like to run CrashMonkey by hand, you must run the `c_harness` binary and at
+least provide the following:
 
-* `-f` - block device to copy device queue flags from. This controls what flags (FUA, flush, etc) will be allowed to propagate to the device wrapper
+* `-f` - block device to copy device queue flags from. This controls what flags (FUA, flush, etc) will be allowed to propagate to the device wrapper. Something like `/dev/vda` should work for this
 * `-t` - file system type, right now CrashMonkey is only tested on ext4
 * `-d` - device to run tests on. Currently the only valid option is `/dev/cow_ram0`. This flag should hopefully go away soon.
 
 To run your own CrashMonkey, use: `../build/c_harness <flags> <user defined workload>`
 
-A full listing of flags for CrashMonkey can be found in `code/haress/c_harness.c`
+A full listing of flags for CrashMonkey can be found in `code/harness/c_harness.c`
 
 #### Running as a Background Process ####
 There are currently no scripts or pre-defined `make` rules for running CrashMonkey as a background process. However, an example of how to run a simple CrashMonkey smoke test in background mode is shown below. **Before running either of these tests, you will have to create a directory at `/mnt/snapshot` for the test harness to mount test devices at.**

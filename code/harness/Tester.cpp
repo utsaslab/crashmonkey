@@ -41,12 +41,12 @@
 #define PART_DEL_PART_DRIVE_2 " << EOF\no\nw\nEOF\n"
 #define FMT_FMT_DRIVE   "mkfs -t "
 
-#define WRAPPER_MODULE_NAME "disk_wrapper.ko"
+#define WRAPPER_MODULE_NAME "../build/disk_wrapper.ko"
 #define WRAPPER_INSMOD      "insmod " WRAPPER_MODULE_NAME " target_device_path="
 #define WRAPPER_INSMOD2      " flags_device_path="
 #define WRAPPER_RMMOD       "rmmod " WRAPPER_MODULE_NAME
 
-#define COW_BRD_MODULE_NAME "cow_brd.ko"
+#define COW_BRD_MODULE_NAME "../build/cow_brd.ko"
 #define COW_BRD_INSMOD      "insmod " COW_BRD_MODULE_NAME " num_disks="
 #define COW_BRD_INSMOD2      " num_snapshots="
 #define COW_BRD_INSMOD3      " disk_size="
