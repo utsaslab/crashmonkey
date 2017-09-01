@@ -1,8 +1,8 @@
 # CrashMonkey #
 
 ## Special About This Version ##
-This version of CrashMonkey is a hacked build that allows users to run the `xfs`
-program from `xfstests` in their test case. Currently the file path for `xfs`
+This version of CrashMonkey is a hacked build that allows users to run the `fsx`
+program from `xfstests` in their test case. Currently the file path for `fsx`
 must be hardcoded. `xfstests` must be present and built on the machine running
 this version of CrashMonkey prior to running the CrashMonkey test case. Check
 `code/test/ext4_regression_bug.cpp`.
