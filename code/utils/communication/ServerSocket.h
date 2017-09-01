@@ -14,7 +14,7 @@ class ServerSocket: public BaseSocket {
  public:
   ServerSocket(std::string address);
   ~ServerSocket();
-  int Init();
+  int Init(unsigned int queue_depth);
   int WaitForInt(int* data);
   int SendInt(int data);
   int WaitAndSendInt(int data);

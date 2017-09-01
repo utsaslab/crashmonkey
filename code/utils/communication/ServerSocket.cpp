@@ -23,7 +23,7 @@ ServerSocket::~ServerSocket() {
   unlink(socket_address.c_str());
 }
 
-int ServerSocket::Init() {
+int ServerSocket::Init(unsigned int queue_depth) {
   server_socket = socket(AF_LOCAL, SOCK_STREAM | SOCK_CLOEXEC, 0);
   if (server_socket < -1) {
     return -1;
@@ -35,7 +35,7 @@ int ServerSocket::Init() {
     return -1;
   }
 
-  if (listen(server_socket, 1) < 0) {
+  if (listen(server_socket, queue_depth) < 0) {
     return -1;
   }
   return 0;
