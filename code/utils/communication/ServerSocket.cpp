@@ -24,7 +24,7 @@ ServerSocket::~ServerSocket() {
 }
 
 int ServerSocket::Init() {
-  server_socket = socket(AF_LOCAL, SOCK_STREAM, 0);
+  server_socket = socket(AF_LOCAL, SOCK_STREAM | SOCK_CLOEXEC, 0);
   if (server_socket < -1) {
     return -1;
   }
