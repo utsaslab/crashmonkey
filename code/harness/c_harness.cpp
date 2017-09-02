@@ -11,11 +11,11 @@
 #include <string>
 #include <vector>
 
-#include "../utils/utils.h"
-#include "../utils/communication/communication.h"
-#include "../utils/communication/ServerSocket.h"
-#include "Tester.h"
 #include "../tests/BaseTestCase.h"
+#include "../utils/communication/ServerSocket.h"
+#include "../utils/communication/SocketUtils.h"
+#include "../utils/utils.h"
+#include "Tester.h"
 
 #define TEST_SO_PATH "tests/"
 #define PERMUTER_SO_PATH "permuter/"
@@ -29,12 +29,19 @@
 
 #define OPTS_STRING "bd:f:e:l:m:np:r:s:t:v"
 
+namespace {
+  unsigned int kSocketQueueDepth;
+}  // namespace
+
 using std::cerr;
 using std::cout;
 using std::endl;
 using std::string;
 using fs_testing::Tester;
+using fs_testing::utils::communication::kSocketNameOutbound;
 using fs_testing::utils::communication::ServerSocket;
+using fs_testing::utils::communication::SocketError;
+using fs_testing::utils::communication::SocketMessage;
 
 static const option long_options[] = {
   {"background", no_argument, NULL, 'b'},
@@ -186,8 +193,8 @@ int main(int argc, char** argv) {
     }
     */
 
-    background_com = new ServerSocket(SOCKET_NAME_OUTBOUND);
-    if (background_com->Init() < 0) {
+    background_com = new ServerSocket(kSocketNameOutbound);
+    if (background_com->Init(kSocketQueueDepth) < 0) {
       int err_no = errno;
       cerr << "Error starting socket to listen on " << err_no << endl;
       delete background_com;
@@ -299,17 +306,18 @@ int main(int argc, char** argv) {
        * Background mode user setup. Wait for the user to tell use that they
        * have finished the pre-test setup phase.
        ************************************************************************/
-      int command;
+      SocketMessage command;
       do {
-        if (background_com->WaitForInt(&command) < 0) {
-          cerr << "Error getting command from socket" << endl;
+        if (background_com->WaitForMessage(&command) != SocketError::kNone) {
+          cerr << "Error getting message from socket" << endl;
           delete background_com;
           test_harness.cleanup_harness();
           return -1;
         }
 
-        if (command != HARNESS_BEGIN_LOG) {
-          if (background_com->SendInt(HARNESS_WRONG_COMMAND) < 0) {
+        if (command.type != SocketMessage::kBeginLog) {
+          if (background_com->SendCommand(SocketMessage::kInvalidCommand) !=
+              SocketError::kNone) {
             cerr << "Error sending response to client" << endl;
             delete background_com;
             test_harness.cleanup_harness();
@@ -317,7 +325,7 @@ int main(int argc, char** argv) {
           }
           background_com->CloseClient();
         }
-      } while (command != HARNESS_BEGIN_LOG);
+      } while (command.type != SocketMessage::kBeginLog);
     } else {
       /*************************************************************************
        * Standalone mode user setup. Run the pre-test "setup()" method defined
@@ -457,6 +465,7 @@ int main(int argc, char** argv) {
     cout << "Enabling wrapper device logging\n";
     test_harness.begin_wrapper_logging();
 
+
     /***************************************************************************
      * Run the actual workload that we will be testing.
      **************************************************************************/
@@ -466,7 +475,8 @@ int main(int argc, char** argv) {
        * preparations and are ready for them to run the workload since we are
        * now logging requests.
        ***********************************************************************/
-      if (background_com->SendInt(HARNESS_LOG_READY) < 0) {
+      if (background_com->SendCommand(SocketMessage::kBeginLogDone) !=
+          SocketError::kNone) {
         cerr << "Error telling user ready for workload" << endl;
         delete background_com;
         test_harness.cleanup_harness();
@@ -477,17 +487,18 @@ int main(int argc, char** argv) {
       cout << "+++++ Please run workload +++++" << endl;
 
       // Wait for the user to tell us they are done with the workload.
-      int command;
+      SocketMessage command;
       do {
-        if (background_com->WaitForInt(&command) < 0) {
+        if (background_com->WaitForMessage(&command) != SocketError::kNone) {
           cerr << "Error getting command from socket" << endl;
           delete background_com;
           test_harness.cleanup_harness();
           return -1;
         }
 
-        if (command != HARNESS_END_LOG) {
-          if (background_com->SendInt(HARNESS_WRONG_COMMAND) < 0) {
+        if (command.type != SocketMessage::kEndLog) {
+          if (background_com->SendCommand(SocketMessage::kInvalidCommand) !=
+              SocketError::kNone) {
             cerr << "Error sending response to client" << endl;
             delete background_com;
             test_harness.cleanup_harness();
@@ -495,7 +506,7 @@ int main(int argc, char** argv) {
           }
           background_com->CloseClient();
         }
-      } while (command != HARNESS_END_LOG);
+      } while (command.type != SocketMessage::kEndLog);
     } else {
       /*************************************************************************
        * Standalone mode user workload. Fork off a new process and run test
@@ -582,7 +593,8 @@ int main(int argc, char** argv) {
      * before beginning testing.
      **************************************************************************/
     if (background) {
-      if (background_com->SendInt(HARNESS_LOG_DONE) < 0) {
+      if (background_com->SendCommand(SocketMessage::kEndLogDone) !=
+          SocketError::kNone) {
         cerr << "Error telling user done logging" << endl;
         delete background_com;
         test_harness.cleanup_harness();
@@ -619,17 +631,19 @@ int main(int argc, char** argv) {
     /***************************************************************************
      * Background mode. Wait for the user to tell us to start testing.
      **************************************************************************/
-    int command;
+    SocketMessage command;
     do {
-      if (background_com->WaitForInt(&command) < 0) {
+      cout << "+++++ Ready to run tests, please confirm start +++++" << endl;
+      if (background_com->WaitForMessage(&command) != SocketError::kNone) {
         cerr << "Error getting command from socket" << endl;
         delete background_com;
         test_harness.cleanup_harness();
         return -1;
       }
 
-      if (command != HARNESS_RUN_TESTS) {
-        if (background_com->SendInt(HARNESS_WRONG_COMMAND) < 0) {
+      if (command.type != SocketMessage::kRunTests) {
+        if (background_com->SendCommand(SocketMessage::kInvalidCommand) !=
+            SocketError::kNone) {
           cerr << "Error sending response to client" << endl;
           delete background_com;
           test_harness.cleanup_harness();
@@ -637,7 +651,7 @@ int main(int argc, char** argv) {
         }
         background_com->CloseClient();
       }
-    } while (command != HARNESS_RUN_TESTS);
+    } while (command.type != SocketMessage::kRunTests);
   }
 
   cout << endl
@@ -675,7 +689,8 @@ int main(int argc, char** argv) {
   test_harness.cleanup_harness();
 
   if (background) {
-    if (background_com->SendInt(HARNESS_TESTS_DONE) < 0) {
+    if (background_com->SendCommand(SocketMessage::kRunTestsDone) !=
+        SocketError::kNone) {
       cerr << "Error telling user done testing" << endl;
       delete background_com;
       test_harness.cleanup_harness();

@@ -34,15 +34,30 @@ int ClientSocket::Init() {
   return 0;
 }
 
-int ClientSocket::WaitForInt(int* data) {
-  return ClientSocket::ReadIntFromSocket(socket_fd, data);
+SocketError ClientSocket::SendCommand(SocketMessage::CmCommand c) {
+  SocketMessage m;
+  m.type = c;
+  m.size = 0;
+  return SendMessage(m);
 }
 
-int ClientSocket::SendInt(int data) {
+SocketError ClientSocket::SendMessage(SocketMessage &m) {
   if (socket_fd < 0) {
-    return -1;
+    return SocketError::kNotConnected;
   }
-  return ClientSocket::WriteIntToSocket(socket_fd, data);
+
+  if (BaseSocket::WriteMessageToSocket(socket_fd, m) < 0) {
+    return SocketError::kSyscall;
+  }
+  return SocketError::kNone;
+}
+
+SocketError ClientSocket::WaitForMessage(SocketMessage *m) {
+  if (BaseSocket::ReadMessageFromSocket(socket_fd, m) < 0) {
+    return SocketError::kSyscall;
+  }
+
+  return SocketError::kNone;
 }
 
 void ClientSocket::CloseClient() {

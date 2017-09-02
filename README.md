@@ -83,19 +83,20 @@ A full listing of flags for CrashMonkey can be found in `code/harness/c_harness.
 #### Running as a Background Process ####
 There are currently no scripts or pre-defined `make` rules for running CrashMonkey as a background process. However, an example of how to run a simple CrashMonkey smoke test in background mode is shown below. **Before running either of these tests, you will have to create a directory at `/mnt/snapshot` for the test harness to mount test devices at.**
 
-**Example under construction right now**
 1. open 2 shells in you virtual machine and `cd` into the root directory of the repository
-1. shell 1: `cd code`
-1. shell 1: `make default tests/echo_sub_dir.so`
-1. shell 1: `sudo ../build/harness -f /dev/sda -t ext4 -m barrier -d /dev/cow_ram0 -e 10240 -b tests/echo_sub_dir.so`
+1. shell 1: `make`
+1. shell 1: `cd build`
+1. shell 2: `cd build`
+1. shell 1: `sudo ./c_harness -f /dev/sda -t ext4 -m barrier -d /dev/cow_ram0 -e 10240 -b tests/echo_sub_dir.so`
     1. `-e` specifies the RAM block device size to use in KB
+    1. `-f` specifies another block device to copy IO scheduler flags from
 1. shell 2: `sudo mkdir /mnt/snapshot/test_dir`
-1. shell 2: `sudo build/user_tools/begin_log`
+1. shell 2: `sudo user_tools/begin_log`
 1. shell 2: `sudo touch /mnt/snapshot/test_dir/test_file`
 1. shell 2: `sudo chmod 0777 /mnt/snapshot/test_dir/test_file`
 1. shell 2: `echo "hello great big world out there" | sudo tee /mnt/snapshot/test_dir/test_file`
-1. shell 2: `sudo build/user_tools/end_log`
-1. shell 2: `sudo build/user_tools/begin_tests`
+1. shell 2: `sudo user_tools/end_log`
+1. shell 2: `sudo user_tools/begin_tests`
 
 Again, a full list of flags for CrashMonkey can be found in `code/harness/c_harness.c`
 
