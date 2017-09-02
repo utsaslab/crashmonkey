@@ -111,6 +111,7 @@ $(BUILD_DIR)/permuter/Permuter.o: \
 	$(GPP) $(GOPTS) -fPIC -c -o $@ $<
 
 $(BUILD_DIR)/permuter/%.so: \
+		permuter/%.cpp \
 		$(BUILD_DIR)/permuter/Permuter.o \
 		$(BUILD_DIR)/utils/utils.o \
 		$(BUILD_DIR)/utils/utils_c.o
