@@ -17,7 +17,7 @@ ServerSocket::ServerSocket(string address): socket_address(address) {};
 
 ServerSocket::~ServerSocket() {
   // If we try to close an invalid file descriptor then oh well, nothing bad
-  // should happen.
+  // should happen (famous last words...).
   close(client_socket);
   close(server_socket);
   unlink(socket_address.c_str());
@@ -25,7 +25,7 @@ ServerSocket::~ServerSocket() {
 
 int ServerSocket::Init(unsigned int queue_depth) {
   server_socket = socket(AF_LOCAL, SOCK_STREAM | SOCK_CLOEXEC, 0);
-  if (server_socket < -1) {
+  if (server_socket < 0) {
     return -1;
   }
   struct sockaddr_un comm;
@@ -41,37 +41,39 @@ int ServerSocket::Init(unsigned int queue_depth) {
   return 0;
 }
 
-int ServerSocket::WaitForInt(int* data) {
-  if (client_socket >= 0) {
-    return -2;
-  }
-  // For now, don't care about getting the client address.
-  client_socket = accept(server_socket, NULL, NULL);
-  if (client_socket < 0) {
-    return -1;
-  }
-
-  return ServerSocket::ReadIntFromSocket(client_socket, data);
+SocketError ServerSocket::SendCommand(SocketMessage::CmCommand c) {
+  SocketMessage m;
+  m.type = c;
+  m.size = 0;
+  return SendMessage(m);
 }
 
-int ServerSocket::SendInt(int data) {
+SocketError ServerSocket::SendMessage(SocketMessage &m) {
   if (server_socket < 0) {
-    return -1;
+    return SocketError::kNotConnected;
   }
-  return ServerSocket::WriteIntToSocket(client_socket, data);
+
+  if (BaseSocket::WriteMessageToSocket(client_socket, m) < 0) {
+    return SocketError::kSyscall;
+  }
+  return SocketError::kNone;
 }
 
-int ServerSocket::WaitAndSendInt(int data) {
+SocketError ServerSocket::WaitForMessage(SocketMessage *m) {
+  // We're already connected to something.
   if (client_socket >= 0) {
-    return -2;
+    return SocketError::kAlreadyConnected;
   }
   // For now, don't care about getting the client address.
   client_socket = accept(server_socket, NULL, NULL);
   if (client_socket < 0) {
-    return -1;
+    return SocketError::kSyscall;
   }
 
-  return SendInt(data);
+  if (BaseSocket::ReadMessageFromSocket(client_socket, m)) {
+    return SocketError::kSyscall;
+  }
+  return SocketError::kNone;
 }
 
 void ServerSocket::CloseClient() {

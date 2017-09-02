@@ -5,18 +5,23 @@
 #include <vector>
 
 #include "BaseSocket.h"
+#include "SocketUtils.h"
 
 namespace fs_testing {
 namespace utils {
 namespace communication {
 
-class ClientSocket: public BaseSocket {
+// Simple class that acts as a client for a socket by sending and sometimes
+// receiving messages.
+// *** This is not a thread-safe class. ***
+class ClientSocket {
  public:
   ClientSocket(std::string address);
   ~ClientSocket();
   int Init();
-  int WaitForInt(int* data);
-  int SendInt(int data);
+  SocketError SendCommand(SocketMessage::CmCommand c);
+  SocketError SendMessage(SocketMessage &m);
+  SocketError WaitForMessage(SocketMessage *m);
   void CloseClient();
  private:
   int socket_fd = -1;
