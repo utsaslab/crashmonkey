@@ -1,9 +1,11 @@
 #include "../utils/communication/ClientCommandSender.h"
-#include "../utils/communication/communication.h"
+#include "../utils/communication/SocketUtils.h"
 
 using fs_testing::utils::communication::ClientCommandSender;
+using fs_testing::utils::communication::kSocketNameOutbound;
+using fs_testing::utils::communication::SocketMessage;
 
 int main(int argc, char** argv) {
-  return ClientCommandSender(SOCKET_NAME_OUTBOUND, HARNESS_END_LOG,
-      HARNESS_LOG_DONE).Run();
+  return ClientCommandSender(kSocketNameOutbound, SocketMessage::kEndLog,
+      SocketMessage::kEndLogDone).Run();
 }
