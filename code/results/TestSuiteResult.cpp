@@ -26,6 +26,7 @@ void TestSuiteResult::PrintResults(ostream& os, bool is_log) const {
   unsigned int num_passed = 0;
   unsigned int total_tests = 0;
 
+  unsigned int fsck_required = 0;
   unsigned int old_file_persisted = 0;
   unsigned int file_missing = 0;
   unsigned int file_data_corrupted = 0;
@@ -40,6 +41,10 @@ void TestSuiteResult::PrintResults(ostream& os, bool is_log) const {
     } else if (result.fs_test.GetError() == FileSystemTestResult::kFixed
         && result.data_test.GetError() == DataTestResult::kClean) {
       ++num_passed_fixed;
+    } else if (result.fs_test.GetError() ==
+        FileSystemTestResult::kKernelMount &&
+        result.data_test.GetError() == DataTestResult::kClean) {
+      ++fsck_required;
     } else {
       ++num_failed;
       std::string des(""); 
@@ -73,7 +78,9 @@ void TestSuiteResult::PrintResults(ostream& os, bool is_log) const {
 
   os << "Ran " << num_failed + num_passed_fixed + num_passed << " tests with"
     << "\n\tpassed cleanly: " << num_passed
-    << "\n\tpassed fixed: " << num_passed_fixed
+    << "\n\tpassed fixed: " << num_passed_fixed + fsck_required
+    << "\n\t\tfsck required: " << fsck_required
+    << "\n\t\tfsck fixed: " << num_passed_fixed
     << "\n\tfailed: " << num_failed
     << "\n\t\told file persisted: " << old_file_persisted
     << "\n\t\tfile missing: " << file_missing

@@ -54,6 +54,9 @@ ostream& operator<<(ostream& os, FileSystemTestResult::ErrorType err) {
     case fs_testing::FileSystemTestResult::kOther:
       os << "other_error";
       break;
+    case fs_testing::FileSystemTestResult::kKernelMount:
+      os << "kernel_mount";
+      break;
     default:
       os.setstate(std::ios_base::failbit);
   }

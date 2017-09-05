@@ -525,8 +525,19 @@ int Tester::test_check_random_permutations(const int num_rounds) {
      * Begin testing the crash state that was just written out.
      **************************************************************************/
 
+    // Try mounting the file system so that the kernel can clean up orphan lists
+    // and anything else it may need to so that fsck does a better job later if
+    // we run it.
+    if (mount_device(SNAPSHOT_PATH, "errors=remount-ro") != SUCCESS) {
+      test_info.fs_test.SetError(FileSystemTestResult::kKernelMount);
+    }
+    umount_device();
+
+    if (verbose) {
+      std::cout << "Running fsck" << std::endl;
+    }
     string command(TEST_CASE_FSCK + fs_type + " " + SNAPSHOT_PATH
-        + " -- -y");
+        + " -- -yf");
     if (!verbose) {
       command += SILENT;
     }
