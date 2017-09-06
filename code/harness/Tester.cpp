@@ -53,7 +53,8 @@
 #define COW_BRD_RMMOD       "rmmod " COW_BRD_MODULE_NAME
 #define NUM_DISKS           "1"
 #define NUM_SNAPSHOTS       "1"
-#define SNAPSHOT_PATH       "/dev/cow_ram_snapshot1_0"
+//#define SNAPSHOT_PATH       "/dev/cow_ram_snapshot1_0"
+#define SNAPSHOT_PATH       "/dev/mapper/snap_snap"
 #define COW_BRD_PATH        "/dev/cow_ram0"
 
 #define DEV_SECTORS_PATH    "/sys/block/"
@@ -107,27 +108,95 @@ void Tester::set_flag_device(const std::string device_path) {
 
 int Tester::clone_device() {
   std::cout << "cloning device " << device_raw << std::endl;
-  if (ioctl(cow_brd_fd, COW_BRD_SNAPSHOT) < 0) {
-    return DRIVE_CLONE_ERR;
+  string dm_base_command("echo 0 `blockdev --getsz " + device_raw +
+      "` snapshot-origin /dev/ram0 | dmsetup create snap_base");
+  if (verbose) {
+    std::cout << "Making base for snapshot with " << dm_base_command << std::endl;
+  }
+  if (system(dm_base_command.c_str()) < 0) {
+    std::cerr << "Error making base device for snapshot" << std::endl;
+    return -1;
+  }
+
+  string dm_snap_create_command("dmsetup create snap_snap --notable");
+  if (verbose) {
+    std::cout << "Making snapshot device with " << dm_snap_create_command << std::endl;
+  }
+  if (system(dm_snap_create_command.c_str()) < 0) {
+    std::cerr << "Error making snapshot" << std::endl;
+    return -1;
+  }
+
+  string dm_snap_populate_command("echo 0 `blockdev --getsz " + device_raw +
+      "` snapshot /dev/mapper/snap_base /dev/ram1 n 8 | dmsetup load snap_snap");
+  if (verbose) {
+    std::cout << "populating snapshot with " << dm_snap_populate_command << std::endl;
+  }
+  if (system(dm_snap_populate_command.c_str()) < 0) {
+    std::cerr << "Error loading snapshot" << std::endl;
+    return -1;
+  }
+
+  string dm_snap_resume_command("dmsetup resume snap_snap");
+  if (verbose) {
+    std::cout << "resuming  snapshot with " << dm_snap_resume_command << std::endl;
+  }
+  if (system(dm_snap_resume_command.c_str()) < 0) {
+    std::cerr << "Error resuming snapshot" << std::endl;
+    return -1;
+  }
+
+  // Make sure we have stuff in /dev/mapper.
+  if (system("dmsetup mknodes") < 0) {
+    std::cerr << "Error making nodes" << std::endl;
+    return -1;
   }
 
   return SUCCESS;
 }
 
 int Tester::clone_device_restore(int snapshot_fd, bool reread) {
-  if (ioctl(snapshot_fd, COW_BRD_RESTORE_SNAPSHOT) < 0) {
-    return DRIVE_CLONE_RESTORE_ERR;
+  string dm_snap_remove_command("dmsetup remove snap_snap");
+  if (verbose) {
+    std::cout << "removing snapshot with " << dm_snap_remove_command << std::endl;
   }
-  int res;
-  if (reread) {
-    // TODO(ashmrtn): Fixme by moving me to a better place.
-    do {
-      res = ioctl(snapshot_fd, BLKRRPART, NULL);
-    } while (errno == EBUSY);
-    if (res < 0) {
-      int errnum = errno;
-      cerr << "Error re-reading partition table " << errnum << endl;
-    }
+  if (system(dm_snap_remove_command.c_str()) < 0) {
+    std::cerr << "Error removing snapshot" << std::endl;
+    return -1;
+  }
+
+  string dm_snap_create_command("dmsetup create snap_snap --notable");
+  if (verbose) {
+    std::cout << "Making snapshot device with " << dm_snap_create_command << std::endl;
+  }
+  if (system(dm_snap_create_command.c_str()) < 0) {
+    std::cerr << "Error making snapshot" << std::endl;
+    return -1;
+  }
+
+  string dm_snap_populate_command("echo 0 `blockdev --getsz " + device_raw +
+      "` snapshot /dev/mapper/snap_base /dev/ram1 n 8 | dmsetup load snap_snap");
+  if (verbose) {
+    std::cout << "populating snapshot with " << dm_snap_populate_command << std::endl;
+  }
+  if (system(dm_snap_populate_command.c_str()) < 0) {
+    std::cerr << "Error loading snapshot" << std::endl;
+    return -1;
+  }
+
+  string dm_snap_resume_command("dmsetup resume snap_snap");
+  if (verbose) {
+    std::cout << "resuming  snapshot with " << dm_snap_resume_command << std::endl;
+  }
+  if (system(dm_snap_resume_command.c_str()) < 0) {
+    std::cerr << "Error resuming snapshot" << std::endl;
+    return -1;
+  }
+
+  // Make sure we have stuff in /dev/mapper.
+  if (system("dmsetup mknodes") < 0) {
+    std::cerr << "Error making nodes" << std::endl;
+    return -1;
   }
 
   return SUCCESS;
@@ -215,7 +284,8 @@ int Tester::insert_wrapper() {
   if (!wrapper_inserted) {
     string command(WRAPPER_INSMOD);
     // TODO(ashmrtn): Make this much MUCH cleaner...
-    command += "/dev/cow_ram_snapshot1_0";
+    //command += "/dev/cow_ram_snapshot1_0";
+    command += "/dev/mapper/snap_snap";
     command += WRAPPER_INSMOD2;
     command += flags_device;
     if (!verbose) {
@@ -476,13 +546,28 @@ int Tester::test_check_random_permutations(const int num_rounds) {
 
     //cout << '.' << std::flush;
 
+    // Nuke the snapshot so we don't accidentally end up with "future" data on
+    // the disk that we proceed to check.
+    /*
+    int nuke_fd = open(SNAPSHOT_PATH, O_RDONLY);
+    int nuke_res = ioctl(nuke_fd, COW_BRD_WIPE);
+    if (nuke_res < 0) {
+      cerr << "Error nuking snapshot file system" << endl;
+      return -1;
+    }
+    close(nuke_fd);
+    */
+
     // Restore disk clone.
+    int cow_brd_snapshot_fd;
+    /*
     int cow_brd_snapshot_fd = open(SNAPSHOT_PATH, O_WRONLY);
     if (cow_brd_snapshot_fd < 0) {
       cerr << "error opening snapshot to write permuted bios" << endl;
       test_info.fs_test.SetError(FileSystemTestResult::kSnapshotRestore);
       continue;
     }
+    */
     // Begin snapshot timing.
     time_point<steady_clock> snapshot_start_time = steady_clock::now();
     if (clone_device_restore(cow_brd_snapshot_fd, false) != SUCCESS) {
@@ -494,6 +579,10 @@ int Tester::test_check_random_permutations(const int num_rounds) {
     timing_stats[SNAPSHOT_TIME] +=
         duration_cast<milliseconds>(snapshot_end_time - snapshot_start_time);
     // End snapshot timing.
+
+
+    cow_brd_snapshot_fd = open(SNAPSHOT_PATH, O_WRONLY);
+
 
     if (verbose) {
       std::cout << "Writing " << permutes.size()
@@ -527,6 +616,16 @@ int Tester::test_check_random_permutations(const int num_rounds) {
       test_info.fs_test.SetError(FileSystemTestResult::kKernelMount);
     }
     umount_device();
+    /*
+      // Mount the file system read-only again for the user so that they can
+      // poke at things before we do anything.
+      if (mount(SNAPSHOT_PATH, MNT_MNT_POINT, fs_type.c_str(), MS_RDONLY,
+            NULL) < 0) {
+        cerr << "Could not mount file system for user inspection" << endl;
+      } else {
+        return SUCCESS;
+      }
+      */
 
     if (verbose) {
       std::cout << "Running fsck" << std::endl;

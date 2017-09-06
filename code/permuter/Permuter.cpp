@@ -4,6 +4,9 @@
 #include "Permuter.h"
 #include "../utils/utils.h"
 
+
+#include <iostream>
+
 namespace fs_testing {
 namespace permuter {
 
@@ -52,6 +55,7 @@ void Permuter::InitDataVector(vector<disk_write> *data) {
   epochs_.clear();
   unsigned int index = 0;
   list<range> overlaps;
+  std::cout << "Barrier operations are located at indices:\n\t";
   while (index < data->size()) {
     struct epoch current_epoch;
     current_epoch.has_barrier = false;
@@ -96,6 +100,8 @@ void Permuter::InitDataVector(vector<disk_write> *data) {
     // to the special spot in the epoch, otherwise just push the current epoch
     // onto the list and move to the next segment of the log.
     if (index < data->size() && (data->at(index)).is_barrier_write()) {
+      std::cout << index << ", ";
+
       epoch_op curr_op = {index, data->at(index)};
       current_epoch.ops.push_back(curr_op);
       current_epoch.num_meta += data->at(index).is_meta();
@@ -104,6 +110,7 @@ void Permuter::InitDataVector(vector<disk_write> *data) {
     }
     epochs_.push_back(current_epoch);
   }
+  std::cout << std::endl;
 }
 
 vector<epoch>* Permuter::GetEpochs() {
@@ -147,9 +154,12 @@ bool Permuter::GenerateCrashState(vector<disk_write>& res) {
   // vector.
   res.clear();
   res.resize(crash_state.size());
+  std::cout << "new bio sequence is:\n\t";
   for (unsigned int i = 0; i < crash_state.size(); ++i) {
+    std::cout << crash_state.at(i).abs_index << ", ";
     res.at(i) = crash_state.at(i).op;
   }
+  std::cout << std::endl;
 
   if (exists == 0) {
     completed_permutations_.insert(crash_state_hash);

@@ -211,11 +211,13 @@ int main(int argc, char** argv) {
 
   Tester test_harness(disk_size, verbose);
 
+  /*
   cout << "Inserting RAM disk module" << endl;
   if (test_harness.insert_cow_brd() != SUCCESS) {
     cerr << "Error inserting RAM disk module" << endl;
     return -1;
   }
+  */
   test_harness.set_fs_type(fs_type);
   test_harness.set_device(test_dev);
 
@@ -274,6 +276,14 @@ int main(int argc, char** argv) {
 
     // Device flags only need set if we are logging requests.
     test_harness.set_flag_device(flags_dev);
+
+    /*
+    if (test_harness.partition_drive() != SUCCESS) {
+      cerr << "Error partitioning device" << endl;
+      test_harness.cleanup_harness();
+      return -1;
+    }
+    */
 
     // Format test drive to desired type.
     cout << "Formatting test drive" << endl;
