@@ -297,7 +297,7 @@ static int __init disk_wrapper_init(void) {
 
   Device.target_dev = blkdev_get_by_path(target_device_path,
       FMODE_READ, &Device);
-  if (!Device.target_dev) {
+  if (!Device.target_dev || IS_ERR(Device.target_dev)) {
     printk(KERN_WARNING "hwm: unable to grab underlying device\n");
     goto out;
   }
@@ -313,7 +313,7 @@ static int __init disk_wrapper_init(void) {
 
   // Get the device we should copy flags from and copy those flags into locals.
   flags_device = blkdev_get_by_path(flags_device_path, FMODE_READ, &Device);
-  if (!flags_device) {
+  if (!flags_device || IS_ERR(flags_device)) {
     printk(KERN_WARNING "hwm: unable to grab device to clone flags\n");
     goto out;
   }
