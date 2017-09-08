@@ -23,7 +23,7 @@ The easiest (and recommended) way to start working on (or using) CrashMonkey is 
 * linux kernel headers
      * install with `sudo apt-get install linux-headers-$(uname -r)`
 
-Furthermore, the VM should have enough disk space to build and compile CrashMonkey as well as enough RAM to run any tests you want. I mention RAM because CrashMonkey uses a RAM block device during its tests, so you will need to give it at least as much RAM as the largest test you plan on running. For small tests, a 20 GB hard drive for the Ubuntu install and also all other files (I'm lazy and don't feel like trimming it down more than that) and 2-4 GB of RAM should be more than enough.
+Furthermore, the VM should have enough disk space to build and compile CrashMonkey as well as enough RAM to run any tests you want. I mention CrashMonkey stores some data in RAM during its tests, so you will need to give it at least as much RAM as the largest test you plan on running. For small tests, a 20 GB hard drive for the Ubuntu install and also all other files (I'm lazy and don't feel like trimming it down more than that) and 2-4 GB of RAM should be more than enough.
 
 If you are new to building and running VMs and would like to try something other than VirtualBox, I would recommend using `vmbuilder`, `libvert`, `qemu`, `kvm`, and the `vmbuilder` script in the repo to get everything setup (script generously provided by Ian Neal).
 
@@ -74,7 +74,8 @@ least provide the following:
 
 * `-f` - block device to copy device queue flags from. This controls what flags (FUA, flush, etc) will be allowed to propagate to the device wrapper. Something like `/dev/vda` should work for this
 * `-t` - file system type, right now CrashMonkey is only tested on ext4
-* `-d` - device to run tests on. Currently the only valid option is `/dev/cow_ram0`. This flag should hopefully go away soon.
+* `-d` - device to run tests on. This device can be any valid block device and the device will be clobbered.
+* `-z` - scratch device to use as a snapshot. This device will be clobbered.
 
 To run your own CrashMonkey, use: `../build/c_harness <flags> <user defined workload>`
 
