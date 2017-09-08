@@ -18,6 +18,10 @@
 #include "../disk_wrapper_ioctl.h"
 #include "Tester.h"
 
+extern "C" {
+#include "libdevmapper.h"
+}
+
 #define TEST_CLASS_FACTORY        "test_case_get_instance"
 #define TEST_CLASS_DEFACTORY      "test_case_delete_instance"
 #define PERMUTER_CLASS_FACTORY    "permuter_get_instance"
@@ -64,6 +68,18 @@
 // TODO(ashmrtn): Expand to work with other file system types.
 #define TEST_CASE_FSCK "fsck -T -t "
 
+namespace {
+  const char kCmSnapshotOriginName[] = "cm_snapshot_origin";
+  const char kCmSnapshotBaseName[] = "cm_snapshot";
+
+  const char kMapperBasePath[] = "/dev/mapper/";
+
+  const char kMapperSnapshotOriginTarget[] = "snapshot-origin";
+  const char kMapperSnapshotTarget[] = "snapshot";
+  const char kMapperSnapshotPersist = 'n';
+  const unsigned int kMapperSnapshotBlockSize = 8;
+}  // namespace
+
 namespace fs_testing {
 
 using std::calloc;
@@ -90,7 +106,9 @@ using fs_testing::permuter::permuter_destroy_t;
 using fs_testing::utils::disk_write;
 
 Tester::Tester(const unsigned int dev_size, const bool verbosity)
-  : device_size(dev_size), verbose(verbosity) {}
+  : device_size(dev_size), verbose(verbosity) {
+    dm_lib_init();
+  }
 
 void Tester::set_fs_type(const string type) {
   fs_type = type;
@@ -105,28 +123,216 @@ void Tester::set_flag_device(const std::string device_path) {
   flags_device = device_path;
 }
 
-int Tester::clone_device() {
-  std::cout << "cloning device " << device_raw << std::endl;
-  if (ioctl(cow_brd_fd, COW_BRD_SNAPSHOT) < 0) {
+void Tester::set_scratch_device(const std::string device_path) {
+  scratch_device_ = device_path;
+}
+
+/*
+ * Query dm for a specific device. Return true if the device exists, else false.
+ */
+bool Tester::DmDeviceExists(string device) {
+  void *next = NULL;
+  uint64_t start;
+  uint64_t len;
+  char *target_type;
+  char *params;
+  struct dm_task *dmt = dm_task_create(DM_DEVICE_STATUS);
+
+  if (!dmt) {
+    std::cerr << "error getting task struct" << std::endl;
+    goto out;
+  }
+  if (!dm_task_set_name(dmt, device.c_str())) {
+    std::cerr << "error setting task name" << std::endl;
+    goto out;
+  }
+  if (!dm_task_run(dmt)) {
+    std::cerr << "error getting device version" << std::endl;
+    goto out;
+  }
+
+  next = dm_get_next_target(dmt, next, &start, &len, &target_type, &params);
+
+  struct dm_info info;
+  if (!dm_task_get_info(dmt, &info)) {
+    std::cerr << "error getting info on status of device" << std::endl;
+    goto out;
+  }
+  dm_task_destroy(dmt);
+  // Technically an int, so cheat and turn it into a single bit value.
+  return !!info.exists;
+
+out:
+  if (dmt != NULL) {
+    dm_task_destroy(dmt);
+  }
+  return false;
+}
+
+bool Tester::DmDeviceCreate(string device_name, unsigned int start,
+    unsigned int end, string type, string device_args) {
+  struct dm_task *dmt = dm_task_create(DM_DEVICE_CREATE);
+  if (dmt == NULL) {
+    std::cerr << "error getting task struct to make device" << std::endl;
+    goto out;
+  }
+  if (!dm_task_set_name(dmt, device_name.c_str())) {
+    std::cerr << "error setting name on create task" << std::endl;
+    goto out;
+  }
+  if (!dm_task_add_target(dmt, 0, end, type.c_str(), device_args.c_str())) {
+    std::cerr << "error adding target information" << std::endl;
+    goto out;
+  }
+  if (!dm_task_run(dmt)) {
+    std::cerr << "error creating new node" << std::endl;
+    goto out;
+  }
+  dm_task_destroy(dmt);
+  dm_task_update_nodes();
+  return true;
+
+out:
+  if (dmt != NULL) {
+    dm_task_destroy(dmt);
+  }
+  return false;
+}
+
+bool Tester::DmDeviceRemove(string device_name) {
+  struct dm_task *dmt = dm_task_create(DM_DEVICE_REMOVE);
+  if (dmt == NULL) {
+    std::cerr << "error getting task struct" << std::endl;
+    goto out;
+  }
+  if (!dm_task_set_name(dmt, device_name.c_str())) {
+    std::cerr << "unable to set name" << std::endl;
+    goto out;
+  }
+  if (!dm_task_retry_remove(dmt)) {
+    std::cerr << "unable to set retry" << std::endl;
+    goto out;
+  }
+  if (!dm_task_run(dmt)) {
+    std::cerr << "error removing device" << std::endl;
+    goto out;
+  }
+  dm_task_destroy(dmt);
+  dm_task_update_nodes();
+  return true;
+
+out:
+  if (dmt != NULL) {
+    dm_task_destroy(dmt);
+  }
+  return false;
+}
+
+bool Tester::DmDeviceResume(std::string device_name) {
+  struct dm_task *dmt = dm_task_create(DM_DEVICE_RESUME);
+  if (dmt == NULL) {
+    std::cerr << "error getting task struct" << std::endl;
+    goto out;
+  }
+
+  if (!dm_task_set_name(dmt, device_name.c_str())) {
+    std::cerr << "unable to set name" << std::endl;
+    goto out;
+  }
+
+  if (!dm_task_run(dmt)) {
+    std::cerr << "error resuming device" << std::endl;
+    goto out;
+  }
+  dm_task_destroy(dmt);
+  return true;
+
+out:
+  if (dmt != NULL) {
+    dm_task_destroy(dmt);
+  }
+  return false;
+}
+
+bool Tester::DmSnapshotOriginCreate(string device_name, unsigned int start,
+    unsigned int end, string device_to_snapshot) {
+  return DmDeviceCreate(device_name, start, end, kMapperSnapshotOriginTarget,
+      device_to_snapshot);
+}
+
+bool Tester::DmSnapshotCreate(string device_name, string origin_name,
+    unsigned int start, unsigned int end, string cow_device) {
+  string args = string(kMapperBasePath + origin_name + " " + cow_device + " " +
+      kMapperSnapshotPersist) + " " + std::to_string(kMapperSnapshotBlockSize);
+  if (!DmDeviceCreate(device_name, start, end, kMapperSnapshotTarget, args)) {
+    return false;
+  }
+  return DmDeviceResume(device_name);
+}
+
+/*
+ * Returns the size of the device in blocks as reported by ioctl. Needed because
+ * devicemapper asks for the start and end blocks of mappings.
+ */
+unsigned int Tester::GetDeviceSizeInBlocks(string device) {
+  int dev_fd = open(device.c_str(), O_RDONLY);
+  unsigned int dev_blocks = 0;
+  if (dev_fd < 0) {
+    std::cerr << "error opening block device to find size" << std::endl;
+  }
+  if (ioctl(dev_fd, BLKGETSIZE, &dev_blocks) < 0) {
+    std::cerr << "error getting blocks from device" << std::endl;
+  }
+  close(dev_fd);
+
+  return dev_blocks;
+}
+
+/* Create a new snapshot device. Right now uses devicemapper which requires both
+ * a snapshot-origin device and a snapshot. This will create both the snapshot
+ * and the snapshot-origin devices. If either device already exists, this will
+ * return an error. It is meant to provide higher level users with a simple
+ * interface where they don't have to worry about the underlying technology
+ * being used to make snapshots.
+ *
+ * Since this is meant to be a simple interface just used for higher level
+ * programs, it creates a snapshot with id 0 by default.
+ */
+int Tester::snapshot_create() {
+  if (DmDeviceExists(kCmSnapshotOriginName) ||
+      DmDeviceExists(string(kCmSnapshotBaseName) + "0")) {
+    return DRIVE_CLONE_EXISTS_ERR;
+  }
+  if (!DmSnapshotOriginCreate(kCmSnapshotOriginName, 0,
+        GetDeviceSizeInBlocks(device_raw), device_raw)) {
+    return DRIVE_CLONE_ERR;
+  }
+  if (!DmSnapshotCreate(string(kCmSnapshotBaseName) + "0",
+        kCmSnapshotOriginName, 0,
+        GetDeviceSizeInBlocks(scratch_device_), scratch_device_)) {
     return DRIVE_CLONE_ERR;
   }
 
   return SUCCESS;
 }
 
-int Tester::clone_device_restore(int snapshot_fd, bool reread) {
-  if (ioctl(snapshot_fd, COW_BRD_RESTORE_SNAPSHOT) < 0) {
-    return DRIVE_CLONE_RESTORE_ERR;
+/* Again, this is a simple function meant for higher level users. It will
+ * completely remove the snapshot and any underlying devices needed to get the
+ * snapshot to function (i.e. snapshot-origin targets in devmapper). Again, it
+ * only targets the default snapshot with id 0.
+ */
+int Tester::snapshot_destroy() {
+  if (DmDeviceExists(string(kCmSnapshotBaseName) + "0")) {
+    if (!DmDeviceRemove(string(kCmSnapshotBaseName) + "0")) {
+      std::cout << "error removing default snapshot" << std::endl;
+      return DRIVE_CLONE_RESTORE_ERR;
+    }
   }
-  int res;
-  if (reread) {
-    // TODO(ashmrtn): Fixme by moving me to a better place.
-    do {
-      res = ioctl(snapshot_fd, BLKRRPART, NULL);
-    } while (errno == EBUSY);
-    if (res < 0) {
-      int errnum = errno;
-      cerr << "Error re-reading partition table " << errnum << endl;
+
+  if (DmDeviceExists(kCmSnapshotOriginName)) {
+    if (!DmDeviceRemove(kCmSnapshotOriginName)) {
+      std::cout << "error removing default snapshot origin" << std::endl;
+      return DRIVE_CLONE_RESTORE_ERR;
     }
   }
 
@@ -168,54 +374,12 @@ int Tester::umount_device() {
   return SUCCESS;
 }
 
-int Tester::insert_cow_brd() {
-  if (cow_brd_fd < 0) {
-    string command(COW_BRD_INSMOD);
-    command += NUM_DISKS;
-    command += COW_BRD_INSMOD2;
-    command += NUM_SNAPSHOTS;
-    command += COW_BRD_INSMOD3;
-    command += std::to_string(device_size);
-    if (!verbose) {
-      command += SILENT;
-    }
-    if (system(command.c_str()) != 0) {
-      cow_brd_fd = -1;
-      return WRAPPER_INSERT_ERR;
-    }
-  }
-  cow_brd_inserted = true;
-  cow_brd_fd = open("/dev/cow_ram0", O_RDONLY);
-  if (cow_brd_fd < 0) {
-    if (system(COW_BRD_RMMOD) != 0) {
-      cow_brd_fd = -1;
-      cow_brd_inserted = false;
-      return WRAPPER_REMOVE_ERR;
-    }
-  }
-  return SUCCESS;
-}
-
-int Tester::remove_cow_brd() {
-  if (cow_brd_inserted) {
-    if (cow_brd_fd != -1) {
-      close(cow_brd_fd);
-      cow_brd_fd = -1;
-      cow_brd_inserted = false;
-    }
-    if (system(COW_BRD_RMMOD) != 0) {
-      cow_brd_inserted = true;
-      return WRAPPER_REMOVE_ERR;
-    }
-  }
-  return SUCCESS;
-}
-
 int Tester::insert_wrapper() {
   if (!wrapper_inserted) {
     string command(WRAPPER_INSMOD);
     // TODO(ashmrtn): Make this much MUCH cleaner...
-    command += "/dev/cow_ram_snapshot1_0";
+    // TODO(ashmrtn): Don't hardcode snapshot path.
+    command += string(kMapperBasePath) + kCmSnapshotBaseName + "0";
     command += WRAPPER_INSMOD2;
     command += flags_device;
     if (!verbose) {
@@ -450,6 +614,10 @@ int Tester::test_check_random_permutations(const int num_rounds) {
   Permuter *p = permuter_loader.get_instance();
   p->InitDataVector(&log_data);
   vector<disk_write> permutes;
+
+  const string snapshot_name = string(kCmSnapshotBaseName) + "0";
+  const string snapshot_path(kMapperBasePath + snapshot_name);
+
   for (int rounds = 0; rounds < num_rounds; ++rounds) {
     // Print status every 1024 iterations.
     if (rounds & (~((1 << 10) - 1)) && !(rounds & ((1 << 10) - 1))) {
@@ -477,15 +645,15 @@ int Tester::test_check_random_permutations(const int num_rounds) {
     //cout << '.' << std::flush;
 
     // Restore disk clone.
-    int cow_brd_snapshot_fd = open(SNAPSHOT_PATH, O_WRONLY);
-    if (cow_brd_snapshot_fd < 0) {
-      cerr << "error opening snapshot to write permuted bios" << endl;
-      test_info.fs_test.SetError(FileSystemTestResult::kSnapshotRestore);
-      continue;
-    }
     // Begin snapshot timing.
     time_point<steady_clock> snapshot_start_time = steady_clock::now();
-    if (clone_device_restore(cow_brd_snapshot_fd, false) != SUCCESS) {
+    if (!DmDeviceRemove(snapshot_name)) {
+      test_info.fs_test.SetError(FileSystemTestResult::kSnapshotRestore);
+      test_suite.AddCompletedTest(test_info);
+      continue;
+    }
+    if (!DmSnapshotCreate(snapshot_name, kCmSnapshotOriginName, 0,
+          GetDeviceSizeInBlocks(scratch_device_), scratch_device_)) {
       test_info.fs_test.SetError(FileSystemTestResult::kSnapshotRestore);
       test_suite.AddCompletedTest(test_info);
       continue;
@@ -495,28 +663,34 @@ int Tester::test_check_random_permutations(const int num_rounds) {
         duration_cast<milliseconds>(snapshot_end_time - snapshot_start_time);
     // End snapshot timing.
 
+    const int snapshot_fd = open(snapshot_path.c_str(), O_WRONLY);
+    if (snapshot_fd < 0) {
+      test_info.fs_test.SetError(FileSystemTestResult::kSnapshotRestore);
+      test_suite.AddCompletedTest(test_info);
+      continue;
+    }
+
     // Write recorded data out to block device in different orders so that we
     // can if they are all valid or not.
     time_point<steady_clock> bio_write_start_time = steady_clock::now();
     const int write_data_res =
-      test_write_data(cow_brd_snapshot_fd, permutes.begin(), permutes.end());
+      test_write_data(snapshot_fd, permutes.begin(), permutes.end());
     time_point<steady_clock> bio_write_end_time = steady_clock::now();
     timing_stats[BIO_WRITE_TIME] +=
         duration_cast<milliseconds>(bio_write_end_time - bio_write_start_time);
     if (!write_data_res) {
       test_info.fs_test.SetError(FileSystemTestResult::kBioWrite);
       test_suite.AddCompletedTest(test_info);
-      close(cow_brd_snapshot_fd);
+      close(snapshot_fd);
       continue;
     }
-    close(cow_brd_snapshot_fd);
+    close(snapshot_fd);
 
     /***************************************************************************
      * Begin testing the crash state that was just written out.
      **************************************************************************/
 
-    string command(TEST_CASE_FSCK + fs_type + " " + SNAPSHOT_PATH
-        + " -- -y");
+    string command(TEST_CASE_FSCK + fs_type + " " + snapshot_path + " -- -y");
     if (!verbose) {
       command += SILENT;
     }
@@ -539,7 +713,7 @@ int Tester::test_check_random_permutations(const int num_rounds) {
     }
     // TODO(ashmrtn): Consider mounting with options specified for test
     // profile?
-    if (mount_device(SNAPSHOT_PATH, NULL) != SUCCESS) {
+    if (mount_device(snapshot_path.c_str(), NULL) != SUCCESS) {
       test_info.fs_test.SetError(FileSystemTestResult::kUnmountable);
       test_suite.AddCompletedTest(test_info);
       continue;
@@ -674,15 +848,12 @@ void Tester::cleanup_harness() {
     return;
   }
 
-  if (remove_cow_brd() != SUCCESS) {
-    cerr << "Unable to remove cow_brd device" << endl;
-    permuter_unload_class();
-    test_unload_class();
-    return;
-  }
+  DmDeviceRemove(string(kCmSnapshotBaseName) + "0");
+  DmDeviceRemove(kCmSnapshotOriginName);
 
   permuter_unload_class();
   test_unload_class();
+  dm_lib_exit();
 }
 
 int Tester::clear_caches() {
@@ -735,6 +906,8 @@ int Tester::log_profile_load(string log_file) {
 }
 
 int Tester::log_snapshot_save(string log_file) {
+  return SUCCESS;
+  /*
   // TODO(ashmrtn): What happens if this fails?
   // TODO(ashmrtn): Change device_clone to be an mmap of the disk we need to get
   // stuff on.
@@ -758,9 +931,12 @@ int Tester::log_snapshot_save(string log_file) {
     return LOG_CLONE_ERR;
   }
   return SUCCESS;
+  */
 }
 
 int Tester::log_snapshot_load(string log_file) {
+  return SUCCESS;
+  /*
   // TODO(ashmrtn): What happens if this fails?
   int res = ioctl(cow_brd_fd, COW_BRD_WIPE);
   if (res < 0) {
@@ -802,6 +978,7 @@ int Tester::log_snapshot_load(string log_file) {
     cerr << "error restoring snapshot from log" << endl;
   }
   return SUCCESS;
+*/
 }
 
 void Tester::PrintTestStats(std::ostream& os) {

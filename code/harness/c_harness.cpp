@@ -27,7 +27,7 @@
 #define DIRECTORY_PERMS \
   (S_IRUSR | S_IWUSR | S_IRGRP | S_IWGRP | S_IROTH | S_IWOTH)
 
-#define OPTS_STRING "bd:f:e:l:m:np:r:s:t:v"
+#define OPTS_STRING "bd:f:e:l:m:np:r:s:t:vz:"
 
 namespace {
   unsigned int kSocketQueueDepth;
@@ -43,9 +43,11 @@ using fs_testing::utils::communication::ServerSocket;
 using fs_testing::utils::communication::SocketError;
 using fs_testing::utils::communication::SocketMessage;
 
+// TODO(ashmrtn): Make flags sensible letters.
 static const option long_options[] = {
   {"background", no_argument, NULL, 'b'},
   {"test-dev", required_argument, NULL, 'd'},
+  {"scratch-dev", required_argument, NULL, 'z'},
   {"disk_size", required_argument, NULL, 'e'},
   {"flag-device", required_argument, NULL, 'f'},
   {"log-file", required_argument, NULL, 'l'},
@@ -65,6 +67,7 @@ int main(int argc, char** argv) {
   string fs_type("ext4");
   string flags_dev("/dev/vda");
   string test_dev("/dev/ram0");
+  string scratch_dev("/dev/ram1");
   string mount_opts("");
   string log_file_save("");
   string log_file_load("");
@@ -118,6 +121,9 @@ int main(int argc, char** argv) {
         break;
       case 'v':
         verbose = true;
+        break;
+      case 'z':
+        scratch_dev = string(optarg);
         break;
       case '?':
       default:
@@ -218,13 +224,9 @@ int main(int argc, char** argv) {
 
   Tester test_harness(disk_size, verbose);
 
-  cout << "Inserting RAM disk module" << endl;
-  if (test_harness.insert_cow_brd() != SUCCESS) {
-    cerr << "Error inserting RAM disk module" << endl;
-    return -1;
-  }
   test_harness.set_fs_type(fs_type);
   test_harness.set_device(test_dev);
+  test_harness.set_scratch_device(scratch_dev);
 
   // Load the class being tested.
   cout << "Loading test case" << endl;
@@ -365,7 +367,7 @@ int main(int argc, char** argv) {
 
     // Create snapshot of disk for testing.
     cout << "Making new snapshot\n";
-    if (test_harness.clone_device() != SUCCESS) {
+    if (test_harness.snapshot_create() != SUCCESS) {
       test_harness.cleanup_harness();
       return -1;
     }
@@ -667,7 +669,6 @@ int main(int argc, char** argv) {
      **************************************************************************/
     cout << "Writing profiled data to block device and checking with fsck\n";
     test_harness.test_check_random_permutations(iterations);
-    test_harness.remove_cow_brd();
 
     test_harness.PrintTestStats(cout);
     cout << endl;

@@ -81,7 +81,7 @@ $(BUILD_DIR)/c_harness: \
 		$(BUILD_DIR)/results/FileSystemTestResult.o \
 		$(BUILD_DIR)/results/DataTestResult.o
 	mkdir -p $(@D)
-	$(GPP) $(GOPTS) $^ -ldl -o $@
+	$(GPP) $(GOPTS) $^ -ldl -ldevmapper -o $@
 
 $(BUILD_DIR)/tests/%.so: \
 		tests/%.cpp \

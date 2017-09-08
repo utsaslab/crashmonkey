@@ -63,14 +63,17 @@ class Tester {
   void set_fs_type(const std::string type);
   void set_device(const std::string device_path);
   void set_flag_device(const std::string device_path);
+  // TODO(ashmrtn): For multi-threaded testing, increase the number of scratch
+  // devices to 1 per thread.
+  void set_scratch_device(const std::string device_path);
 
   const char* update_dirty_expire_time(const char* time);
 
   int partition_drive();
   int wipe_partitions();
   int format_drive();
-  int clone_device();
-  int clone_device_restore(int snapshot_fd, bool reread);
+  int snapshot_create();
+  int snapshot_destroy();
 
   int permuter_load_class(const char* path);
   void permuter_unload_class();
@@ -87,9 +90,6 @@ class Tester {
   int mount_device_raw(const char* opts);
   int mount_wrapper_device(const char* opts);
   int umount_device();
-
-  int insert_cow_brd();
-  int remove_cow_brd();
 
   int insert_wrapper();
   int remove_wrapper();
@@ -125,11 +125,10 @@ class Tester {
   std::string device_raw;
   std::string device_mount;
   std::string flags_device;
+  std::string scratch_device_;
 
 
   bool wrapper_inserted = false;
-  bool cow_brd_inserted = false;
-  int cow_brd_fd = -1;
 
   bool disk_mounted = false;
 
@@ -137,6 +136,17 @@ class Tester {
   std::vector<fs_testing::utils::disk_write> log_data;
 
   int mount_device(const char* dev, const char* opts);
+
+  unsigned int GetDeviceSizeInBlocks(std::string device);
+  bool DmDeviceExists(std::string device);
+  bool DmDeviceCreate(std::string device_name, unsigned int start,
+      unsigned int end, std::string type, std::string device_args);
+  bool DmDeviceRemove(std::string device_name);
+  bool DmDeviceResume(std::string device_name);
+  bool DmSnapshotOriginCreate(std::string device_name, unsigned int start,
+      unsigned int end, std::string device_to_snapshot);
+  bool DmSnapshotCreate(std::string device_name, std::string origin_name,
+      unsigned int start, unsigned int end, std::string cow_device);
 
   bool read_dirty_expire_time(int fd);
   bool write_dirty_expire_time(int fd, const char* time);
