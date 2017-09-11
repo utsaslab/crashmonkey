@@ -112,27 +112,28 @@ void Permuter::InitDataVector(vector<disk_write> *data) {
       // it into two halves and make the data available only in the starting of the next epoch.
       // If the op has a FUA flag, then it gets normally added into the current epoch
       if ((data->at(index).has_flush_flag() || data->at(index).has_flush_seq_flag()) && data->at(index).has_write_flag() && (!data->at(index).has_FUA_flag())) {
-
-      	disk_write flag_half;
-      	data_half = data->at(index);
-
-      	if(data->at(index).has_flush_flag()) {
-      		flag_half.set_flush_flag();
-      		data_half.clear_flush_flag();
-      	}
-      	if(data->at(index).has_flush_seq_flag()) {
-      		flag_half.set_flush_seq_flag();
-      		data_half.clear_flush_seq_flag();
-      	}
-      	
+        
+        disk_write flag_half;
+        data_half = data->at(index);
+        
+        if(data->at(index).has_flush_flag()) {
+          flag_half.set_flush_flag();
+          data_half.clear_flush_flag();
+        }
+        
+        if(data->at(index).has_flush_seq_flag()) {
+          flag_half.set_flush_seq_flag();
+          data_half.clear_flush_seq_flag();
+        }
+        
         epoch_op curr_op = {index, flag_half};
-      	current_epoch.ops.push_back(curr_op);
-      	current_epoch.num_meta += flag_half.is_meta();
-      	epochs_.push_back(current_epoch);
-      	prev_epoch_flush_op = true;
+        current_epoch.ops.push_back(curr_op);
+        current_epoch.num_meta += flag_half.is_meta();
+        epochs_.push_back(current_epoch);
+        prev_epoch_flush_op = true;
         current_epoch.has_barrier = true;
         ++index;
-      	continue;
+        continue;
       }
 
       epoch_op curr_op = {index, data->at(index)};
