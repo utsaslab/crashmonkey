@@ -140,11 +140,16 @@ static struct page *brd_insert_page(struct brd_device *brd, sector_t sector)
 
   radix_tree_preload_end();
 
-  // Copy over the data in the parent's page if it exists.
+  // Copy over the data in the parent's page to the snapshot page if the parent
+  // has a page in this sector address.
   if (brd->parent_brd) {
     parent_page = brd_lookup_page(brd->parent_brd, sector);
     // This page may not have originally existed in the parent.
     if (parent_page) {
+      // Map both the parent and snapshot pages so that the kernel can access
+      // those addresses. The snapshot page and the parent page both already
+      // reside in radix trees, so even when we unmap the pages, the data and
+      // the page itself will still remain.
       dst = kmap_atomic(page);
       parent_src = kmap_atomic(parent_page);
       memcpy(dst, parent_src, PAGE_SIZE);
