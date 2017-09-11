@@ -98,6 +98,8 @@ static struct page *brd_insert_page(struct brd_device *brd, sector_t sector)
   pgoff_t idx;
   struct page *page;
   gfp_t gfp_flags;
+  void *dst, *parent_src = NULL;
+  struct page *parent_page = NULL;
 
   page = brd_lookup_page(brd, sector);
   if (page)
@@ -137,6 +139,19 @@ static struct page *brd_insert_page(struct brd_device *brd, sector_t sector)
   spin_unlock(&brd->brd_lock);
 
   radix_tree_preload_end();
+
+  // Copy over the data in the parent's page if it exists.
+  if (brd->parent_brd) {
+    parent_page = brd_lookup_page(brd->parent_brd, sector);
+    // This page may not have originally existed in the parent.
+    if (parent_page) {
+      dst = kmap_atomic(page);
+      parent_src = kmap_atomic(parent_page);
+      memcpy(dst, parent_src, PAGE_SIZE);
+      kunmap_atomic(parent_src);
+      kunmap_atomic(dst);
+    }
+  }
 
   return page;
 }
@@ -253,17 +268,6 @@ static void copy_to_brd(struct brd_device *brd, const void *src,
   BUG_ON(!page);
 
   dst = kmap_atomic(page);
-  // Copy over the rest of the page from the parent brd if it exists.
-  if (brd->parent_brd) {
-    parent_page = brd_lookup_page(brd->parent_brd, sector);
-    // This page may not have originally existed in the parent.
-    if (parent_page) {
-      parent_src = kmap_atomic(parent_page);
-      memcpy(dst, parent_src, PAGE_SIZE - copy);
-      kunmap_atomic(parent_src);
-    }
-  }
-
   memcpy(dst + offset, src, copy);
   kunmap_atomic(dst);
 
