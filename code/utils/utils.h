@@ -29,6 +29,14 @@ class disk_write {
   bool is_barrier_write();
   bool is_async_write();
   bool is_meta();
+  bool has_flush_flag();
+  bool has_flush_seq_flag();
+  bool has_FUA_flag();
+  void set_flush_flag();
+  void set_flush_seq_flag();
+  void clear_flush_flag();
+  void clear_flush_seq_flag();
+
 
   static void serialize(std::ofstream& fs, const disk_write& dw);
   static disk_write deserialize(std::ifstream& is);
