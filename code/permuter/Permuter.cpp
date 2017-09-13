@@ -53,7 +53,6 @@ void Permuter::InitDataVector(vector<disk_write> *data) {
   unsigned int index = 0;
   bool prev_epoch_flush_op = false;
   disk_write data_half;
-  // disk_write data_flush_part1, data_write_part2;
   list<range> overlaps;
   while (index < data->size()) {
     struct epoch current_epoch;
