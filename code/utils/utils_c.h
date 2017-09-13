@@ -18,6 +18,13 @@ bool c_is_async_write(struct disk_write_op_meta *m);
 bool c_is_barrier_write(struct disk_write_op_meta *m);
 bool c_is_meta(struct disk_write_op_meta *m);
 bool c_has_write_flag(struct disk_write_op_meta *m);
+bool c_has_flush_flag(struct disk_write_op_meta *m);
+bool c_has_flush_seq_flag(struct disk_write_op_meta *m);
+bool c_has_FUA_flag(struct disk_write_op_meta *m);
+void c_set_flush_flag(struct disk_write_op_meta *m);
+void c_set_flush_seq_flag(struct disk_write_op_meta *m);
+void c_clear_flush_flag(struct disk_write_op_meta *m);
+void c_clear_flush_seq_flag(struct disk_write_op_meta *m);
 
 #ifdef __cplusplus
 }

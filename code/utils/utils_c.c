@@ -7,11 +7,11 @@
 
 bool c_is_async_write(struct disk_write_op_meta *m) {
   return !((m->bi_rw & REQ_SYNC) ||
-           (m->bi_rw & REQ_FUA) ||
-           (m->bi_rw & REQ_FLUSH) ||
-           (m->bi_rw & REQ_FLUSH_SEQ) ||
-           (m->bi_rw & REQ_SOFTBARRIER)) &&
-         (m->bi_rw & REQ_WRITE);
+            (m->bi_rw & REQ_FUA) ||
+            (m->bi_rw & REQ_FLUSH) ||
+            (m->bi_rw & REQ_FLUSH_SEQ) ||
+            (m->bi_rw & REQ_SOFTBARRIER)) &&
+            (m->bi_rw & REQ_WRITE);
 }
 
 bool c_is_barrier_write(struct disk_write_op_meta *m) {
@@ -19,7 +19,7 @@ bool c_is_barrier_write(struct disk_write_op_meta *m) {
           (m->bi_rw & REQ_FLUSH) ||
           (m->bi_rw & REQ_FLUSH_SEQ) ||
           (m->bi_rw & REQ_SOFTBARRIER)) &&
-         (m->bi_rw & REQ_WRITE);
+          (m->bi_rw & REQ_WRITE);
 }
 
 bool c_is_meta(struct disk_write_op_meta *m) {
@@ -29,3 +29,34 @@ bool c_is_meta(struct disk_write_op_meta *m) {
 bool c_has_write_flag(struct disk_write_op_meta *m) {
   return (m->bi_rw & REQ_WRITE) && true;
 }
+
+bool c_has_flush_flag(struct disk_write_op_meta *m) {
+  return (m->bi_rw & REQ_FLUSH) && true;
+}
+
+bool c_has_flush_seq_flag(struct disk_write_op_meta *m) {
+  return (m->bi_rw & REQ_FLUSH_SEQ) && true;
+}
+
+bool c_has_FUA_flag(struct disk_write_op_meta *m) {
+  return (m->bi_rw & REQ_FUA) && true;
+}
+
+void c_set_flush_flag(struct disk_write_op_meta *m) {
+  m->bi_rw = (m->bi_rw | REQ_FLUSH); 
+}
+
+void c_set_flush_seq_flag(struct disk_write_op_meta *m) {
+ m->bi_rw = (m->bi_rw | REQ_FLUSH_SEQ); 
+}
+
+void c_clear_flush_flag(struct disk_write_op_meta *m) {
+  m->bi_rw = (m->bi_rw & ~(REQ_FLUSH));  
+}
+
+void c_clear_flush_seq_flag(struct disk_write_op_meta *m) {
+  m->bi_rw = (m->bi_rw & ~(REQ_FLUSH_SEQ));
+}
+// bool c_reset_flush_flag(struct disk_write_op_meta *m) {
+//   return (m->bi_rw)
+// }

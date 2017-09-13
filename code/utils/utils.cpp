@@ -154,6 +154,34 @@ bool disk_write::has_write_flag() {
   return c_has_write_flag(&metadata);
 }
 
+bool disk_write::has_flush_flag() {
+  return c_has_flush_flag(&metadata);
+}
+
+bool disk_write::has_flush_seq_flag() {
+  return c_has_flush_seq_flag(&metadata);
+}
+
+bool disk_write::has_FUA_flag() {
+  return c_has_FUA_flag(&metadata);
+}
+
+void disk_write::set_flush_flag() {
+  c_set_flush_flag(&metadata);
+}
+
+void disk_write::set_flush_seq_flag() {
+  c_set_flush_seq_flag(&metadata);
+}
+
+void disk_write::clear_flush_flag() {
+  c_clear_flush_flag(&metadata);
+}
+
+void disk_write::clear_flush_seq_flag() {
+  c_clear_flush_seq_flag(&metadata);
+}
+
 shared_ptr<char> disk_write::set_data(const char *d) {
   if (metadata.size > 0 && d != NULL) {
     data = shared_ptr<char>(new char[metadata.size]);
