@@ -64,10 +64,10 @@ void Permuter::InitDataVector(vector<disk_write> *data) {
     while (index < data->size() && !(data->at(index)).is_barrier_write()) {
       
       if (prev_epoch_flush_op == true) {
-      	epoch_op curr_op = {index-1, data_half};
-      	current_epoch.ops.push_back(curr_op);
-      	current_epoch.num_meta += data_half.is_meta();
-      	prev_epoch_flush_op = false;
+        epoch_op curr_op = {index-1, data_half};
+        current_epoch.ops.push_back(curr_op);
+        current_epoch.num_meta += data_half.is_meta();
+        prev_epoch_flush_op = false;
       }
 
       disk_write curr = data->at(index);
@@ -106,12 +106,10 @@ void Permuter::InitDataVector(vector<disk_write> *data) {
     // to the special spot in the epoch, otherwise just push the current epoch
     // onto the list and move to the next segment of the log.
     if (index < data->size() && (data->at(index)).is_barrier_write()) {
-      
       // Check if the op at the current index has a flush flag with data. It it has, then divide
       // it into two halves and make the data available only in the start of the next epoch.
       // If the op has a FUA flag, then it gets normally added into the current epoch
       if ((data->at(index).has_flush_flag() || data->at(index).has_flush_seq_flag()) && data->at(index).has_write_flag() && (!data->at(index).has_FUA_flag())) {
-        
         disk_write flag_half;
         data_half = data->at(index);
         
