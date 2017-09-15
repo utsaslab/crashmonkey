@@ -13,7 +13,7 @@ class TestSuiteResult {
  public:
   void AddCompletedTest(const fs_testing::SingleTestInfo& done);
   unsigned int GetCompleted() const;
-  void PrintResults(std::ostream& os) const;
+  void PrintResults(std::ostream& os, bool is_log) const;
 
  private:
   std::vector<fs_testing::SingleTestInfo> completed_;

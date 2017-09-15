@@ -20,7 +20,7 @@ unsigned int TestSuiteResult::GetCompleted() const {
   return completed_.size();
 }
 
-void TestSuiteResult::PrintResults(ostream& os) const {
+void TestSuiteResult::PrintResults(ostream& os, bool is_log) const {
   unsigned int num_failed = 0;
   unsigned int num_passed_fixed = 0;
   unsigned int num_passed = 0;
@@ -62,9 +62,9 @@ void TestSuiteResult::PrintResults(ostream& os) const {
           des += "other: ";
           ++other;
           break;
-	//os << ": " << result.data_test.error_description << "\n";
       }
-      //os << "Test #" << num_failed << " FAILED: "<< des << result.data_test.error_description <<"\n";
+      if(is_log)
+          os << "Test #" << num_failed << " FAILED: "<< des << result.data_test.error_description <<"\n";
     }
   }
 

@@ -673,7 +673,7 @@ int main(int argc, char** argv) {
     test_harness.test_check_random_permutations(iterations);
     test_harness.remove_cow_brd();
 
-    test_harness.PrintTestStats(cout);
+    test_harness.PrintTestStats(cout, false);
     cout << endl;
 
     for (unsigned int i = 0; i < Tester::NUM_TIME; ++i) {
@@ -695,7 +695,7 @@ int main(int argc, char** argv) {
     strftime(time_st, sizeof(time_st), "%Y%m%d_%H:%M:%S", localtime(&now));  
     string s = string(time_st) + "-" + test_name + ".log";
     std::ofstream logfile (s);
-    test_harness.PrintTestStats(logfile);
+    test_harness.PrintTestStats(logfile, true);
     logfile.close();
   }
 
