@@ -7,7 +7,9 @@
 #include <unistd.h>
 #include <wait.h>
 
+#include <ctime>
 #include <iostream>
+#include <fstream>
 #include <string>
 #include <vector>
 
@@ -37,6 +39,7 @@ using std::cerr;
 using std::cout;
 using std::endl;
 using std::string;
+using std::to_string;
 using fs_testing::Tester;
 using fs_testing::utils::communication::kSocketNameOutbound;
 using fs_testing::utils::communication::ServerSocket;
@@ -232,6 +235,8 @@ int main(int argc, char** argv) {
     test_harness.cleanup_harness();
       return -1;
   }
+  //cout << "what is the test???" << endl;
+  //cout << argv[test_case_idx] << endl;
 
   // Load the permuter to use for the test.
   // TODO(ashmrtn): Consider making a line in the test file which specifies the
@@ -677,6 +682,18 @@ int main(int argc, char** argv) {
         << test_harness.get_timing_stat((Tester::time_stats) i).count() << " ms"
         << endl;
     }
+    time_t now = time(0);
+    tm *time_stmp = localtime(&now);
+    string time_log = to_string(time_stmp->tm_hour) + ":"
+    + to_string(time_stmp->tm_min) + ":" 
+    + to_string(time_stmp->tm_sec);
+    string date_log = to_string(time_stmp->tm_year) +
+    to_string(time_stmp->tm_mon) + 
+    to_string(time_stmp->tm_mday);
+    string s = time_log + "_" + date_log  +  ".log";
+    std::ofstream logfile (s);
+    test_harness.PrintTestStats(logfile);
+    logfile.close();
   }
 
   cout << endl << "========== PHASE 4: Cleaning up ==========" << endl;

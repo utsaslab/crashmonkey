@@ -40,23 +40,31 @@ void TestSuiteResult::PrintResults(ostream& os) const {
       ++num_passed_fixed;
     } else {
       ++num_failed;
+      std::string des(""); 
       switch (result.data_test.GetError()) {
         case DataTestResult::kOldFilePersisted:
+          des += "old file persisted: ";
           ++old_file_persisted;
           break;
         case DataTestResult::kFileMissing:
+          des += "file missing: ";
           ++file_missing;
           break;
         case DataTestResult::kFileDataCorrupted:
+          des += "file data corrupted: ";
           ++file_data_corrupted;
           break;
         case DataTestResult::kFileMetadataCorrupted:
+          des += "file metadata corrupted: ";
           ++file_metadata_corrupted;
           break;
         case DataTestResult::kOther:
+          des += "other: ";
           ++other;
           break;
+	//os << ": " << result.data_test.error_description << "\n";
       }
+      os << "Test #" << num_failed << " FAILED: "<< des << result.data_test.error_description <<"\n";
     }
   }
 
