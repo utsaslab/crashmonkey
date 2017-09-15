@@ -157,7 +157,6 @@ int main(int argc, char** argv) {
     return -1;
   }
 
-
   // Create a socket to coordinate with the outside world.
   if (background) {
     // TODO(ashmrtn): Fix permissions on the socket.
@@ -682,15 +681,19 @@ int main(int argc, char** argv) {
         << test_harness.get_timing_stat((Tester::time_stats) i).count() << " ms"
         << endl;
     }
-    time_t now = time(0);
-    tm *time_stmp = localtime(&now);
-    string time_log = to_string(time_stmp->tm_hour) + ":"
-    + to_string(time_stmp->tm_min) + ":" 
-    + to_string(time_stmp->tm_sec);
-    string date_log = to_string(time_stmp->tm_year) +
-    to_string(time_stmp->tm_mon) + 
-    to_string(time_stmp->tm_mday);
-    string s = time_log + "_" + date_log  +  ".log";
+    //get the name of the test being run 
+    string path = argv[test_case_idx];
+    int begin = path.rfind('/');
+    //remove everything before the last /
+    string test_name = path.substr(begin +1);
+    //remove the extension 
+    test_name = test_name.substr(0, test_name.length()-3); 
+    //get the date and time stamp and format
+    time_t now = time(0); 
+    char* time = ctime(&now);
+    char time_st[18];
+    strftime(time_st, sizeof(time_st), "%Y%m%d_%H:%M:%S", localtime(&now));  
+    string s = string(time_st) + "-" + test_name + ".log";
     std::ofstream logfile (s);
     test_harness.PrintTestStats(logfile);
     logfile.close();

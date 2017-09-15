@@ -64,7 +64,7 @@ void TestSuiteResult::PrintResults(ostream& os) const {
           break;
 	//os << ": " << result.data_test.error_description << "\n";
       }
-      os << "Test #" << num_failed << " FAILED: "<< des << result.data_test.error_description <<"\n";
+      //os << "Test #" << num_failed << " FAILED: "<< des << result.data_test.error_description <<"\n";
     }
   }
 
