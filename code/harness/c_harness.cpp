@@ -234,9 +234,7 @@ int main(int argc, char** argv) {
     test_harness.cleanup_harness();
       return -1;
   }
-  //cout << "what is the test???" << endl;
-  //cout << argv[test_case_idx] << endl;
-
+  
   // Load the permuter to use for the test.
   // TODO(ashmrtn): Consider making a line in the test file which specifies the
   // permuter to use?
