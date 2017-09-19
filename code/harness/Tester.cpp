@@ -325,6 +325,16 @@ void Tester::clear_wrapper_log() {
   }
 }
 
+int Tester::CreateCheckpoint() {
+  if (ioctl_fd == -1) {
+    return WRAPPER_DATA_ERR;
+  }
+  if (ioctl(ioctl_fd, HWM_CHECKPOINT) == 0) {
+    return SUCCESS;
+  }
+  return WRAPPER_DATA_ERR;
+}
+
 int Tester::test_load_class(const char* path) {
   return test_loader.load_class<test_create_t *>(path, TEST_CLASS_FACTORY,
       TEST_CLASS_DEFACTORY);

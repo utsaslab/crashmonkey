@@ -100,6 +100,8 @@ class Tester {
   int get_wrapper_log();
   void clear_wrapper_log();
 
+  int CreateCheckpoint();
+
   int clear_caches();
   void cleanup_harness();
   // TODO(ashmrtn): Save the fstype in the log file so that we don't
