@@ -54,9 +54,12 @@ static struct hwm_device {
   struct disk_write_op* current_write;
   // Pointer to log entry to be sent to user-land next.
   struct disk_write_op* current_log_write;
+  unsigned long current_checkpoint;
 } Device;
 
 static void free_logs(void) {
+  // Remove all writes.
+  struct disk_write_op *first = NULL;
   struct disk_write_op* w = Device.writes;
   struct disk_write_op* tmp_w;
   while (w != NULL) {
@@ -65,9 +68,19 @@ static void free_logs(void) {
     w = w->next;
     kfree(tmp_w);
   }
-  Device.current_write = NULL;
-  Device.writes = NULL;
-  Device.current_log_write = NULL;
+
+  // Create default first checkpoint at start of log.
+  first = kzalloc(sizeof(struct disk_write_op), GFP_NOIO);
+  if (first == NULL) {
+    printk(KERN_WARNING "hwm: error allocating default checkpoint\n");
+    return;
+  }
+  first->metadata.bi_flags = HWM_CHECKPOINT_FLAG;
+  first->metadata.bi_rw = HWM_CHECKPOINT_FLAG;
+  Device.current_write = first;
+  Device.writes = first;
+  Device.current_log_write = first;
+  Device.current_checkpoint = 1;
 }
 
 // TODO(ashmrtn): Add mutexes/locking to make thread-safe.
@@ -75,6 +88,7 @@ static int disk_wrapper_ioctl(struct block_device* bdev, fmode_t mode,
     unsigned int cmd, unsigned long arg) {
   int ret = 0;
   unsigned int not_copied;
+  struct disk_write_op *checkpoint = NULL;
 
   switch (cmd) {
     case HWM_LOG_OFF:
@@ -138,6 +152,27 @@ static int disk_wrapper_ioctl(struct block_device* bdev, fmode_t mode,
     case HWM_CLR_LOG:
       printk(KERN_INFO "hwm: clearing data logs\n");
       free_logs();
+      break;
+    case HWM_CHECKPOINT:
+      printk(KERN_INFO "hwm: making checkpoint in log\n");
+      // Create a new log entry that just says we got a checkpoint.
+      checkpoint = kzalloc(sizeof(struct disk_write_op), GFP_NOIO);
+      if (checkpoint == NULL) {
+        printk(KERN_WARNING "hwm: error allocating checkpoint\n");
+        return -ENOMEM;
+      }
+      checkpoint->metadata.bi_rw = HWM_CHECKPOINT_FLAG;
+      checkpoint->metadata.bi_flags = HWM_CHECKPOINT_FLAG;
+      // Aquire lock and add the new entry to the end of the list.
+      spin_lock(&Device.lock);
+      // Assuming spinlock keeps the compiler from reordering this before the
+      // lock is aquired...
+      checkpoint->metadata.write_sector = Device.current_checkpoint;
+      ++Device.current_checkpoint;
+      Device.current_write->next = checkpoint;
+      Device.current_write = checkpoint;
+      // Drop lock and return success.
+      spin_unlock(&Device.lock);
       break;
     default:
       ret = -EINVAL;
@@ -209,7 +244,12 @@ static void disk_wrapper_bio(struct request_queue* q, struct bio* bio) {
       write->metadata.write_sector = bio->BI_SECTOR;
       write->metadata.size = bio->BI_SIZE;
 
+      // Protect playing around with our list of logged bios.
+      spin_lock(&Device.lock);
       if (Device.current_write == NULL) {
+        // With the default first checkpoint, this case should never happen.
+        printk(KERN_WARNING "hwm: found empty list of previous disk ops\n");
+
         // This is the first write in the log.
         Device.writes = write;
         // Set the first write in the log so that it's picked up later.
@@ -220,6 +260,7 @@ static void disk_wrapper_bio(struct request_queue* q, struct bio* bio) {
         Device.current_write->next = write;
       }
       Device.current_write = write;
+      spin_unlock(&Device.lock);
 
       write->data = kmalloc(write->metadata.size, GFP_NOIO);
       if (write->data == NULL) {
@@ -276,6 +317,7 @@ static int __init disk_wrapper_init(void) {
   unsigned int flush_flags;
   unsigned long queue_flags;
   struct block_device *flags_device;
+  struct disk_write_op *first = NULL;
   printk(KERN_INFO "hwm: Hello World from module\n");
   if (strlen(target_device_path) == 0) {
     return -ENOTTY;
@@ -287,6 +329,20 @@ static int __init disk_wrapper_init(void) {
       target_device_path, flags_device_path);
   // Get memory for our starting disk epoch node.
   Device.log_on = false;
+  // Make a checkpoint marking the beginning of the log. This will be useful
+  // when watches are implemented and people begin a watch at the very start of
+  // a test.
+  Device.current_checkpoint = 1;
+  first = kzalloc(sizeof(struct disk_write_op), GFP_NOIO);
+  if (first == NULL) {
+    printk(KERN_WARNING "hwm: error allocating default checkpoint\n");
+    goto out;
+  }
+  first->metadata.bi_rw = HWM_CHECKPOINT_FLAG;
+  first->metadata.bi_flags = HWM_CHECKPOINT_FLAG;
+  Device.writes = first;
+  Device.current_write = first;
+  Device.current_log_write = Device.current_write;
 
   // Get registered.
   major_num = register_blkdev(major_num, "hwm");
