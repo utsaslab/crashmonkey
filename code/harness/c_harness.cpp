@@ -491,6 +491,7 @@ int main(int argc, char** argv) {
 
       // Wait for the user to tell us they are done with the workload.
       SocketMessage command;
+      bool done = false;
       do {
         if (background_com->WaitForMessage(&command) != SocketError::kNone) {
           cerr << "Error getting command from socket" << endl;
@@ -499,17 +500,42 @@ int main(int argc, char** argv) {
           return -1;
         }
 
-        if (command.type != SocketMessage::kEndLog) {
-          if (background_com->SendCommand(SocketMessage::kInvalidCommand) !=
-              SocketError::kNone) {
-            cerr << "Error sending response to client" << endl;
-            delete background_com;
-            test_harness.cleanup_harness();
-            return -1;
-          }
-          background_com->CloseClient();
+        switch (command.type) {
+          case SocketMessage::kEndLog:
+            done = true;
+            break;
+          case SocketMessage::kCheckpoint:
+            if (test_harness.CreateCheckpoint() == SUCCESS) {
+              if (background_com->SendCommand(SocketMessage::kCheckpointDone) !=
+                  SocketError::kNone) {
+                cerr << "Error telling user done with checkpoint" << endl;
+                delete background_com;
+                test_harness.cleanup_harness();
+                return -1;
+              }
+            } else {
+              if (background_com->SendCommand(SocketMessage::kCheckpointFailed)
+                  != SocketError::kNone) {
+                cerr << "Error telling user checkpoint failed" << endl;
+                delete background_com;
+                test_harness.cleanup_harness();
+                return -1;
+              }
+            }
+            background_com->CloseClient();
+            break;
+          default:
+            if (background_com->SendCommand(SocketMessage::kInvalidCommand) !=
+                SocketError::kNone) {
+              cerr << "Error sending response to client" << endl;
+              delete background_com;
+              test_harness.cleanup_harness();
+              return -1;
+            }
+            background_com->CloseClient();
+            break;
         }
-      } while (command.type != SocketMessage::kEndLog);
+      } while (!done);
     } else {
       /*************************************************************************
        * Standalone mode user workload. Fork off a new process and run test

@@ -55,6 +55,7 @@ struct SocketMessage {
     kRunTestsDone,
     kCheckpoint,
     kCheckpointDone,
+    kCheckpointFailed,
   };
 
   CmCommand type;

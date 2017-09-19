@@ -40,7 +40,8 @@ c_harness: \
 user_tools: \
 		$(BUILD_DIR)/user_tools/begin_log \
 		$(BUILD_DIR)/user_tools/end_log \
-		$(BUILD_DIR)/user_tools/begin_tests
+		$(BUILD_DIR)/user_tools/begin_tests \
+		$(BUILD_DIR)/user_tools/cm_checkpoint
 
 tests: \
 		$(foreach TEST, $(CM_TESTS), $(BUILD_DIR)/tests/$(TEST))
