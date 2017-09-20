@@ -24,6 +24,7 @@ void TestSuiteResult::PrintResults(ostream& os, bool is_log) const {
   unsigned int num_failed = 0;
   unsigned int num_passed_fixed = 0;
   unsigned int num_passed = 0;
+  unsigned int total_tests = 0;
 
   unsigned int old_file_persisted = 0;
   unsigned int file_missing = 0;
@@ -32,6 +33,7 @@ void TestSuiteResult::PrintResults(ostream& os, bool is_log) const {
   unsigned int other = 0;
 
   for (const auto& result : completed_) {
+    total_tests++;
     if (result.fs_test.GetError() == FileSystemTestResult::kClean
         && result.data_test.GetError() == DataTestResult::kClean) {
       ++num_passed;
@@ -63,8 +65,9 @@ void TestSuiteResult::PrintResults(ostream& os, bool is_log) const {
           ++other;
           break;
       }
-      if(is_log)
-          os << "Test #" << num_failed << " FAILED: "<< des << result.data_test.error_description <<"\n";
+      if(is_log){
+          os << "Test #" << total_tests << " FAILED: " << des << result.data_test.error_description << "\n";
+      }
     }
   }
 

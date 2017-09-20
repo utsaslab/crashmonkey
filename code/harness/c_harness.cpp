@@ -8,8 +8,8 @@
 #include <wait.h>
 
 #include <ctime>
-#include <iostream>
 #include <fstream>
+#include <iostream>
 #include <string>
 #include <vector>
 
@@ -138,7 +138,8 @@ int main(int argc, char** argv) {
    * 4. load static objects for permuter and test case
    ****************************************************************************/
   const unsigned int test_case_idx = optind;
-
+  const string path = argv[test_case_idx];
+   
   cout << "========== PHASE 0: Setting up CrashMonkey basics =========="
     << endl;
   if (test_case_idx == argc) {
@@ -680,15 +681,13 @@ int main(int argc, char** argv) {
         << endl;
     }
     //get the name of the test being run 
-    string path = argv[test_case_idx];
     int begin = path.rfind('/');
     //remove everything before the last /
-    string test_name = path.substr(begin +1);
+    string test_name = path.substr(begin + 1);
     //remove the extension 
-    test_name = test_name.substr(0, test_name.length()-3); 
+    test_name = test_name.substr(0, test_name.length() - 3); 
     //get the date and time stamp and format
     time_t now = time(0); 
-    char* time = ctime(&now);
     char time_st[18];
     strftime(time_st, sizeof(time_st), "%Y%m%d_%H:%M:%S", localtime(&now));  
     string s = string(time_st) + "-" + test_name + ".log";
