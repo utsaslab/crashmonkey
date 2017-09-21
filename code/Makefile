@@ -87,6 +87,8 @@ $(BUILD_DIR)/c_harness: \
 $(BUILD_DIR)/tests/%.so: \
 		tests/%.cpp \
 		$(BUILD_DIR)/user_tools/src/actions.o \
+		$(BUILD_DIR)/utils/communication/BaseSocket.o \
+		$(BUILD_DIR)/utils/communication/ClientSocket.o \
 		$(BUILD_DIR)/utils/communication/ClientCommandSender.o \
 		$(BUILD_DIR)/results/DataTestResult.o
 	mkdir -p $(@D)
