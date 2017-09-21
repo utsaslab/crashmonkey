@@ -23,6 +23,7 @@ class ServerSocket {
   SocketError SendCommand(SocketMessage::CmCommand c);
   SocketError SendMessage(SocketMessage &m);
   SocketError WaitForMessage(SocketMessage *m);
+  SocketError TryForMessage(SocketMessage *m);
   void CloseClient();
   void CloseServer();
  private:

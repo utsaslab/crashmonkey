@@ -80,6 +80,8 @@ enum SocketError {
   kWrongType,
   kAlreadyConnected,
   kNotConnected,
+  kTimeout,
+  kOther,
 };
 
 }  // namespace communication
