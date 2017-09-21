@@ -7,6 +7,8 @@
 #include <unistd.h>
 #include <wait.h>
 
+#include <ctime>
+#include <fstream>
 #include <iostream>
 #include <string>
 #include <vector>
@@ -37,6 +39,7 @@ using std::cerr;
 using std::cout;
 using std::endl;
 using std::string;
+using std::to_string;
 using fs_testing::Tester;
 using fs_testing::utils::communication::kSocketNameOutbound;
 using fs_testing::utils::communication::ServerSocket;
@@ -135,7 +138,8 @@ int main(int argc, char** argv) {
    * 4. load static objects for permuter and test case
    ****************************************************************************/
   const unsigned int test_case_idx = optind;
-
+  const string path = argv[test_case_idx];
+   
   cout << "========== PHASE 0: Setting up CrashMonkey basics =========="
     << endl;
   if (test_case_idx == argc) {
@@ -153,7 +157,6 @@ int main(int argc, char** argv) {
       << endl;
     return -1;
   }
-
 
   // Create a socket to coordinate with the outside world.
   if (background) {
@@ -232,7 +235,7 @@ int main(int argc, char** argv) {
     test_harness.cleanup_harness();
       return -1;
   }
-
+  
   // Load the permuter to use for the test.
   // TODO(ashmrtn): Consider making a line in the test file which specifies the
   // permuter to use?
@@ -669,7 +672,7 @@ int main(int argc, char** argv) {
     test_harness.test_check_random_permutations(iterations);
     test_harness.remove_cow_brd();
 
-    test_harness.PrintTestStats(cout);
+    test_harness.PrintTestStats(cout, false);
     cout << endl;
 
     for (unsigned int i = 0; i < Tester::NUM_TIME; ++i) {
@@ -677,6 +680,20 @@ int main(int argc, char** argv) {
         << test_harness.get_timing_stat((Tester::time_stats) i).count() << " ms"
         << endl;
     }
+    //get the name of the test being run 
+    int begin = path.rfind('/');
+    //remove everything before the last /
+    string test_name = path.substr(begin + 1);
+    //remove the extension 
+    test_name = test_name.substr(0, test_name.length() - 3); 
+    //get the date and time stamp and format
+    time_t now = time(0); 
+    char time_st[18];
+    strftime(time_st, sizeof(time_st), "%Y%m%d_%H:%M:%S", localtime(&now));  
+    string s = string(time_st) + "-" + test_name + ".log";
+    std::ofstream logfile (s);
+    test_harness.PrintTestStats(logfile, true);
+    logfile.close();
   }
 
   cout << endl << "========== PHASE 4: Cleaning up ==========" << endl;

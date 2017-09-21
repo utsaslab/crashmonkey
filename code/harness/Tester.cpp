@@ -804,9 +804,9 @@ int Tester::log_snapshot_load(string log_file) {
   return SUCCESS;
 }
 
-void Tester::PrintTestStats(std::ostream& os) {
+void Tester::PrintTestStats(std::ostream& os, bool is_log) {
   for (const auto& suite : test_results_) {
-    suite.PrintResults(os);
+    suite.PrintResults(os, is_log);
   }
 }
 
