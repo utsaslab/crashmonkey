@@ -294,7 +294,7 @@ int main(int argc, char** argv) {
     }
 
     // Mount test file system for pre-test setup.
-    cout << "Mounting test file system for pre-test setup\n";
+    cout << "Mounting test file system for pre-test setup" << endl;
     if (test_harness.mount_device_raw(mount_opts.c_str()) != SUCCESS) {
       cerr << "Error mounting test device" << endl;
       test_harness.cleanup_harness();
@@ -335,18 +335,18 @@ int main(int argc, char** argv) {
        * in the test case. Run as a separate process for the sake of
        * cleanliness.
        ************************************************************************/
-      cout << "Running pre-test setup\n";
+      cout << "Running pre-test setup" << endl;
       {
         const pid_t child = fork();
         if (child < 0) {
-          cerr << "Error creating child process to run pre-test setup\n";
+          cerr << "Error creating child process to run pre-test setup" << endl;
           test_harness.cleanup_harness();
         } else if (child != 0) {
           // Parent process should wait for child to terminate before proceeding.
           pid_t status;
           wait(&status);
           if (status != 0) {
-            cerr << "Error in pre-test setup\n";
+            cerr << "Error in pre-test setup" << endl;
             test_harness.cleanup_harness();
           }
         } else {
@@ -360,14 +360,14 @@ int main(int argc, char** argv) {
      * disk for use in workload and tests.
      **************************************************************************/
     // Unmount the test file system after pre-test setup.
-    cout << "Unmounting test file system after pre-test setup\n";
+    cout << "Unmounting test file system after pre-test setup" << endl;
     if (test_harness.umount_device() != SUCCESS) {
       test_harness.cleanup_harness();
       return -1;
     }
 
     // Create snapshot of disk for testing.
-    cout << "Making new snapshot\n";
+    cout << "Making new snapshot" << endl;
     if (test_harness.clone_device() != SUCCESS) {
       test_harness.cleanup_harness();
       return -1;
@@ -432,17 +432,17 @@ int main(int argc, char** argv) {
      **************************************************************************/
 
     // Insert the disk block wrapper into the kernel.
-    cout << "Inserting wrapper module into kernel\n";
+    cout << "Inserting wrapper module into kernel" << endl;
     if (test_harness.insert_wrapper() != SUCCESS) {
-      cerr << "Error inserting kernel wrapper module\n";
+      cerr << "Error inserting kernel wrapper module" << endl;
       test_harness.cleanup_harness();
       return -1;
     }
 
     // Mount the file system under the wrapper module for profiling.
-    cout << "Mounting wrapper file system\n";
+    cout << "Mounting wrapper file system" << endl;
     if (test_harness.mount_wrapper_device(mount_opts.c_str()) != SUCCESS) {
-      cerr << "Error mounting wrapper file system\n";
+      cerr << "Error mounting wrapper file system" << endl;
       test_harness.cleanup_harness();
       return -1;
     }
@@ -455,17 +455,17 @@ int main(int argc, char** argv) {
     } while (to_sleep > 0);
 
     // Get access to wrapper module ioctl functions via FD.
-    cout << "Getting wrapper device ioctl fd\n";
+    cout << "Getting wrapper device ioctl fd" << endl;
     if (test_harness.get_wrapper_ioctl() != SUCCESS) {
-      cerr << "Error opening device file\n";
+      cerr << "Error opening device file" << endl;
       test_harness.cleanup_harness();
       return -1;
     }
 
     // Clear wrapper module logs prior to test profiling.
-    cout << "Clearing wrapper device logs\n";
+    cout << "Clearing wrapper device logs" << endl;
     test_harness.clear_wrapper_log();
-    cout << "Enabling wrapper device logging\n";
+    cout << "Enabling wrapper device logging" << endl;
     test_harness.begin_wrapper_logging();
 
 
@@ -544,18 +544,18 @@ int main(int argc, char** argv) {
        * aren't closed in the process running the worload, the parent won't hang
        * due to a busy mount point.
        ************************************************************************/
-      cout << "Running test profile\n";
+      cout << "Running test profile" << endl;
       {
         const pid_t child = fork();
         if (child < 0) {
-          cerr << "Error spinning off test process\n";
+          cerr << "Error spinning off test process" << endl;
           test_harness.cleanup_harness();
           return -1;
         } else if (child != 0) {
           pid_t status;
           wait(&status);
           if (status != 0) {
-            cerr << "Error in test process\n";
+            cerr << "Error in test process" << endl;
             test_harness.cleanup_harness();
             return -1;
           }
@@ -573,29 +573,29 @@ int main(int argc, char** argv) {
 
     // Wait a small amount of time for writes to propogate to the block
     // layer and then stop logging writes.
-    cout << "Waiting for writeback delay\n";
+    cout << "Waiting for writeback delay" << endl;
     sleep(WRITE_DELAY);
 
-    cout << "Disabling wrapper device logging" << std::endl;
+    cout << "Disabling wrapper device logging" << endl;
     test_harness.end_wrapper_logging();
-    cout << "Getting wrapper data\n";
+    cout << "Getting wrapper data" << endl;
     if (test_harness.get_wrapper_log() != SUCCESS) {
       test_harness.cleanup_harness();
       return -1;
     }
 
-    cout << "Unmounting wrapper file system after test profiling\n";
+    cout << "Unmounting wrapper file system after test profiling" << endl;
     if (test_harness.umount_device() != SUCCESS) {
-      cerr << "Error unmounting wrapper file system\n";
+      cerr << "Error unmounting wrapper file system" << endl;
       test_harness.cleanup_harness();
       return -1;
     }
 
-    cout << "Close wrapper ioctl fd\n";
+    cout << "Close wrapper ioctl fd" << endl;
     test_harness.put_wrapper_ioctl();
-    cout << "Removing wrapper module from kernel\n";
+    cout << "Removing wrapper module from kernel" << endl;
     if (test_harness.remove_wrapper() != SUCCESS) {
-      cerr << "Error cleaning up: remove wrapper module\n";
+      cerr << "Error cleaning up: remove wrapper module" << endl;
       test_harness.cleanup_harness();
       return -1;
     }
@@ -694,7 +694,7 @@ int main(int argc, char** argv) {
     /***************************************************************************
      * Run tests and print the results of said tests.
      **************************************************************************/
-    cout << "Writing profiled data to block device and checking with fsck\n";
+    cout << "Writing profiled data to block device and checking with fsck" << endl;
     test_harness.test_check_random_permutations(iterations);
     test_harness.remove_cow_brd();
 
