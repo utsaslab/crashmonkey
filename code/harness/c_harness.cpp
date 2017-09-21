@@ -79,7 +79,7 @@ int main(int argc, char** argv) {
   int iterations = 1000;
   int disk_size = 10240;
   int option_idx = 0;
-  ServerSocket* background_com;
+  ServerSocket* background_com = NULL;
 
   // Parse command line arguments.
   for (int c = getopt_long(argc, argv, OPTS_STRING, long_options, &option_idx);
@@ -159,65 +159,50 @@ int main(int argc, char** argv) {
   }
 
   // Create a socket to coordinate with the outside world.
-  if (background) {
-    // TODO(ashmrtn): Fix permissions on the socket.
-    /*
-    struct stat socket_dir;
-    int res = stat(SOCKET_DIR, &socket_dir);
-    // Directory does not exist.
-    if (res < 0 && errno == 2) {
-      if (mkdir(SOCKET_DIR, DIRECTORY_PERMS) < 0) {
-        cerr << "Error creating temp directory" << endl;
-        delete background_com;
-        return -1;
-      }
-    } else if (res < 0) {
-      // Some other error.
-      cerr << "Error trying to find temp directory" << endl;
-      delete background_com;
-      return -1;
-    } else if (!S_ISDIR(socket_dir.st_mode)) {
-      // Something there that's not a directory.
-      cerr << "Something not a directory already exists at " << SOCKET_DIR
-        << endl;
+  // TODO(ashmrtn): Fix permissions on the socket.
+  /*
+  struct stat socket_dir;
+  int res = stat(SOCKET_DIR, &socket_dir);
+  // Directory does not exist.
+  if (res < 0 && errno == 2) {
+    if (mkdir(SOCKET_DIR, DIRECTORY_PERMS) < 0) {
+      cerr << "Error creating temp directory" << endl;
       delete background_com;
       return -1;
     }
-
-    // Incorrect permissions.
-    if ((socket_dir.st_mode & DIRECTORY_PERMS) != DIRECTORY_PERMS) {
-      cout << "Changing permissions on " << SOCKET_DIR << " to be world "
-        << "readable and writable" << endl;
-      if (chmod(SOCKET_DIR, DIRECTORY_PERMS) < 0) {
-        cerr << "Error changing permissions on " << SOCKET_DIR << endl;
-        delete background_com;
-        return -1;
-      }
-    }
-    */
-
-    background_com = new ServerSocket(kSocketNameOutbound);
-    if (background_com->Init(kSocketQueueDepth) < 0) {
-      int err_no = errno;
-      cerr << "Error starting socket to listen on " << err_no << endl;
-      delete background_com;
-      return -1;
-    }
-
-    // TODO(ashmrtn): Fix permissions so we can still insert kernel modules
-    // after we fork. Then uncomment the following.
-    // We need to phone home and tell the process that made us that we are ready
-    // for users to do things.
-    /*
-    if (bootstrap) {
-      if (background_com->WaitAndSendInt(HARNESS_PREPARE_DONE) < 0) {
-        cerr << "Error contacting stub bootstrap process" << endl;
-        delete background_com;
-        return -1;
-      }
-    }
-    */
+  } else if (res < 0) {
+    // Some other error.
+    cerr << "Error trying to find temp directory" << endl;
+    delete background_com;
+    return -1;
+  } else if (!S_ISDIR(socket_dir.st_mode)) {
+    // Something there that's not a directory.
+    cerr << "Something not a directory already exists at " << SOCKET_DIR
+      << endl;
+    delete background_com;
+    return -1;
   }
+
+  // Incorrect permissions.
+  if ((socket_dir.st_mode & DIRECTORY_PERMS) != DIRECTORY_PERMS) {
+    cout << "Changing permissions on " << SOCKET_DIR << " to be world "
+      << "readable and writable" << endl;
+    if (chmod(SOCKET_DIR, DIRECTORY_PERMS) < 0) {
+      cerr << "Error changing permissions on " << SOCKET_DIR << endl;
+      delete background_com;
+      return -1;
+    }
+  }
+  */
+
+  background_com = new ServerSocket(kSocketNameOutbound);
+  if (background_com->Init(kSocketQueueDepth) < 0) {
+    int err_no = errno;
+    cerr << "Error starting socket to listen on " << err_no << endl;
+    delete background_com;
+    return -1;
+  }
+
 
   Tester test_harness(disk_size, verbose);
 
@@ -552,8 +537,51 @@ int main(int argc, char** argv) {
           test_harness.cleanup_harness();
           return -1;
         } else if (child != 0) {
-          pid_t status;
-          wait(&status);
+          pid_t status = -1;
+          pid_t wait_res = 0;
+          do {
+            SocketMessage m;
+            SocketError se;
+
+            se = background_com->TryForMessage(&m);
+
+            if (se == SocketError::kNone) {
+              if (m.type == SocketMessage::kCheckpoint) {
+                if (test_harness.CreateCheckpoint() == SUCCESS) {
+                  if (background_com->SendCommand(
+                          SocketMessage::kCheckpointDone)
+                        != SocketError::kNone) {
+                      // TODO(ashmrtn): Handle better.
+                      cerr << "Error telling user done with checkpoint" << endl;
+                      delete background_com;
+                      test_harness.cleanup_harness();
+                      return -1;
+                  }
+                } else {
+                  if (background_com->SendCommand(
+                        SocketMessage::kCheckpointFailed)
+                      != SocketError::kNone) {
+                    // TODO(ashmrtn): Handle better.
+                    cerr << "Error telling user checkpoint failed" << endl;
+                    delete background_com;
+                    test_harness.cleanup_harness();
+                    return -1;
+                  }
+                }
+              } else {
+                if (background_com->SendCommand(
+                      SocketMessage::kInvalidCommand)
+                    != SocketError::kNone) {
+                  cerr << "Error sending response to client" << endl;
+                  delete background_com;
+                  test_harness.cleanup_harness();
+                  return -1;
+                }
+              }
+              background_com->CloseClient();
+            }
+            wait_res = waitpid(child, &status, WNOHANG);
+          } while (wait_res == 0);
           if (status != 0) {
             cerr << "Error in test process" << endl;
             test_harness.cleanup_harness();
@@ -739,8 +767,8 @@ int main(int argc, char** argv) {
       test_harness.cleanup_harness();
       return -1;
     }
-    delete background_com;
   }
+  delete background_com;
 
   return 0;
 }
