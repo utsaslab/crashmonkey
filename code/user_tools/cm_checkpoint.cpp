@@ -1,11 +1,7 @@
-#include "../utils/communication/ClientCommandSender.h"
-#include "../utils/communication/SocketUtils.h"
+#include "api/actions.h"
 
-using fs_testing::utils::communication::ClientCommandSender;
-using fs_testing::utils::communication::kSocketNameOutbound;
-using fs_testing::utils::communication::SocketMessage;
+using fs_testing::user_tools::api::Checkpoint;
 
 int main(int argc, char** argv) {
-  return ClientCommandSender(kSocketNameOutbound, SocketMessage::kCheckpoint,
-      SocketMessage::kCheckpointDone).Run();
+  return Checkpoint();
 }
