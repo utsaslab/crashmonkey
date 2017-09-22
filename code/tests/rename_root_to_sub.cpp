@@ -131,6 +131,7 @@ class rename_root_to_sub : public BaseTestCase {
     if (stat_old_res < 0 && errno_old == ENOENT &&
         stat_new_res < 0 && errno_new == ENOENT) {
       test_res->SetError(DataTestResult::kFileMissing);
+      test_res->error_description = old_path + ", " + new_path + " missing";
       return 0;
     }
 
@@ -138,6 +139,7 @@ class rename_root_to_sub : public BaseTestCase {
     struct stat check_stat;
     if (stat_old_res >= 0 && stat_new_res >= 0) {
       test_res->SetError(DataTestResult::kOldFilePersisted);
+      test_res->error_description = old_path + " still present";
       return -1;
     } else if (stat_old_res >= 0) {
       check_file = old_path;
@@ -148,22 +150,26 @@ class rename_root_to_sub : public BaseTestCase {
     } else {
       // Some other error(s) occurred.
       test_res->SetError(DataTestResult::kOther);
+      test_res->error_description = "unknown error";
       return 0;
     }
 
     if (!S_ISREG(check_stat.st_mode)) {
       test_res->SetError(DataTestResult::kFileMetadataCorrupted);
+      test_res->error_description = check_file + " has wrong file type";
       return 0;
     }
     if (((S_IRWXU | S_IRWXG | S_IRWXO) & check_stat.st_mode) !=
         TEST_FILE_PERMS) {
       test_res->SetError(DataTestResult::kFileMetadataCorrupted);
+      test_res->error_description = check_file + " has wrong file permissions";
       return 0;
     }
 
     const int fd = open(check_file.c_str(), O_RDONLY);
     if (fd < 0) {
       test_res->SetError(DataTestResult::kOther);
+      test_res->error_description = "unable to open " + check_file;
       return 0;
     }
 
@@ -171,6 +177,7 @@ class rename_root_to_sub : public BaseTestCase {
     char* buf = (char*) calloc(strlen(TEST_TEXT), sizeof(char));
     if (buf == NULL) {
       test_res->SetError(DataTestResult::kOther);
+      test_res->error_description = "out of memory";
       return 0;
     }
     do {
@@ -180,6 +187,7 @@ class rename_root_to_sub : public BaseTestCase {
         free(buf);
         close(fd);
         test_res->SetError(DataTestResult::kOther);
+        test_res->error_description = "error reading " + check_file;
         return 0;
       } else if (res == 0) {
         break;
@@ -190,8 +198,10 @@ class rename_root_to_sub : public BaseTestCase {
 
     if (bytes_read != strlen(TEST_TEXT)) {
       test_res->SetError(DataTestResult::kFileDataCorrupted);
+      test_res->error_description = check_file + " has truncated data";
     } else if (memcmp(TEST_TEXT, buf, strlen(TEST_TEXT)) != 0) {
       test_res->SetError(DataTestResult::kFileDataCorrupted);
+      test_res->error_description = check_file + " has incorrect data";
     }
 
     free(buf);

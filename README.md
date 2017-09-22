@@ -65,6 +65,11 @@ Some tests for CrashMonkey reside in the `test` directory of the repo. Tests lev
 
 ### Running CrashMonkey ###
 CrashMonkey can be run either as a standalone program or as a background program. When in standalone mode, Crashmonkey will automatically load and run the user defined C++ setup and workload methods. In both modes, CrashMonkey will look for user defined data consistency tests in the `.so` test file provided to CrashMonkey on the command line. When run as a background process, the user is allowed to run setup and workload methods outside of CrashMonkey use a series of simple stub programs to communicate with CrashMonkey. In both modes of operation, command line flags have the same meaning.
+CrashMonkey has some strange flag values that need cleaned up in future version.
+Until that happens, **don't be worried by the fact that you need the
+`-d /dev/cow_ram0` flag even though that device doesn't exist.** It is a device
+presented by CrashMonkey's cow_brd kernel module and I never got around to
+removing it.
 
 #### Running as a Standalone Program ####
 Before running any tests with CrashMonkey, you will have to create a directory
@@ -76,7 +81,15 @@ least provide the following:
 * `-t` - file system type, right now CrashMonkey is only tested on ext4
 * `-d` - device to run tests on. Currently the only valid option is `/dev/cow_ram0`. This flag should hopefully go away soon.
 
-To run your own CrashMonkey, use: `../build/c_harness <flags> <user defined workload>`
+To run your own CrashMonkey, use: `./c_harness <flags> <user defined workload>`
+from the `build` directory.
+As and example, you can run
+`./c_harness -f /dev/vda -d /dev/cow_ram0 -t ext2 tests/rename_root_to_sub.so`
+to run a test on an ext2 file system that tries to move a file between
+directories.
+
+Once the test completes, open up the `<date_timestamp>-rename_root_to_sub.log`
+file to see a printout of what tests failed and why.
 
 A full listing of flags for CrashMonkey can be found in `code/harness/c_harness.c`
 
@@ -87,18 +100,24 @@ There are currently no scripts or pre-defined `make` rules for running CrashMonk
 1. shell 1: `make`
 1. shell 1: `cd build`
 1. shell 2: `cd build`
-1. shell 1: `sudo ./c_harness -f /dev/sda -t ext4 -m barrier -d /dev/cow_ram0 -e 10240 -b tests/echo_sub_dir.so`
+1. shell 1: `sudo ./c_harness -f /dev/sda -t ext2 -d /dev/cow_ram0 -e 10240 -b tests/rename_root_to_sub.so`
     1. `-e` specifies the RAM block device size to use in KB
     1. `-f` specifies another block device to copy IO scheduler flags from
 1. shell 2: `sudo mkdir /mnt/snapshot/test_dir`
+1. shell 2: `sudo touch /mnt/snapshot/test_file`
+1. shell 2: `sudo chmod 0777 /mnt/snapshot/test_file`
+1. shell 2: `echo <some string>`
 1. shell 2: `sudo user_tools/begin_log`
-1. shell 2: `sudo touch /mnt/snapshot/test_dir/test_file`
-1. shell 2: `sudo chmod 0777 /mnt/snapshot/test_dir/test_file`
-1. shell 2: `echo "hello great big world out there" | sudo tee /mnt/snapshot/test_dir/test_file`
+1. shell 2: `sudo mv /mnt/snapshot/test_file /mnt/snapshot/test_dir/test_file`
 1. shell 2: `sudo user_tools/end_log`
 1. shell 2: `sudo user_tools/begin_tests`
 
-Again, a full list of flags for CrashMonkey can be found in `code/harness/c_harness.c`
+**Please note that in this test, unless you copy the text data from the `.cpp`
+file the `rename_root_to_sub` test is built from, you will get many failures due
+to incorrect file data.**
+Again, a full list of flags for CrashMonkey can be found in
+`code/harness/c_harness.c` and log output for the tests can be found in a file
+named `<date_fimestamp-<test name>.log`
 
 ### Contribution Guidelines ###
 
