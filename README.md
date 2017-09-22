@@ -67,7 +67,7 @@ Some tests for CrashMonkey reside in the `test` directory of the repo. Tests lev
 CrashMonkey can be run either as a standalone program or as a background program. When in standalone mode, Crashmonkey will automatically load and run the user defined C++ setup and workload methods. In both modes, CrashMonkey will look for user defined data consistency tests in the `.so` test file provided to CrashMonkey on the command line. When run as a background process, the user is allowed to run setup and workload methods outside of CrashMonkey use a series of simple stub programs to communicate with CrashMonkey. In both modes of operation, command line flags have the same meaning.
 CrashMonkey has some strange flag values that need cleaned up in future version.
 Until that happens, **don't be worried by the fact that you need the
-`d /dev/cow_ram0` flag even though that device doesn't exist.** It is a device
+`-d /dev/cow_ram0` flag even though that device doesn't exist.** It is a device
 presented by CrashMonkey's cow_brd kernel module and I never got around to
 removing it.
 
