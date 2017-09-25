@@ -3,14 +3,28 @@
 ## Special About This Version ##
 This version of CrashMonkey is a hacked build that allows users to run the `fsx`
 program from `xfstests` in their test case. Currently the file path for `fsx`
-must be hardcoded. `xfstests` must be present and built on the machine running
-this version of CrashMonkey prior to running the CrashMonkey test case. Check
-`code/test/ext4_regression_bug.cpp`.
+must be hardcoded. `xfstests` must be present and built in the home directory
+of the user running CrashMonkey on the machine running this version of
+CrashMonkey prior to running the CrashMonkey test case. Check
+`code/test/ext4_regression_bug.cpp` to see where the hardcoded path points.
 
 Furthermore, this has some extra print statements to aid with reading fsck
 errors. These will print when run in verbose mode. If you do decide to run in
 verbose mode, I recommend using `tee` or file redirection and saving everything
 to file rather than just scrolling the console. It is quite a bit of output.
+
+With this version of CrashMonkey, you will also see some output from `fsck`
+complaining about files with referencing inodes in the unused inode area. These
+are errors that `fsck` finds when the files created by `fsx` have not been
+properly recorded in their respective parent directories. These are not part of
+the functionality that the `fsx` test is really supposed to be checking for so
+you can most likely ignore them. If you would like more confirmation about that,
+modify `fsx` to call `syncfs` after it is done checking for `fallocate` support.
+You can then modify `code/permuter/Permuter.cpp` to print out the indices of all
+bios with barrier flags (`FUA` or `FLUSH` right now). Further modifying
+CrashMonkey to print the order of bios in the generated crash state, you will
+then see that the errors about inodes in the unused inode area occur before the
+`syncfs` added to `fsx`.
 
 1. Build with `cd crashmonkey/code; make default tests/ext4_regression_bug.so`
 2. run with `sudo ../build/c_harness -v -d /dev/cow_ram0 -e 10240 -f /dev/vda -t ext4 tests/ext4_regression_bug.so | tee ~/ext4_regression.log`
