@@ -54,14 +54,29 @@ void Permuter::InitDataVector(vector<disk_write> *data) {
   bool prev_epoch_flush_op = false;
   disk_write data_half;
   list<range> overlaps;
+  // Make sure that the first time we mark a checkpoint epoch, we start at 0 and
+  // not 1.
+  int curr_checkpoint_epoch = -1;
   while (index < data->size()) {
     struct epoch current_epoch;
     current_epoch.has_barrier = false;
     current_epoch.overlaps = false;
+    current_epoch.checkpoint_epoch = curr_checkpoint_epoch;
 
     // Get all ops in this epoch and add them to either the sync_op or async_op
     // lists.
     while (index < data->size() && !(data->at(index)).is_barrier_write()) {
+      // Checkpoint operations will only be seen once we have switched over
+      // epochs, so we need to edit the checkpoint epoch of the current epoch as
+      // well as incrementing the curr_checkpoint_epoch counter.
+      if (data->at(index).is_checkpoint()) {
+        ++curr_checkpoint_epoch;
+        current_epoch.checkpoint_epoch = curr_checkpoint_epoch;
+        // Checkpoint operations should not appear in the bio stream passed to
+        // actual permuters.
+        ++index;
+        continue;
+      }
       
       if (prev_epoch_flush_op == true) {
         epoch_op curr_op = {index-1, data_half};
@@ -148,7 +163,8 @@ vector<epoch>* Permuter::GetEpochs() {
 }
 
 
-bool Permuter::GenerateCrashState(vector<disk_write>& res) {
+bool Permuter::GenerateCrashState(vector<disk_write>& res,
+    unsigned int *checkpoint_epoch) {
   vector<epoch_op> crash_state;
   unsigned long retries = 0;
   unsigned int exists = 0;
@@ -160,7 +176,7 @@ bool Permuter::GenerateCrashState(vector<disk_write>& res) {
       ? kMinRetries
       : kRetryMultiplier * completed_permutations_.size();
   do {
-    new_state = gen_one_state(crash_state);
+    new_state = gen_one_state(crash_state, checkpoint_epoch);
 
     crash_state_hash.clear();
     crash_state_hash.resize(crash_state.size());

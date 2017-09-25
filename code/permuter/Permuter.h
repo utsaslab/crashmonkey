@@ -25,6 +25,7 @@ struct epoch_op {
 
 struct epoch {
   unsigned int num_meta;
+  unsigned int checkpoint_epoch;
   bool has_barrier;
   bool overlaps;
   std::vector<struct epoch_op> ops;
@@ -35,14 +36,16 @@ class Permuter {
  public:
   virtual ~Permuter() {};
   void InitDataVector(std::vector<fs_testing::utils::disk_write>* data);
-  bool GenerateCrashState(std::vector<fs_testing::utils::disk_write>& res);
+  bool GenerateCrashState(std::vector<fs_testing::utils::disk_write>& res,
+      unsigned int *checkpoint_epoch);
 
  protected:
   std::vector<epoch>* GetEpochs();
 
  private:
   virtual void init_data(std::vector<epoch> *data) = 0;
-  virtual bool gen_one_state(std::vector<epoch_op>& res) = 0;
+  virtual bool gen_one_state(std::vector<epoch_op>& res,
+      unsigned int *checkpoint_epoch) = 0;
 
   std::vector<epoch> epochs_;
   std::unordered_set<std::vector<unsigned int>, BioVectorHash, BioVectorEqual>

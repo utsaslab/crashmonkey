@@ -469,10 +469,12 @@ int Tester::test_check_random_permutations(const int num_rounds) {
     /***************************************************************************
      * Generate and write out a crash state.
      **************************************************************************/
+    SingleTestInfo test_info;
 
     // Begin permute timing.
     time_point<steady_clock> permute_start_time = steady_clock::now();
-    bool new_state = p->GenerateCrashState(permutes);
+    bool new_state = p->GenerateCrashState(permutes,
+        &test_info.last_checkpoint);
     time_point<steady_clock> permute_end_time = steady_clock::now();
     timing_stats[PERMUTE_TIME] +=
         duration_cast<milliseconds>(permute_end_time - permute_start_time);
@@ -481,8 +483,6 @@ int Tester::test_check_random_permutations(const int num_rounds) {
     if (!new_state) {
       break;
     }
-
-    SingleTestInfo test_info;
 
     //cout << '.' << std::flush;
 

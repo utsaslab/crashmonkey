@@ -31,7 +31,8 @@ RandomPermuter::RandomPermuter(vector<disk_write> *data) {
 void RandomPermuter::init_data(vector<epoch> *data) {
 }
 
-bool RandomPermuter::gen_one_state(vector<epoch_op>& res) {
+bool RandomPermuter::gen_one_state(vector<epoch_op>& res,
+    unsigned int *checkpoint_epoch) {
   unsigned int total_elements = 0;
   // Find how many elements we will be returning (randomly determined).
   uniform_int_distribution<unsigned int> permute_epochs(1, GetEpochs()->size());
@@ -46,6 +47,23 @@ bool RandomPermuter::gen_one_state(vector<epoch_op>& res) {
   }
   total_elements += num_requests;
   res.resize(total_elements);
+  // Tell CrashMonkey the most recently seen checkpoint for the crash state
+  // we're generating. We can't just pull the last epoch because it could be the
+  // case that there's a checkpoint at the end of this disk write epoch.
+  // Therefore, we should determine 1. if we are writing out this entire epoch,
+  // and 2. if the checkpoint epoch for this disk write epoch is different than
+  // the checkpoint epoch of the disk write epoch before this one (indicating
+  // that this disk write epoch changes checkpoint epochs).
+  epoch *target = &GetEpochs()->at(num_epochs - 1);
+  epoch *prev = NULL;
+  if (num_epochs > 1) {
+    prev = &GetEpochs()->at(num_epochs - 2);
+  }
+  if (num_requests != target->ops.size()) {
+    *checkpoint_epoch = (prev) ? prev->checkpoint_epoch : 0;
+  } else {
+    *checkpoint_epoch = target->checkpoint_epoch;
+  }
 
   auto curr_iter = res.begin();
   for (unsigned int i = 0; i < num_epochs; ++i) {

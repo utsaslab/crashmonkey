@@ -17,7 +17,8 @@ class RandomPermuter : public Permuter {
 
  private:
   virtual void init_data(std::vector<epoch> *data);
-  virtual bool gen_one_state(std::vector<epoch_op>& res);
+  virtual bool gen_one_state(std::vector<epoch_op>& res,
+      unsigned int *checkpoint_epoch);
   void permute_epoch(
       std::vector<epoch_op>::iterator& res_start,
       std::vector<epoch_op>::iterator& res_end, epoch& epoch);
