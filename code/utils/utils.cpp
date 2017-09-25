@@ -44,6 +44,10 @@ bool disk_write::is_meta() {
   return c_is_meta(&metadata);
 }
 
+bool disk_write::is_checkpoint() {
+  return c_is_checkpoint(&metadata);
+}
+
 disk_write::disk_write(const struct disk_write_op_meta& m,
     const char *d) {
   metadata = m;

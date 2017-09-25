@@ -14,12 +14,12 @@
 #define COW_BRD_RESTORE_SNAPSHOT  0xff08
 #define COW_BRD_WIPE              0xff09
 
-#define HWM_CHECKPOINT_FLAG       (~0)
+#define HWM_CHECKPOINT_FLAG       (1ULL << 63)
 
 // For ease of transferring data to user-land.
 struct disk_write_op_meta {
-  unsigned long bi_flags;
-  unsigned long bi_rw;
+  unsigned long long bi_flags;
+  unsigned long long bi_rw;
   unsigned long write_sector;
   unsigned int size;
 };
