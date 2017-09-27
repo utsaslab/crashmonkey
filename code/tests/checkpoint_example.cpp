@@ -77,6 +77,12 @@ class CheckpointExample : public BaseTestCase {
   }
 
   virtual int run() override {
+    // For fsyncs later.
+    const int root_dir = open(TEST_MNT, O_RDONLY);
+    if (root_dir < 0) {
+      return -1;
+    }
+
     // Create test directory.
     int res = mkdir(TEST_MNT "/" TEST_DIR, 0777);
     if (res < 0) {
@@ -87,6 +93,10 @@ class CheckpointExample : public BaseTestCase {
       return -1;
     }
     res = fsync(dir);
+    if (res < 0) {
+      return -1;
+    }
+    res = fsync(root_dir);
     if (res < 0) {
       return -1;
     }
@@ -116,6 +126,7 @@ class CheckpointExample : public BaseTestCase {
       written += res;
     } while (written != strlen(TEST_TEXT));
     fsync(fd);
+    fsync(root_dir);
     res = Checkpoint();
     if (res < 0) {
       return -1;
@@ -137,6 +148,15 @@ class CheckpointExample : public BaseTestCase {
     const int errno_old = errno;
     const int stat_new_res = stat(new_path.c_str(), &stats_new);
     const int errno_new = errno;
+
+    test_res->ResetError();
+
+    // Checkpoint 2 is where we fsync-ed the root directory with our new file
+    // and the file itself. If we crash before then, we can't say for sure if
+    // the file will exist or not.
+    if (last_checkpoint < 2) {
+      return 0;
+    }
 
     // Neither stat found the file, it's gone...
     if (stat_old_res < 0 && errno_old == ENOENT &&
