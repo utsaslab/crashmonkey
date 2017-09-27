@@ -129,7 +129,8 @@ class CheckpointExample : public BaseTestCase {
     return 0;
   }
 
-  virtual int check_test(DataTestResult *test_res) override {
+  virtual int check_test(unsigned int last_checkpoint,
+      DataTestResult *test_res) override {
     struct stat stats_old;
     struct stat stats_new;
     const int stat_old_res = stat(old_path.c_str(), &stats_old);

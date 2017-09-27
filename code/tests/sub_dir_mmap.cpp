@@ -95,7 +95,8 @@ class echo_sub_dir_big : public BaseTestCase {
     return 0;
   }
 
-  virtual int check_test(DataTestResult *test_result) override {
+  virtual int check_test(unsigned int last_checkpoint,
+      DataTestResult *test_result) override {
     int res2 = 0;
     for (unsigned int i = 0; i < NUM_TEST_FILES; ++i) {
       struct stat stats;

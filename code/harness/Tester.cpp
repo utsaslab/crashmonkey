@@ -568,7 +568,8 @@ int Tester::test_check_random_permutations(const int num_rounds) {
       // Begin test case timing.
       time_point<steady_clock> test_case_start_time = steady_clock::now();
       const int test_check_res =
-          test_loader.get_instance()->check_test(&test_info.data_test);
+          test_loader.get_instance()->check_test(
+              test_info.permute_data.last_checkpoint, &test_info.data_test);
       time_point<steady_clock> test_case_end_time = steady_clock::now();
       timing_stats[TEST_CASE_TIME] += duration_cast<milliseconds>(
         test_case_end_time - test_case_start_time);
