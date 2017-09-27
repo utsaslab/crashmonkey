@@ -80,7 +80,8 @@ $(BUILD_DIR)/c_harness: \
 		$(BUILD_DIR)/permuter/Permuter.o \
 		$(BUILD_DIR)/results/TestSuiteResult.o \
 		$(BUILD_DIR)/results/FileSystemTestResult.o \
-		$(BUILD_DIR)/results/DataTestResult.o
+		$(BUILD_DIR)/results/DataTestResult.o \
+		$(BUILD_DIR)/results/PermuteTestResult.o
 	mkdir -p $(@D)
 	$(GPP) $(GOPTS) $^ -ldl -o $@
 

@@ -32,7 +32,7 @@ void RandomPermuter::init_data(vector<epoch> *data) {
 }
 
 bool RandomPermuter::gen_one_state(vector<epoch_op>& res,
-    unsigned int *checkpoint_epoch) {
+    PermuteTestResult &log_data) {
   unsigned int total_elements = 0;
   // Find how many elements we will be returning (randomly determined).
   uniform_int_distribution<unsigned int> permute_epochs(1, GetEpochs()->size());
@@ -47,6 +47,7 @@ bool RandomPermuter::gen_one_state(vector<epoch_op>& res,
   }
   total_elements += num_requests;
   res.resize(total_elements);
+  log_data.crash_state.resize(total_elements);
   // Tell CrashMonkey the most recently seen checkpoint for the crash state
   // we're generating. We can't just pull the last epoch because it could be the
   // case that there's a checkpoint at the end of this disk write epoch.
@@ -60,9 +61,9 @@ bool RandomPermuter::gen_one_state(vector<epoch_op>& res,
     prev = &GetEpochs()->at(num_epochs - 2);
   }
   if (num_requests != target->ops.size()) {
-    *checkpoint_epoch = (prev) ? prev->checkpoint_epoch : 0;
+    log_data.last_checkpoint = (prev) ? prev->checkpoint_epoch : 0;
   } else {
-    *checkpoint_epoch = target->checkpoint_epoch;
+    log_data.last_checkpoint = target->checkpoint_epoch;
   }
 
   auto curr_iter = res.begin();
@@ -85,6 +86,11 @@ bool RandomPermuter::gen_one_state(vector<epoch_op>& res,
         ++curr_iter;
       }
     }
+  }
+
+  // Messy bit to add everything to the logging data struct.
+  for (unsigned int i = 0; i < res.size(); ++i) {
+    log_data.crash_state.at(i) = res.at(i).abs_index;
   }
   return true;
 }

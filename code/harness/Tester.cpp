@@ -474,7 +474,7 @@ int Tester::test_check_random_permutations(const int num_rounds) {
     // Begin permute timing.
     time_point<steady_clock> permute_start_time = steady_clock::now();
     bool new_state = p->GenerateCrashState(permutes,
-        &test_info.last_checkpoint);
+        test_info.permute_data);
     time_point<steady_clock> permute_end_time = steady_clock::now();
     timing_stats[PERMUTE_TIME] +=
         duration_cast<milliseconds>(permute_end_time - permute_start_time);

@@ -4,7 +4,7 @@
 
 namespace fs_testing {
 
-using std::endl;;
+using std::endl;
 using std::ostream;
 using std::vector;
 
@@ -70,8 +70,13 @@ void TestSuiteResult::PrintResults(ostream& os, bool is_log) const {
           ++other;
           break;
       }
-      if(is_log){
-          os << "Test #" << total_tests << " FAILED: " << des << result.data_test.error_description << "\n";
+      if (is_log) {
+        os << "Test #" << total_tests << " FAILED: " << des
+          << result.data_test.error_description << endl;
+        os << "\tlast checkpoint: " << result.permute_data.last_checkpoint
+          << endl;
+        os << "\tcrash state: ";
+        result.permute_data.PrintCrashState(os) << endl;
       }
     }
   }
