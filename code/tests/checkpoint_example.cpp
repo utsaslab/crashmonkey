@@ -14,6 +14,7 @@
 
 using std::calloc;
 using std::string;
+using std::to_string;
 
 using fs_testing::tests::DataTestResult;
 using fs_testing::user_tools::api::Checkpoint;
@@ -162,7 +163,8 @@ class CheckpointExample : public BaseTestCase {
     if (stat_old_res < 0 && errno_old == ENOENT &&
         stat_new_res < 0 && errno_new == ENOENT) {
       test_res->SetError(DataTestResult::kFileMissing);
-      test_res->error_description = "test file has completely disappeared";
+      test_res->error_description =
+        "both " + old_path + " and " + new_path + " have disappeared";
       return 0;
     }
 
@@ -188,14 +190,14 @@ class CheckpointExample : public BaseTestCase {
     if (!S_ISREG(check_stat.st_mode)) {
       test_res->SetError(DataTestResult::kFileMetadataCorrupted);
       test_res->error_description = check_file + ": file type is "
-        + std::to_string((S_IFMT & check_stat.st_mode));
+        + to_string((S_IFMT & check_stat.st_mode));
       return 0;
     }
     if (((S_IRWXU | S_IRWXG | S_IRWXO) & check_stat.st_mode) !=
         TEST_FILE_PERMS) {
       test_res->SetError(DataTestResult::kFileMetadataCorrupted);
       test_res->error_description = check_file + ": file permissions are "
-        + std::to_string(((~S_IFMT) & check_stat.st_mode));
+        + to_string(((~S_IFMT) & check_stat.st_mode));
       return 0;
     }
 
@@ -230,10 +232,18 @@ class CheckpointExample : public BaseTestCase {
 
     if (bytes_read != strlen(TEST_TEXT)) {
       test_res->SetError(DataTestResult::kFileDataCorrupted);
-      test_res->error_description = check_file + ": read data size wrong";
-    } else if (memcmp(TEST_TEXT, buf, strlen(TEST_TEXT)) != 0) {
-      test_res->SetError(DataTestResult::kFileDataCorrupted);
-      test_res->error_description = check_file + ": read data incorrect";
+      test_res->error_description =
+        check_file + ": tried to read " + to_string(strlen(TEST_TEXT))
+        + " bytes but only read " + to_string(bytes_read);
+    } else {
+      for (unsigned int i = 0; i < strlen(TEST_TEXT); ++i) {
+        if (buf[i] != TEST_TEXT[i]) {
+          test_res->SetError(DataTestResult::kFileDataCorrupted);
+          test_res->error_description =
+            check_file + ": read data incorrect at index " + to_string(i);
+          break;
+        }
+      }
     }
 
     free(buf);
