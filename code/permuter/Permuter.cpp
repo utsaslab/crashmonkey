@@ -50,7 +50,6 @@ bool BioVectorEqual::operator() (const std::vector<unsigned int>& a,
 
 void Permuter::InitDataVector(vector<disk_write> *data) {
   epochs_.clear();
-  unsigned int index = 0;
   bool prev_epoch_flush_op = false;
   disk_write data_half;
   list<range> overlaps;
@@ -82,7 +81,8 @@ void Permuter::InitDataVector(vector<disk_write> *data) {
       }
       
       if (prev_epoch_flush_op == true) {
-        epoch_op split_op = {abs_index - 1, data_half};
+        epoch_op split_op = {abs_index, data_half};
+        ++abs_index;
         current_epoch.ops.push_back(split_op);
         current_epoch.num_meta += data_half.is_meta();
         prev_epoch_flush_op = false;
@@ -117,7 +117,7 @@ void Permuter::InitDataVector(vector<disk_write> *data) {
       current_epoch.ops.push_back(eo);
       current_epoch.num_meta += curr_op->is_meta();
       ++abs_index;
-      curr_op++;
+      ++curr_op;
     }
 
     // Check is the op at the current index is a "barrier." If it is then add it
