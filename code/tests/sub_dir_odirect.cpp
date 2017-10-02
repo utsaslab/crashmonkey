@@ -101,7 +101,8 @@ class sub_dir_odirect : public BaseTestCase {
     return 0;
   }
 
-  virtual int check_test(DataTestResult *test_result) override {
+  virtual int check_test(unsigned int last_checkpoint,
+      DataTestResult *test_result) override {
     for (unsigned int i = 0; i < NUM_TEST_FILES; ++i) {
       struct stat stats;
       const string file_name = string(TEST_MNT "/" TEST_DIR "/" TEST_FILE

@@ -55,6 +55,7 @@ struct SocketMessage {
     kRunTestsDone,
     kCheckpoint,
     kCheckpointDone,
+    kCheckpointFailed,
   };
 
   CmCommand type;
@@ -79,6 +80,8 @@ enum SocketError {
   kWrongType,
   kAlreadyConnected,
   kNotConnected,
+  kTimeout,
+  kOther,
 };
 
 }  // namespace communication

@@ -5,9 +5,12 @@
 #include <vector>
 
 #include "../utils/utils.h"
+#include "../results/PermuteTestResult.h"
 
 namespace fs_testing {
 namespace permuter {
+
+using fs_testing::PermuteTestResult;
 
 struct BioVectorHash {
   std::size_t operator() (const std::vector<unsigned int>& permutation) const;
@@ -25,6 +28,7 @@ struct epoch_op {
 
 struct epoch {
   unsigned int num_meta;
+  unsigned int checkpoint_epoch;
   bool has_barrier;
   bool overlaps;
   std::vector<struct epoch_op> ops;
@@ -35,14 +39,16 @@ class Permuter {
  public:
   virtual ~Permuter() {};
   void InitDataVector(std::vector<fs_testing::utils::disk_write>* data);
-  bool GenerateCrashState(std::vector<fs_testing::utils::disk_write>& res);
+  bool GenerateCrashState(std::vector<fs_testing::utils::disk_write>& res,
+      PermuteTestResult &log_data);
 
  protected:
   std::vector<epoch>* GetEpochs();
 
  private:
   virtual void init_data(std::vector<epoch> *data) = 0;
-  virtual bool gen_one_state(std::vector<epoch_op>& res) = 0;
+  virtual bool gen_one_state(std::vector<epoch_op>& res,
+      PermuteTestResult &log_data) = 0;
 
   std::vector<epoch> epochs_;
   std::unordered_set<std::vector<unsigned int>, BioVectorHash, BioVectorEqual>

@@ -40,7 +40,8 @@ c_harness: \
 user_tools: \
 		$(BUILD_DIR)/user_tools/begin_log \
 		$(BUILD_DIR)/user_tools/end_log \
-		$(BUILD_DIR)/user_tools/begin_tests
+		$(BUILD_DIR)/user_tools/begin_tests \
+		$(BUILD_DIR)/user_tools/cm_checkpoint
 
 tests: \
 		$(foreach TEST, $(CM_TESTS), $(BUILD_DIR)/tests/$(TEST))
@@ -79,16 +80,20 @@ $(BUILD_DIR)/c_harness: \
 		$(BUILD_DIR)/permuter/Permuter.o \
 		$(BUILD_DIR)/results/TestSuiteResult.o \
 		$(BUILD_DIR)/results/FileSystemTestResult.o \
-		$(BUILD_DIR)/results/DataTestResult.o
+		$(BUILD_DIR)/results/DataTestResult.o \
+		$(BUILD_DIR)/results/PermuteTestResult.o
 	mkdir -p $(@D)
 	$(GPP) $(GOPTS) $^ -ldl -o $@
 
 $(BUILD_DIR)/tests/%.so: \
 		tests/%.cpp \
+		$(BUILD_DIR)/user_tools/src/actions.o \
+		$(BUILD_DIR)/utils/communication/BaseSocket.o \
+		$(BUILD_DIR)/utils/communication/ClientSocket.o \
+		$(BUILD_DIR)/utils/communication/ClientCommandSender.o \
 		$(BUILD_DIR)/results/DataTestResult.o
 	mkdir -p $(@D)
-	$(GPP) $(GOPTS) $(GOTPSSO) -Wl,-soname,$(notdir $@) \
-		-o $@ $^
+	$(GPP) $(GOPTS) $(GOTPSSO) -Wl,-soname,$(notdir $@) -o $@ $^
 
 $(BUILD_DIR)/tests/%.o: \
 		tests/%.cpp
@@ -97,11 +102,6 @@ $(BUILD_DIR)/tests/%.o: \
 
 $(BUILD_DIR)/results/%.o: \
 		results/%.cpp
-	mkdir -p $(@D)
-	$(GPP) $(GOPTS) -fPIC -c -o $@ $<
-
-$(BUILD_DIR)/tests/%.so: \
-		tests/%.cpp
 	mkdir -p $(@D)
 	$(GPP) $(GOPTS) -fPIC -c -o $@ $<
 
@@ -131,16 +131,22 @@ $(BUILD_DIR)/utils/utils_c.o: \
 
 $(BUILD_DIR)/user_tools/%: \
 		user_tools/%.cpp \
+		$(BUILD_DIR)/user_tools/src/actions.o \
 		$(BUILD_DIR)/utils/communication/BaseSocket.o \
 		$(BUILD_DIR)/utils/communication/ClientSocket.o \
 		$(BUILD_DIR)/utils/communication/ClientCommandSender.o
 	mkdir -p $(@D)
 	$(GPP) $(GOPTS) -o $@ $^
 
+$(BUILD_DIR)/user_tools/src/%.o: \
+		user_tools/src/%.cpp
+	mkdir -p $(@D)
+	$(GPP) -c $(GOPTS) -fPIC -o $@ $<
+
 $(BUILD_DIR)/utils/communication/%.o: \
 		utils/communication/%.cpp
 	mkdir -p $(@D)
-	$(GPP) -c $(GOPTS) -o $@ $<
+	$(GPP) -c $(GOPTS) -fPIC -o $@ $<
 
 # kbuild complains if the Makefile isn't in the build dir too.
 clean: $(BUILD_DIR)/Makefile

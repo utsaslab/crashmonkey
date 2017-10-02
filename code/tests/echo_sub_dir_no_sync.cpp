@@ -71,7 +71,8 @@ class echo_sub_dir_no_sync : public BaseTestCase {
     return -1;
   }
 
-  virtual int check_test(DataTestResult *test_result) override {
+  virtual int check_test(unsigned int last_checkpoint,
+      DataTestResult *test_result) override {
     struct stat stats;
     int res = stat(TEST_MNT "/" TEST_DIR "/" TEST_FILE, &stats);
     if (res < 0) {

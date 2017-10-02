@@ -31,7 +31,7 @@ int ClientCommandSender::Run() {
   if (conn.WaitForMessage(&ret) != SocketError::kNone) {
     return -3;
   }
-  return ret.type == return_command;
+  return !(ret.type == return_command);
 }
 
 }  // namesapce communication

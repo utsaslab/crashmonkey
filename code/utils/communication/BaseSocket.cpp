@@ -40,14 +40,13 @@ int BaseSocket::ReadMessageFromSocket(int socket, SocketMessage *m) {
     case SocketMessage::kEndLogDone:
     case SocketMessage::kRunTests:
     case SocketMessage::kRunTestsDone:
+    case SocketMessage::kCheckpoint:
     case SocketMessage::kCheckpointDone:
+    case SocketMessage::kCheckpointFailed:
       // Somebody sent us extra data anyway. Gobble it up and throw it away.
       if (m->size != 0) {
         res = GobbleData(socket, m->size);
       }
-      break;
-    case SocketMessage::kCheckpoint:
-      res = ReadStringFromSocket(socket, m->size, &m->string_value);
       break;
     default:
       res = -1;
@@ -75,16 +74,15 @@ int BaseSocket::WriteMessageToSocket(int socket, SocketMessage &m) {
     case SocketMessage::kEndLogDone:
     case SocketMessage::kRunTests:
     case SocketMessage::kRunTestsDone:
+    case SocketMessage::kCheckpoint:
     case SocketMessage::kCheckpointDone:
+    case SocketMessage::kCheckpointFailed:
       // By default, always send the proper size of the message and no other,
       // extra data.
       res = WriteIntToSocket(socket, 0);
       if (res < 0) {
         return res;
       }
-      break;
-    case SocketMessage::kCheckpoint:
-      res = WriteStringToSocket(socket, m.string_value);
       break;
     default:
       res = -1;

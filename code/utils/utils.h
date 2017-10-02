@@ -28,6 +28,7 @@ class disk_write {
   bool has_write_flag();
   bool is_barrier_write();
   bool is_async_write();
+  bool is_checkpoint();
   bool is_meta();
   bool has_flush_flag();
   bool has_flush_seq_flag();

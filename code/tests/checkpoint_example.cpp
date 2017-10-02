@@ -10,11 +10,14 @@
 #include <string>
 
 #include "BaseTestCase.h"
+#include "../user_tools/api/actions.h"
 
 using std::calloc;
 using std::string;
+using std::to_string;
 
 using fs_testing::tests::DataTestResult;
+using fs_testing::user_tools::api::Checkpoint;
 
 #define TEST_FILE "test_file"
 #define TEST_MNT "/mnt/snapshot"
@@ -68,9 +71,19 @@ namespace tests {
 
 using std::memcmp;
 
-class rename_root_to_sub : public BaseTestCase {
+class CheckpointExample : public BaseTestCase {
  public:
   virtual int setup() override {
+    return 0;
+  }
+
+  virtual int run() override {
+    // For fsyncs later.
+    const int root_dir = open(TEST_MNT, O_RDONLY);
+    if (root_dir < 0) {
+      return -1;
+    }
+
     // Create test directory.
     int res = mkdir(TEST_MNT "/" TEST_DIR, 0777);
     if (res < 0) {
@@ -81,6 +94,14 @@ class rename_root_to_sub : public BaseTestCase {
       return -1;
     }
     res = fsync(dir);
+    if (res < 0) {
+      return -1;
+    }
+    res = fsync(root_dir);
+    if (res < 0) {
+      return -1;
+    }
+    res = Checkpoint();
     if (res < 0) {
       return -1;
     }
@@ -106,12 +127,13 @@ class rename_root_to_sub : public BaseTestCase {
       written += res;
     } while (written != strlen(TEST_TEXT));
     fsync(fd);
+    fsync(root_dir);
+    res = Checkpoint();
+    if (res < 0) {
+      return -1;
+    }
     close(fd);
 
-    return 0;
-  }
-
-  virtual int run() override {
     if (rename(old_path.c_str(), new_path.c_str()) < 0) {
       return -1;
     }
@@ -128,11 +150,21 @@ class rename_root_to_sub : public BaseTestCase {
     const int stat_new_res = stat(new_path.c_str(), &stats_new);
     const int errno_new = errno;
 
+    test_res->ResetError();
+
+    // Checkpoint 2 is where we fsync-ed the root directory with our new file
+    // and the file itself. If we crash before then, we can't say for sure if
+    // the file will exist or not.
+    if (last_checkpoint < 2) {
+      return 0;
+    }
+
     // Neither stat found the file, it's gone...
     if (stat_old_res < 0 && errno_old == ENOENT &&
         stat_new_res < 0 && errno_new == ENOENT) {
       test_res->SetError(DataTestResult::kFileMissing);
-      test_res->error_description = old_path + ", " + new_path + " missing";
+      test_res->error_description =
+        "both " + old_path + " and " + new_path + " have disappeared";
       return 0;
     }
 
@@ -140,7 +172,7 @@ class rename_root_to_sub : public BaseTestCase {
     struct stat check_stat;
     if (stat_old_res >= 0 && stat_new_res >= 0) {
       test_res->SetError(DataTestResult::kOldFilePersisted);
-      test_res->error_description = old_path + " still present";
+      test_res->error_description = old_path + " has been persisted";
       return -1;
     } else if (stat_old_res >= 0) {
       check_file = old_path;
@@ -151,26 +183,28 @@ class rename_root_to_sub : public BaseTestCase {
     } else {
       // Some other error(s) occurred.
       test_res->SetError(DataTestResult::kOther);
-      test_res->error_description = "unknown error";
+      test_res->error_description = check_file + ": error stat-ing files";
       return 0;
     }
 
     if (!S_ISREG(check_stat.st_mode)) {
       test_res->SetError(DataTestResult::kFileMetadataCorrupted);
-      test_res->error_description = check_file + " has wrong file type";
+      test_res->error_description = check_file + ": file type is "
+        + to_string((S_IFMT & check_stat.st_mode));
       return 0;
     }
     if (((S_IRWXU | S_IRWXG | S_IRWXO) & check_stat.st_mode) !=
         TEST_FILE_PERMS) {
       test_res->SetError(DataTestResult::kFileMetadataCorrupted);
-      test_res->error_description = check_file + " has wrong file permissions";
+      test_res->error_description = check_file + ": file permissions are "
+        + to_string(((~S_IFMT) & check_stat.st_mode));
       return 0;
     }
 
     const int fd = open(check_file.c_str(), O_RDONLY);
     if (fd < 0) {
       test_res->SetError(DataTestResult::kOther);
-      test_res->error_description = "unable to open " + check_file;
+      test_res->error_description = check_file + ": unable to open file";
       return 0;
     }
 
@@ -178,7 +212,6 @@ class rename_root_to_sub : public BaseTestCase {
     char* buf = (char*) calloc(strlen(TEST_TEXT), sizeof(char));
     if (buf == NULL) {
       test_res->SetError(DataTestResult::kOther);
-      test_res->error_description = "out of memory";
       return 0;
     }
     do {
@@ -188,7 +221,7 @@ class rename_root_to_sub : public BaseTestCase {
         free(buf);
         close(fd);
         test_res->SetError(DataTestResult::kOther);
-        test_res->error_description = "error reading " + check_file;
+        test_res->error_description = check_file + ": error reading file";
         return 0;
       } else if (res == 0) {
         break;
@@ -199,10 +232,18 @@ class rename_root_to_sub : public BaseTestCase {
 
     if (bytes_read != strlen(TEST_TEXT)) {
       test_res->SetError(DataTestResult::kFileDataCorrupted);
-      test_res->error_description = check_file + " has truncated data";
-    } else if (memcmp(TEST_TEXT, buf, strlen(TEST_TEXT)) != 0) {
-      test_res->SetError(DataTestResult::kFileDataCorrupted);
-      test_res->error_description = check_file + " has incorrect data";
+      test_res->error_description =
+        check_file + ": tried to read " + to_string(strlen(TEST_TEXT))
+        + " bytes but only read " + to_string(bytes_read);
+    } else {
+      for (unsigned int i = 0; i < strlen(TEST_TEXT); ++i) {
+        if (buf[i] != TEST_TEXT[i]) {
+          test_res->SetError(DataTestResult::kFileDataCorrupted);
+          test_res->error_description =
+            check_file + ": read data incorrect at index " + to_string(i);
+          break;
+        }
+      }
     }
 
     free(buf);
@@ -220,7 +261,7 @@ class rename_root_to_sub : public BaseTestCase {
 }  // namespace fs_testing
 
 extern "C" fs_testing::tests::BaseTestCase *test_case_get_instance() {
-  return new fs_testing::tests::rename_root_to_sub;
+  return new fs_testing::tests::CheckpointExample;
 }
 
 extern "C" void test_case_delete_instance(fs_testing::tests::BaseTestCase *tc) {

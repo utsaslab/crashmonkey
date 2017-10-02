@@ -7,16 +7,19 @@
 #define HWM_GET_LOG_DATA          0xff03
 #define HWM_NEXT_ENT              0xff04
 #define HWM_CLR_LOG               0xff05
+#define HWM_CHECKPOINT            0xff06
 
 #define COW_BRD_SNAPSHOT          0xff06
 #define COW_BRD_UNSNAPSHOT        0xff07
 #define COW_BRD_RESTORE_SNAPSHOT  0xff08
 #define COW_BRD_WIPE              0xff09
 
+#define HWM_CHECKPOINT_FLAG       (1ULL << 63)
+
 // For ease of transferring data to user-land.
 struct disk_write_op_meta {
-  unsigned long bi_flags;
-  unsigned long bi_rw;
+  unsigned long long bi_flags;
+  unsigned long long bi_rw;
   unsigned long write_sector;
   unsigned int size;
 };

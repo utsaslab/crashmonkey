@@ -50,30 +50,47 @@ bool BioVectorEqual::operator() (const std::vector<unsigned int>& a,
 
 void Permuter::InitDataVector(vector<disk_write> *data) {
   epochs_.clear();
-  unsigned int index = 0;
   bool prev_epoch_flush_op = false;
   disk_write data_half;
   list<range> overlaps;
-  while (index < data->size()) {
+  // Make sure that the first time we mark a checkpoint epoch, we start at 0 and
+  // not 1.
+  unsigned int curr_checkpoint_epoch = 0;
+  unsigned int abs_index = 0;
+
+  auto curr_op = data->begin();
+  while (curr_op != data->end()) {
     struct epoch current_epoch;
     current_epoch.has_barrier = false;
     current_epoch.overlaps = false;
+    current_epoch.checkpoint_epoch = curr_checkpoint_epoch;
 
     // Get all ops in this epoch and add them to either the sync_op or async_op
     // lists.
-    while (index < data->size() && !(data->at(index)).is_barrier_write()) {
+    while (curr_op != data->end() && !curr_op->is_barrier_write()) {
+      // Checkpoint operations will only be seen once we have switched over
+      // epochs, so we need to edit the checkpoint epoch of the current epoch as
+      // well as incrementing the curr_checkpoint_epoch counter.
+      if (curr_op->is_checkpoint()) {
+        current_epoch.checkpoint_epoch = curr_checkpoint_epoch;
+        ++curr_checkpoint_epoch;
+        // Checkpoint operations should not appear in the bio stream passed to
+        // actual permuters.
+        ++curr_op;
+        continue;
+      }
       
       if (prev_epoch_flush_op == true) {
-        epoch_op curr_op = {index-1, data_half};
-        current_epoch.ops.push_back(curr_op);
+        epoch_op split_op = {abs_index, data_half};
+        ++abs_index;
+        current_epoch.ops.push_back(split_op);
         current_epoch.num_meta += data_half.is_meta();
         prev_epoch_flush_op = false;
       }
 
-      disk_write curr = data->at(index);
       // Find overlapping ranges.
-      unsigned int start = curr.metadata.write_sector;
-      unsigned int end = start + curr.metadata.size;
+      unsigned int start = curr_op->metadata.write_sector;
+      unsigned int end = start + curr_op->metadata.size;
       for (auto range_iter = overlaps.begin(); range_iter != overlaps.end();
           range_iter++) {
         range r = *range_iter;
@@ -96,48 +113,53 @@ void Permuter::InitDataVector(vector<disk_write> *data) {
         }
       }
 
-      epoch_op curr_op = {index, data->at(index)};
-      current_epoch.ops.push_back(curr_op);
-      current_epoch.num_meta += data->at(index).is_meta();
-      ++index;
+      epoch_op eo = {abs_index, *curr_op};
+      current_epoch.ops.push_back(eo);
+      current_epoch.num_meta += curr_op->is_meta();
+      ++abs_index;
+      ++curr_op;
     }
 
     // Check is the op at the current index is a "barrier." If it is then add it
     // to the special spot in the epoch, otherwise just push the current epoch
     // onto the list and move to the next segment of the log.
-    if (index < data->size() && (data->at(index)).is_barrier_write()) {
-      // Check if the op at the current index has a flush flag with data. It it has, then divide
-      // it into two halves and make the data available only in the start of the next epoch.
-      // If the op has a FUA flag, then it gets normally added into the current epoch
-      if ((data->at(index).has_flush_flag() || data->at(index).has_flush_seq_flag()) && data->at(index).has_write_flag() && (!data->at(index).has_FUA_flag())) {
+    if (curr_op != data->end() && curr_op->is_barrier_write()) {
+      // Check if the op at the current index has a flush flag with data. It it
+      // has, then divide it into two halves and make the data available only in
+      // the start of the next epoch. If the op has a FUA flag, then it gets
+      // normally added into the current epoch.
+      if ((curr_op->has_flush_flag() || curr_op->has_flush_seq_flag())
+          && curr_op->has_write_flag() && (!curr_op->has_FUA_flag())) {
         disk_write flag_half;
-        data_half = data->at(index);
+        data_half = *curr_op;
         
-        if(data->at(index).has_flush_flag()) {
+        if(curr_op->has_flush_flag()) {
           flag_half.set_flush_flag();
           data_half.clear_flush_flag();
         }
         
-        if(data->at(index).has_flush_seq_flag()) {
+        if(curr_op->has_flush_seq_flag()) {
           flag_half.set_flush_seq_flag();
           data_half.clear_flush_seq_flag();
         }
         
-        epoch_op curr_op = {index, flag_half};
-        current_epoch.ops.push_back(curr_op);
+        epoch_op oe = {abs_index, flag_half};
+        current_epoch.ops.push_back(oe);
         current_epoch.num_meta += flag_half.is_meta();
         epochs_.push_back(current_epoch);
         prev_epoch_flush_op = true;
         current_epoch.has_barrier = true;
-        ++index;
+        ++abs_index;
+        ++curr_op;
         continue;
       }
 
-      epoch_op curr_op = {index, data->at(index)};
-      current_epoch.ops.push_back(curr_op);
-      current_epoch.num_meta += data->at(index).is_meta();
+      epoch_op oe = {abs_index, *curr_op};
+      current_epoch.ops.push_back(oe);
+      current_epoch.num_meta += curr_op->is_meta();
       current_epoch.has_barrier = true;
-      ++index;
+      ++abs_index;
+      ++curr_op;
     }
     epochs_.push_back(current_epoch);
   }
@@ -148,7 +170,8 @@ vector<epoch>* Permuter::GetEpochs() {
 }
 
 
-bool Permuter::GenerateCrashState(vector<disk_write>& res) {
+bool Permuter::GenerateCrashState(vector<disk_write>& res,
+    PermuteTestResult &log_data) {
   vector<epoch_op> crash_state;
   unsigned long retries = 0;
   unsigned int exists = 0;
@@ -160,7 +183,7 @@ bool Permuter::GenerateCrashState(vector<disk_write>& res) {
       ? kMinRetries
       : kRetryMultiplier * completed_permutations_.size();
   do {
-    new_state = gen_one_state(crash_state);
+    new_state = gen_one_state(crash_state, log_data);
 
     crash_state_hash.clear();
     crash_state_hash.resize(crash_state.size());

@@ -11,7 +11,8 @@ class BaseTestCase {
   virtual ~BaseTestCase() {};
   virtual int setup() = 0;
   virtual int run() = 0;
-  virtual int check_test(DataTestResult *test_result) = 0;
+  virtual int check_test(unsigned int last_checkpoint,
+      DataTestResult *test_result) = 0;
 };
 
 typedef BaseTestCase *test_create_t();

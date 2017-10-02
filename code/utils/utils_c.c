@@ -26,6 +26,10 @@ bool c_is_meta(struct disk_write_op_meta *m) {
   return (m->bi_rw & REQ_META) && true;
 }
 
+bool c_is_checkpoint(struct disk_write_op_meta *m) {
+  return (m->bi_rw & HWM_CHECKPOINT_FLAG);
+}
+
 bool c_has_write_flag(struct disk_write_op_meta *m) {
   return (m->bi_rw & REQ_WRITE) && true;
 }
@@ -57,6 +61,3 @@ void c_clear_flush_flag(struct disk_write_op_meta *m) {
 void c_clear_flush_seq_flag(struct disk_write_op_meta *m) {
   m->bi_rw = (m->bi_rw & ~(REQ_FLUSH_SEQ));
 }
-// bool c_reset_flush_flag(struct disk_write_op_meta *m) {
-//   return (m->bi_rw)
-// }

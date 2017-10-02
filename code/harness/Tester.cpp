@@ -325,6 +325,16 @@ void Tester::clear_wrapper_log() {
   }
 }
 
+int Tester::CreateCheckpoint() {
+  if (ioctl_fd == -1) {
+    return WRAPPER_DATA_ERR;
+  }
+  if (ioctl(ioctl_fd, HWM_CHECKPOINT) == 0) {
+    return SUCCESS;
+  }
+  return WRAPPER_DATA_ERR;
+}
+
 int Tester::test_load_class(const char* path) {
   return test_loader.load_class<test_create_t *>(path, TEST_CLASS_FACTORY,
       TEST_CLASS_DEFACTORY);
@@ -459,10 +469,12 @@ int Tester::test_check_random_permutations(const int num_rounds) {
     /***************************************************************************
      * Generate and write out a crash state.
      **************************************************************************/
+    SingleTestInfo test_info;
 
     // Begin permute timing.
     time_point<steady_clock> permute_start_time = steady_clock::now();
-    bool new_state = p->GenerateCrashState(permutes);
+    bool new_state = p->GenerateCrashState(permutes,
+        test_info.permute_data);
     time_point<steady_clock> permute_end_time = steady_clock::now();
     timing_stats[PERMUTE_TIME] +=
         duration_cast<milliseconds>(permute_end_time - permute_start_time);
@@ -471,8 +483,6 @@ int Tester::test_check_random_permutations(const int num_rounds) {
     if (!new_state) {
       break;
     }
-
-    SingleTestInfo test_info;
 
     //cout << '.' << std::flush;
 
@@ -515,8 +525,19 @@ int Tester::test_check_random_permutations(const int num_rounds) {
      * Begin testing the crash state that was just written out.
      **************************************************************************/
 
+    // Try mounting the file system so that the kernel can clean up orphan lists
+    // and anything else it may need to so that fsck does a better job later if
+    // we run it.
+    if (mount_device(SNAPSHOT_PATH, "errors=remount-ro") != SUCCESS) {
+      test_info.fs_test.SetError(FileSystemTestResult::kKernelMount);
+    }
+    umount_device();
+
+    if (verbose) {
+      std::cout << "Running fsck" << std::endl;
+    }
     string command(TEST_CASE_FSCK + fs_type + " " + SNAPSHOT_PATH
-        + " -- -y");
+        + " -- -yf");
     if (!verbose) {
       command += SILENT;
     }
@@ -547,7 +568,8 @@ int Tester::test_check_random_permutations(const int num_rounds) {
       // Begin test case timing.
       time_point<steady_clock> test_case_start_time = steady_clock::now();
       const int test_check_res =
-          test_loader.get_instance()->check_test(&test_info.data_test);
+          test_loader.get_instance()->check_test(
+              test_info.permute_data.last_checkpoint, &test_info.data_test);
       time_point<steady_clock> test_case_end_time = steady_clock::now();
       timing_stats[TEST_CASE_TIME] += duration_cast<milliseconds>(
         test_case_end_time - test_case_start_time);

@@ -3,6 +3,7 @@
 
 #include "DataTestResult.h"
 #include "FileSystemTestResult.h"
+#include "PermuteTestResult.h"
 
 namespace fs_testing {
 
@@ -21,6 +22,7 @@ struct SingleTestInfo {
   // TODO(ashmrtn): Create class for crash state information.
   fs_testing::tests::DataTestResult data_test;
   fs_testing::FileSystemTestResult fs_test;
+  fs_testing::PermuteTestResult permute_data;
 };
 
 }  // namespace fs_testing
