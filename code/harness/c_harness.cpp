@@ -139,7 +139,13 @@ int main(int argc, char** argv) {
    ****************************************************************************/
   const unsigned int test_case_idx = optind;
   const string path = argv[test_case_idx];
-   
+  setenv("MOUNT_FS", test_dev.c_str(), 1);
+  int i = system(("df --output=source,size | grep "+flags_dev + "> filesize.txt").c_str());
+  std::ifstream infile("filesize.txt");
+  string line;
+  std::getline(infile,line);
+  cout << line << endl;
+  setenv("FILESYS_SIZE", line.c_str(), 1);
   cout << "========== PHASE 0: Setting up CrashMonkey basics =========="
     << endl;
   if (test_case_idx == argc) {
