@@ -146,6 +146,7 @@ int main(int argc, char** argv) {
   std::getline(infile,line);
   cout << line << endl;
   setenv("FILESYS_SIZE", line.c_str(), 1);
+  remove("filesize.txt");
   cout << "========== PHASE 0: Setting up CrashMonkey basics =========="
     << endl;
   if (test_case_idx == argc) {
