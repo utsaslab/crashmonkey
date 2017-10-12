@@ -139,14 +139,28 @@ int main(int argc, char** argv) {
    ****************************************************************************/
   const unsigned int test_case_idx = optind;
   const string path = argv[test_case_idx];
-  setenv("MOUNT_FS", test_dev.c_str(), 1);
-  int i = system(("df --output=source,size | grep "+flags_dev + "> filesize.txt").c_str());
-  std::ifstream infile("filesize.txt");
-  string line;
-  std::getline(infile,line);
-  cout << line << endl;
-  setenv("FILESYS_SIZE", line.c_str(), 1);
-  remove("filesize.txt");
+  int errno = setenv("MOUNT_FS", test_dev.c_str(), 1);
+  if (errno < 0){
+    cerr << "Error Setting environment variable MOUNT_FS" << errno << endl;
+  }
+  int errno = system(("df --output=source,size | grep "+flags_dev + "> filesize.txt").c_str());
+  if ( errno < 0){
+    cerr << "Error finding the filesize of mounted filesystem" << errno << endl;
+  }
+  else{
+     std::ifstream infile("filesize.txt");
+     string line;
+     std::getline(infile,line);
+     cout << line << endl;
+     int errno = setenv("FILESYS_SIZE", line.c_str(), 1);
+     if (errno < 0){
+       cerr << "Error setting environment variable FILESYS_SIZE" << errno << endl;
+     }
+     int errno = remove("filesize.txt");
+     if (errno < 0){
+       cerr << "Error removing residual file--filesize.txt" << erro << endl;
+     } 
+  }
   cout << "========== PHASE 0: Setting up CrashMonkey basics =========="
     << endl;
   if (test_case_idx == argc) {
