@@ -143,23 +143,18 @@ int main(int argc, char** argv) {
   if (errno < 0){
     cerr << "Error Setting environment variable MOUNT_FS" << errno << endl;
   }
-  int errno = system(("df --output=source,size | grep "+flags_dev + "> filesize.txt").c_str());
-  if ( errno < 0){
-    cerr << "Error finding the filesize of mounted filesystem" << errno << endl;
+  FILE *input;
+  char buf[512];
+  if(!(input = popen(("df --output=source,size | grep " + flags_dev + ">filesize.txt").c_str()){
+    cerr << "Error finding the filesize of mounted filesystem" << endl;  
   }
-  else{
-     std::ifstream infile("filesize.txt");
-     string line;
-     std::getline(infile,line);
-     cout << line << endl;
-     int errno = setenv("FILESYS_SIZE", line.c_str(), 1);
-     if (errno < 0){
-       cerr << "Error setting environment variable FILESYS_SIZE" << errno << endl;
-     }
-     int errno = remove("filesize.txt");
-     if (errno < 0){
-       cerr << "Error removing residual file--filesize.txt" << erro << endl;
-     } 
+  string filesize;
+  while(fgets(buf, 512, input){
+    filesize += buf;
+  }
+  int errno = setenv("FILESYS_SIZE", filesize.c_str(), 1);
+  if (errno < 0){
+    cerr << "Error setting environment variable FILESYS_SIZE" << errno << endl;
   }
   cout << "========== PHASE 0: Setting up CrashMonkey basics =========="
     << endl;
