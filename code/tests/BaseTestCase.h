@@ -2,12 +2,14 @@
 #define TEST_CASE_H
 
 #include "../results/DataTestResult.h"
-
+#include <string>
 namespace fs_testing {
 namespace tests {
 
 class BaseTestCase {
  public:
+  std::string mountDir;
+  std::string fileSysSize;
   virtual ~BaseTestCase() {};
   virtual int setup() = 0;
   virtual int run() = 0;
@@ -17,7 +19,6 @@ class BaseTestCase {
 
 typedef BaseTestCase *test_create_t();
 typedef void test_destroy_t(BaseTestCase *instance);
-
 }  // namespace tests
 }  // namespace fs_testing
 

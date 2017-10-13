@@ -45,7 +45,6 @@ using fs_testing::utils::communication::kSocketNameOutbound;
 using fs_testing::utils::communication::ServerSocket;
 using fs_testing::utils::communication::SocketError;
 using fs_testing::utils::communication::SocketMessage;
-
 static const option long_options[] = {
   {"background", no_argument, NULL, 'b'},
   {"test-dev", required_argument, NULL, 'd'},
@@ -139,22 +138,22 @@ int main(int argc, char** argv) {
    ****************************************************************************/
   const unsigned int test_case_idx = optind;
   const string path = argv[test_case_idx];
-  int errno = setenv("MOUNT_FS", test_dev.c_str(), 1);
-  if (errno < 0){
-    cerr << "Error Setting environment variable MOUNT_FS" << errno << endl;
+  if(!(setenv("MOUNT_FS", test_dev.c_str(), 1))){
+    cerr << "Error setting environment variable MOUNT_FS" << endl;
   }
   FILE *input;
   char buf[512];
-  if(!(input = popen(("df --output=source,size | grep " + flags_dev + ">filesize.txt").c_str()){
+  if(!(input = popen(("df --output=source,size | grep " + flags_dev).c_str(), "r"))){
     cerr << "Error finding the filesize of mounted filesystem" << endl;  
   }
   string filesize;
-  while(fgets(buf, 512, input){
+  while(fgets(buf, 512, input)){
     filesize += buf;
   }
-  int errno = setenv("FILESYS_SIZE", filesize.c_str(), 1);
-  if (errno < 0){
-    cerr << "Error setting environment variable FILESYS_SIZE" << errno << endl;
+  //fileSysSize = filesize;
+  pclose(input);
+  if(!setenv("FILESYS_SIZE", filesize.c_str(), 1)){
+    cerr << "Error setting environment variable FILESYS_SIZE" << endl;
   }
   cout << "========== PHASE 0: Setting up CrashMonkey basics =========="
     << endl;
