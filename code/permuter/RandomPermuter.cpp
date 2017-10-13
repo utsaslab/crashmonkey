@@ -33,6 +33,10 @@ void RandomPermuter::init_data(vector<epoch> *data) {
 
 bool RandomPermuter::gen_one_state(vector<epoch_op>& res,
     PermuteTestResult &log_data) {
+  // Return if there are no ops to permute and generate a crash state
+  if (res.size() == 0) {
+    return false;
+  }
   unsigned int total_elements = 0;
   // Find how many elements we will be returning (randomly determined).
   uniform_int_distribution<unsigned int> permute_epochs(1, GetEpochs()->size());
