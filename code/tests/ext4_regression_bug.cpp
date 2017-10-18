@@ -61,7 +61,8 @@ class Ext4RegressionBug: public BaseTestCase {
     return system(xfs_command.c_str());
   }
 
-  virtual int check_test(DataTestResult *test_res) override {
+  virtual int check_test(unsigned int last_checkpoint,
+      DataTestResult *test_res) override {
     return 0;
   }
 
