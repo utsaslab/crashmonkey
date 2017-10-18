@@ -26,8 +26,8 @@ CrashMonkey to print the order of bios in the generated crash state, you will
 then see that the errors about inodes in the unused inode area occur before the
 `syncfs` added to `fsx`.
 
-1. Build with `cd crashmonkey/code; make default tests/ext4_regression_bug.so`
-2. run with `sudo ../build/c_harness -v -d /dev/cow_ram0 -e 10240 -f /dev/vda -t ext4 tests/ext4_regression_bug.so | tee ~/ext4_regression.log`
+1. Build with `cd crashmonkey; make`
+2. run with `cd build; sudo ./c_harness -v -d /dev/cow_ram0 -e 10240 -f /dev/vda -t ext4 tests/ext4_regression_bug.so | tee ~/ext4_regression.log`
     1. `-f /dev/vda` assumes block device `/dev/vda` exists. This is used to copy flags from. It can be changed to another block device, though avoid ramdisks as it will silence flush/fua flags.
 
 ### What is CrashMonkey? ###
