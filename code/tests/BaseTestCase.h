@@ -8,13 +8,12 @@ namespace tests {
 
 class BaseTestCase {
  public:
-  std::string mountDir;
-  std::string fileSysSize;
   virtual ~BaseTestCase() {};
   virtual int setup() = 0;
   virtual int run() = 0;
   virtual int check_test(unsigned int last_checkpoint,
       DataTestResult *test_result) = 0;
+  virtual int pass(std::string mountDir, std::string filesysSize) {}
 };
 
 typedef BaseTestCase *test_create_t();

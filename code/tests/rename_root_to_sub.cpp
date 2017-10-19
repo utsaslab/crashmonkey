@@ -209,6 +209,9 @@ class rename_root_to_sub : public BaseTestCase {
 
     return 0;
   }
+  virtual int pass(std::string mountDir, std::string filesysSize){
+    std::cout << mountDir << " " << filesysSize << std::endl;
+  }
 
  private:
     char text[strlen(TEST_TEXT)];

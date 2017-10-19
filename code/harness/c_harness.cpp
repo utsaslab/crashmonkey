@@ -138,6 +138,7 @@ int main(int argc, char** argv) {
    ****************************************************************************/
   const unsigned int test_case_idx = optind;
   const string path = argv[test_case_idx];
+  cout << test_dev << endl;
   if(!(setenv("MOUNT_FS", test_dev.c_str(), 1))){
     cerr << "Error setting environment variable MOUNT_FS" << endl;
   }
@@ -228,7 +229,7 @@ int main(int argc, char** argv) {
   }
   test_harness.set_fs_type(fs_type);
   test_harness.set_device(test_dev);
-
+  test_harness.test_pass(test_dev, filesize);
   // Load the class being tested.
   cout << "Loading test case" << endl;
   if (test_harness.test_load_class(argv[test_case_idx]) != SUCCESS) {
