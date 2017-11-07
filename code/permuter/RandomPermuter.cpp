@@ -46,6 +46,9 @@ bool RandomPermuter::gen_one_state(vector<epoch_op>& res,
   uniform_int_distribution<unsigned int> permute_requests(1,
       GetEpochs()->at(num_epochs - 1).ops.size());
   unsigned int num_requests = permute_requests(rand);
+  if (GetEpochs()->at(num_epochs - 1).ops.size() == 0) {
+    num_requests = 0;
+  }
   for (unsigned int i = 0; i < num_epochs - 1; ++i) {
     total_elements += GetEpochs()->at(i).ops.size();
   }
