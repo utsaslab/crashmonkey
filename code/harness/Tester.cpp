@@ -76,6 +76,7 @@ using std::cout;
 using std::endl;
 using std::free;
 using std::ifstream;
+using std::ios;
 using std::ostream;
 using std::ofstream;
 using std::shared_ptr;
@@ -732,7 +733,7 @@ int Tester::log_profile_save(string log_file) {
   // class specific one that is set at class creation time. That way people
   // don't break our logging system.
   std::cout << "saving " << log_data.size() << " disk operations" << endl;
-  ofstream log(log_file, std::ofstream::trunc);
+  ofstream log(log_file, std::ofstream::trunc | ios::binary);
   for (const disk_write& dw : log_data) {
     disk_write::serialize(log, dw);
   }

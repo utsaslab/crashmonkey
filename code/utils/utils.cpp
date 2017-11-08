@@ -1,6 +1,8 @@
 // Very messy hack to get the defines for different bio operations. Should be
 // changed to something more palatable if possible.
 
+#include <endian.h>
+
 #include <cassert>
 #include <cstring>
 
@@ -90,21 +92,48 @@ bool operator!=(const disk_write& a, const disk_write& b) {
   return !(a == b);
 }
 
+// Assumes binary file stream provided.
 void disk_write::serialize(std::ofstream& fs, const disk_write& dw) {
-  ios prev_format(NULL);
-  prev_format.copyfmt(fs);
-  fs << std::hex;
-  fs << dw.metadata.bi_flags << " "
-    << dw.metadata.bi_rw << " "
-    << dw.metadata.write_sector << " "
-    << dw.metadata.size << " ";
-  char *data = (char *) dw.data.get();
-  for (unsigned int i = 0; i < dw.metadata.size; ++i) {
-    // TODO(ashmrtn): Change to put?
-    fs << *(data + i);
+  const int buf_size = 4096;
+  char buffer[buf_size];
+  memset(buffer, 0, buf_size);
+  // Working all in little endian...
+
+  // Write out the metadata for this log entry.
+  unsigned int buf_offset = 0;
+  const unsigned long long write_flags = htobe64(dw.metadata.bi_flags);
+  const unsigned long long write_rw = htobe64(dw.metadata.bi_rw);
+  const unsigned long long write_write_sector = htobe64(dw.metadata.write_sector);
+  const unsigned long long write_size = htobe64(dw.metadata.size);
+  memcpy(buffer + buf_offset, &write_flags, 8);
+  buf_offset += 8;
+  memcpy(buffer + buf_offset, &write_rw, 8);
+  buf_offset += 8;
+  memcpy(buffer + buf_offset, &write_write_sector, 8);
+  buf_offset += 8;
+  memcpy(buffer + buf_offset, &write_size, 8);
+  fs.write(buffer, buf_size);
+  if (!fs.good()) {
+    std::cerr << "some error writing to file" << std::endl;
+    return;
   }
-  fs << endl;
-  fs.copyfmt(prev_format);
+
+  // Write out the actual data for this log entry. Data could be larger than
+  // buf_size so loop through this.
+  const char *data = (char *) dw.data.get();
+  for (unsigned int i = 0; i < dw.metadata.size; i += buf_size) {
+    const unsigned int copy_amount =
+      ((i + buf_size) > dw.metadata.size)
+        ? (dw.metadata.size - i)
+        : buf_size;
+    memset(buffer, 0, buf_size);
+    memcpy(buffer, data + i, copy_amount);
+    fs.write(buffer, buf_size);
+    if (!fs.good()) {
+      std::cerr << "some error writing to file" << std::endl;
+      return;
+    }
+  }
 }
 
 // TODO(ashmrtn): Greatly refactor this so that it is much more flexible and
