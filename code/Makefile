@@ -11,7 +11,12 @@ MODULES = cow_brd disk_wrapper
 obj-m := $(addsuffix .o, $(MODULES))
 KDIR := /lib/modules/$(shell uname -r)/build
 
+CM_TESTS_EXCLUDE = BaseTestCase.cpp
 CM_TESTS = $(patsubst %.cpp, %.so, $(notdir $(wildcard $(CURDIR)/tests/*.cpp)))
+CM_TESTS = \
+		$(patsubst %.cpp, %.so, \
+			$(filter-out $(CM_TESTS_EXCLUDE), \
+				$(notdir $(wildcard $(CURDIR)/tests/*.cpp))))
 CM_PERMUTER_EXCLUDE = Permuter.cpp
 CM_PERMUTERS = \
 		$(patsubst %.cpp, %.so, \
@@ -87,6 +92,7 @@ $(BUILD_DIR)/c_harness: \
 
 $(BUILD_DIR)/tests/%.so: \
 		tests/%.cpp \
+		$(BUILD_DIR)/tests/BaseTestCase.o \
 		$(BUILD_DIR)/user_tools/src/actions.o \
 		$(BUILD_DIR)/utils/communication/BaseSocket.o \
 		$(BUILD_DIR)/utils/communication/ClientSocket.o \

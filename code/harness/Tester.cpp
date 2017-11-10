@@ -450,8 +450,8 @@ int Tester::test_setup() {
   return test_loader.get_instance()->setup();
 }
 
-int Tester::test_pass(string mountDir, string filesysSize){
-  return test_loader.get_instance()->pass(mountDir, filesysSize);
+int Tester::test_pass(string mount_dir, string filesys_size){
+  return test_loader.get_instance()->pass(mount_dir, filesys_size);
 }
 
 int Tester::test_run() {

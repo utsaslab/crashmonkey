@@ -138,10 +138,13 @@ int main(int argc, char** argv) {
    ****************************************************************************/
   const unsigned int test_case_idx = optind;
   const string path = argv[test_case_idx];
-  cout << test_dev << endl;
-  if(!(setenv("MOUNT_FS", test_dev.c_str(), 1))){
+  //this should be changed in the option is added to mount tests in other directories
+  string mount_dir = "/mnt/snapshot"; 
+  if(setenv("MOUNT_FS", mount_dir.c_str(), 1) == -1){
     cerr << "Error setting environment variable MOUNT_FS" << endl;
   }
+  
+  //input file created to read output from bash command "df"
   FILE *input;
   char buf[512];
   if(!(input = popen(("df --output=source,size | grep " + flags_dev).c_str(), "r"))){
@@ -151,9 +154,9 @@ int main(int argc, char** argv) {
   while(fgets(buf, 512, input)){
     filesize += buf;
   }
-  //fileSysSize = filesize;
   pclose(input);
-  if(!setenv("FILESYS_SIZE", filesize.c_str(), 1)){
+
+  if(setenv("FILESYS_SIZE", filesize.c_str(), 1) == -1){
     cerr << "Error setting environment variable FILESYS_SIZE" << endl;
   }
   cout << "========== PHASE 0: Setting up CrashMonkey basics =========="
@@ -229,13 +232,15 @@ int main(int argc, char** argv) {
   }
   test_harness.set_fs_type(fs_type);
   test_harness.set_device(test_dev);
-  test_harness.test_pass(test_dev, filesize);
+  
   // Load the class being tested.
   cout << "Loading test case" << endl;
   if (test_harness.test_load_class(argv[test_case_idx]) != SUCCESS) {
     test_harness.cleanup_harness();
       return -1;
   }
+  
+  test_harness.test_pass(mount_dir, filesize);
   
   // Load the permuter to use for the test.
   // TODO(ashmrtn): Consider making a line in the test file which specifies the
