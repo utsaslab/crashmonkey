@@ -263,8 +263,8 @@ static void discard_from_brd(struct brd_device *brd,
 static void copy_to_brd(struct brd_device *brd, const void *src,
       sector_t sector, size_t n)
 {
-  struct page *page, *parent_page;
-  void *dst, *parent_src;
+  struct page *page;
+  void *dst;
   unsigned int offset = (sector & (PAGE_SECTORS-1)) << SECTOR_SHIFT;
   size_t copy;
 
@@ -284,17 +284,6 @@ static void copy_to_brd(struct brd_device *brd, const void *src,
     BUG_ON(!page);
 
     dst = kmap_atomic(page);
-    // Copy over the rest of the page from the parent brd if it exists.
-    if (brd->parent_brd) {
-      parent_page = brd_lookup_page(brd->parent_brd, sector);
-      // This page may not have originally existed in the parent.
-      if (parent_page) {
-        parent_src = kmap_atomic(parent_page);
-        memcpy(dst + copy, parent_src + copy, PAGE_SIZE - copy);
-        kunmap_atomic(parent_src);
-      }
-    }
-
     memcpy(dst, src, copy);
     kunmap_atomic(dst);
   }
