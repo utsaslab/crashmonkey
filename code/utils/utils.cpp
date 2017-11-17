@@ -112,6 +112,7 @@ void disk_write::serialize(std::ofstream& fs, const disk_write& dw) {
   memcpy(buffer + buf_offset, &write_write_sector, 8);
   buf_offset += 8;
   memcpy(buffer + buf_offset, &write_size, 8);
+  buf_offset += 8;
   fs.write(buffer, buf_size);
   if (!fs.good()) {
     std::cerr << "some error writing to file" << std::endl;
@@ -136,30 +137,45 @@ void disk_write::serialize(std::ofstream& fs, const disk_write& dw) {
   }
 }
 
-// TODO(ashmrtn): Greatly refactor this so that it is much more flexible and
-// complete. Think about removing whitespace between fields and just checking
-// for newlines? But then what happens if your data is all newlines?
 disk_write disk_write::deserialize(ifstream& is) {
-  disk_write_op_meta meta;
-  ios prev_format(NULL);
-  prev_format.copyfmt(is);
-  is >> std::skipws;
-  is >> std::hex;
-  is >> meta.bi_flags
-    >> meta.bi_rw
-    >> meta.write_sector
-    >> meta.size;
+  const int buf_size = 4096;
+  char buffer[buf_size];
+  memset(buffer, 0, buf_size);
+  
+  is.read(buffer, buf_size);
+  // check if read was successful
+  assert(is);
 
-  char nl;
-  // Eat single space between size of data and data.
-  is.get(nl);
-  assert(nl == ' ');
+  unsigned int buf_offset = 0;
+  unsigned long long write_flags, write_rw, write_write_sector, write_size;
+  memcpy(&write_flags, buffer + buf_offset, 8);
+  buf_offset += 8;
+  memcpy(&write_rw, buffer + buf_offset, 8);
+  buf_offset += 8;
+  memcpy(&write_write_sector, buffer + buf_offset, 8);
+  buf_offset += 8;
+  memcpy(&write_size, buffer + buf_offset, 8);
+  buf_offset += 8;
+
+  disk_write_op_meta meta;
+
+  meta.bi_flags = be64toh(write_flags);
+  meta.bi_rw = be64toh(write_rw);
+  meta.write_sector = be64toh(write_write_sector);
+  meta.size = be64toh(write_size);
+
   char *data = new char[meta.size];
-  is.read(data, meta.size);
-  // Make sure that the meta.size field matches the actual data size in the log.
-  is.get(nl);
-  assert(nl == '\n');
-  is.copyfmt(prev_format);
+  for (unsigned int i = 0; i < meta.size; i += buf_size) {
+    const unsigned int read_amount =
+      ((i + buf_size) > meta.size)
+        ? (meta.size - i)
+        : buf_size;
+    is.read(buffer, buf_size);
+    // check if read was successful
+    assert(is);
+    memcpy(data + i, buffer, read_amount);
+  }
+
   disk_write res(meta, data);
   delete[] data;
   return res;
