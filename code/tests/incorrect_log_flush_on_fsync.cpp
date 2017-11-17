@@ -148,9 +148,9 @@ class IncorrectLogFlushOnFsync : public BaseTestCase {
     }
     last_checkpoint -= 1;
     
-    // Now we have 0 to last_checkpoint number of writes written to the file
+    // Now we have last_checkpoint number of TEST_TEXT writes written to the file
     unsigned int noOfWrites = (last_checkpoint < NO_OF_WRITES)? last_checkpoint : NO_OF_WRITES;
-    while (noOfWrites >= 0) {
+    while (noOfWrites > 0) {
       const int res = read(fd, buf, strlen(test_text.c_str()));
       // check if read is successful
       if (res < 0) {
