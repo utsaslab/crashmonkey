@@ -112,7 +112,7 @@ void disk_write::serialize(std::ofstream& fs, const disk_write& dw) {
   memcpy(buffer + buf_offset, &write_write_sector, 8);
   buf_offset += 8;
   memcpy(buffer + buf_offset, &write_size, 8);
-  buf_offset += 8;
+  
   fs.write(buffer, buf_size);
   if (!fs.good()) {
     std::cerr << "some error writing to file" << std::endl;
