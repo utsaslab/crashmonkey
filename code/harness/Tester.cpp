@@ -761,6 +761,8 @@ int Tester::log_snapshot_save(string log_file) {
   // TODO(ashmrtn): What happens if this fails?
   // TODO(ashmrtn): Change device_clone to be an mmap of the disk we need to get
   // stuff on.
+  // device_size happens to be the number of 1k blocks on cow_brd (from original
+  // brd behavior...), so convert it to a number of bytes.
   unsigned int dev_bytes = device_size * 2 * 512;
   unsigned int bytes_done = 0;
   const unsigned int buf_size = 4096;
@@ -817,6 +819,8 @@ int Tester::log_snapshot_load(string log_file) {
     cerr << "error wiping old disk snapshot" << endl;
   }
 
+  // device_size happens to be the number of 1k blocks on cow_brd (from original
+  // brd behavior...), so convert it to a number of bytes.
   unsigned int dev_bytes = device_size * 2 * 512;
   unsigned int bytes_done = 0;
   const unsigned int buf_size = 4096;
