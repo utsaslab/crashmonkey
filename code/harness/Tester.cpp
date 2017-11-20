@@ -742,7 +742,7 @@ int Tester::log_profile_save(string log_file) {
 }
 
 int Tester::log_profile_load(string log_file) {
-  ifstream log(log_file);
+  ifstream log(log_file, ios::binary);
   while (log.peek() != EOF) {
     log_data.push_back(disk_write::deserialize(log));
   }

@@ -4,6 +4,7 @@
 #include <endian.h>
 
 #include <cassert>
+#include <cstdint>
 #include <cstring>
 
 #include <fstream>
@@ -24,6 +25,7 @@ namespace utils {
 using std::endl;
 using std::ifstream;
 using std::ios;
+using std::ios_base;
 using std::memcpy;
 using std::mt19937;
 using std::ofstream;
@@ -33,6 +35,10 @@ using std::shared_ptr;
 using std::tie;
 using std::uniform_int_distribution;
 using std::vector;
+
+namespace {
+  const unsigned int kSerializeBufSize = 4096;
+}
 
 bool disk_write::is_async_write() {
   return c_is_async_write(&metadata);
@@ -94,42 +100,46 @@ bool operator!=(const disk_write& a, const disk_write& b) {
 
 // Assumes binary file stream provided.
 void disk_write::serialize(std::ofstream& fs, const disk_write& dw) {
-  const int buf_size = 4096;
-  char buffer[buf_size];
-  memset(buffer, 0, buf_size);
-  // Working all in little endian...
+  char buffer[kSerializeBufSize];
+  memset(buffer, 0, kSerializeBufSize);
+  // Working all in big endian...
 
   // Write out the metadata for this log entry.
   unsigned int buf_offset = 0;
-  const unsigned long long write_flags = htobe64(dw.metadata.bi_flags);
-  const unsigned long long write_rw = htobe64(dw.metadata.bi_rw);
-  const unsigned long long write_write_sector = htobe64(dw.metadata.write_sector);
-  const unsigned long long write_size = htobe64(dw.metadata.size);
-  memcpy(buffer + buf_offset, &write_flags, 8);
-  buf_offset += 8;
-  memcpy(buffer + buf_offset, &write_rw, 8);
-  buf_offset += 8;
-  memcpy(buffer + buf_offset, &write_write_sector, 8);
-  buf_offset += 8;
-  memcpy(buffer + buf_offset, &write_size, 8);
-  
-  fs.write(buffer, buf_size);
+  const uint64_t write_flags = htobe64(dw.metadata.bi_flags);
+  const uint64_t write_rw = htobe64(dw.metadata.bi_rw);
+  const uint64_t write_write_sector = htobe64(dw.metadata.write_sector);
+  const uint64_t write_size = htobe64(dw.metadata.size);
+  memcpy(buffer + buf_offset, &write_flags, sizeof(const uint64_t));
+  buf_offset += sizeof(const uint64_t);
+  memcpy(buffer + buf_offset, &write_rw, sizeof(const uint64_t));
+  buf_offset += sizeof(const uint64_t);
+  memcpy(buffer + buf_offset, &write_write_sector, sizeof(const uint64_t));
+  buf_offset += sizeof(const uint64_t);
+  memcpy(buffer + buf_offset, &write_size, sizeof(const uint64_t));
+  buf_offset += sizeof(const uint64_t);
+
+  // Write out only the bit of data we added then seek to the end of this buffer
+  // page to prepare for subsequent writes.
+  fs.write(buffer, buf_offset);
   if (!fs.good()) {
     std::cerr << "some error writing to file" << std::endl;
     return;
   }
+  fs.seekp(kSerializeBufSize - buf_offset, ios_base::cur);
 
   // Write out the actual data for this log entry. Data could be larger than
   // buf_size so loop through this.
   const char *data = (char *) dw.data.get();
-  for (unsigned int i = 0; i < dw.metadata.size; i += buf_size) {
+  for (unsigned int i = 0; i < dw.metadata.size; i += kSerializeBufSize) {
     const unsigned int copy_amount =
-      ((i + buf_size) > dw.metadata.size)
+      ((i + kSerializeBufSize) > dw.metadata.size)
         ? (dw.metadata.size - i)
-        : buf_size;
-    memset(buffer, 0, buf_size);
+        : kSerializeBufSize;
+    // Not strictly needed, but it makes it easier.
+    memset(buffer, 0, kSerializeBufSize);
     memcpy(buffer, data + i, copy_amount);
-    fs.write(buffer, buf_size);
+    fs.write(buffer, kSerializeBufSize);
     if (!fs.good()) {
       std::cerr << "some error writing to file" << std::endl;
       return;
@@ -137,25 +147,28 @@ void disk_write::serialize(std::ofstream& fs, const disk_write& dw) {
   }
 }
 
+// Assumes binary file stream provided.
 disk_write disk_write::deserialize(ifstream& is) {
-  const int buf_size = 4096;
-  char buffer[buf_size];
-  memset(buffer, 0, buf_size);
-  
-  is.read(buffer, buf_size);
+  char buffer[kSerializeBufSize];
+  memset(buffer, 0, kSerializeBufSize);
+
+  // TODO(ashmrtn): Make this read only the size of the required data. This
+  // means we should probably slightly restructure some of the structs we use so
+  // we can read from the buffer into struct fields.
+  is.read(buffer, kSerializeBufSize);
   // check if read was successful
   assert(is);
 
   unsigned int buf_offset = 0;
-  unsigned long long write_flags, write_rw, write_write_sector, write_size;
-  memcpy(&write_flags, buffer + buf_offset, 8);
-  buf_offset += 8;
-  memcpy(&write_rw, buffer + buf_offset, 8);
-  buf_offset += 8;
-  memcpy(&write_write_sector, buffer + buf_offset, 8);
-  buf_offset += 8;
-  memcpy(&write_size, buffer + buf_offset, 8);
-  buf_offset += 8;
+  uint64_t write_flags, write_rw, write_write_sector, write_size;
+  memcpy(&write_flags, buffer + buf_offset, sizeof(uint64_t));
+  buf_offset += sizeof(uint64_t);
+  memcpy(&write_rw, buffer + buf_offset, sizeof(uint64_t));
+  buf_offset += sizeof(uint64_t);
+  memcpy(&write_write_sector, buffer + buf_offset, sizeof(uint64_t));
+  buf_offset += sizeof(uint64_t);
+  memcpy(&write_size, buffer + buf_offset, sizeof(uint64_t));
+  buf_offset += sizeof(uint64_t);
 
   disk_write_op_meta meta;
 
@@ -165,12 +178,12 @@ disk_write disk_write::deserialize(ifstream& is) {
   meta.size = be64toh(write_size);
 
   char *data = new char[meta.size];
-  for (unsigned int i = 0; i < meta.size; i += buf_size) {
+  for (unsigned int i = 0; i < meta.size; i += kSerializeBufSize) {
     const unsigned int read_amount =
-      ((i + buf_size) > meta.size)
+      ((i + kSerializeBufSize) > meta.size)
         ? (meta.size - i)
-        : buf_size;
-    is.read(buffer, buf_size);
+        : kSerializeBufSize;
+    is.read(buffer, kSerializeBufSize);
     // check if read was successful
     assert(is);
     memcpy(data + i, buffer, read_amount);
