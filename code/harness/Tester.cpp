@@ -777,6 +777,7 @@ int Tester::log_snapshot_save(string log_file) {
   int res = lseek(cow_brd_fd, 0, SEEK_SET);
   if (res < 0) {
     cerr << "error seeking to start of test device" << endl;
+    return LOG_CLONE_ERR;
   }
   while (bytes_done < dev_bytes) {
     // Read a block of data from the base disk image.
@@ -788,7 +789,7 @@ int Tester::log_snapshot_save(string log_file) {
       int res = read(cow_brd_fd, buf + bytes, new_amount - bytes);
       if (res < 0) {
         cerr << "error reading from raw device to log disk snapshot" << endl;
-        break;
+        return LOG_CLONE_ERR;
       }
       bytes += res;
     } while (bytes < new_amount);
@@ -799,7 +800,7 @@ int Tester::log_snapshot_save(string log_file) {
       int res = write(log_fd, buf + bytes, new_amount - bytes);
       if (res < 0) {
         cerr << "error reading from raw device to log disk snapshot" << endl;
-        break;
+        return LOG_CLONE_ERR;
       }
       bytes += res;
     } while (bytes < new_amount);
@@ -817,6 +818,7 @@ int Tester::log_snapshot_load(string log_file) {
   int res = ioctl(cow_brd_fd, COW_BRD_WIPE);
   if (res < 0) {
     cerr << "error wiping old disk snapshot" << endl;
+    return LOG_CLONE_ERR;
   }
 
   // device_size happens to be the number of 1k blocks on cow_brd (from original
@@ -841,10 +843,12 @@ int Tester::log_snapshot_load(string log_file) {
   res = lseek(device_path, 0, SEEK_SET);
   if (res < 0) {
     cerr << "error seeking to start of test device" << endl;
+    return LOG_CLONE_ERR;
   }
   res = lseek(log_fd, 0, SEEK_SET);
   if (res < 0) {
-    cerr << "error seeking to start of test device" << endl;
+    cerr << "error seeking to start of log file" << endl;
+    return LOG_CLONE_ERR;
   }
   while (bytes_done < dev_bytes) {
     // Read a block of data from the base disk image.
@@ -856,7 +860,7 @@ int Tester::log_snapshot_load(string log_file) {
       int res = read(log_fd, buf + bytes, new_amount - bytes);
       if (res < 0) {
         cerr << "error reading from raw device to log disk snapshot" << endl;
-        break;
+        return LOG_CLONE_ERR;
       }
       bytes += res;
     } while (bytes < new_amount);
@@ -867,7 +871,7 @@ int Tester::log_snapshot_load(string log_file) {
       int res = write(device_path, buf + bytes, new_amount - bytes);
       if (res < 0) {
         cerr << "error reading from raw device to log disk snapshot" << endl;
-        break;
+        return LOG_CLONE_ERR;
       }
       bytes += res;
     } while (bytes < new_amount);
@@ -879,6 +883,7 @@ int Tester::log_snapshot_load(string log_file) {
   res = ioctl(cow_brd_fd, COW_BRD_SNAPSHOT);
   if (res < 0) {
     cerr << "error restoring snapshot from log" << endl;
+    return LOG_CLONE_ERR;
   }
   return SUCCESS;
 }
