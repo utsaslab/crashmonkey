@@ -76,6 +76,7 @@ using std::cout;
 using std::endl;
 using std::free;
 using std::ifstream;
+using std::ios;
 using std::ostream;
 using std::ofstream;
 using std::shared_ptr;
@@ -732,7 +733,7 @@ int Tester::log_profile_save(string log_file) {
   // class specific one that is set at class creation time. That way people
   // don't break our logging system.
   std::cout << "saving " << log_data.size() << " disk operations" << endl;
-  ofstream log(log_file, std::ofstream::trunc);
+  ofstream log(log_file, std::ofstream::trunc | ios::binary);
   for (const disk_write& dw : log_data) {
     disk_write::serialize(log, dw);
   }
@@ -741,7 +742,7 @@ int Tester::log_profile_save(string log_file) {
 }
 
 int Tester::log_profile_load(string log_file) {
-  ifstream log(log_file);
+  ifstream log(log_file, ios::binary);
   while (log.peek() != EOF) {
     log_data.push_back(disk_write::deserialize(log));
   }
@@ -760,68 +761,129 @@ int Tester::log_snapshot_save(string log_file) {
   // TODO(ashmrtn): What happens if this fails?
   // TODO(ashmrtn): Change device_clone to be an mmap of the disk we need to get
   // stuff on.
-  char device_clone[device_size];
-  unsigned int bytes_read = 0;
-  do {
-    int res = read(cow_brd_fd, device_clone + bytes_read,
-        device_size - bytes_read);
-    if (res < 0) {
-      cerr << "error reading from raw device to log disk snapshot" << endl;
-      break;
-    }
-    bytes_read += res;
-  } while (bytes_read < device_size);
-  ofstream log(log_file, std::ofstream::trunc);
-  log.write(device_clone, device_size);
-  bool err = log.fail();
-  log.flush();
-  log.close();
-  if (err) {
+  // device_size happens to be the number of 1k blocks on cow_brd (from original
+  // brd behavior...), so convert it to a number of bytes.
+  unsigned int dev_bytes = device_size * 2 * 512;
+  unsigned int bytes_done = 0;
+  const unsigned int buf_size = 4096;
+  unsigned int buf[buf_size];
+  int log_fd =
+    open(log_file.c_str(), O_WRONLY | O_CREAT | O_TRUNC, S_IRUSR | S_IWUSR);
+  if (log_fd < 0) {
+    cerr << "error opening log file" << endl;
     return LOG_CLONE_ERR;
   }
+
+  int res = lseek(cow_brd_fd, 0, SEEK_SET);
+  if (res < 0) {
+    cerr << "error seeking to start of test device" << endl;
+    return LOG_CLONE_ERR;
+  }
+  while (bytes_done < dev_bytes) {
+    // Read a block of data from the base disk image.
+    unsigned int bytes = 0;
+    unsigned int new_amount = (dev_bytes < bytes_done + buf_size)
+                            ? dev_bytes - bytes_done
+                            : buf_size;
+    do {
+      int res = read(cow_brd_fd, buf + bytes, new_amount - bytes);
+      if (res < 0) {
+        cerr << "error reading from raw device to log disk snapshot" << endl;
+        return LOG_CLONE_ERR;
+      }
+      bytes += res;
+    } while (bytes < new_amount);
+
+    // Write a block of data to the log file.
+    bytes = 0;
+    do {
+      int res = write(log_fd, buf + bytes, new_amount - bytes);
+      if (res < 0) {
+        cerr << "error reading from raw device to log disk snapshot" << endl;
+        return LOG_CLONE_ERR;
+      }
+      bytes += res;
+    } while (bytes < new_amount);
+    bytes_done += new_amount;
+  }
+
+  fsync(log_fd);
   return SUCCESS;
 }
 
 int Tester::log_snapshot_load(string log_file) {
   // TODO(ashmrtn): What happens if this fails?
+  // TODO(ashmrtn): Change device_clone to be an mmap of the disk we need to get
+  // stuff on.
   int res = ioctl(cow_brd_fd, COW_BRD_WIPE);
   if (res < 0) {
     cerr << "error wiping old disk snapshot" << endl;
-  }
-  ifstream log(log_file);
-  char device_clone[device_size];
-  log.read(device_clone, device_size);
-  bool err = log.fail();
-  int errnum = errno;
-  assert(log.peek() == EOF);
-  log.close();
-  if (err) {
-    std::cout << "error " << strerror(errnum) << std::endl;
     return LOG_CLONE_ERR;
   }
-  // TODO(ashmrtn): Change device_clone to be an mmap of the disk we need to put
-  // stuff on.
-  int device_fd = open(COW_BRD_PATH, O_WRONLY);
-  res = lseek(device_fd, 0, SEEK_SET);
+
+  // device_size happens to be the number of 1k blocks on cow_brd (from original
+  // brd behavior...), so convert it to a number of bytes.
+  unsigned int dev_bytes = device_size * 2 * 512;
+  unsigned int bytes_done = 0;
+  const unsigned int buf_size = 4096;
+  unsigned int buf[buf_size];
+  int log_fd = open(log_file.c_str(), O_RDONLY);
+  if (log_fd < 0) {
+    cerr << "error opening log file" << endl;
+    return LOG_CLONE_ERR;
+  }
+
+  // cow_brd_fd is RDONLY.
+  int device_path = open(COW_BRD_PATH, O_WRONLY);
+  if (device_path < 0) {
+    cerr << "error opening log file" << endl;
+    return LOG_CLONE_ERR;
+  }
+
+  res = lseek(device_path, 0, SEEK_SET);
   if (res < 0) {
     cerr << "error seeking to start of test device" << endl;
+    return LOG_CLONE_ERR;
   }
-  unsigned int bytes_written = 0;
-  do {
-    int res = write(device_fd, (void*) (device_clone + bytes_written),
-        device_size - bytes_written);
-    if (res < 0) {
-      int err = errno;
-      cerr << "error writing snapshot to test device " << errno << endl;
-      cerr << "aborting copy after " << bytes_written << endl;
-    }
-    bytes_written += res;
-  } while (bytes_written < device_size);
-  fsync(device_fd);
-  close(device_fd);
+  res = lseek(log_fd, 0, SEEK_SET);
+  if (res < 0) {
+    cerr << "error seeking to start of log file" << endl;
+    return LOG_CLONE_ERR;
+  }
+  while (bytes_done < dev_bytes) {
+    // Read a block of data from the base disk image.
+    unsigned int bytes = 0;
+    unsigned int new_amount = (dev_bytes < bytes_done + buf_size)
+                            ? dev_bytes - bytes_done
+                            : buf_size;
+    do {
+      int res = read(log_fd, buf + bytes, new_amount - bytes);
+      if (res < 0) {
+        cerr << "error reading from raw device to log disk snapshot" << endl;
+        return LOG_CLONE_ERR;
+      }
+      bytes += res;
+    } while (bytes < new_amount);
+
+    // Write a block of data to the log file.
+    bytes = 0;
+    do {
+      int res = write(device_path, buf + bytes, new_amount - bytes);
+      if (res < 0) {
+        cerr << "error reading from raw device to log disk snapshot" << endl;
+        return LOG_CLONE_ERR;
+      }
+      bytes += res;
+    } while (bytes < new_amount);
+    bytes_done += new_amount;
+  }
+  close(device_path);
+
+  fsync(cow_brd_fd);
   res = ioctl(cow_brd_fd, COW_BRD_SNAPSHOT);
   if (res < 0) {
     cerr << "error restoring snapshot from log" << endl;
+    return LOG_CLONE_ERR;
   }
   return SUCCESS;
 }
