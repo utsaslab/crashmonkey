@@ -14,11 +14,11 @@ def build_parser():
     parser.add_argument('--fs-type', '-f', default=None)
 
     # crash monkey args
-    parser.add_argument('--crashmonkey-root', '-c', default="./crashmonkey")
+    parser.add_argument('--crashmonkey-root', '-c', default=".")
     parser.add_argument('--dev-size', '-s', default=1048576, type=int)
 
     # xfstest args
-    parser.add_argument('--xfstest-root', '-x', default="./xfstests")
+    parser.add_argument('--xfstest-root', '-x', default="../xfstests")
     parser.add_argument('--primary-dev', choices=['TEST', 'SCR'], default='TEST')
     parser.add_argument('--secondary-mnt-data', '-t', nargs=2, default=None)
     parser.add_argument('--xfstests-args', '-e', default="", nargs=argparse.REMAINDER)
