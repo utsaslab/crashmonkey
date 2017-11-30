@@ -161,6 +161,8 @@ int Tester::mount_device(const char* dev, const char* opts) {
 int Tester::umount_device() {
   if (disk_mounted) {
     if (umount(MNT_MNT_POINT) < 0) {
+			count << MNT_MNT_POINT << endl;
+			cout << strerror(errno) << endl;
       disk_mounted = true;
       return MNT_UMNT_ERR;
     }

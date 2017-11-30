@@ -107,7 +107,7 @@ def main():
 
     test_script_path = "./run.sh"
     with open(test_script_path, "w") as test_script:
-        testing_script_data = "#!/usr/bin/env bash\nexport TEST_DEV=\"/dev/hwm\";export TEST_DIR=\"/mnt/snapshot\"\necho \"hello\"\ncd {}/build\n(sudo ./c_harness -f /dev/sda -t {} -m barrier -d /dev/cow_ram0 -e {} -b tests/echo_sub_dir.so -v -s 10)&\nsleep 2\nsudo user_tools/begin_log\ncd {}\nsudo timeout 10 ./check {}\ncd {}/build\nsudo user_tools/end_log\nsudo user_tools/begin_tests\n".format(os.path.abspath(parsed_args.crashmonkey_root), parsed_args.fs_type, parsed_args.dev_size, os.path.abspath(parsed_args.xfstest_root), " ".join(parsed_args.xfstests_args), os.path.abspath(parsed_args.crashmonkey_root))
+        testing_script_data = "#!/usr/bin/env bash\nexport TEST_DEV=\"/dev/hwm\";export TEST_DIR=\"/mnt/snapshot\"\necho \"hello\"\ncd {}/build\n(sudo ./c_harness -f /dev/sda -t {} -m barrier -d /dev/cow_ram0 -e {} -b tests/echo_sub_dir.so -v -s 10)&\nsleep 2\nsudo user_tools/begin_log\ncd {}\n ./check {}; mount /dev/hwm /mnt/snapshot; \ncd {}/build\nsudo user_tools/end_log\nsudo user_tools/begin_tests\n".format(os.path.abspath(parsed_args.crashmonkey_root), parsed_args.fs_type, parsed_args.dev_size, os.path.abspath(parsed_args.xfstest_root), " ".join(parsed_args.xfstests_args), os.path.abspath(parsed_args.crashmonkey_root))
         test_script.write(testing_script_data)
     os.chmod(test_script_path, stat.S_IRUSR | stat.S_IWUSR | stat.S_IXUSR)
     with subprocess.Popen(["sudo", "./run.sh"]) as running:
