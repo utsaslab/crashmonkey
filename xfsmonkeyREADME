@@ -1,0 +1,18 @@
+xfsmonkey is a scrip that lets you run xfstests on crashmonkey.
+
+To run xfsmonkey, make sure to put the script such that the directory structure has xfsmonkey.py, crashmonkey, and xfstests in the same directory.
+In other words, move xfsmonkey.py up one directory and make sure the xfstests folder is in the same directory.
+
+Make sure xfstests and crashmonkey are both compiled.
+Also, make sure xfstests has a local.config file. If unsure, just 'touch local.config'. This file is unncessary for the script, but xfstests requires it.
+
+Then, run the following command, substituting {scratchDevice, scratchDeviceMountPointer, testFile, testName}
+	sudo ./xfsmonkey.py --primary-dev TEST -t /dev/scrathDevice /mnt/scratchDeviceMountPoint -e testFile/testName
+
+Make sure you do 'sudo mkdir /mnt/scratchDeviceMountPoint' before executing the command.
+
+Here is an example of the command: 
+	sudo ./xfsmonkey.py --primary-dev TEST -t /dev/sdb /mnt/sdbmount/ -e generic/011                # this test runs the generic 011 test
+																																																	# to run ext4 tests just do: '-e ext4/001'
+
+By default, the FS is assumed to be of type ext4.
