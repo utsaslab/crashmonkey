@@ -2,7 +2,7 @@
 
 Run xfstests through crashmonkey.
 
-_ Make sure you do `sudo mkdir /mnt/scratch_device_mountpoint` before executing any of the scripts. _
+_Make sure you do `sudo mkdir /mnt/scratch_device_mountpoint` before executing any of the scripts._
 
 ## xfsmonkeya.sh ##
 To run xfstests through crashmonkey, one simply needs to open xfsmonkeya.sh, fill out the config variables up top, and then run the script (sudo xfsmonkeya.sh).
