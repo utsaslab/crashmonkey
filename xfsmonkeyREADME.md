@@ -7,7 +7,7 @@ _Make sure you do_ `sudo mkdir /mnt/scratch_device_mountpoint` _before executing
 ## Assumptions ##
 We assume you have built crashmonkey (as defined in README.md).
 We also assume you have xfstests installed and in a directory on the same level as crash monkey.
-In other words, `../xfstests` is assumed to exist (and built, as described in the xfsmonkey repo's README.md).
+In other words, `../xfstests` is assumed to exist (and built, as described in the xftest's repo's README.md).
 
 ## xfsmonkeya.sh ##
 To run xfstests through crashmonkey, one simply needs to open xfsmonkeya.sh, fill out the config variables up top, and then run the script (sudo xfsmonkeya.sh).
