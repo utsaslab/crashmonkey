@@ -15,7 +15,7 @@ Internally, xfsmonkeya.sh uses xfsmonkey.py
 
 ## xfsmonkey.py ##
 
-The only reason you would want to use xfsmonkey.py instead of xfsmonkeya is if you want to run multiple xfstests inside
+The only reason you would want to use xfsmonkey.py instead of xfsmonkeya.sh is if you want to run multiple xfstests inside
 the same instance of crashmonkey.
 
 Then, run the following command, substituting {scratchDevice, scratchDeviceMountPointer, testFile, testName}
