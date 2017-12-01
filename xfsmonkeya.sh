@@ -1,6 +1,6 @@
+TEST_TYPE="ext4"
 FIRST_TEST=1
 LAST_TEST=5
-TEST_TYPE="ext4"
 SCRATCH_DEVICE="/dev/sda"
 SCRATCH_MOUNT="/mnt/sdbmount"
 OUTPUT_DIR="./output"
