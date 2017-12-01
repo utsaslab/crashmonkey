@@ -1,8 +1,8 @@
-# XFSMONKEY : [xfsmonkeya.sh and xfsmonkey.py] #
+# XFSMONKEY#
 
 Run xfstests through crashmonkey.
 
-### Make sure you do 'sudo mkdir /mnt/scratch_device_mountpoint' before executing any of the scripts. ###
+__ Make sure you do `sudo mkdir /mnt/scratch_device_mountpoint` before executing any of the scripts. __
 
 ## xfsmonkeya.sh ##
 To run xfstests through crashmonkey, one simply needs to open xfsmonkeya.sh, fill out the config variables up top, and then run the script (sudo xfsmonkeya.sh).
@@ -19,15 +19,15 @@ The only reason you would want to use xfsmonkey.py instead of xfsmonkeya is if y
 the same instance of crashmonkey.
 
 Then, run the following command, substituting {scratchDevice, scratchDeviceMountPointer, testFile, testName}
-```bash	
+```sh	
 	sudo ./xfsmonkey.py --primary-dev TEST -t /dev/scrathDevice /mnt/scratchDeviceMountPoint -e testFile/testName
 ```
 
 Here are some examples: 
-```bash
+```sh
 	sudo ./xfsmonkey.py --primary-dev TEST -t /dev/sdb /mnt/sdbmount/ -e generic/011                # this test runs the generic 011 test (scratch device is /dev/sdb)
 	sudo ./xfsmonkey.py --primary-dev TEST -t /dev/sdb /mnt/sdbmount/ -e ext4/011                   # this test runs the ext4 011 test
-	sudo ./xfsmonkey.py --primary-dev TEST -t /dev/sdb /mnt/sdbmount/ -e ext4												# this test runs all the ext4 tests
+	sudo ./xfsmonkey.py --primary-dev TEST -t /dev/sdb /mnt/sdbmount/ -e ext4											# this test runs all the ext4 tests
 ```
 
 Something to note, anything that suceedes the -e flag will be given directly as argument to ./check in xfstests.
