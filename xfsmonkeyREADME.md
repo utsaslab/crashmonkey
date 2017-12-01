@@ -39,7 +39,7 @@ Something to note, anything that suceedes the `-e` flag will be given directly a
 
 By default, the FS is assumed to be of type ext4.
 
-Type "./xfsmonkey --help" to check out the details.
+Type `./xfsmonkey --help` to check out the details.
 
 
 
