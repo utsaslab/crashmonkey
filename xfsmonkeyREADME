@@ -1,4 +1,17 @@
-xfsmonkey is a scrip that lets you run xfstests on crashmonkey.
+# XFSMONKEYA : xfsmokneya.sh:
+
+xfsmonkeya is xfsmonkey Advanced and it allows you to run xfsmonkey.py for multiple tests sequentially.
+It's important to note that this does not run many tests on one instance of crashMonkey (xfsmonkey.py can do that)
+Instead it creates many instances of crashMonkey and runs a single xfstest on each instance.
+
+open up xfsmonkey.sh and fill out the config variables at the top to tell it what tests to run and where output should be stored.
+
+
+
+
+
+
+xfsmonkey is a script that lets you run xfstests on crashmonkey.
 
 Then, run the following command, substituting {scratchDevice, scratchDeviceMountPointer, testFile, testName}
 	sudo ./xfsmonkey.py --primary-dev TEST -t /dev/scrathDevice /mnt/scratchDeviceMountPoint -e testFile/testName
@@ -12,3 +25,7 @@ Here is an example of the command:
 By default, the FS is assumed to be of type ext4.
 
 Type "./xfsmonkey --help" to check out the details.
+
+
+
+
