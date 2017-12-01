@@ -27,7 +27,7 @@ Here are some examples:
 ```sh
 sudo ./xfsmonkey.py --primary-dev TEST -t /dev/sdb /mnt/sdbmount/ -e generic/011                # this test runs the generic 011 test (scratch device is /dev/sdb)
 sudo ./xfsmonkey.py --primary-dev TEST -t /dev/sdb /mnt/sdbmount/ -e ext4/011                   # this test runs the ext4 011 test
-sudo ./xfsmonkey.py --primary-dev TEST -t /dev/sdb /mnt/sdbmount/ -e ext4											# this test runs all the ext4 tests
+sudo ./xfsmonkey.py --primary-dev TEST -t /dev/sdb /mnt/sdbmount/ -e ext4			# this test runs all the ext4 tests
 ```
 
 Something to note, anything that suceedes the -e flag will be given directly as argument to ./check in xfstests.
