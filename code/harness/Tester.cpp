@@ -506,6 +506,11 @@ int Tester::test_check_random_permutations(const int num_rounds) {
         duration_cast<milliseconds>(snapshot_end_time - snapshot_start_time);
     // End snapshot timing.
 
+    if (verbose) {
+      std::cout << "Test #" << rounds + 1 << ": Writing " << permutes.size()
+        << " operations to disk" << std::endl;
+    }
+
     // Write recorded data out to block device in different orders so that we
     // can if they are all valid or not.
     time_point<steady_clock> bio_write_start_time = steady_clock::now();
