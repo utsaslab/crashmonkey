@@ -1,11 +1,13 @@
 TEST_TYPE="generic"
-FIRST_TEST=1
-LAST_TEST=20
+FIRST_TEST=15
+LAST_TEST=30
 SCRATCH_DEVICE="/dev/sda"
 SCRATCH_MOUNT="/mnt/sdbmount"
 OUTPUT_DIR="./output"
 
 SUMMARY_FILE='./summary'
+
+rm -f $SUMMARY_FILE
 
 for((testNumber=$FIRST_TEST; testNumber<=$LAST_TEST; testNumber++))
 do
@@ -31,7 +33,7 @@ do
 	
 	if [[ -z $(grep "failed: 0" $TEST_CASE_DIR/out.txt) ]] 
 	then
-		echoi "FAILED: $TEST_CASE_DIR/out.txt" | tee -a $SUMMARY_FILE
+		echo "FAILED: $TEST_CASE_DIR/out.txt" | tee -a $SUMMARY_FILE
 	fi
 
 done
