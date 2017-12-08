@@ -1,10 +1,10 @@
 TEST_TYPE="generic"
-FIRST_TEST=1
-LAST_TEST=1
+FIRST_TEST=11
+LAST_TEST=100
 SCRATCH_DEVICE="/dev/sdb"
 SCRATCH_MOUNT="/mnt/sdbmount"
 OUTPUT_DIR="./output"
-ITERATIONS=1000
+ITERATIONS=100
 
 SUMMARY_FILE='./summary'
 
@@ -20,12 +20,12 @@ do
 	sudo touch $TEST_CASE_DIR/out.txt > /dev/null
 	sudo chmod  777 $TEST_CASE_DIR/out.txt > /dev/null
 
-	echo "About to run test case $TEST_TYPE/$paddedNumber"
+	printf "About to run test case \033[0;34m$TEST_TYPE/$paddedNumber\033[m\n"
 
 	sudo ./xfsmonkey.py --primary-dev TEST -t $SCRATCH_DEVICE $SCRATCH_MOUNT -i $ITERATIONS -e $TEST_TYPE/$paddedNumber > $TEST_CASE_DIR/out.txt 2>&1
 	sudo mv ./build/cm_out* $TEST_CASE_DIR
 
-	echo "Ran test case $TEST_TYPE/$paddedNumber"
+	printf "Ran test case \033[0;34m$TEST_TYPE/$paddedNumber\033[m\n"
 
   fixed=$(grep "passed fixed: 0" $TEST_CASE_DIR/out.txt)
 	failed=$(grep "failed: 0" $TEST_CASE_DIR/out.txt)
@@ -34,15 +34,17 @@ do
 	then
 	  if [[ -z $fixed ]]
 		then
-			echo "PASSED FIXED: $TEST_CASE_DIR/out.txt" | tee -a $SUMMARY_FILE
+			printf "\033[0;31mPASSED FIXED: $TEST_CASE_DIR/out.txt\033[m\n" | tee -a $SUMMARY_FILE
 		fi
 		if [[ -z $failed ]]
 		then
-			echo "FAILED: $TEST_CASE_DIR/out.txt" | tee -a $SUMMARY_FILE
+			printf "\033[0;31mFAILED: $TEST_CASE_DIR/out.txt\033[m\n" | tee -a $SUMMARY_FILE
 		fi
-		echo "$passed"
+		printf "$passed\n"
 	else
-		echo "No problems\n"
+		printf "\033[0;32mNo problems\033[m\n"
+		sudo rm -f $TEST_CASE_DIR/cm_out*
+		printf "Deleted snap and profile file for this run\n"
 	fi
-
+	printf "###############################################\n"
 done
