@@ -26,12 +26,12 @@ do
 
 	if [[ -z $(grep "passed fixed: 0" $TEST_CASE_DIR/out.txt) ]]
 	then
-		echo "PASSED FIXED: $TEST_CASE_DIR/out.txt" >> $SUMMARY_FILE
+		echo "PASSED FIXED: $TEST_CASE_DIR/out.txt" | tee -a $SUMMARY_FILE
 	fi	
 	
 	if [[ -z $(grep "failed: 0" $TEST_CASE_DIR/out.txt) ]] 
 	then
-		echo "FAILED: $TEST_CASE_DIR/out.txt" >> $SUMMARY_FILE
+		echoi "FAILED: $TEST_CASE_DIR/out.txt" | tee -a $SUMMARY_FILE
 	fi
 
 done
