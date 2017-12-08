@@ -31,20 +31,23 @@ def remove_comments(lines):
 
 def dev_mnt_pair(dev, sec_args=None):
     dev_mnt_names = {
-            "TEST": ("TEST_DEV", "TEST_DIR"),
-            "SCR": ("SCRATCH_DEV", "SCRATCH_MNT"),
-            "primary": ("/dev/hwm", "/mnt/snapshot")
+        "TEST": ("TEST_DEV", "TEST_DIR"),
+        "SCR": ("SCRATCH_DEV", "SCRATCH_MNT"),
+        "primary": ("/dev/hwm", "/mnt/snapshot")
     }
     if sec_args is not None:
         sec_args = tuple(sec_args)
-    return dev_mnt_names["TEST" if dev == "TEST" else "SCR"], dev_mnt_names["SCR" if dev == "TEST" else "TEST"], dev_mnt_names["primary"], sec_args
+    return dev_mnt_names["TEST" if dev == "TEST" else "SCR"], dev_mnt_names["SCR" if dev == "TEST" else "TEST"], \
+           dev_mnt_names["primary"], sec_args
 
 
 def init_script(src, parsed_args):
-    primary_dev, secondary_dev, primary_args, secondary_args = dev_mnt_pair(parsed_args.primary_dev, parsed_args.secondary_mnt_data)
+    primary_dev, secondary_dev, primary_args, secondary_args = dev_mnt_pair(
+        parsed_args.primary_dev,
+        parsed_args.secondary_mnt_data)
 
-    with open(src, "r") as init_script:
-        extracted_lines = init_script.readlines()
+    with open(src, "r") as script:
+        extracted_lines = script.readlines()
 
     r_lines = remove_comments(extracted_lines)
     export_func = None
@@ -53,7 +56,9 @@ def init_script(src, parsed_args):
     for r_line in r_lines:
         r_line = r_line.strip()
         if not (r_line.startswith('export') or r_line.startswith('setenv')):
-            print("Only environment exports allowed on a single line. Unknown script instruction {}. Early exit.".format(r_line))
+            print(
+                "Only environment exports allowed on a single line. Unknown script instruction {}. Early exit.".format(
+                    r_line))
             exit(0)
         if export_func is None:
             export_func = r_line[:6]
@@ -87,27 +92,30 @@ def init_script(src, parsed_args):
 
     print("Generated environment", next_env_exports)
 
-    with open(src, "w") as init_script:
+    with open(src, "w") as script:
         # write new script
         if export_func is None:
             export_func = "export"
-        init_script.truncate(0)
+        script.truncate(0)
         for key in next_env_exports:
             print("{} {}={}\n".format(export_func, key, next_env_exports[key]))
-            init_script.write("{} {}={}\n".format(export_func, key, next_env_exports[key]))
+            script.write("{} {}={}\n".format(export_func, key, next_env_exports[key]))
 
     return extracted_lines
 
 
 def main():
     parsed_args = build_parser().parse_args()
-    extracted = []
     xfs_config_path = parsed_args.xfstest_root + "/local.config"
-    old_xfs_script = "\n".join(init_script(xfs_config_path, parsed_args))
+    extracted = init_script(xfs_config_path, parsed_args)
+    old_xfs_script = "".join(extracted)
 
     test_script_path = "./run.sh"
     with open(test_script_path, "w") as test_script:
-        testing_script_data = "#!/usr/bin/env bash\nexport TEST_DEV=\"/dev/hwm\";export TEST_DIR=\"/mnt/snapshot\"\necho \"hello\"\ncd {}/build\n(sudo ./c_harness -f /dev/sda -t {} -m barrier -d /dev/cow_ram0 -e {} -b tests/xfstests.so -v -l cm_out -s 10)&\nsleep 2\nsudo user_tools/begin_log\ncd {}\n ./check {}; mount /dev/hwm /mnt/snapshot; \ncd {}/build\nsudo user_tools/end_log\nsudo user_tools/begin_tests\n".format(os.path.abspath(parsed_args.crashmonkey_root), parsed_args.fs_type, parsed_args.dev_size, os.path.abspath(parsed_args.xfstest_root), " ".join(parsed_args.xfstests_args), os.path.abspath(parsed_args.crashmonkey_root))
+        testing_script_data = "#!/usr/bin/env bash\nexport TEST_DEV=\"/dev/hwm\";export TEST_DIR=\"/mnt/snapshot\"\necho \"hello\"\ncd {}/build\n(sudo ./c_harness -f /dev/sda -t {} -m barrier -d /dev/cow_ram0 -e {} -b tests/xfstests.so -v -l cm_out -s 10)&\nsleep 2\nsudo user_tools/begin_log\ncd {}\n ./check {}; mount /dev/hwm /mnt/snapshot; \ncd {}/build\nsudo user_tools/end_log\nsudo user_tools/begin_tests\n".format(
+            os.path.abspath(parsed_args.crashmonkey_root), parsed_args.fs_type, parsed_args.dev_size,
+            os.path.abspath(parsed_args.xfstest_root), " ".join(parsed_args.xfstests_args),
+            os.path.abspath(parsed_args.crashmonkey_root))
         test_script.write(testing_script_data)
     os.chmod(test_script_path, stat.S_IRUSR | stat.S_IWUSR | stat.S_IXUSR)
     with subprocess.Popen(["sudo", "./run.sh"]) as running:
