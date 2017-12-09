@@ -260,13 +260,12 @@ int main(int argc, char** argv) {
   while (pos < 4 && tok != NULL){
     pos ++;
     tok = strtok(NULL, " ");
-   }
-   long test_dev_size = 0;
-   if(tok != NULL){
-     test_dev_size = atol(tok);
-   }
-   //cout << test_dev_size << endl;
-   delete [] filesize_cstr;
+  }
+  long test_dev_size = 0;
+  if(tok != NULL){
+    test_dev_size = atol(tok);
+  }
+  delete [] filesize_cstr;
   if(setenv("FILESYS_SIZE", filesize.c_str(), 1) == -1){
     cerr << "Error setting environment variable FILESYS_SIZE" << endl;
   }
