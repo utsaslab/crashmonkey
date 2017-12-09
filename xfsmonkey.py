@@ -116,7 +116,7 @@ def main():
         testing_script_data = """#!/usr/bin/env bash
 echo \"hello\"
 cd {}/build
-(sudo ./c_harness -f /dev/sda -t {} -m barrier -d /dev/cow_ram0 -e {} -b tests/xfstests.so -v -l cm_out -s 10)&
+(sudo ./c_harness -f /dev/sda -t {} -m barrier -d /dev/cow_ram0 -e {} -b tests/xfstests.so -v -l cm_out -s {})&
 sleep 2
 sudo user_tools/begin_log
 cd {}
