@@ -145,9 +145,9 @@ int main(int argc, char** argv) {
   }
   
   //input file created to read output from bash command "df"
-  FILE *input;
+  /*FILE *input;
   char buf[512];
-  if(!(input = popen(("df --output=source,size | grep " + flags_dev).c_str(), "r"))){
+  if(!(input = popen(("fdisk -l | grep " + flags_dev + ": ").c_str(), "r"))){
     cerr << "Error finding the filesize of mounted filesystem" << endl;  
   }
   string filesize;
@@ -155,7 +155,18 @@ int main(int argc, char** argv) {
     filesize += buf;
   }
   pclose(input);
+  char * tok = strtok(filesize, " ");
+  int pos = 0;
+  while (pos < 3 && tok != NULL){
+    pos ++;
+    tok = strtok(filesize, " ");
+   }
+   if(tok != NULL){
+     long test_dev_size = atoi(tok);
+   }
+   /*cout << test_dev_size << endl;
 
+  //cout << filesize << endl;
   if(setenv("FILESYS_SIZE", filesize.c_str(), 1) == -1){
     cerr << "Error setting environment variable FILESYS_SIZE" << endl;
   }
@@ -232,6 +243,33 @@ int main(int argc, char** argv) {
   }
   test_harness.set_fs_type(fs_type);
   test_harness.set_device(test_dev);
+  FILE *input;
+  char buf[512];
+  if(!(input = popen(("fdisk -l " + test_dev + " | grep " + test_dev + ": ").c_str(), "r"))){
+    cerr << "Error finding the filesize of mounted filesystem" << endl;  
+  }
+  string filesize;
+  while(fgets(buf, 512, input)){
+    filesize += buf;
+  }
+  pclose(input);
+  char *filesize_cstr = new char[filesize.length() + 1];
+  strcpy(filesize_cstr, filesize.c_str()); 
+  char * tok = strtok(filesize_cstr, " ");
+  int pos = 0;
+  while (pos < 4 && tok != NULL){
+    pos ++;
+    tok = strtok(NULL, " ");
+   }
+   long test_dev_size = 0;
+   if(tok != NULL){
+     test_dev_size = atol(tok);
+   }
+   //cout << test_dev_size << endl;
+   delete [] filesize_cstr;
+  if(setenv("FILESYS_SIZE", filesize.c_str(), 1) == -1){
+    cerr << "Error setting environment variable FILESYS_SIZE" << endl;
+  }
   
   // Load the class being tested.
   cout << "Loading test case" << endl;
@@ -240,7 +278,7 @@ int main(int argc, char** argv) {
       return -1;
   }
   
-  test_harness.test_pass(mount_dir, filesize);
+  test_harness.test_init_values(mount_dir, test_dev_size);
   
   // Load the permuter to use for the test.
   // TODO(ashmrtn): Consider making a line in the test file which specifies the

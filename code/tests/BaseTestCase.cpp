@@ -5,7 +5,7 @@ namespace tests {
 
 using std::string;
 
-int BaseTestCase::pass(string mount_dir, string filesys_size) {
+int BaseTestCase::init_values(string mount_dir, long filesys_size) {
   mnt_dir_ = mount_dir;
   filesys_size_ = filesys_size;
   return 0;

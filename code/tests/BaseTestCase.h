@@ -2,7 +2,9 @@
 #define BASE_TEST_CASE_H
 
 #include "../results/DataTestResult.h"
+
 #include <string>
+
 namespace fs_testing {
 namespace tests {
 
@@ -13,11 +15,11 @@ class BaseTestCase {
   virtual int run() = 0;
   virtual int check_test(unsigned int last_checkpoint,
       DataTestResult *test_result) = 0;
-  virtual int pass(std::string mount_dir, std::string filesys_size);
+  virtual int init_values(std::string mount_dir, long filesys_size);
 
  protected:
   std::string mnt_dir_;
-  std::string filesys_size_;
+  long filesys_size_;
 };
 
 typedef BaseTestCase *test_create_t();

@@ -12,7 +12,6 @@ obj-m := $(addsuffix .o, $(MODULES))
 KDIR := /lib/modules/$(shell uname -r)/build
 
 CM_TESTS_EXCLUDE = BaseTestCase.cpp
-CM_TESTS = $(patsubst %.cpp, %.so, $(notdir $(wildcard $(CURDIR)/tests/*.cpp)))
 CM_TESTS = \
 		$(patsubst %.cpp, %.so, \
 			$(filter-out $(CM_TESTS_EXCLUDE), \
