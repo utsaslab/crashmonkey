@@ -451,7 +451,7 @@ int Tester::test_setup() {
   return test_loader.get_instance()->setup();
 }
 
-int Tester::test_init_values(string mount_dir, long filesys_size){
+int Tester::test_init_values(string mount_dir, long filesys_size) {
   return test_loader.get_instance()->init_values(mount_dir, filesys_size);
 }
 

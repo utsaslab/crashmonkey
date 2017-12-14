@@ -45,6 +45,7 @@ using fs_testing::utils::communication::kSocketNameOutbound;
 using fs_testing::utils::communication::ServerSocket;
 using fs_testing::utils::communication::SocketError;
 using fs_testing::utils::communication::SocketMessage;
+
 static const option long_options[] = {
   {"background", no_argument, NULL, 'b'},
   {"test-dev", required_argument, NULL, 'd'},
@@ -144,32 +145,6 @@ int main(int argc, char** argv) {
     cerr << "Error setting environment variable MOUNT_FS" << endl;
   }
   
-  //input file created to read output from bash command "df"
-  /*FILE *input;
-  char buf[512];
-  if(!(input = popen(("fdisk -l | grep " + flags_dev + ": ").c_str(), "r"))){
-    cerr << "Error finding the filesize of mounted filesystem" << endl;  
-  }
-  string filesize;
-  while(fgets(buf, 512, input)){
-    filesize += buf;
-  }
-  pclose(input);
-  char * tok = strtok(filesize, " ");
-  int pos = 0;
-  while (pos < 3 && tok != NULL){
-    pos ++;
-    tok = strtok(filesize, " ");
-   }
-   if(tok != NULL){
-     long test_dev_size = atoi(tok);
-   }
-   /*cout << test_dev_size << endl;
-
-  //cout << filesize << endl;
-  if(setenv("FILESYS_SIZE", filesize.c_str(), 1) == -1){
-    cerr << "Error setting environment variable FILESYS_SIZE" << endl;
-  }
   cout << "========== PHASE 0: Setting up CrashMonkey basics =========="
     << endl;
   if (test_case_idx == argc) {
