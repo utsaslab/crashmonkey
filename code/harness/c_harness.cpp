@@ -139,7 +139,12 @@ int main(int argc, char** argv) {
    ****************************************************************************/
   const unsigned int test_case_idx = optind;
   const string path = argv[test_case_idx];
-   
+  //this should be changed in the option is added to mount tests in other directories
+  string mount_dir = "/mnt/snapshot"; 
+  if(setenv("MOUNT_FS", mount_dir.c_str(), 1) == -1){
+    cerr << "Error setting environment variable MOUNT_FS" << endl;
+  }
+  
   cout << "========== PHASE 0: Setting up CrashMonkey basics =========="
     << endl;
   if (test_case_idx == argc) {
@@ -213,13 +218,41 @@ int main(int argc, char** argv) {
   }
   test_harness.set_fs_type(fs_type);
   test_harness.set_device(test_dev);
-
+  FILE *input;
+  char buf[512];
+  if(!(input = popen(("fdisk -l " + test_dev + " | grep " + test_dev + ": ").c_str(), "r"))){
+    cerr << "Error finding the filesize of mounted filesystem" << endl;  
+  }
+  string filesize;
+  while(fgets(buf, 512, input)){
+    filesize += buf;
+  }
+  pclose(input);
+  char *filesize_cstr = new char[filesize.length() + 1];
+  strcpy(filesize_cstr, filesize.c_str()); 
+  char * tok = strtok(filesize_cstr, " ");
+  int pos = 0;
+  while (pos < 4 && tok != NULL){
+    pos ++;
+    tok = strtok(NULL, " ");
+  }
+  long test_dev_size = 0;
+  if(tok != NULL){
+    test_dev_size = atol(tok);
+  }
+  delete [] filesize_cstr;
+  if(setenv("FILESYS_SIZE", filesize.c_str(), 1) == -1){
+    cerr << "Error setting environment variable FILESYS_SIZE" << endl;
+  }
+  
   // Load the class being tested.
   cout << "Loading test case" << endl;
   if (test_harness.test_load_class(argv[test_case_idx]) != SUCCESS) {
     test_harness.cleanup_harness();
       return -1;
   }
+  
+  test_harness.test_init_values(mount_dir, test_dev_size);
   
   // Load the permuter to use for the test.
   // TODO(ashmrtn): Consider making a line in the test file which specifies the

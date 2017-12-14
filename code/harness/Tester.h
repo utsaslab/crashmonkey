@@ -78,6 +78,7 @@ class Tester {
   int test_load_class(const char* path);
   void test_unload_class();
   int test_setup();
+  int test_init_values(std::string mountDir, long filesysSize);
   int test_run();
   int test_check_permutations(const int num_rounds);
   int test_check_random_permutations(const int num_rounds);
