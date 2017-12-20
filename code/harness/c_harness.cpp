@@ -139,6 +139,23 @@ int main(int argc, char** argv) {
    ****************************************************************************/
   const unsigned int test_case_idx = optind;
   const string path = argv[test_case_idx];
+
+  int begin = path.rfind('/');
+  
+  //remove everything before the last /
+  string test_name = path.substr(begin + 1);
+  
+  //remove the extension 
+  test_name = test_name.substr(0, test_name.length() - 3); 
+  
+  //get the date and time stamp and format
+  time_t now = time(0); 
+  char time_st[18];
+  strftime(time_st, sizeof(time_st), "%Y%m%d_%H:%M:%S", localtime(&now));  
+  string s = string(time_st) + "-" + test_name + ".log";
+  int temp_stdout = dup(fileno(stdout));
+  FILE *fp = freopen(s.c_str(), "a", stdout);
+  
   //this should be changed in the option is added to mount tests in other directories
   string mount_dir = "/mnt/snapshot"; 
   if(setenv("MOUNT_FS", mount_dir.c_str(), 1) == -1){
@@ -484,6 +501,7 @@ int main(int argc, char** argv) {
     cout << "Clearing wrapper device logs" << endl;
     test_harness.clear_wrapper_log();
     cout << "Enabling wrapper device logging" << endl;
+    system("dmesg -C");
     test_harness.begin_wrapper_logging();
 
 
@@ -645,13 +663,15 @@ int main(int argc, char** argv) {
       return -1;
     }
 
-    cout << "Unmounting wrapper file system after test profiling" << endl;
+    cout << "Unmounting wrapper file system after test profiling\n" << endl;
     if (test_harness.umount_device() != SUCCESS) {
       cerr << "Error unmounting wrapper file system" << endl;
       test_harness.cleanup_harness();
       return -1;
     }
 
+    cout << "List of bio\n" << endl;
+    system("dmesg | grep hwm:");
     cout << "Close wrapper ioctl fd" << endl;
     test_harness.put_wrapper_ioctl();
     cout << "Removing wrapper module from kernel" << endl;
@@ -767,17 +787,8 @@ int main(int argc, char** argv) {
         << test_harness.get_timing_stat((Tester::time_stats) i).count() << " ms"
         << endl;
     }
-    //get the name of the test being run 
-    int begin = path.rfind('/');
-    //remove everything before the last /
-    string test_name = path.substr(begin + 1);
-    //remove the extension 
-    test_name = test_name.substr(0, test_name.length() - 3); 
-    //get the date and time stamp and format
-    time_t now = time(0); 
-    char time_st[18];
-    strftime(time_st, sizeof(time_st), "%Y%m%d_%H:%M:%S", localtime(&now));  
-    string s = string(time_st) + "-" + test_name + ".log";
+    
+    string s = string(time_st) + "-test_summary-" + test_name + ".log";
     std::ofstream logfile (s);
     test_harness.PrintTestStats(logfile, true);
     logfile.close();
@@ -791,6 +802,8 @@ int main(int argc, char** argv) {
    * testing if the -b flag was given and we are running in background mode.
    ****************************************************************************/
   test_harness.cleanup_harness();
+  dup2(temp_stdout, fileno(stdout));
+  test_harness.PrintTestStats(cout, false);
 
   if (background) {
     if (background_com->SendCommand(SocketMessage::kRunTestsDone) !=
