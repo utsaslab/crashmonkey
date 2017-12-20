@@ -6,6 +6,7 @@ namespace fs_testing {
 
 using std::endl;
 using std::ostream;
+using std::string;
 using std::vector;
 
 using fs_testing::tests::DataTestResult;
@@ -34,20 +35,25 @@ void TestSuiteResult::PrintResults(ostream& os, bool is_log) const {
   unsigned int other = 0;
 
   for (const auto& result : completed_) {
+
+    string test_status("");
+    string des("");
     total_tests++;
     if (result.fs_test.GetError() == FileSystemTestResult::kClean
         && result.data_test.GetError() == DataTestResult::kClean) {
       ++num_passed;
+      test_status = "PASSED";
     } else if (result.fs_test.GetError() == FileSystemTestResult::kFixed
         && result.data_test.GetError() == DataTestResult::kClean) {
       ++num_passed_fixed;
+      test_status = "FSCK_FIXED";
     } else if (result.fs_test.GetError() ==
         FileSystemTestResult::kKernelMount &&
         result.data_test.GetError() == DataTestResult::kClean) {
       ++fsck_required;
     } else {
+      test_status = "FAILED";
       ++num_failed;
-      std::string des(""); 
       switch (result.data_test.GetError()) {
         case DataTestResult::kOldFilePersisted:
           des += "old file persisted: ";
@@ -70,14 +76,14 @@ void TestSuiteResult::PrintResults(ostream& os, bool is_log) const {
           ++other;
           break;
       }
-      if (is_log) {
-        os << "Test #" << total_tests << " FAILED: " << des
-          << result.data_test.error_description << endl;
-        os << "\tlast checkpoint: " << result.permute_data.last_checkpoint
-          << endl;
-        os << "\tcrash state: ";
-        result.permute_data.PrintCrashState(os) << endl;
-      }
+    }
+    if (is_log) {
+      os << "Test #" << total_tests << ": " << test_status << ": " << des
+        << result.data_test.error_description << endl;
+      os << "\tlast checkpoint: " << result.permute_data.last_checkpoint
+        << endl;
+      os << "\tcrash state: ";
+      result.permute_data.PrintCrashState(os) << endl;
     }
   }
 

@@ -19,12 +19,17 @@
 #include "../utils/utils.h"
 #include "Tester.h"
 
+#define STRINGIFY(x) #x
+#define TO_STRING(x) STRINGIFY(x)
+
 #define TEST_SO_PATH "tests/"
 #define PERMUTER_SO_PATH "permuter/"
 // TODO(ashmrtn): Find a good delay time to use for tests.
-#define TEST_DIRTY_EXPIRE_TIME "500"
-#define WRITE_DELAY 20
-#define MOUNT_DELAY 3
+#define TEST_DIRTY_EXPIRE_TIME_CENTISECS 3000
+#define TEST_DIRTY_EXPIRE_TIME_STRING \
+  TO_STRING(TEST_DIRTY_EXPIRE_TIME_CENTISECS)
+#define WRITE_DELAY ((TEST_DIRTY_EXPIRE_TIME_CENTISECS / 100) * 4)
+#define MOUNT_DELAY 1
 
 #define DIRECTORY_PERMS \
   (S_IRUSR | S_IWUSR | S_IRGRP | S_IWGRP | S_IROTH | S_IWOTH)
@@ -63,7 +68,9 @@ static const option long_options[] = {
 };
 
 int main(int argc, char** argv) {
-  string dirty_expire_time_centisecs(TEST_DIRTY_EXPIRE_TIME);
+  cout << "running " << argv << endl;
+
+  string dirty_expire_time_centisecs(TEST_DIRTY_EXPIRE_TIME_STRING);
   unsigned long int test_sleep_delay = WRITE_DELAY;
   string fs_type("ext4");
   string flags_dev("/dev/vda");
@@ -264,7 +271,8 @@ int main(int argc, char** argv) {
   }
 
   // Update dirty_expire_time.
-  cout << "Updating dirty_expire_time_centisecs" << endl;
+  cout << "Updating dirty_expire_time_centisecs to "
+    << dirty_expire_time_centisecs << endl;
   const char* old_expire_time =
     test_harness.update_dirty_expire_time(dirty_expire_time_centisecs.c_str());
   if (old_expire_time == NULL) {
@@ -616,7 +624,12 @@ int main(int argc, char** argv) {
             wait_res = waitpid(child, &status, WNOHANG);
           } while (wait_res == 0);
           if (status != 0) {
-            cerr << "Error in test process" << endl;
+            if (WIFEXITED(status) && WEXITSTATUS(status) != 0) {
+              cerr << "Error in test process, exited with status "
+                << WEXITSTATUS(status) << endl;
+            } else {
+              cerr << "Error in test process" << endl;
+            }
             test_harness.cleanup_harness();
             return -1;
           }

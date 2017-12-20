@@ -56,6 +56,7 @@ void Permuter::InitDataVector(vector<disk_write> *data) {
   // Make sure that the first time we mark a checkpoint epoch, we start at 0 and
   // not 1.
   unsigned int curr_checkpoint_epoch = 0;
+  // Aligns with the index of the bio in the profile dump, 0 indexed.
   unsigned int abs_index = 0;
 
   auto curr_op = data->begin();
@@ -77,12 +78,15 @@ void Permuter::InitDataVector(vector<disk_write> *data) {
         // Checkpoint operations should not appear in the bio stream passed to
         // actual permuters.
         ++curr_op;
+        ++abs_index;
         continue;
       }
       
       if (prev_epoch_flush_op == true) {
         epoch_op split_op = {abs_index, data_half};
-        ++abs_index;
+        // TODO(ashmrtn): Find a better way to handle matching an index to a bio
+        // in the profile dump.
+        //++abs_index;
         current_epoch.ops.push_back(split_op);
         current_epoch.num_meta += data_half.is_meta();
         prev_epoch_flush_op = false;
