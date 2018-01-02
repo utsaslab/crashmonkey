@@ -36,6 +36,8 @@ ostream& FileSystemTestResult::PrintErrors(ostream& os) {
 
 ostream& operator<<(ostream& os, FileSystemTestResult::ErrorType err) {
   switch (err) {
+    case fs_testing::FileSystemTestResult::kClean:
+      break;
     case fs_testing::FileSystemTestResult::kUnmountable:
       os << "unmountable_file_system";
       break;

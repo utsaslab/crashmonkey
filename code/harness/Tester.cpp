@@ -465,10 +465,10 @@ int Tester::test_run() {
 int Tester::test_check_random_permutations(const int num_rounds,
     ofstream& log) {
   time_point<steady_clock> start_time = steady_clock::now();
-  TestSuiteResult test_suite;
   Permuter *p = permuter_loader.get_instance();
   p->InitDataVector(&log_data);
   vector<disk_write> permutes;
+  TestSuiteResult test_suite;
   for (int rounds = 0; rounds < num_rounds; ++rounds) {
     // Print status every 1024 iterations.
     if (rounds & (~((1 << 10) - 1)) && !(rounds & ((1 << 10) - 1))) {
@@ -479,6 +479,8 @@ int Tester::test_check_random_permutations(const int num_rounds,
      * Generate and write out a crash state.
      **************************************************************************/
     SingleTestInfo test_info;
+    // So we get 1-indexed test numbers.
+    test_info.test_num = rounds + 1;
 
     // Begin permute timing.
     time_point<steady_clock> permute_start_time = steady_clock::now();
@@ -497,22 +499,22 @@ int Tester::test_check_random_permutations(const int num_rounds,
     int cow_brd_snapshot_fd = open(SNAPSHOT_PATH, O_WRONLY);
     if (cow_brd_snapshot_fd < 0) {
       test_info.fs_test.SetError(FileSystemTestResult::kSnapshotRestore);
+      test_info.PrintResults(log);
+      test_suite.TallyResult(test_info);
       continue;
     }
     // Begin snapshot timing.
     time_point<steady_clock> snapshot_start_time = steady_clock::now();
     if (clone_device_restore(cow_brd_snapshot_fd, false) != SUCCESS) {
       test_info.fs_test.SetError(FileSystemTestResult::kSnapshotRestore);
-      test_suite.AddCompletedTest(test_info);
+      test_info.PrintResults(log);
+      test_suite.TallyResult(test_info);
       continue;
     }
     time_point<steady_clock> snapshot_end_time = steady_clock::now();
     timing_stats[SNAPSHOT_TIME] +=
         duration_cast<milliseconds>(snapshot_end_time - snapshot_start_time);
     // End snapshot timing.
-
-    log << "Test #" << rounds + 1 << ": Writing " << permutes.size()
-      << " operations to disk" << std::endl;
 
     // Write recorded data out to block device in different orders so that we
     // can if they are all valid or not.
@@ -524,8 +526,9 @@ int Tester::test_check_random_permutations(const int num_rounds,
         duration_cast<milliseconds>(bio_write_end_time - bio_write_start_time);
     if (!write_data_res) {
       test_info.fs_test.SetError(FileSystemTestResult::kBioWrite);
-      test_suite.AddCompletedTest(test_info);
       close(cow_brd_snapshot_fd);
+      test_info.PrintResults(log);
+      test_suite.TallyResult(test_info);
       continue;
     }
     close(cow_brd_snapshot_fd);
@@ -542,7 +545,6 @@ int Tester::test_check_random_permutations(const int num_rounds,
     }
     umount_device();
 
-    log << "Running fsck" << std::endl;
     string command(TEST_CASE_FSCK + fs_type + " " + SNAPSHOT_PATH
         + " -- -y 2>&1");
 
@@ -557,17 +559,18 @@ int Tester::test_check_random_permutations(const int num_rounds,
     if (!pipe) {
       test_info.fs_test.SetError(FileSystemTestResult::kOther);
       test_info.fs_test.error_description = "error running fsck";
+      test_info.PrintResults(log);
+      test_suite.TallyResult(test_info);
       continue;
     }
     while (!feof(pipe)) {
       char *r = fgets(tmp, 128, pipe);
       // NULL can be returned on error.
       if (r != NULL) {
-        log << tmp;
         test_info.fs_test.fsck_result += tmp;
       }
     }
-    const int fsck_res = pclose(pipe);
+    test_info.fs_test.fs_check_return = pclose(pipe);
     time_point<steady_clock> fsck_end_time = steady_clock::now();
     timing_stats[FSCK_TIME] +=
         duration_cast<milliseconds>(fsck_end_time - fsck_start_time);
@@ -580,16 +583,18 @@ int Tester::test_check_random_permutations(const int num_rounds,
         WEXITSTATUS(fsck_res) << "\n";
       */
       test_info.fs_test.SetError(FileSystemTestResult::kCheck);
-      test_info.fs_test.error_description =
-        string("exit status ") + to_string(WEXITSTATUS(fsck_res));
-      test_suite.AddCompletedTest(test_info);
+      test_info.fs_test.error_description = string("exit status ") +
+        to_string(WEXITSTATUS(test_info.fs_test.fs_check_return));
+      test_info.PrintResults(log);
+      test_suite.TallyResult(test_info);
       continue;
     }
     // TODO(ashmrtn): Consider mounting with options specified for test
     // profile?
     if (mount_device(SNAPSHOT_PATH, NULL) != SUCCESS) {
       test_info.fs_test.SetError(FileSystemTestResult::kUnmountable);
-      test_suite.AddCompletedTest(test_info);
+      test_info.PrintResults(log);
+      test_suite.TallyResult(test_info);
       continue;
     } else {
       // Begin test case timing.
@@ -605,7 +610,8 @@ int Tester::test_check_random_permutations(const int num_rounds,
       if (test_check_res == 0 && test_info.fs_test.fs_check_return != 0) {
         test_info.fs_test.SetError(FileSystemTestResult::kFixed);
       }
-      test_suite.AddCompletedTest(test_info);
+      test_info.PrintResults(log);
+      test_suite.TallyResult(test_info);
     }
     umount_device();
   }
@@ -915,9 +921,9 @@ int Tester::log_snapshot_load(string log_file) {
   return SUCCESS;
 }
 
-void Tester::PrintTestStats(std::ostream& os, bool is_log) {
+void Tester::PrintTestStats(std::ostream& os) {
   for (const auto& suite : test_results_) {
-    suite.PrintResults(os, is_log);
+    suite.PrintResults(os);
   }
 }
 

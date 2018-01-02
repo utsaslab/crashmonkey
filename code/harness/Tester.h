@@ -115,7 +115,7 @@ class Tester {
 
   std::chrono::milliseconds get_timing_stat(time_stats timing_stat);
   void PrintTimingStats(std::ostream& os);
-  void PrintTestStats(std::ostream& os, bool is_log);
+  void PrintTestStats(std::ostream& os);
 
   // TODO(ashmrtn): Figure out why making these private slows things down a lot.
  private:

@@ -11,12 +11,24 @@ namespace fs_testing {
 
 class TestSuiteResult {
  public:
-  void AddCompletedTest(const fs_testing::SingleTestInfo& done);
+  void TallyResult(fs_testing::SingleTestInfo& r);
   unsigned int GetCompleted() const;
-  void PrintResults(std::ostream& os, bool is_log) const;
+  void PrintResults(std::ostream& os) const;
 
  private:
-  std::vector<fs_testing::SingleTestInfo> completed_;
+  unsigned int num_failed_ = 0;
+  unsigned int num_passed_fixed_ = 0;
+  unsigned int num_passed_ = 0;
+  unsigned int total_tests_ = 0;
+
+  unsigned int fsck_required_ = 0;
+  unsigned int old_file_persisted_ = 0;
+  unsigned int file_missing_ = 0;
+  unsigned int file_data_corrupted_ = 0;
+  unsigned int file_metadata_corrupted_ = 0;
+  unsigned int incorrect_block_count_ = 0;
+  unsigned int other_ = 0;
+
 };
 
 }  // namespace fs_testing

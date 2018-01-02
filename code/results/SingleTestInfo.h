@@ -18,12 +18,26 @@ namespace fs_testing {
 // 2. permutation of bios in final epoch of state
 // 3. results of user data consistency tests
 // 4. results of file system consistency tests and repair(s)
-struct SingleTestInfo {
-  // TODO(ashmrtn): Create class for crash state information.
+class SingleTestInfo {
+ public:
+  enum ResultType {
+    kPassed,
+    kFsckFixed,
+    kFsckRequired,
+    kFailed
+  };
+
+  SingleTestInfo();
+  void PrintResults(std::ostream& os) const;
+  SingleTestInfo::ResultType GetTestResult() const;
+
+  unsigned int test_num;
   fs_testing::tests::DataTestResult data_test;
   fs_testing::FileSystemTestResult fs_test;
   fs_testing::PermuteTestResult permute_data;
 };
+
+std::ostream& operator<<(std::ostream& os, SingleTestInfo::ResultType rt);
 
 }  // namespace fs_testing
 
