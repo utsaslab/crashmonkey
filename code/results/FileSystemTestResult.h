@@ -34,6 +34,7 @@ class FileSystemTestResult {
   ErrorType GetError() const;
   std::ostream& PrintErrors(std::ostream& os);
   std::string error_description;
+  std::string fsck_result;
 
   int fs_check_return;
 

@@ -2,6 +2,7 @@
 #define TESTER_H
 
 #include <chrono>
+#include <fstream>
 #include <iostream>
 #include <string>
 #include <vector>
@@ -81,7 +82,7 @@ class Tester {
   int test_init_values(std::string mountDir, long filesysSize);
   int test_run();
   int test_check_permutations(const int num_rounds);
-  int test_check_random_permutations(const int num_rounds);
+  int test_check_random_permutations(const int num_rounds, std::ofstream& log);
   int test_restore_log();
   int test_check_current();
 

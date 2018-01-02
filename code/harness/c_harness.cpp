@@ -8,6 +8,7 @@
 #include <wait.h>
 
 #include <ctime>
+
 #include <fstream>
 #include <iostream>
 #include <string>
@@ -43,6 +44,7 @@ namespace {
 using std::cerr;
 using std::cout;
 using std::endl;
+using std::ofstream;
 using std::string;
 using std::to_string;
 using fs_testing::Tester;
@@ -773,7 +775,20 @@ int main(int argc, char** argv) {
      * Run tests and print the results of said tests.
      **************************************************************************/
     cout << "Writing profiled data to block device and checking with fsck" << endl;
-    test_harness.test_check_random_permutations(iterations);
+
+    // Get the name of the test being run.
+    int begin = path.rfind('/');
+    // Remove everything before the last /.
+    string test_name = path.substr(begin + 1);
+    // Remove the extension.
+    test_name = test_name.substr(0, test_name.length() - 3);
+    // Get the date and time stamp and format.
+    time_t now = time(0);
+    char time_st[18];
+    strftime(time_st, sizeof(time_st), "%Y%m%d_%H%M%S", localtime(&now));
+    string s = string(time_st) + "-" + test_name + ".log";
+    ofstream logfile(s);
+    test_harness.test_check_random_permutations(iterations, logfile);
     test_harness.remove_cow_brd();
 
     test_harness.PrintTestStats(cout, false);
@@ -784,19 +799,7 @@ int main(int argc, char** argv) {
         << test_harness.get_timing_stat((Tester::time_stats) i).count() << " ms"
         << endl;
     }
-    //get the name of the test being run 
-    int begin = path.rfind('/');
-    //remove everything before the last /
-    string test_name = path.substr(begin + 1);
-    //remove the extension 
-    test_name = test_name.substr(0, test_name.length() - 3); 
-    //get the date and time stamp and format
-    time_t now = time(0); 
-    char time_st[18];
-    strftime(time_st, sizeof(time_st), "%Y%m%d_%H:%M:%S", localtime(&now));  
-    string s = string(time_st) + "-" + test_name + ".log";
-    std::ofstream logfile (s);
-    test_harness.PrintTestStats(logfile, true);
+    //test_harness.PrintTestStats(logfile, true);
     logfile.close();
   }
 
