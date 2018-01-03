@@ -32,6 +32,7 @@ void TestSuiteResult::PrintResults(ostream& os, bool is_log) const {
   unsigned int file_missing = 0;
   unsigned int file_data_corrupted = 0;
   unsigned int file_metadata_corrupted = 0;
+  unsigned int incorrect_block_count = 0;
   unsigned int other = 0;
 
   for (const auto& result : completed_) {
@@ -71,6 +72,10 @@ void TestSuiteResult::PrintResults(ostream& os, bool is_log) const {
           des += "file metadata corrupted: ";
           ++file_metadata_corrupted;
           break;
+        case DataTestResult::kIncorrectBlockCount:
+          des += "incorrect block count: ";
+          ++incorrect_block_count;
+          break;    
         case DataTestResult::kOther:
           des += "other: ";
           ++other;
@@ -97,6 +102,7 @@ void TestSuiteResult::PrintResults(ostream& os, bool is_log) const {
     << "\n\t\tfile missing: " << file_missing
     << "\n\t\tfile data corrupted: " << file_data_corrupted
     << "\n\t\tfile metadata corrupted: " << file_metadata_corrupted
+    << "\n\t\tincorrect block count: " << incorrect_block_count    
     << "\n\t\tother: " << other << endl;
 }
 

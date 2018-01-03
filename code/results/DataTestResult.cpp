@@ -49,6 +49,9 @@ ostream& operator<<(ostream& os, DataTestResult::ErrorType err) {
     case DataTestResult::kFileMetadataCorrupted:
       os << "file_metadata_corrupted";
       break;
+    case DataTestResult::kIncorrectBlockCount:
+      os << "incorrect_block_count";
+      break;      
     case DataTestResult::kOther:
       os << "other_error";
       break;
