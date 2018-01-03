@@ -16,8 +16,6 @@ using fs_testing::user_tools::api::WriteDataMmap;
 
 #define TEST_FILE_PERMS  ((mode_t) (S_IRWXU | S_IRWXG | S_IRWXO))
 
-// TODO(ashmrtn): Make helper function to concatenate file paths.
-// TODO(ashmrtn): Pass mount path and test device names to tests somehow.
 namespace fs_testing {
 namespace tests {
 
@@ -36,7 +34,7 @@ class EOFBlocksLoss: public BaseTestCase {
 
     if (WriteData(fd, 8192, 8192) < 0) {
       close(fd);
-      return -3;
+      return -2;
     }
 
     syncfs(fd);
@@ -54,7 +52,7 @@ class EOFBlocksLoss: public BaseTestCase {
     if (fallocate(fd_reg, FALLOC_FL_KEEP_SIZE, 4202496,
         8192) < 0) {
       close(fd_reg);
-      return -4;
+      return -3;
     }
     
     fdatasync(fd_reg);
