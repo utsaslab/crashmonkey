@@ -12,7 +12,8 @@ namespace {
   static const unsigned int kFileMissing_ = 1;
   static const unsigned int kFileDataCorrupted_ = 2;
   static const unsigned int kFileMetadataCorrupted_ = 3;
-  static const unsigned int kOther_ = 4;
+  static const unsigned int kIncorrectBlockCount_ = 4;
+  static const unsigned int kOther_ = 5;
 }  // namespace
 
 class DataTestResult {
@@ -23,6 +24,7 @@ class DataTestResult {
     kFileMissing = (1 << kFileMissing_),
     kFileDataCorrupted = (1 << kFileDataCorrupted_),
     kFileMetadataCorrupted = (1 << kFileMetadataCorrupted_),
+    kIncorrectBlockCount = (1 << kIncorrectBlockCount_),    
     kOther = (1 << kOther_),
   };
 
