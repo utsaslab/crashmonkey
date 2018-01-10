@@ -465,20 +465,6 @@ int main(int argc, char** argv) {
       return -1;
     }
 
-    // Mount the file system under the wrapper module for profiling.
-    cout << "Mounting wrapper file system" << endl;
-    if (test_harness.mount_wrapper_device(mount_opts.c_str()) != SUCCESS) {
-      cerr << "Error mounting wrapper file system" << endl;
-      test_harness.cleanup_harness();
-      return -1;
-    }
-
-    // TODO(ashmrtn): Can probably remove this...
-    cout << "Sleeping after mount" << endl;
-    unsigned int to_sleep = MOUNT_DELAY;
-    do {
-      to_sleep = sleep(to_sleep);
-    } while (to_sleep > 0);
 
     // Get access to wrapper module ioctl functions via FD.
     cout << "Getting wrapper device ioctl fd" << endl;
@@ -493,6 +479,24 @@ int main(int argc, char** argv) {
     test_harness.clear_wrapper_log();
     cout << "Enabling wrapper device logging" << endl;
     test_harness.begin_wrapper_logging();
+
+    // We also need to log the changes made by mount of the FS
+    // because the snapshot is taken after an unmount.
+    
+    // Mount the file system under the wrapper module for profiling.
+    cout << "Mounting wrapper file system" << endl;
+    if (test_harness.mount_wrapper_device(mount_opts.c_str()) != SUCCESS) {
+      cerr << "Error mounting wrapper file system" << endl;
+      test_harness.cleanup_harness();
+      return -1;
+    }
+
+    // TODO(ashmrtn): Can probably remove this...
+    cout << "Sleeping after mount" << endl;
+    unsigned int to_sleep = MOUNT_DELAY;
+    do {
+      to_sleep = sleep(to_sleep);
+    } while (to_sleep > 0);
 
 
     /***************************************************************************
