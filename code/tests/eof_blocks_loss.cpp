@@ -7,12 +7,14 @@
 
 #include "BaseTestCase.h"
 #include "../user_tools/api/workload.h"
+#include "../user_tools/api/actions.h"
 #define TEST_FILE "test_file"
 #define TEST_MNT "/mnt/snapshot"
 
 using fs_testing::tests::DataTestResult;
 using fs_testing::user_tools::api::WriteData;
 using fs_testing::user_tools::api::WriteDataMmap;
+using fs_testing::user_tools::api::Checkpoint;
 
 #define TEST_FILE_PERMS  ((mode_t) (S_IRWXU | S_IRWXG | S_IRWXO))
 
@@ -55,7 +57,14 @@ class EOFBlocksLoss: public BaseTestCase {
       return -3;
     }
     
-    fdatasync(fd_reg);
+    if (fdatasync(fd_reg) < 0){
+      close(fd_reg);
+      return -4;
+    }
+
+    if (Checkpoint() < 0){
+      return -5;
+    }
     
     close(fd_reg);
     return 0;
