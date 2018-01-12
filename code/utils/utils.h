@@ -30,6 +30,7 @@ class disk_write {
   bool is_async_write();
   bool is_checkpoint();
   bool is_meta();
+  bool is_journal();
   bool has_flush_flag();
   bool has_flush_seq_flag();
   bool has_FUA_flag();

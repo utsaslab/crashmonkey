@@ -512,6 +512,7 @@ int Tester::test_check_random_permutations(const int num_rounds) {
     // End snapshot timing.
 
 
+
     if (verbose) {
       std::cout << "\n\nTest " << rounds + 1 << ": Writing " << permutes.size()
         << " operations to disk" << std::endl;

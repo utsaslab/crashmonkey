@@ -93,6 +93,7 @@ $(BUILD_DIR)/tests/%.so: \
 		tests/%.cpp \
 		$(BUILD_DIR)/tests/BaseTestCase.o \
 		$(BUILD_DIR)/user_tools/src/actions.o \
+		$(BUILD_DIR)/user_tools/src/workload.o \
 		$(BUILD_DIR)/utils/communication/BaseSocket.o \
 		$(BUILD_DIR)/utils/communication/ClientSocket.o \
 		$(BUILD_DIR)/utils/communication/ClientCommandSender.o \
@@ -122,7 +123,7 @@ $(BUILD_DIR)/permuter/%.so: \
 		$(BUILD_DIR)/utils/utils_c.o
 	mkdir -p $(@D)
 	$(GPP) $(GOPTS) $(GOTPSSO) -Wl,-soname,RandomPermuter.so \
-		-o $(BUILD_DIR)/permuter/RandomPermuter.so $^
+	 	-o $@ $^
 
 $(BUILD_DIR)/utils/utils.o: \
 		utils/utils.cpp
