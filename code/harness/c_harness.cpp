@@ -78,7 +78,7 @@ int main(int argc, char** argv) {
   string mount_opts("");
   string log_file_save("");
   string log_file_load("");
-  string permuter(PERMUTER_SO_PATH "RandomPermuter.so");
+  string permuter(PERMUTER_SO_PATH "RandomSubsetPermuter.so");
   bool background = false;
   bool dry_run = false;
   bool no_lvm = false;

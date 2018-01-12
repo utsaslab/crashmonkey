@@ -26,6 +26,10 @@ bool c_is_meta(struct disk_write_op_meta *m) {
   return (m->bi_rw & REQ_META) && true;
 }
 
+bool c_is_journal(struct disk_write_op_meta *m){
+  return (m->write_sector >= 0x2F8 && m->write_sector <=0xAF6) && true;
+}
+
 bool c_is_checkpoint(struct disk_write_op_meta *m) {
   return (m->bi_rw & HWM_CHECKPOINT_FLAG);
 }

@@ -123,7 +123,7 @@ $(BUILD_DIR)/permuter/%.so: \
 		$(BUILD_DIR)/utils/utils_c.o
 	mkdir -p $(@D)
 	$(GPP) $(GOPTS) $(GOTPSSO) -Wl,-soname,RandomPermuter.so \
-		-o $(BUILD_DIR)/permuter/RandomPermuter.so $^
+	 	-o $@ $^
 
 $(BUILD_DIR)/utils/utils.o: \
 		utils/utils.cpp

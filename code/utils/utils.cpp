@@ -52,6 +52,10 @@ bool disk_write::is_meta() {
   return c_is_meta(&metadata);
 }
 
+bool disk_write::is_journal(){
+  return c_is_journal(&metadata);
+}
+
 bool disk_write::is_checkpoint() {
   return c_is_checkpoint(&metadata);
 }
