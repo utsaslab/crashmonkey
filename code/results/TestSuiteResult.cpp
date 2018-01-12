@@ -81,7 +81,7 @@ void TestSuiteResult::PrintResults(ostream& os, bool is_log) const {
     }
   }
 
-  os << "Ran " << num_failed + num_passed_fixed + num_passed << " tests with"
+  os << "\n\nRan " << num_failed + num_passed_fixed + num_passed << " tests with"
     << "\n\tpassed cleanly: " << num_passed
     << "\n\tpassed fixed: " << num_passed_fixed + fsck_required
     << "\n\t\tfsck required: " << fsck_required

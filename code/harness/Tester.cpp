@@ -452,6 +452,10 @@ int Tester::test_setup() {
   return test_loader.get_instance()->setup();
 }
 
+int Tester::test_init_values(string mount_dir, long filesys_size) {
+  return test_loader.get_instance()->init_values(mount_dir, filesys_size);
+}
+
 int Tester::test_run() {
   return test_loader.get_instance()->run();
 }
@@ -506,6 +510,16 @@ int Tester::test_check_random_permutations(const int num_rounds) {
     timing_stats[SNAPSHOT_TIME] +=
         duration_cast<milliseconds>(snapshot_end_time - snapshot_start_time);
     // End snapshot timing.
+
+
+    if (verbose) {
+      std::cout << "\n\nTest " << rounds + 1 << ": Writing " << permutes.size()
+        << " operations to disk" << std::endl;
+
+      std::cout << "Last checkpoint is : " << test_info.permute_data.last_checkpoint << std::endl;
+      std::cout << "Crash state is : ";
+      test_info.permute_data.PrintCrashState(std::cout) << std::endl;  
+    }
 
     // Write recorded data out to block device in different orders so that we
     // can if they are all valid or not.

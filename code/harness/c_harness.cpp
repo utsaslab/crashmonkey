@@ -139,7 +139,29 @@ int main(int argc, char** argv) {
    ****************************************************************************/
   const unsigned int test_case_idx = optind;
   const string path = argv[test_case_idx];
-   
+
+  int begin = path.rfind('/');
+  
+  //remove everything before the last /
+  string test_name = path.substr(begin + 1);
+  
+  //remove the extension 
+  test_name = test_name.substr(0, test_name.length() - 3); 
+  
+  //get the date and time stamp and format
+  time_t now = time(0); 
+  char time_st[18];
+  strftime(time_st, sizeof(time_st), "%Y%m%d_%H:%M:%S", localtime(&now));  
+  string s = string(time_st) + "-" + test_name + ".log";
+  int temp_stdout = dup(fileno(stdout));
+  FILE *fp = freopen(s.c_str(), "a", stdout);
+  
+  //this should be changed in the option is added to mount tests in other directories
+  string mount_dir = "/mnt/snapshot"; 
+  if(setenv("MOUNT_FS", mount_dir.c_str(), 1) == -1){
+    cerr << "Error setting environment variable MOUNT_FS" << endl;
+  }
+  
   cout << "========== PHASE 0: Setting up CrashMonkey basics =========="
     << endl;
   if (test_case_idx == argc) {
@@ -213,13 +235,41 @@ int main(int argc, char** argv) {
   }
   test_harness.set_fs_type(fs_type);
   test_harness.set_device(test_dev);
-
+  FILE *input;
+  char buf[512];
+  if(!(input = popen(("fdisk -l " + test_dev + " | grep " + test_dev + ": ").c_str(), "r"))){
+    cerr << "Error finding the filesize of mounted filesystem" << endl;  
+  }
+  string filesize;
+  while(fgets(buf, 512, input)){
+    filesize += buf;
+  }
+  pclose(input);
+  char *filesize_cstr = new char[filesize.length() + 1];
+  strcpy(filesize_cstr, filesize.c_str()); 
+  char * tok = strtok(filesize_cstr, " ");
+  int pos = 0;
+  while (pos < 4 && tok != NULL){
+    pos ++;
+    tok = strtok(NULL, " ");
+  }
+  long test_dev_size = 0;
+  if(tok != NULL){
+    test_dev_size = atol(tok);
+  }
+  delete [] filesize_cstr;
+  if(setenv("FILESYS_SIZE", filesize.c_str(), 1) == -1){
+    cerr << "Error setting environment variable FILESYS_SIZE" << endl;
+  }
+  
   // Load the class being tested.
   cout << "Loading test case" << endl;
   if (test_harness.test_load_class(argv[test_case_idx]) != SUCCESS) {
     test_harness.cleanup_harness();
       return -1;
   }
+  
+  test_harness.test_init_values(mount_dir, test_dev_size);
   
   // Load the permuter to use for the test.
   // TODO(ashmrtn): Consider making a line in the test file which specifies the
@@ -451,6 +501,7 @@ int main(int argc, char** argv) {
     cout << "Clearing wrapper device logs" << endl;
     test_harness.clear_wrapper_log();
     cout << "Enabling wrapper device logging" << endl;
+    system("dmesg -C");
     test_harness.begin_wrapper_logging();
 
 
@@ -612,13 +663,15 @@ int main(int argc, char** argv) {
       return -1;
     }
 
-    cout << "Unmounting wrapper file system after test profiling" << endl;
+    cout << "Unmounting wrapper file system after test profiling\n" << endl;
     if (test_harness.umount_device() != SUCCESS) {
       cerr << "Error unmounting wrapper file system" << endl;
       test_harness.cleanup_harness();
       return -1;
     }
 
+    cout << "List of bio\n" << endl;
+    system("dmesg | grep hwm:");
     cout << "Close wrapper ioctl fd" << endl;
     test_harness.put_wrapper_ioctl();
     cout << "Removing wrapper module from kernel" << endl;
@@ -734,17 +787,8 @@ int main(int argc, char** argv) {
         << test_harness.get_timing_stat((Tester::time_stats) i).count() << " ms"
         << endl;
     }
-    //get the name of the test being run 
-    int begin = path.rfind('/');
-    //remove everything before the last /
-    string test_name = path.substr(begin + 1);
-    //remove the extension 
-    test_name = test_name.substr(0, test_name.length() - 3); 
-    //get the date and time stamp and format
-    time_t now = time(0); 
-    char time_st[18];
-    strftime(time_st, sizeof(time_st), "%Y%m%d_%H:%M:%S", localtime(&now));  
-    string s = string(time_st) + "-" + test_name + ".log";
+    
+    string s = string(time_st) + "-test_summary-" + test_name + ".log";
     std::ofstream logfile (s);
     test_harness.PrintTestStats(logfile, true);
     logfile.close();
@@ -758,6 +802,8 @@ int main(int argc, char** argv) {
    * testing if the -b flag was given and we are running in background mode.
    ****************************************************************************/
   test_harness.cleanup_harness();
+  dup2(temp_stdout, fileno(stdout));
+  test_harness.PrintTestStats(cout, false);
 
   if (background) {
     if (background_com->SendCommand(SocketMessage::kRunTestsDone) !=

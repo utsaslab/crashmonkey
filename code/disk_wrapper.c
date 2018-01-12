@@ -40,6 +40,7 @@ struct disk_write_op {
 };
 
 static int major_num = 0;
+int bio_num = 0;
 
 static struct hwm_device {
   unsigned long size;
@@ -188,16 +189,16 @@ static const struct block_device_operations disk_wrapper_ops = {
 
 static void print_rw_flags(unsigned long rw, unsigned long flags) {
   int i;
-  printk(KERN_INFO "\traw rw flags: 0x%.8lx\n", rw);
+  printk(KERN_INFO "hwm:\traw rw flags: 0x%.8lx\n", rw);
   for (i = __REQ_WRITE; i < __REQ_NR_BITS; i++) {
     if (rw & (1ULL << i)) {
-      printk(KERN_INFO "\t%s\n", flag_names[i]);
+      printk(KERN_INFO "hwm:\t%s\n", flag_names[i]);
     }
   }
-  printk(KERN_INFO "\traw flags flags: %.8lx\n", flags);
+  printk(KERN_INFO "hwm:\traw flags flags: %.8lx\n", flags);
   for (i = __REQ_WRITE; i < __REQ_NR_BITS; i++) {
     if (flags & (1ULL << i)) {
-      printk(KERN_INFO "\t%s\n", flag_names[i]);
+      printk(KERN_INFO "hwm:\t%s\n", flag_names[i]);
     }
   }
 }
@@ -228,11 +229,10 @@ static void disk_wrapper_bio(struct request_queue* q, struct bio* bio) {
         bio->bi_rw & REQ_WRITE || bio->bi_rw & REQ_DISCARD) {
 
       //printk(KERN_INFO "hwm: logging above bio\n");
-      printk(KERN_INFO "hwm: bio rw of size %u headed for 0x%lx (sector 0x%lx)"
-                       " has flags:\n", bio->BI_SIZE, bio->BI_SECTOR * 512,
+      printk(KERN_INFO "\nhwm: bio %d : bio rw of size %u headed for 0x%lx (sector 0x%lx)"
+                       " has flags:\n", ++bio_num, bio->BI_SIZE, bio->BI_SECTOR * 512,
              bio->BI_SECTOR);
       print_rw_flags(bio->bi_rw, bio->bi_flags);
-
       // Log data to disk logs.
       write = kzalloc(sizeof(struct disk_write_op), GFP_NOIO);
       if (write == NULL) {
@@ -408,7 +408,7 @@ static int __init disk_wrapper_init(void) {
   Device.gd->queue->flush_flags = flush_flags;
   Device.gd->queue->queue_flags = queue_flags;
   Device.gd->queue->queuedata = &Device;
-  printk(KERN_INFO "hwm: working with queue with:\n\tflush flags: 0x%x\n\tflags"
+  printk(KERN_INFO "hwm: working with queue with:\nhwm:\tflush flags: 0x%x\nhwm:\tflags"
       " 0x%lx\n", Device.gd->queue->flush_flags, Device.gd->queue->queue_flags);
   //blk_queue_hardsect_size(Queue, hardsect_size);
 
