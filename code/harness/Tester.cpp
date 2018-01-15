@@ -545,6 +545,7 @@ int Tester::test_check_random_permutations(const int num_rounds) {
     // Try mounting the file system so that the kernel can clean up orphan lists
     // and anything else it may need to so that fsck does a better job later if
     // we run it.
+    system("umount /mnt/snapshot");
     if (mount_device(SNAPSHOT_PATH, "errors=remount-ro") != SUCCESS) {
       test_info.fs_test.SetError(FileSystemTestResult::kKernelMount);
     }

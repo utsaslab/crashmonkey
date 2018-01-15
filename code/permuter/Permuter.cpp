@@ -20,8 +20,8 @@ struct range {
   unsigned int end;
 };
 
-static const unsigned int kRetryMultiplier = 2;
-static const unsigned int kMinRetries = 1000;
+static const unsigned int kRetryMultiplier = 4;
+static const unsigned int kMinRetries = 4000;
 
 }  // namespace
 

@@ -155,7 +155,7 @@ static int disk_wrapper_ioctl(struct block_device* bdev, fmode_t mode,
       free_logs();
       break;
     case HWM_CHECKPOINT:
-      printk(KERN_INFO "hwm: making checkpoint in log\n");
+      printk(KERN_INFO "hwm: bio %d : making checkpoint in log\n", ++bio_num);
       // Create a new log entry that just says we got a checkpoint.
       checkpoint = kzalloc(sizeof(struct disk_write_op), GFP_NOIO);
       if (checkpoint == NULL) {

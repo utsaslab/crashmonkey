@@ -103,7 +103,7 @@ def init_script(src, parsed_args):
             script.write("{} {}={}\n".format(export_func, key, next_env_exports[key]))
 
     return extracted_lines
-
+# -m barrier
 
 def main():
     parsed_args = build_parser().parse_args()
@@ -116,7 +116,7 @@ def main():
         testing_script_data = """#!/usr/bin/env bash
 echo \"hello\"
 cd {}/build
-(sudo ./c_harness -f /dev/sda -t {} -m barrier -d /dev/cow_ram0 -e {} -b tests/xfstests.so -v -l cm_out -s {})&
+(sudo ./c_harness -f /dev/sda -t {} -m barrier -d /dev/cow_ram0 -e {} -b tests/eof_blocks_loss.so -v -l cm_out -s {})&
 sleep 2
 sudo user_tools/begin_log
 cd {}

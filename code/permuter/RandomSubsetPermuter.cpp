@@ -35,6 +35,7 @@ void RandomSubsetPermuter::init_data(vector<epoch> *data) {
 
 bool RandomSubsetPermuter::gen_one_state(vector<epoch_op>& res,
     PermuteTestResult &log_data) {
+  //std::cout << "Subset Permuter" << std::endl;
   //std::cout << "In gen_one_state" << std::endl;
   // Return if there are no ops to permute and generate a crash state
   if (GetEpochs()->size() == 0) {
