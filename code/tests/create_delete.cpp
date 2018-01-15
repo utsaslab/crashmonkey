@@ -132,7 +132,6 @@ class create_delete : public BaseTestCase {
       int res = stat(file_name.c_str(), &stats);
       files_present.push_back(res);
       if (res < 0) {
-        //test_result->SetError(DataTestResult::kFileMissing);
         continue;
       }
       if (!S_ISREG(stats.st_mode)) {
@@ -168,7 +167,7 @@ class create_delete : public BaseTestCase {
         bytes_read += res;
       } while (bytes_read < TEST_TEXT_SIZE);
       close(fd);
-      std::cout << "last chk = " << last_checkpoint << std::endl;
+
       if(last_checkpoint >= i+1 && i>0){
         if (bytes_read != TEST_TEXT_SIZE) {
           test_result->SetError(DataTestResult::kFileDataCorrupted);
@@ -188,7 +187,7 @@ class create_delete : public BaseTestCase {
     std::cout << "\n\n" << std::endl;
 
     for (unsigned int i = 1; i <= NUM_TEST_FILES; ++i) {
-      if(last_checkpoint == i+2 && filesPresent(i, files_present) < 0){
+      if(last_checkpoint == i+NUM_TEST_FILES-1 && filesPresent(i, files_present) < 0){
         test_result->SetError(DataTestResult::kOldFilePersisted);
       }
     }
