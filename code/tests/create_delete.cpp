@@ -34,11 +34,6 @@ int filesPresent(int i, std::vector<int> files_present){
     if(files_present[j] == 0)
       return -1;
   }
-
-  for(unsigned int j = i; j < NUM_TEST_FILES; ++j){
-    if(files_present[j] < 0)
-      return -1;   
-  }
   return 0;
 }
 
@@ -187,7 +182,7 @@ class create_delete : public BaseTestCase {
     std::cout << "\n\n" << std::endl;
 
     for (unsigned int i = 1; i <= NUM_TEST_FILES; ++i) {
-      if(last_checkpoint == i+NUM_TEST_FILES-1 && filesPresent(i, files_present) < 0){
+      if(last_checkpoint > i+NUM_TEST_FILES-1 && filesPresent(i, files_present) < 0){
         test_result->SetError(DataTestResult::kOldFilePersisted);
       }
     }
