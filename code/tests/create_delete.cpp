@@ -21,8 +21,8 @@ using fs_testing::user_tools::api::Checkpoint;
 #define TEST_MNT "/mnt/snapshot"
 
 #define TEST_FILE_PERMS  ((mode_t) (S_IRWXU | S_IRWXG | S_IRWXO))
-#define TEST_TEXT_SIZE (1024 * 1024)
-#define NUM_TEST_FILES (3)
+#define TEST_TEXT_SIZE (1024)
+#define NUM_TEST_FILES 10
 
 namespace fs_testing {
 namespace tests {
