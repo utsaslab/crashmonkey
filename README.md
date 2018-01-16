@@ -79,13 +79,22 @@ least provide the following:
 
 To run your own CrashMonkey, use: `./c_harness <flags> <user defined workload>`
 from the `build` directory.
-As and example, you can run
+As an example, you can run
 `./c_harness -f /dev/vda -d /dev/cow_ram0 -t ext2 tests/rename_root_to_sub.so`
 to run a test on an ext2 file system that tries to move a file between
 directories.
 
 Once the test completes, open up the `<date_timestamp>-rename_root_to_sub.log`
 file to see a printout of what tests failed and why.
+
+To run a workload that creates, writes to and deletes files(default set to 10 files), on ext4 filesystem, use the following command :
+`./c_harness -f /dev/vda -d /dev/cow_ram0 -t ext4 -e 10240 -l create -v tests/create_delete.so` 
+
+This sets the size of the filesystem to 10MB(with a block size of 1024), and saves the snapshot to a log file named create. To load this snapshot and rerun the test, simply run :
+`./c_harness -f /dev/vda -d /dev/cow_ram0 -t ext4 -e 10240 -r create -v tests/create_delete.so` 
+
+This is useful in cases where you modify the check_test method in the workload to add additional checks for each crash state(in the above example - crashmonkey/code/tests/create_delete.cpp). As long as the bio sequence during profiling does not change, it is safe to rerun the tests by loading the saved profile with -r option.
+
 
 A full listing of flags for CrashMonkey can be found in `code/harness/c_harness.c`
 
