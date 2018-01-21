@@ -13,6 +13,7 @@
 #include <algorithm>
 #include <chrono>
 #include <fstream>
+#include <iomanip>
 #include <iostream>
 #include <memory>
 #include <string>
@@ -919,6 +920,20 @@ int Tester::log_snapshot_load(string log_file) {
     return LOG_CLONE_ERR;
   }
   return SUCCESS;
+}
+
+void Tester::log_disk_write_data(std::ostream &log) {
+  int digits = log.precision();
+  std::ios_base::fmtflags fflags = log.flags();
+  log.precision(6);
+  log << std::left << std::setw(5) << "bio #" << " " << std::setw(18) <<
+    "time" << " " << std::setw(18) << "sector" << " " << std::setw(18) <<
+    "size" << std::endl;
+  for (unsigned int i = 0; i < log_data.size(); ++i) {
+    log << std::setw(5) << i << ' ' << log_data[i];
+  }
+  log.precision(digits);
+  log.flags(fflags);
 }
 
 void Tester::PrintTestStats(std::ostream& os) {

@@ -727,6 +727,10 @@ int main(int argc, char** argv) {
       return -1;
     }
 
+    logfile << endl << endl << "Recorded workload:" << endl;
+    test_harness.log_disk_write_data(logfile);
+    logfile << endl << endl;
+
     // Write log data out to file if we're given a file.
     if (!log_file_save.empty()) {
       /*************************************************************************

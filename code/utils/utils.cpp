@@ -8,6 +8,7 @@
 #include <cstring>
 
 #include <fstream>
+#include <iomanip>
 #include <ios>
 #include <iostream>
 #include <memory>
@@ -198,21 +199,25 @@ disk_write disk_write::deserialize(ifstream& is) {
   return res;
 }
 
-/*
- * Output all data for a single object on a single line.
- */
-ofstream& operator<<(ofstream& fs, const disk_write& dw) {
-  fs << dw.metadata.bi_flags << " "
-    << dw.metadata.bi_rw << " "
-    << dw.metadata.write_sector << " "
-    << dw.metadata.size << " "
-    << dw.data;
-  return fs;
+std::string disk_write::flags_to_string(long long flags) {
+  const unsigned int flag_buf_size = 4096;
+  char *flag_buf = new char[flag_buf_size];
+  flag_buf[0] = '\0';
+  c_flags_to_string(flags, flag_buf, flag_buf_size);
+  std::string res(flag_buf);
+  delete[] flag_buf;
+  return res;
 }
 
 ostream& operator<<(ostream& os, const disk_write& dw) {
-  os << std::hex << std::showbase << dw.metadata.bi_rw << std::noshowbase
-    << std::dec;
+  os << std::dec << std::setw(18) << std::fixed <<
+    ((double) dw.metadata.time_ns) / 100000000 <<
+    " " << std::setw(18) << std::hex << std::showbase <<
+      dw.metadata.write_sector <<
+    " " << std::setw(18) << dw.metadata.size << std::endl <<
+    '\t' << "flags " << std::setw(18) << dw.metadata.bi_rw << std::noshowbase
+      << std::dec << ": " << disk_write::flags_to_string(dw.metadata.bi_rw) <<
+      endl;
   return os;
 }
 

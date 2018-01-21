@@ -23,7 +23,6 @@ class disk_write {
   void operator=(const disk_write& other);
   friend bool operator==(const disk_write& a, const disk_write& b);
   friend bool operator!=(const disk_write& a, const disk_write& b);
-  friend std::ofstream& operator<<(std::ofstream& os, const disk_write& dw);
 
   bool has_write_flag();
   bool is_barrier_write();
@@ -39,6 +38,7 @@ class disk_write {
   void clear_flush_seq_flag();
 
 
+  static std::string flags_to_string(long long flags);
   static void serialize(std::ofstream& fs, const disk_write& dw);
   static disk_write deserialize(std::ifstream& is);
 

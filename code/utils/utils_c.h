@@ -27,6 +27,8 @@ void c_set_flush_seq_flag(struct disk_write_op_meta *m);
 void c_clear_flush_flag(struct disk_write_op_meta *m);
 void c_clear_flush_seq_flag(struct disk_write_op_meta *m);
 
+void c_flags_to_string(long long flags, char *buf, unsigned int bluf_len);
+
 #ifdef __cplusplus
 }
 #endif

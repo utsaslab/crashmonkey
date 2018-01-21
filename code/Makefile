@@ -134,7 +134,7 @@ $(BUILD_DIR)/utils/utils.o: \
 $(BUILD_DIR)/utils/utils_c.o: \
 		utils/utils_c.c
 	mkdir -p $(@D)
-	$(GCC) -c -o $@ $< -I /usr/src/linux-headers-$(shell uname -r)/include/
+	$(GCC) -fPIC -c -o $@ $< -I /usr/src/linux-headers-$(shell uname -r)/include/
 
 $(BUILD_DIR)/user_tools/%: \
 		user_tools/%.cpp \
