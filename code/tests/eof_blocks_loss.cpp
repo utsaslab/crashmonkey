@@ -51,6 +51,14 @@ class EOFBlocksLoss: public BaseTestCase {
       return -1;
     }
 
+    fsync(fd_reg);
+    if (Checkpoint() < 0){
+      return -2;
+    }
+
+    //To ensure checkpoint 1 is in a seperate epoch, force a flush
+    syncfs(fd_reg);
+
     if (fallocate(fd_reg, FALLOC_FL_KEEP_SIZE, 4202496,
         8192) < 0) {
       close(fd_reg);

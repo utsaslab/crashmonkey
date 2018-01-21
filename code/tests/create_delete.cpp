@@ -34,6 +34,11 @@ int filesPresent(int i, std::vector<int> files_present){
     if(files_present[j] == 0)
       return -1;
   }
+
+  for(unsigned int j = i; j < NUM_TEST_FILES; ++j){
+    if(files_present[j] < 0)
+      return -1;   
+  }
   return 0;
 }
 
@@ -72,6 +77,7 @@ class create_delete : public BaseTestCase {
     } while (bytes_read < TEST_TEXT_SIZE);
     close(rand_fd);
 
+    sync();
     return 0;
   }
 
@@ -110,6 +116,7 @@ class create_delete : public BaseTestCase {
       if(remove(file_to_remove.c_str()) < 0){
         return -1;
       }
+      sync();
       Checkpoint();
       sleep(6);
     }
@@ -163,7 +170,7 @@ class create_delete : public BaseTestCase {
       } while (bytes_read < TEST_TEXT_SIZE);
       close(fd);
 
-      if(last_checkpoint >= i+1 && i>0){
+      if(last_checkpoint == i+1){
         if (bytes_read != TEST_TEXT_SIZE) {
           test_result->SetError(DataTestResult::kFileDataCorrupted);
         } else if (memcmp(text, buf, TEST_TEXT_SIZE) != 0) {
@@ -181,8 +188,10 @@ class create_delete : public BaseTestCase {
     }
     std::cout << "\n\n" << std::endl;
 
+    //the checkpoint could be in the epoch we picked for permuting.
+    // so the state could rollforward to the next checkpoint. Check both here.
     for (unsigned int i = 1; i <= NUM_TEST_FILES; ++i) {
-      if(last_checkpoint > i+NUM_TEST_FILES-1 && filesPresent(i, files_present) < 0){
+      if(last_checkpoint == i+NUM_TEST_FILES && (filesPresent(i, files_present) || filesPresent(i+1, files_present)) < 0){
         test_result->SetError(DataTestResult::kOldFilePersisted);
       }
     }

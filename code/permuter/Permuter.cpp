@@ -55,7 +55,7 @@ void Permuter::InitDataVector(vector<disk_write> *data) {
   list<range> overlaps;
   // Make sure that the first time we mark a checkpoint epoch, we start at 0 and
   // not 1.
-  unsigned int curr_checkpoint_epoch = 0;
+  int curr_checkpoint_epoch = -1;
   // Aligns with the index of the bio in the profile dump, 0 indexed.
   unsigned int abs_index = 0;
 
@@ -73,8 +73,8 @@ void Permuter::InitDataVector(vector<disk_write> *data) {
       // epochs, so we need to edit the checkpoint epoch of the current epoch as
       // well as incrementing the curr_checkpoint_epoch counter.
       if (curr_op->is_checkpoint()) {
-        current_epoch.checkpoint_epoch = curr_checkpoint_epoch;
         ++curr_checkpoint_epoch;
+        current_epoch.checkpoint_epoch = curr_checkpoint_epoch;
         // Checkpoint operations should not appear in the bio stream passed to
         // actual permuters.
         ++curr_op;
