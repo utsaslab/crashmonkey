@@ -119,14 +119,12 @@ void disk_write::serialize(std::ofstream& fs, const disk_write& dw) {
   memcpy(buffer + buf_offset, &write_size, sizeof(const uint64_t));
   buf_offset += sizeof(const uint64_t);
 
-  // Write out only the bit of data we added then seek to the end of this buffer
-  // page to prepare for subsequent writes.
-  fs.write(buffer, buf_offset);
+  // Write out the 4K buffer containing metadata for this log entry
+  fs.write(buffer, kSerializeBufSize);
   if (!fs.good()) {
     std::cerr << "some error writing to file" << std::endl;
     return;
   }
-  fs.seekp(kSerializeBufSize - buf_offset, ios_base::cur);
 
   // Write out the actual data for this log entry. Data could be larger than
   // buf_size so loop through this.
