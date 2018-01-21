@@ -21,7 +21,7 @@ DataTestResult::ErrorType DataTestResult::GetError() const {
   return error_summary_;
 }
 
-ostream& DataTestResult::PrintErrors(ostream& os) {
+ostream& DataTestResult::PrintErrors(ostream& os) const {
   unsigned int noted_errors = error_summary_;
   unsigned int shift = 0;
   while (noted_errors != 0) {
@@ -37,6 +37,8 @@ ostream& DataTestResult::PrintErrors(ostream& os) {
 
 ostream& operator<<(ostream& os, DataTestResult::ErrorType err) {
   switch (err) {
+    case DataTestResult::kClean:
+      break;
     case DataTestResult::kOldFilePersisted:
       os << "old_file_persisted";
       break;

@@ -32,7 +32,7 @@ class DataTestResult {
   void ResetError();
   void SetError(ErrorType errors);
   ErrorType GetError() const;
-  std::ostream& PrintErrors(std::ostream& os);
+  std::ostream& PrintErrors(std::ostream& os) const;
   std::string error_description;
 
  private:

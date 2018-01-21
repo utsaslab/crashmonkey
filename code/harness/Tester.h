@@ -2,6 +2,7 @@
 #define TESTER_H
 
 #include <chrono>
+#include <fstream>
 #include <iostream>
 #include <string>
 #include <vector>
@@ -81,7 +82,7 @@ class Tester {
   int test_init_values(std::string mountDir, long filesysSize);
   int test_run();
   int test_check_permutations(const int num_rounds);
-  int test_check_random_permutations(const int num_rounds);
+  int test_check_random_permutations(const int num_rounds, std::ofstream& log);
   int test_restore_log();
   int test_check_current();
 
@@ -114,7 +115,7 @@ class Tester {
 
   std::chrono::milliseconds get_timing_stat(time_stats timing_stat);
   void PrintTimingStats(std::ostream& os);
-  void PrintTestStats(std::ostream& os, bool is_log);
+  void PrintTestStats(std::ostream& os);
 
   // TODO(ashmrtn): Figure out why making these private slows things down a lot.
  private:

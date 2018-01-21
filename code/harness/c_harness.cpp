@@ -8,6 +8,7 @@
 #include <wait.h>
 
 #include <ctime>
+
 #include <fstream>
 #include <iostream>
 #include <string>
@@ -43,6 +44,7 @@ namespace {
 using std::cerr;
 using std::cout;
 using std::endl;
+using std::ofstream;
 using std::string;
 using std::to_string;
 using fs_testing::Tester;
@@ -146,13 +148,30 @@ int main(int argc, char** argv) {
    ****************************************************************************/
   const unsigned int test_case_idx = optind;
   const string path = argv[test_case_idx];
-  //this should be changed in the option is added to mount tests in other directories
+
+  // Get the name of the test being run.
+  int begin = path.rfind('/');
+  // Remove everything before the last /.
+  string test_name = path.substr(begin + 1);
+  // Remove the extension.
+  test_name = test_name.substr(0, test_name.length() - 3);
+  // Get the date and time stamp and format.
+  time_t now = time(0);
+  char time_st[18];
+  strftime(time_st, sizeof(time_st), "%Y%m%d_%H%M%S", localtime(&now));
+  string s = string(time_st) + "-" + test_name + ".log";
+  ofstream logfile(s);
+
+  // This should be changed in the option is added to mount tests in other
+  // directories.
   string mount_dir = "/mnt/snapshot"; 
   if(setenv("MOUNT_FS", mount_dir.c_str(), 1) == -1){
     cerr << "Error setting environment variable MOUNT_FS" << endl;
   }
   
   cout << "========== PHASE 0: Setting up CrashMonkey basics =========="
+    << endl;
+  logfile << "========== PHASE 0: Setting up CrashMonkey basics =========="
     << endl;
   if (test_case_idx == argc) {
     cerr << "Please give a .so test case to load" << endl;
@@ -219,6 +238,7 @@ int main(int argc, char** argv) {
   Tester test_harness(disk_size, verbose);
 
   cout << "Inserting RAM disk module" << endl;
+  logfile << "Inserting RAM disk module" << endl;
   if (test_harness.insert_cow_brd() != SUCCESS) {
     cerr << "Error inserting RAM disk module" << endl;
     return -1;
@@ -265,6 +285,7 @@ int main(int argc, char** argv) {
   // TODO(ashmrtn): Consider making a line in the test file which specifies the
   // permuter to use?
   cout << "Loading permuter" << endl;
+  logfile << "Loading permuter" << endl;
   if (test_harness.permuter_load_class(permuter.c_str()) != SUCCESS) {
     test_harness.cleanup_harness();
       return -1;
@@ -272,6 +293,8 @@ int main(int argc, char** argv) {
 
   // Update dirty_expire_time.
   cout << "Updating dirty_expire_time_centisecs to "
+    << dirty_expire_time_centisecs << endl;
+  logfile << "Updating dirty_expire_time_centisecs to "
     << dirty_expire_time_centisecs << endl;
   const char* old_expire_time =
     test_harness.update_dirty_expire_time(dirty_expire_time_centisecs.c_str());
@@ -298,6 +321,8 @@ int main(int argc, char** argv) {
 
   cout << endl << "========== PHASE 1: Creating base disk image =========="
     << endl;
+  logfile << endl << "========== PHASE 1: Creating base disk image =========="
+    << endl;
   // Run the normal test setup stuff if we don't have a log file.
   if (log_file_load.empty()) {
     /***************************************************************************
@@ -313,6 +338,7 @@ int main(int argc, char** argv) {
 
     // Format test drive to desired type.
     cout << "Formatting test drive" << endl;
+    logfile << "Formatting test drive" << endl;
     if (test_harness.format_drive() != SUCCESS) {
       cerr << "Error formatting test drive" << endl;
       test_harness.cleanup_harness();
@@ -321,6 +347,7 @@ int main(int argc, char** argv) {
 
     // Mount test file system for pre-test setup.
     cout << "Mounting test file system for pre-test setup" << endl;
+    logfile << "Mounting test file system for pre-test setup" << endl;
     if (test_harness.mount_device_raw(mount_opts.c_str()) != SUCCESS) {
       cerr << "Error mounting test device" << endl;
       test_harness.cleanup_harness();
@@ -331,6 +358,7 @@ int main(int argc, char** argv) {
 
     if (background) {
       cout << "+++++ Please run any needed pre-test setup +++++" << endl;
+      logfile << "+++++ Please run any needed pre-test setup +++++" << endl;
       /*************************************************************************
        * Background mode user setup. Wait for the user to tell use that they
        * have finished the pre-test setup phase.
@@ -362,11 +390,13 @@ int main(int argc, char** argv) {
        * cleanliness.
        ************************************************************************/
       cout << "Running pre-test setup" << endl;
+      logfile << "Running pre-test setup" << endl;
       {
         const pid_t child = fork();
         if (child < 0) {
           cerr << "Error creating child process to run pre-test setup" << endl;
           test_harness.cleanup_harness();
+          return -1;
         } else if (child != 0) {
           // Parent process should wait for child to terminate before proceeding.
           pid_t status;
@@ -374,6 +404,7 @@ int main(int argc, char** argv) {
           if (status != 0) {
             cerr << "Error in pre-test setup" << endl;
             test_harness.cleanup_harness();
+            return -1;
           }
         } else {
           return test_harness.test_setup();
@@ -387,6 +418,7 @@ int main(int argc, char** argv) {
      **************************************************************************/
     // Unmount the test file system after pre-test setup.
     cout << "Unmounting test file system after pre-test setup" << endl;
+    logfile << "Unmounting test file system after pre-test setup" << endl;
     if (test_harness.umount_device() != SUCCESS) {
       test_harness.cleanup_harness();
       return -1;
@@ -394,6 +426,7 @@ int main(int argc, char** argv) {
 
     // Create snapshot of disk for testing.
     cout << "Making new snapshot" << endl;
+    logfile << "Making new snapshot" << endl;
     if (test_harness.clone_device() != SUCCESS) {
       test_harness.cleanup_harness();
       return -1;
@@ -407,6 +440,7 @@ int main(int argc, char** argv) {
        * base image for our snapshots.
        ************************************************************************/
       cout << "Saving snapshot to log file" << endl;
+      logfile << "Saving snapshot to log file" << endl;
       if (test_harness.log_snapshot_save(log_file_save + "_snap")
           != SUCCESS) {
         test_harness.cleanup_harness();
@@ -420,6 +454,7 @@ int main(int argc, char** argv) {
      **************************************************************************/
     // Load the snapshot in the log file and then write it to disk.
     cout << "Loading saved snapshot" << endl;
+    logfile << "Loading saved snapshot" << endl;
     if (test_harness.log_snapshot_load(log_file_load + "_snap") != SUCCESS) {
       test_harness.cleanup_harness();
       return -1;
@@ -443,8 +478,11 @@ int main(int argc, char** argv) {
 
   cout << endl << "========== PHASE 2: Recording user workload =========="
     << endl;
+  logfile << endl << "========== PHASE 2: Recording user workload =========="
+    << endl;
   // TODO(ashmrtn): Consider making a flag for this?
   cout << "Clearing caches" << endl;
+  logfile << "Clearing caches" << endl;
   if (test_harness.clear_caches() != SUCCESS) {
     cerr << "Error clearing caches" << endl;
     test_harness.cleanup_harness();
@@ -459,15 +497,16 @@ int main(int argc, char** argv) {
 
     // Insert the disk block wrapper into the kernel.
     cout << "Inserting wrapper module into kernel" << endl;
+    logfile << "Inserting wrapper module into kernel" << endl;
     if (test_harness.insert_wrapper() != SUCCESS) {
       cerr << "Error inserting kernel wrapper module" << endl;
       test_harness.cleanup_harness();
       return -1;
     }
 
-
     // Get access to wrapper module ioctl functions via FD.
     cout << "Getting wrapper device ioctl fd" << endl;
+    logfile << "Getting wrapper device ioctl fd" << endl;
     if (test_harness.get_wrapper_ioctl() != SUCCESS) {
       cerr << "Error opening device file" << endl;
       test_harness.cleanup_harness();
@@ -476,8 +515,10 @@ int main(int argc, char** argv) {
 
     // Clear wrapper module logs prior to test profiling.
     cout << "Clearing wrapper device logs" << endl;
+    logfile << "Clearing wrapper device logs" << endl;
     test_harness.clear_wrapper_log();
     cout << "Enabling wrapper device logging" << endl;
+    logfile << "Enabling wrapper device logging" << endl;
     test_harness.begin_wrapper_logging();
 
     // We also need to log the changes made by mount of the FS
@@ -518,6 +559,7 @@ int main(int argc, char** argv) {
       background_com->CloseClient();
 
       cout << "+++++ Please run workload +++++" << endl;
+      logfile << "+++++ Please run workload +++++" << endl;
 
       // Wait for the user to tell us they are done with the workload.
       SocketMessage command;
@@ -575,6 +617,7 @@ int main(int argc, char** argv) {
        * due to a busy mount point.
        ************************************************************************/
       cout << "Running test profile" << endl;
+      logfile << "Running test profile" << endl;
       {
         const pid_t child = fork();
         if (child < 0) {
@@ -652,17 +695,21 @@ int main(int argc, char** argv) {
     // Wait a small amount of time for writes to propogate to the block
     // layer and then stop logging writes.
     cout << "Waiting for writeback delay" << endl;
+    logfile << "Waiting for writeback delay" << endl;
     sleep(WRITE_DELAY);
 
     cout << "Disabling wrapper device logging" << endl;
+    logfile << "Disabling wrapper device logging" << endl;
     test_harness.end_wrapper_logging();
     cout << "Getting wrapper data" << endl;
+    logfile << "Getting wrapper data" << endl;
     if (test_harness.get_wrapper_log() != SUCCESS) {
       test_harness.cleanup_harness();
       return -1;
     }
 
     cout << "Unmounting wrapper file system after test profiling" << endl;
+    logfile << "Unmounting wrapper file system after test profiling" << endl;
     if (test_harness.umount_device() != SUCCESS) {
       cerr << "Error unmounting wrapper file system" << endl;
       test_harness.cleanup_harness();
@@ -670,8 +717,10 @@ int main(int argc, char** argv) {
     }
 
     cout << "Close wrapper ioctl fd" << endl;
+    logfile << "Close wrapper ioctl fd" << endl;
     test_harness.put_wrapper_ioctl();
     cout << "Removing wrapper module from kernel" << endl;
+    logfile << "Removing wrapper module from kernel" << endl;
     if (test_harness.remove_wrapper() != SUCCESS) {
       cerr << "Error cleaning up: remove wrapper module" << endl;
       test_harness.cleanup_harness();
@@ -686,6 +735,7 @@ int main(int argc, char** argv) {
        * logged so they can be reused later if the -r flag is given.
        ************************************************************************/
       cout << "Saving logged profile data to disk" << endl;
+      logfile << "Saving logged profile data to disk" << endl;
       if (test_harness.log_profile_save(log_file_save + "_profile") != SUCCESS) {
         cerr << "Error saving logged test file" << endl;
         // TODO(ashmrtn): Remove this in later versions?
@@ -715,6 +765,7 @@ int main(int argc, char** argv) {
      * log file. Load the series of disk epochs which we will be operating on.
      **************************************************************************/
     cout << "Loading logged profile data from disk" << endl;
+    logfile << "Loading logged profile data from disk" << endl;
     if (test_harness.log_profile_load(log_file_load + "_profile") != SUCCESS) {
       cerr << "Error loading logged test file" << endl;
       test_harness.cleanup_harness();
@@ -741,6 +792,7 @@ int main(int argc, char** argv) {
     SocketMessage command;
     do {
       cout << "+++++ Ready to run tests, please confirm start +++++" << endl;
+      logfile << "+++++ Ready to run tests, please confirm start +++++" << endl;
       if (background_com->WaitForMessage(&command) != SocketError::kNone) {
         cerr << "Error getting command from socket" << endl;
         delete background_com;
@@ -764,6 +816,9 @@ int main(int argc, char** argv) {
   cout << endl
     << "========== PHASE 3: Running tests based on recorded data =========="
     << endl;
+  logfile << endl
+    << "========== PHASE 3: Running tests based on recorded data =========="
+    << endl;
 
 
   // TODO(ashmrtn): Fix the meaning of "dry-run". Right now it means do
@@ -772,11 +827,16 @@ int main(int argc, char** argv) {
     /***************************************************************************
      * Run tests and print the results of said tests.
      **************************************************************************/
-    cout << "Writing profiled data to block device and checking with fsck" << endl;
-    test_harness.test_check_random_permutations(iterations);
+    cout << "Writing profiled data to block device and checking with fsck" <<
+      endl;
+    logfile << "Writing profiled data to block device and checking with fsck" <<
+      endl;
+
+    test_harness.test_check_random_permutations(iterations, logfile);
+    test_harness.PrintTestStats(logfile);
     test_harness.remove_cow_brd();
 
-    test_harness.PrintTestStats(cout, false);
+    test_harness.PrintTestStats(cout);
     cout << endl;
 
     for (unsigned int i = 0; i < Tester::NUM_TIME; ++i) {
@@ -784,29 +844,17 @@ int main(int argc, char** argv) {
         << test_harness.get_timing_stat((Tester::time_stats) i).count() << " ms"
         << endl;
     }
-    //get the name of the test being run 
-    int begin = path.rfind('/');
-    //remove everything before the last /
-    string test_name = path.substr(begin + 1);
-    //remove the extension 
-    test_name = test_name.substr(0, test_name.length() - 3); 
-    //get the date and time stamp and format
-    time_t now = time(0); 
-    char time_st[18];
-    strftime(time_st, sizeof(time_st), "%Y%m%d_%H:%M:%S", localtime(&now));  
-    string s = string(time_st) + "-" + test_name + ".log";
-    std::ofstream logfile (s);
-    test_harness.PrintTestStats(logfile, true);
-    logfile.close();
   }
 
   cout << endl << "========== PHASE 4: Cleaning up ==========" << endl;
+  logfile << endl << "========== PHASE 4: Cleaning up ==========" << endl;
 
   /*****************************************************************************
    * PHASE 4:
    * We have finished. Clean up the test harness. Tell the user we have finished
    * testing if the -b flag was given and we are running in background mode.
    ****************************************************************************/
+  logfile.close();
   test_harness.cleanup_harness();
 
   if (background) {
