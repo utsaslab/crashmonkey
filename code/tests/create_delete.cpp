@@ -77,6 +77,7 @@ class create_delete : public BaseTestCase {
     } while (bytes_read < TEST_TEXT_SIZE);
     close(rand_fd);
 
+    //ensure setup is persisted before starting snapshot
     sync();
     return 0;
   }
@@ -116,6 +117,8 @@ class create_delete : public BaseTestCase {
       if(remove(file_to_remove.c_str()) < 0){
         return -1;
       }
+
+      //Ensure that changes due to remove() are persisted before calling Checkpoint
       sync();
       Checkpoint();
       sleep(6);
