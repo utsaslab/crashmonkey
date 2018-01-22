@@ -67,6 +67,7 @@ void TestSuiteResult::PrintResults(ostream& os) const {
     "\n\t\tfile missing: " << file_missing_ <<
     "\n\t\tfile data corrupted: " << file_data_corrupted_ <<
     "\n\t\tfile metadata corrupted: " << file_metadata_corrupted_ <<
+    "\n\t\tincorrect block count: " << incorrect_block_count_ <<
     "\n\t\tother: " << other_ << endl;
 }
 
