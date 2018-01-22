@@ -173,6 +173,10 @@ vector<epoch>* Permuter::GetEpochs() {
   return &epochs_;
 }
 
+bool Permuter::BioIndexesOfLastEpoch(vector<disk_write>& crash_state, vector<int>& last_epoch) {
+  return get_last_epoch(crash_state, last_epoch);
+}
+
 
 bool Permuter::GenerateCrashState(vector<disk_write>& res,
     PermuteTestResult &log_data) {

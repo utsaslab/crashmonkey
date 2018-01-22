@@ -41,6 +41,9 @@ class Permuter {
   void InitDataVector(std::vector<fs_testing::utils::disk_write>* data);
   bool GenerateCrashState(std::vector<fs_testing::utils::disk_write>& res,
       PermuteTestResult &log_data);
+  bool BioIndexesOfLastEpoch(
+      std::vector<fs_testing::utils::disk_write>& crash_state,
+      std::vector<int>& last_epoch);
 
  protected:
   std::vector<epoch>* GetEpochs();
@@ -49,6 +52,9 @@ class Permuter {
   virtual void init_data(std::vector<epoch> *data) = 0;
   virtual bool gen_one_state(std::vector<epoch_op>& res,
       PermuteTestResult &log_data) = 0;
+  virtual bool get_last_epoch(
+      std::vector<fs_testing::utils::disk_write>& crash_state,
+      std::vector<int>& last_epoch);
 
   std::vector<epoch> epochs_;
   std::unordered_set<std::vector<unsigned int>, BioVectorHash, BioVectorEqual>

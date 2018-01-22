@@ -4,6 +4,7 @@
 #include <sys/stat.h>
 #include <sys/types.h>
 #include <unistd.h>
+#include <map>
 
 #include <cassert>
 #include <cerrno>
@@ -89,6 +90,7 @@ using fs_testing::permuter::Permuter;
 using fs_testing::permuter::permuter_create_t;
 using fs_testing::permuter::permuter_destroy_t;
 using fs_testing::utils::disk_write;
+// using fs_testing::permuter::get_last_epoch;
 
 Tester::Tester(const unsigned int dev_size, const bool verbosity)
   : device_size(dev_size), verbose(verbosity) {}
@@ -459,12 +461,13 @@ int Tester::test_run() {
   return test_loader.get_instance()->run();
 }
 
-int Tester::test_check_random_permutations(const int num_rounds) {
+int Tester::test_check_random_permutations(const int num_rounds, bool add_to_train, string sample_data_file) {
   time_point<steady_clock> start_time = steady_clock::now();
   TestSuiteResult test_suite;
   Permuter *p = permuter_loader.get_instance();
   p->InitDataVector(&log_data);
   vector<disk_write> permutes;
+  vector<vector<disk_write>> crash_states;
   for (int rounds = 0; rounds < num_rounds; ++rounds) {
     // Print status every 1024 iterations.
     if (rounds & (~((1 << 10) - 1)) && !(rounds & ((1 << 10) - 1))) {
@@ -487,6 +490,10 @@ int Tester::test_check_random_permutations(const int num_rounds) {
 
     if (!new_state) {
       break;
+    }
+
+    if (add_to_train) {
+      crash_states.push_back(permutes);
     }
 
     //cout << '.' << std::flush;
@@ -601,6 +608,28 @@ int Tester::test_check_random_permutations(const int num_rounds) {
     cout << "=============== Unable to find new unique state, stopping at "
       << test_suite.GetCompleted() << " tests ===============" << endl << endl;
   }
+
+  if (add_to_train) {
+    std::vector<int> failed_tests;
+    test_suite.RetrieveFailedTests(failed_tests);
+    std::map<int, float> bio_to_probability;
+    int bio_count = log_data.size();
+    for (int i = 0; i < bio_count; i++) {
+      bio_to_probability[i] = float(0);
+    }
+    for (int i = 0; i < failed_tests.size(); i++) {
+      std::vector<int> last_epoch;
+      p->BioIndexesOfLastEpoch(crash_states[failed_tests[i]], last_epoch);
+      for (int j = 0; j < last_epoch.size(); j++) {
+        bio_to_probability[last_epoch[j]] += float(1/float(last_epoch.size()));
+      }
+    }
+    for (int i = 0; i < bio_count; i++) {
+      cout << bio_to_probability[i] << ",";
+    }
+    cout << endl;
+  }
+
   return SUCCESS;
 }
 
@@ -733,6 +762,29 @@ int Tester::clear_caches() {
     }
   } while (res < 1);
   close(cache_fd);
+  return SUCCESS;
+}
+
+bool Tester::add_bio_sequences(string sample_data_file) {
+  std::string bio_sequence = "[";
+  std::fstream fs;
+  fs.open(sample_data_file, std::fstream::in | std::fstream::out | std::fstream::app);
+  for (const disk_write& dw: log_data) {
+    std::string bio_value = "(";
+    bio_value += std::to_string(dw.metadata.bi_flags);
+    bio_value += ",";
+    bio_value += std::to_string(dw.metadata.bi_rw);
+    bio_value += ",";
+    bio_value += std::to_string(dw.metadata.write_sector);
+    bio_value += ",";
+    bio_value += std::to_string(dw.metadata.size);
+    bio_value += "),";
+    bio_sequence += bio_value;
+  }
+  bio_sequence[bio_sequence.length()-1] = ']';
+  fs << bio_sequence << "\t";
+  // std::cout << bio_sequence << endl;
+  fs.close();
   return SUCCESS;
 }
 

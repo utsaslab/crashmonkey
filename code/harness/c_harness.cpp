@@ -34,7 +34,7 @@
 #define DIRECTORY_PERMS \
   (S_IRUSR | S_IWUSR | S_IRGRP | S_IWGRP | S_IROTH | S_IWOTH)
 
-#define OPTS_STRING "bd:f:e:l:m:np:r:s:t:v"
+#define OPTS_STRING "a:bd:f:e:l:m:np:r:s:t:v"
 
 namespace {
   unsigned int kSocketQueueDepth;
@@ -52,6 +52,7 @@ using fs_testing::utils::communication::SocketError;
 using fs_testing::utils::communication::SocketMessage;
 
 static const option long_options[] = {
+  {"add-data-to-train", no_argument, NULL, 'a'},
   {"background", no_argument, NULL, 'b'},
   {"test-dev", required_argument, NULL, 'd'},
   {"disk_size", required_argument, NULL, 'e'},
@@ -78,7 +79,9 @@ int main(int argc, char** argv) {
   string mount_opts("");
   string log_file_save("");
   string log_file_load("");
+  string sample_data_file("");
   string permuter(PERMUTER_SO_PATH "RandomPermuter.so");
+  bool add_to_train = false;
   bool background = false;
   bool dry_run = false;
   bool no_lvm = false;
@@ -93,6 +96,12 @@ int main(int argc, char** argv) {
         c != -1;
         c = getopt_long(argc, argv, OPTS_STRING, long_options, &option_idx)) {
     switch (c) {
+      case 'a':
+        add_to_train = true;
+        // Path relative to the build folder.
+        // TODO(Spalli): construct absolute path
+        sample_data_file = "../code/dlModel/sample-bio-seq-dist.txt";
+        break;
       case 'b':
         background = true;
         break;
@@ -694,6 +703,17 @@ int main(int argc, char** argv) {
       }
     }
 
+    // The -a flag adds the execution of the current workload to the sample_data_file
+    // for the ML model to train on
+    std::cout << "Adding workload to training_data" << std::endl;
+    if (add_to_train) {
+      if (test_harness.add_bio_sequences(sample_data_file) != SUCCESS) {
+        std::cout << "Adding training data to " + sample_data_file + " file failed!" << endl;
+        test_harness.cleanup_harness();
+        return -1;
+      }
+    }
+
     /***************************************************************************
      * Background mode. Tell the user we have finished logging and cleaning up
      * and that, if they need to, they can do a bit of cleanup on their end
@@ -773,7 +793,7 @@ int main(int argc, char** argv) {
      * Run tests and print the results of said tests.
      **************************************************************************/
     cout << "Writing profiled data to block device and checking with fsck" << endl;
-    test_harness.test_check_random_permutations(iterations);
+    test_harness.test_check_random_permutations(iterations, add_to_train, sample_data_file);
     test_harness.remove_cow_brd();
 
     test_harness.PrintTestStats(cout, false);

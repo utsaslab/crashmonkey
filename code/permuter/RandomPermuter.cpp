@@ -31,6 +31,41 @@ RandomPermuter::RandomPermuter(vector<disk_write> *data) {
 void RandomPermuter::init_data(vector<epoch> *data) {
 }
 
+bool RandomPermuter::get_last_epoch(vector<disk_write>& crash_state, std::vector<int>& last_epoch) {
+  if (!crash_state.size()) {
+    return false;
+  }
+  int found = -1;
+  int epoch_num = -1;
+  std::vector<epoch>* epochs;
+  std::vector<epoch_op> ops;
+  epochs = GetEpochs();
+  if (epochs->size() == 0) {
+    return false;
+  }
+  for (int i = 0; i < crash_state.size(); i++) {
+    for (int j = 0; j < epochs->size(); j++) {
+      ops = epochs->at(j).ops;
+      for (int k = 0; k < ops.size(); k++) {
+        if (crash_state[i] == ops[k].op) {
+          found++;
+          epoch_num = (epoch_num < j) ? j : epoch_num;
+          break;
+        }
+      }
+      if (found) {
+        found = 0;
+        break;
+      }
+    }
+  }
+  ops = epochs->at(epoch_num).ops;
+  for (int k = 0; k < ops.size(); k++) {
+    last_epoch.push_back(ops[k].abs_index);
+  }
+  return true;
+}
+
 bool RandomPermuter::gen_one_state(vector<epoch_op>& res,
     PermuteTestResult &log_data) {
   // Return if there are no ops to permute and generate a crash state

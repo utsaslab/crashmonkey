@@ -21,6 +21,33 @@ unsigned int TestSuiteResult::GetCompleted() const {
   return completed_.size();
 }
 
+bool TestSuiteResult::SingleTestResult(const SingleTestInfo& test_info) {
+  if (test_info.fs_test.GetError() == FileSystemTestResult::kClean
+      && test_info.data_test.GetError() == DataTestResult::kClean) {
+    return true;
+  }
+  else if (test_info.fs_test.GetError() == FileSystemTestResult::kFixed
+      && test_info.data_test.GetError() == DataTestResult::kClean) {
+    return true;
+  }
+  else if (test_info.fs_test.GetError() == FileSystemTestResult::kKernelMount
+    && test_info.data_test.GetError() == DataTestResult::kClean) {
+    return true;
+  }
+  else {
+    return false;
+  }
+}
+
+void TestSuiteResult::RetrieveFailedTests(std::vector<int>& failed_tests) {
+  for (int i = 0; i < completed_.size(); i++) {
+    bool ret = SingleTestResult(completed_[i]);
+    if (!ret) {
+      failed_tests.push_back(i);
+    }
+  }
+}
+
 void TestSuiteResult::PrintResults(ostream& os, bool is_log) const {
   unsigned int num_failed = 0;
   unsigned int num_passed_fixed = 0;
