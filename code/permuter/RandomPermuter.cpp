@@ -2,6 +2,7 @@
 #include <list>
 #include <numeric>
 #include <vector>
+#include <map>
 
 #include <cassert>
 
@@ -40,14 +41,24 @@ bool RandomPermuter::get_last_epoch(vector<disk_write>& crash_state, std::vector
   std::vector<epoch>* epochs;
   std::vector<epoch_op> ops;
   epochs = GetEpochs();
+  std::map<int, bool> bios_in_crash_state;
   if (epochs->size() == 0) {
     return false;
   }
+  // Initialize a map to identify bios in this crash-state
+  for (int i = 0; i < epochs->size(); i++) {
+    ops = epochs->at(i).ops;
+    for (int j = 0; j < ops.size(); j++) {
+      bios_in_crash_state[ops[j].abs_index] = false;
+    }
+  }
+  // Find the last_epoch number and the bios in the crash_state
   for (int i = 0; i < crash_state.size(); i++) {
     for (int j = 0; j < epochs->size(); j++) {
       ops = epochs->at(j).ops;
       for (int k = 0; k < ops.size(); k++) {
         if (crash_state[i] == ops[k].op) {
+          bios_in_crash_state[ops[k].abs_index] = true;
           found++;
           epoch_num = (epoch_num < j) ? j : epoch_num;
           break;
@@ -61,7 +72,8 @@ bool RandomPermuter::get_last_epoch(vector<disk_write>& crash_state, std::vector
   }
   ops = epochs->at(epoch_num).ops;
   for (int k = 0; k < ops.size(); k++) {
-    last_epoch.push_back(ops[k].abs_index);
+    if (bios_in_crash_state[ops[k].abs_index] == true)
+      last_epoch.push_back(ops[k].abs_index);
   }
   return true;
 }

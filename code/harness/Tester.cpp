@@ -90,7 +90,6 @@ using fs_testing::permuter::Permuter;
 using fs_testing::permuter::permuter_create_t;
 using fs_testing::permuter::permuter_destroy_t;
 using fs_testing::utils::disk_write;
-// using fs_testing::permuter::get_last_epoch;
 
 Tester::Tester(const unsigned int dev_size, const bool verbosity)
   : device_size(dev_size), verbose(verbosity) {}
@@ -461,7 +460,7 @@ int Tester::test_run() {
   return test_loader.get_instance()->run();
 }
 
-int Tester::test_check_random_permutations(const int num_rounds, bool add_to_train, string sample_data_file) {
+int Tester::test_check_random_permutations(const int num_rounds, bool add_to_train) {
   time_point<steady_clock> start_time = steady_clock::now();
   TestSuiteResult test_suite;
   Permuter *p = permuter_loader.get_instance();
@@ -609,25 +608,55 @@ int Tester::test_check_random_permutations(const int num_rounds, bool add_to_tra
       << test_suite.GetCompleted() << " tests ===============" << endl << endl;
   }
 
-  if (add_to_train) {
+  // The -a flag adds the execution of the current workload to the sample_data_file
+  // for the ML model to train on
+  if (add_to_train) { 
+    std::cout << "Adding workload to training_data" << std::endl;
     std::vector<int> failed_tests;
-    test_suite.RetrieveFailedTests(failed_tests);
     std::map<int, float> bio_to_probability;
+    std::map<int, int> bio_to_count;
     int bio_count = log_data.size();
-    for (int i = 0; i < bio_count; i++) {
+    string sample_data_file = "../code/dlModel/sample-bio-seq-dist.txt";
+    // Initialize the bio counts and their probabilities
+    for (int i = 1; i <= bio_count; i++) {
       bio_to_probability[i] = float(0);
+      bio_to_count[i] = 0;
     }
+    // For every failed test, assigning credits to the bios in the last_epoch
+    test_suite.RetrieveFailedTests(failed_tests);
     for (int i = 0; i < failed_tests.size(); i++) {
       std::vector<int> last_epoch;
       p->BioIndexesOfLastEpoch(crash_states[failed_tests[i]], last_epoch);
       for (int j = 0; j < last_epoch.size(); j++) {
         bio_to_probability[last_epoch[j]] += float(1/float(last_epoch.size()));
+        bio_to_count[last_epoch[j]]++;
       }
     }
-    for (int i = 0; i < bio_count; i++) {
-      cout << bio_to_probability[i] << ",";
+    // Printing the bio sequences
+    add_bio_sequences();
+    std::fstream fs;
+    fs.open(sample_data_file, std::fstream::in | std::fstream::out | std::fstream::app);
+
+    // Computing and printing bio_probabilities
+    fs << "[";
+    for (int i = 1; i < bio_count; i++) {
+      float probability = bio_to_probability[i];
+      if (abs(bio_to_count[i]-float(0)) <= 0.1) {
+        probability = 0;
+      }
+      else {
+        probability /= bio_to_count[i];
+      }
+      fs << probability << ",";
     }
-    cout << endl;
+    float probability = bio_to_probability[bio_count];
+    if (abs(bio_to_count[bio_count]-float(0)) <= 0.1) {
+      probability = 0;
+    }
+    else {
+      probability /= bio_to_count[bio_count];
+    }
+    fs << probability  << ']' << endl;
   }
 
   return SUCCESS;
@@ -765,12 +794,13 @@ int Tester::clear_caches() {
   return SUCCESS;
 }
 
-bool Tester::add_bio_sequences(string sample_data_file) {
+bool Tester::add_bio_sequences() {
+  string sample_data_file = "../code/dlModel/sample-bio-seq-dist.txt";
   std::string bio_sequence = "[";
   std::fstream fs;
   fs.open(sample_data_file, std::fstream::in | std::fstream::out | std::fstream::app);
   for (const disk_write& dw: log_data) {
-    std::string bio_value = "(";
+    std::string bio_value = "[";
     bio_value += std::to_string(dw.metadata.bi_flags);
     bio_value += ",";
     bio_value += std::to_string(dw.metadata.bi_rw);
@@ -778,7 +808,7 @@ bool Tester::add_bio_sequences(string sample_data_file) {
     bio_value += std::to_string(dw.metadata.write_sector);
     bio_value += ",";
     bio_value += std::to_string(dw.metadata.size);
-    bio_value += "),";
+    bio_value += "],";
     bio_sequence += bio_value;
   }
   bio_sequence[bio_sequence.length()-1] = ']';

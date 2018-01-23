@@ -82,7 +82,7 @@ class Tester {
   int test_run();
   int test_check_permutations(const int num_rounds);
   int test_check_random_permutations(const int num_rounds,
-    const bool add_to_train, const std::string sample_data_file);
+    const bool add_to_train);
   int test_restore_log();
   int test_check_current();
 
@@ -107,7 +107,7 @@ class Tester {
   int clear_caches();
   void cleanup_harness();
 
-  bool add_bio_sequences(std::string sample_data_file);
+  bool add_bio_sequences();
 
   // TODO(ashmrtn): Save the fstype in the log file so that we don't
   // accidentally mix logs of one fs type with mount options for another?

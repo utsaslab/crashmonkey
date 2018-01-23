@@ -54,7 +54,7 @@ class Permuter {
       PermuteTestResult &log_data) = 0;
   virtual bool get_last_epoch(
       std::vector<fs_testing::utils::disk_write>& crash_state,
-      std::vector<int>& last_epoch);
+      std::vector<int>& last_epoch) = 0;
 
   std::vector<epoch> epochs_;
   std::unordered_set<std::vector<unsigned int>, BioVectorHash, BioVectorEqual>
