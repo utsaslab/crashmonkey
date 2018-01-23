@@ -11,6 +11,7 @@
 
 #include <fstream>
 #include <iostream>
+#include <locale>
 #include <string>
 #include <vector>
 
@@ -127,6 +128,10 @@ int main(int argc, char** argv) {
         break;
       case 't':
         fs_type = string(optarg);
+        // Convert to lower so we can compare against it later if we want.
+        for (auto c : fs_type) {
+          c = std::tolower(c);
+        }
         break;
       case 'v':
         verbose = true;
@@ -236,6 +241,7 @@ int main(int argc, char** argv) {
 
 
   Tester test_harness(disk_size, verbose);
+  test_harness.StartTestSuite();
 
   cout << "Inserting RAM disk module" << endl;
   logfile << "Inserting RAM disk module" << endl;
@@ -837,18 +843,23 @@ int main(int argc, char** argv) {
       endl;
 
     test_harness.test_check_random_permutations(iterations, logfile);
-    test_harness.PrintTestStats(logfile);
-    test_harness.remove_cow_brd();
-
-    test_harness.PrintTestStats(cout);
-    cout << endl;
 
     for (unsigned int i = 0; i < Tester::NUM_TIME; ++i) {
       cout << "\t" << (Tester::time_stats) i << ": "
         << test_harness.get_timing_stat((Tester::time_stats) i).count() << " ms"
         << endl;
     }
+
+    cout << endl << endl <<
+      "Writing data out to each Checkpoint and checking with fsck" << endl;
+    logfile << endl << endl <<
+      "Writing data out to each Checkpoint and checking with fsck" << endl;
+    test_harness.test_check_log_replay(logfile);
+
+    test_harness.PrintTestStats(cout);
+    test_harness.PrintTestStats(logfile);
   }
+  test_harness.EndTestSuite();
 
   cout << endl << "========== PHASE 4: Cleaning up ==========" << endl;
   logfile << endl << "========== PHASE 4: Cleaning up ==========" << endl;
@@ -859,6 +870,7 @@ int main(int argc, char** argv) {
    * testing if the -b flag was given and we are running in background mode.
    ****************************************************************************/
   logfile.close();
+  test_harness.remove_cow_brd();
   test_harness.cleanup_harness();
 
   if (background) {
