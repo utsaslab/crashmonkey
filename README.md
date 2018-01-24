@@ -91,6 +91,16 @@ file to see a printout of what tests failed and why.
 `./c_harness -f /dev/vda -d /dev/cow_ram0 -t ext4 -e 10240 -l create -v tests/create_delete.so` This sets the size of the filesystem to 10MB (with a block size of 1024), and saves the snapshot to a log file named create. To load this snapshot and rerun the test, simply run:
 `./c_harness -f /dev/vda -d /dev/cow_ram0 -t ext4 -e 10240 -r create -v tests/create_delete.so` This is useful in cases where you modify the check_test method in the workload to add additional checks for each crash state (in this example - crashmonkey/code/tests/create_delete.cpp). As long as the bio sequence during profiling does not change, it is safe to rerun the tests by loading the saved profile with -r option.
 
+1. **Fdatasync Incorrect EOF Blocks Workload**. To run a workload that has an
+incorrect number of data blocks after a file fallocate and fdatasync followed by
+a computer crash (using the ext4 file system), use the following command:
+`./c_harness -f /dev/vda -d /dev/cow_ram0 -t ext4 -e 10240 -v -P tests/eof_blocks_loss.so`
+The `-P` flag tells CrashMonkey not to run tests which reorder the blocks in the
+recorded workload. Therefore, for this test, CrashMonkey will only replay the
+logged workload in order, stopping at each checkpoint in the log to run fsck and
+any provided user data tests. By default, both tests that reorder the logged
+workload and tests that just replay the workload in order are run.
+
 A full listing of flags for CrashMonkey can be found in `code/harness/c_harness.c`
 
 #### Running as a Background Process ####

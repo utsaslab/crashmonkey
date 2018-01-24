@@ -36,7 +36,7 @@
 #define DIRECTORY_PERMS \
   (S_IRUSR | S_IWUSR | S_IRGRP | S_IWGRP | S_IROTH | S_IWOTH)
 
-#define OPTS_STRING "bd:f:e:l:mn:p:r:s:t:vIP"
+#define OPTS_STRING "bd:f:e:l:m:np:r:s:t:vIP"
 
 namespace {
   unsigned int kSocketQueueDepth;
