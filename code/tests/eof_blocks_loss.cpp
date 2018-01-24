@@ -4,6 +4,7 @@
 #include <unistd.h>
 
 #include <iostream>
+#include <string>
 
 #include "BaseTestCase.h"
 #include "../user_tools/api/workload.h"
@@ -96,8 +97,11 @@ class EOFBlocksLoss: public BaseTestCase {
 
     //After fdatasync call, if you crash at any point, and on recovery
     //if blocks != 32, EOF blocks are missing.
-    if (last_checkpoint == 1 && stats.st_blocks != 32){
+    if (last_checkpoint == 2 && stats.st_blocks != 32) {
     	test_result->SetError(DataTestResult::kIncorrectBlockCount);
+      test_result->error_description =
+        "expected file to have 32 blocks but found " +
+        std::to_string(stats.st_blocks);
     	return 0;
     }
 
