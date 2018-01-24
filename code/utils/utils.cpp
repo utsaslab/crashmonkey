@@ -8,6 +8,7 @@
 #include <cstring>
 
 #include <fstream>
+#include <iomanip>
 #include <ios>
 #include <iostream>
 #include <memory>
@@ -110,6 +111,7 @@ void disk_write::serialize(std::ofstream& fs, const disk_write& dw) {
   const uint64_t write_rw = htobe64(dw.metadata.bi_rw);
   const uint64_t write_write_sector = htobe64(dw.metadata.write_sector);
   const uint64_t write_size = htobe64(dw.metadata.size);
+  const uint64_t time_ns = htobe64(dw.metadata.time_ns);
   memcpy(buffer + buf_offset, &write_flags, sizeof(const uint64_t));
   buf_offset += sizeof(const uint64_t);
   memcpy(buffer + buf_offset, &write_rw, sizeof(const uint64_t));
@@ -117,6 +119,8 @@ void disk_write::serialize(std::ofstream& fs, const disk_write& dw) {
   memcpy(buffer + buf_offset, &write_write_sector, sizeof(const uint64_t));
   buf_offset += sizeof(const uint64_t);
   memcpy(buffer + buf_offset, &write_size, sizeof(const uint64_t));
+  buf_offset += sizeof(const uint64_t);
+  memcpy(buffer + buf_offset, &time_ns, sizeof(const uint64_t));
   buf_offset += sizeof(const uint64_t);
 
   // Write out the 4K buffer containing metadata for this log entry
@@ -158,7 +162,7 @@ disk_write disk_write::deserialize(ifstream& is) {
   assert(is);
 
   unsigned int buf_offset = 0;
-  uint64_t write_flags, write_rw, write_write_sector, write_size;
+  uint64_t write_flags, write_rw, write_write_sector, write_size, time_ns;
   memcpy(&write_flags, buffer + buf_offset, sizeof(uint64_t));
   buf_offset += sizeof(uint64_t);
   memcpy(&write_rw, buffer + buf_offset, sizeof(uint64_t));
@@ -167,6 +171,8 @@ disk_write disk_write::deserialize(ifstream& is) {
   buf_offset += sizeof(uint64_t);
   memcpy(&write_size, buffer + buf_offset, sizeof(uint64_t));
   buf_offset += sizeof(uint64_t);
+  memcpy(&time_ns, buffer + buf_offset, sizeof(uint64_t));
+  buf_offset += sizeof(uint64_t);
 
   disk_write_op_meta meta;
 
@@ -174,6 +180,7 @@ disk_write disk_write::deserialize(ifstream& is) {
   meta.bi_rw = be64toh(write_rw);
   meta.write_sector = be64toh(write_write_sector);
   meta.size = be64toh(write_size);
+  meta.time_ns = be64toh(time_ns);
 
   char *data = new char[meta.size];
   for (unsigned int i = 0; i < meta.size; i += kSerializeBufSize) {
@@ -192,21 +199,25 @@ disk_write disk_write::deserialize(ifstream& is) {
   return res;
 }
 
-/*
- * Output all data for a single object on a single line.
- */
-ofstream& operator<<(ofstream& fs, const disk_write& dw) {
-  fs << dw.metadata.bi_flags << " "
-    << dw.metadata.bi_rw << " "
-    << dw.metadata.write_sector << " "
-    << dw.metadata.size << " "
-    << dw.data;
-  return fs;
+std::string disk_write::flags_to_string(long long flags) {
+  const unsigned int flag_buf_size = 4096;
+  char *flag_buf = new char[flag_buf_size];
+  flag_buf[0] = '\0';
+  c_flags_to_string(flags, flag_buf, flag_buf_size);
+  std::string res(flag_buf);
+  delete[] flag_buf;
+  return res;
 }
 
 ostream& operator<<(ostream& os, const disk_write& dw) {
-  os << std::hex << std::showbase << dw.metadata.bi_rw << std::noshowbase
-    << std::dec;
+  os << std::dec << std::setw(18) << std::fixed <<
+    ((double) dw.metadata.time_ns) / 100000000 <<
+    " " << std::setw(18) << std::hex << std::showbase <<
+      dw.metadata.write_sector <<
+    " " << std::setw(18) << dw.metadata.size << std::endl <<
+    '\t' << "flags " << std::setw(18) << dw.metadata.bi_rw << std::noshowbase
+      << std::dec << ": " << disk_write::flags_to_string(dw.metadata.bi_rw) <<
+      endl;
   return os;
 }
 

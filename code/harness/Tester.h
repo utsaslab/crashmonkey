@@ -112,6 +112,7 @@ class Tester {
   int log_profile_load(std::string log_file);
   int log_snapshot_save(std::string log_file);
   int log_snapshot_load(std::string log_file);
+  void log_disk_write_data(std::ostream &log);
 
   std::chrono::milliseconds get_timing_stat(time_stats timing_stat);
   void PrintTimingStats(std::ostream& os);

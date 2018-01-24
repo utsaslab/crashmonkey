@@ -22,6 +22,7 @@ struct disk_write_op_meta {
   unsigned long long bi_rw;
   unsigned long write_sector;
   unsigned int size;
+  unsigned long long time_ns;
 };
 
 #endif

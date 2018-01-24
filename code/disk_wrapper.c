@@ -4,6 +4,7 @@
 #include <linux/init.h>
 #include <linux/ioctl.h>
 #include <linux/kernel.h>
+#include <linux/ktime.h>
 #include <linux/mm.h>
 #include <linux/module.h>
 #include <linux/moduleparam.h>
@@ -59,6 +60,7 @@ static struct hwm_device {
 
 static void free_logs(void) {
   // Remove all writes.
+  ktime_t curr_time;
   struct disk_write_op *first = NULL;
   struct disk_write_op* w = Device.writes;
   struct disk_write_op* tmp_w;
@@ -75,8 +77,11 @@ static void free_logs(void) {
     printk(KERN_WARNING "hwm: error allocating default checkpoint\n");
     return;
   }
+  curr_time = ktime_get();
+
   first->metadata.bi_flags = HWM_CHECKPOINT_FLAG;
   first->metadata.bi_rw = HWM_CHECKPOINT_FLAG;
+  first->metadata.time_ns = ktime_to_ns(curr_time);
   Device.current_write = first;
   Device.writes = first;
   Device.current_log_write = first;
@@ -89,6 +94,7 @@ static int disk_wrapper_ioctl(struct block_device* bdev, fmode_t mode,
   int ret = 0;
   unsigned int not_copied;
   struct disk_write_op *checkpoint = NULL;
+  ktime_t curr_time;
 
   switch (cmd) {
     case HWM_LOG_OFF:
@@ -154,6 +160,7 @@ static int disk_wrapper_ioctl(struct block_device* bdev, fmode_t mode,
       free_logs();
       break;
     case HWM_CHECKPOINT:
+      curr_time = ktime_get();
       printk(KERN_INFO "hwm: making checkpoint in log\n");
       // Create a new log entry that just says we got a checkpoint.
       checkpoint = kzalloc(sizeof(struct disk_write_op), GFP_NOIO);
@@ -161,8 +168,10 @@ static int disk_wrapper_ioctl(struct block_device* bdev, fmode_t mode,
         printk(KERN_WARNING "hwm: error allocating checkpoint\n");
         return -ENOMEM;
       }
+
       checkpoint->metadata.bi_rw = HWM_CHECKPOINT_FLAG;
       checkpoint->metadata.bi_flags = HWM_CHECKPOINT_FLAG;
+      checkpoint->metadata.time_ns = ktime_to_ns(curr_time);
       // Aquire lock and add the new entry to the end of the list.
       spin_lock(&Device.lock);
       // Assuming spinlock keeps the compiler from reordering this before the
@@ -207,6 +216,7 @@ static void disk_wrapper_bio(struct request_queue* q, struct bio* bio) {
   int copied_data;
   struct disk_write_op *write;
   struct hwm_device* hwm;
+  ktime_t curr_time;
 
   /*
   printk(KERN_INFO "hwm: bio rw of size %u headed for 0x%lx (sector 0x%lx)"
@@ -226,6 +236,8 @@ static void disk_wrapper_bio(struct request_queue* q, struct bio* bio) {
     if (bio->bi_rw & REQ_FLUSH ||
         bio->bi_rw & REQ_FUA || bio->bi_rw & REQ_FLUSH_SEQ ||
         bio->bi_rw & REQ_WRITE || bio->bi_rw & REQ_DISCARD) {
+      curr_time = ktime_get();
+
 
       //printk(KERN_INFO "hwm: logging above bio\n");
       printk(KERN_INFO "hwm: bio rw of size %u headed for 0x%lx (sector 0x%lx)"
@@ -243,6 +255,7 @@ static void disk_wrapper_bio(struct request_queue* q, struct bio* bio) {
       write->metadata.bi_rw = bio->bi_rw;
       write->metadata.write_sector = bio->BI_SECTOR;
       write->metadata.size = bio->BI_SIZE;
+      write->metadata.time_ns = ktime_to_ns(curr_time);
 
       // Protect playing around with our list of logged bios.
       spin_lock(&Device.lock);
@@ -318,6 +331,7 @@ static int __init disk_wrapper_init(void) {
   unsigned long queue_flags;
   struct block_device *flags_device;
   struct disk_write_op *first = NULL;
+  ktime_t curr_time;
   printk(KERN_INFO "hwm: Hello World from module\n");
   if (strlen(target_device_path) == 0) {
     return -ENOTTY;
@@ -338,8 +352,12 @@ static int __init disk_wrapper_init(void) {
     printk(KERN_WARNING "hwm: error allocating default checkpoint\n");
     goto out;
   }
+
+  curr_time = ktime_get();
+
   first->metadata.bi_rw = HWM_CHECKPOINT_FLAG;
   first->metadata.bi_flags = HWM_CHECKPOINT_FLAG;
+  first->metadata.time_ns = ktime_to_ns(curr_time);
   Device.writes = first;
   Device.current_write = first;
   Device.current_log_write = Device.current_write;
