@@ -45,8 +45,8 @@ bool disk_write::is_async_write() {
   return c_is_async_write(&metadata);
 }
 
-bool disk_write::is_barrier_write() {
-  return c_is_barrier_write(&metadata);
+bool disk_write::is_barrier() {
+  return c_is_barrier(&metadata);
 }
 
 bool disk_write::is_meta() {

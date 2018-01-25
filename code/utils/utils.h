@@ -23,7 +23,7 @@ class disk_write {
   friend bool operator!=(const disk_write& a, const disk_write& b);
 
   bool has_write_flag();
-  bool is_barrier_write();
+  bool is_barrier();
   bool is_async_write();
   bool is_checkpoint();
   bool is_meta();
