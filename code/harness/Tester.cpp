@@ -540,10 +540,12 @@ int Tester::test_check_random_permutations(const int num_rounds,
     // Try mounting the file system so that the kernel can clean up orphan lists
     // and anything else it may need to so that fsck does a better job later if
     // we run it.//errors=remount-ro
+    std::cout << "\nTest #" << rounds+1 << endl;
     if (mount_device(SNAPSHOT_PATH, "") != SUCCESS) {
       test_info.fs_test.SetError(FileSystemTestResult::kKernelMount);
     }
-    umount_device();
+    //umount_device();
+    system("umount /mnt/snapshot");
 
     string command(TEST_CASE_FSCK + fs_type + " " + SNAPSHOT_PATH
         + " -- -y 2>&1");
