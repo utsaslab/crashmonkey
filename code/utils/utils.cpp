@@ -57,24 +57,25 @@ bool disk_write::is_checkpoint() {
   return c_is_checkpoint(&metadata);
 }
 
+disk_write::disk_write() {
+  // Apparently contained structs aren't set to 0 on default initialization
+  // unless their constructors are defined too. But, we have a struct that is
+  // shared between C and C++ so we can't define an constructor easily.
+  metadata.bi_flags = 0;
+  metadata.bi_rw = 0;
+  metadata.write_sector = 0;
+  metadata.size = 0;
+  metadata.time_ns = 0;
+  data.reset();
+}
+
 disk_write::disk_write(const struct disk_write_op_meta& m,
     const char *d) {
   metadata = m;
   if (metadata.size > 0 && d != NULL) {
-    data = shared_ptr<char>(new char[metadata.size],
-        [](char* c) {delete[] c;});
+    data.reset(new char[metadata.size], [](char* c) {delete[] c;});
     memcpy(data.get(), d, metadata.size);
   }
-}
-
-disk_write::disk_write(const disk_write& other) {
-  metadata = other.metadata;
-  data = other.data;
-}
-
-void disk_write::operator=(const disk_write& other) {
-  metadata = other.metadata;
-  data = other.data;
 }
 
 bool operator==(const disk_write& a, const disk_write& b) {
@@ -255,7 +256,7 @@ void disk_write::clear_flush_seq_flag() {
 
 shared_ptr<char> disk_write::set_data(const char *d) {
   if (metadata.size > 0 && d != NULL) {
-    data = shared_ptr<char>(new char[metadata.size]);
+    data.reset(new char[metadata.size], [](char* c) {delete[] c;});
     memcpy(data.get(), d, metadata.size);
   }
   return data;
@@ -263,6 +264,10 @@ shared_ptr<char> disk_write::set_data(const char *d) {
 
 shared_ptr<char> disk_write::get_data() {
   return data;
+}
+
+void disk_write::clear_data() {
+  data.reset();
 }
 
 }  // namespace utils
