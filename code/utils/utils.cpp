@@ -1,6 +1,3 @@
-// Very messy hack to get the defines for different bio operations. Should be
-// changed to something more palatable if possible.
-
 #include <endian.h>
 
 #include <cassert>
@@ -19,7 +16,6 @@
 #include <vector>
 
 #include "utils.h"
-#include "utils_c.h"
 
 namespace fs_testing {
 namespace utils {
@@ -38,23 +34,44 @@ using std::uniform_int_distribution;
 using std::vector;
 
 namespace {
-  const unsigned int kSerializeBufSize = 4096;
+
+const unsigned int kSerializeBufSize = 4096;
+
+static const char* const flag_names[] = {
+  "write", "fail fast dev", "fail fast transport", "fail fast driver", "sync",
+  "meta", "prio", "discard", "secure", "write same", "no idle", "fua",
+  "flush", "read ahead", "throttled", "sorted", "soft barrier", "no merge",
+  "started", "don't prep", "queued", "elv priv", "failed", "quiet", "preempt",
+  "alloced", "copy user", "flush seq", "io stat", "mixed merge", "pm",
+  "hashed", "mq_inflight", "no timeout", "nr bits"
+};
+
+static char const checkpoint_name[] = "checkpoint";
+
 }
 
 bool disk_write::is_async_write() {
-  return c_is_async_write(&metadata);
+  return !((metadata.bi_rw & HWM_SYNC_FLAG) ||
+            (metadata.bi_rw & HWM_FUA_FLAG) ||
+            (metadata.bi_rw & HWM_FLUSH_FLAG) ||
+            (metadata.bi_rw & HWM_FLUSH_SEQ_FLAG) ||
+            (metadata.bi_rw & HWM_SOFTBARRIER_FLAG)) &&
+            (metadata.bi_rw & HWM_WRITE_FLAG);
 }
 
 bool disk_write::is_barrier() {
-  return c_is_barrier(&metadata);
+  return !!(metadata.bi_rw & HWM_FUA_FLAG) ||
+          (metadata.bi_rw & HWM_FLUSH_FLAG) ||
+          (metadata.bi_rw & HWM_FLUSH_SEQ_FLAG) ||
+          (metadata.bi_rw & HWM_SOFTBARRIER_FLAG);
 }
 
 bool disk_write::is_meta() {
-  return c_is_meta(&metadata);
+  return !!(metadata.bi_rw & HWM_META_FLAG);
 }
 
 bool disk_write::is_checkpoint() {
-  return c_is_checkpoint(&metadata);
+  return !!(metadata.bi_rw & HWM_CHECKPOINT_FLAG);
 }
 
 disk_write::disk_write() {
@@ -201,12 +218,18 @@ disk_write disk_write::deserialize(ifstream& is) {
 }
 
 std::string disk_write::flags_to_string(long long flags) {
-  const unsigned int flag_buf_size = 4096;
-  char *flag_buf = new char[flag_buf_size];
-  flag_buf[0] = '\0';
-  c_flags_to_string(flags, flag_buf, flag_buf_size);
-  std::string res(flag_buf);
-  delete[] flag_buf;
+  std::string res;
+
+  if (flags & HWM_CHECKPOINT_FLAG) {
+    res += checkpoint_name;
+  }
+
+  for (unsigned int i = REQ_WRITE_; i < REQ_NR_BITS_; i++) {
+    if (flags & (1ULL << i)) {
+      res = res + flag_names[i] + ", ";
+    }
+  }
+
   return res;
 }
 
@@ -223,35 +246,35 @@ ostream& operator<<(ostream& os, const disk_write& dw) {
 }
 
 bool disk_write::has_write_flag() {
-  return c_has_write_flag(&metadata);
+  return !!(metadata.bi_rw & HWM_WRITE_FLAG);
 }
 
 bool disk_write::has_flush_flag() {
-  return c_has_flush_flag(&metadata);
+  return !!(metadata.bi_rw & HWM_FLUSH_FLAG);
 }
 
 bool disk_write::has_flush_seq_flag() {
-  return c_has_flush_seq_flag(&metadata);
+  return !!(metadata.bi_rw & HWM_FLUSH_SEQ_FLAG);
 }
 
 bool disk_write::has_FUA_flag() {
-  return c_has_FUA_flag(&metadata);
+  return !!(metadata.bi_rw & HWM_FUA_FLAG);
 }
 
 void disk_write::set_flush_flag() {
-  c_set_flush_flag(&metadata);
+  metadata.bi_rw = (metadata.bi_rw | HWM_FLUSH_FLAG);
 }
 
 void disk_write::set_flush_seq_flag() {
-  c_set_flush_seq_flag(&metadata);
+ metadata.bi_rw = (metadata.bi_rw | HWM_FLUSH_SEQ_FLAG);
 }
 
 void disk_write::clear_flush_flag() {
-  c_clear_flush_flag(&metadata);
+  metadata.bi_rw = (metadata.bi_rw & ~(HWM_FLUSH_FLAG));
 }
 
 void disk_write::clear_flush_seq_flag() {
-  c_clear_flush_seq_flag(&metadata);
+  metadata.bi_rw = (metadata.bi_rw & ~(HWM_FLUSH_SEQ_FLAG));
 }
 
 shared_ptr<char> disk_write::set_data(const char *d) {
