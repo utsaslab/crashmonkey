@@ -5,6 +5,7 @@
 #include <fstream>
 #include <iostream>
 #include <string>
+#include <utility>
 #include <vector>
 
 #include "../utils/ClassLoader.h"
@@ -81,8 +82,8 @@ class Tester {
   int test_setup();
   int test_init_values(std::string mountDir, long filesysSize);
   int test_run();
-  int test_check_permutations(const int num_rounds);
   int test_check_random_permutations(const int num_rounds, std::ofstream& log);
+  int test_check_log_replay(std::ofstream& log);
   int test_restore_log();
   int test_check_current();
 
@@ -117,6 +118,8 @@ class Tester {
   std::chrono::milliseconds get_timing_stat(time_stats timing_stat);
   void PrintTimingStats(std::ostream& os);
   void PrintTestStats(std::ostream& os);
+  void StartTestSuite();
+  void EndTestSuite();
 
   // TODO(ashmrtn): Figure out why making these private slows things down a lot.
  private:
@@ -131,6 +134,7 @@ class Tester {
   std::string device_mount;
   std::string flags_device;
 
+  TestSuiteResult *current_test_suite_ = NULL;
 
   bool wrapper_inserted = false;
   bool cow_brd_inserted = false;
@@ -149,6 +153,11 @@ class Tester {
   bool test_write_data(const int disk_fd,
       const std::vector<fs_testing::utils::disk_write>::iterator& start,
       const std::vector<fs_testing::utils::disk_write>::iterator& end);
+
+  std::pair<std::chrono::milliseconds, std::chrono::milliseconds>
+    test_fsck_and_user_test(const std::string device_path,
+                            const unsigned int last_checkpoint,
+                            SingleTestInfo &test_info);
 
   std::vector<TestSuiteResult> test_results_;
   std::chrono::milliseconds timing_stats[NUM_TIME] =

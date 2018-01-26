@@ -17,6 +17,7 @@
 #include <iostream>
 #include <memory>
 #include <string>
+#include <utility>
 
 #include "../disk_wrapper_ioctl.h"
 #include "Tester.h"
@@ -72,6 +73,7 @@ namespace fs_testing {
 using std::calloc;
 using std::cerr;
 using std::chrono::steady_clock;
+using std::chrono::duration;
 using std::chrono::duration_cast;
 using std::chrono::milliseconds;
 using std::chrono::time_point;
@@ -82,6 +84,7 @@ using std::ifstream;
 using std::ios;
 using std::ostream;
 using std::ofstream;
+using std::pair;
 using std::shared_ptr;
 using std::string;
 using std::to_string;
@@ -93,6 +96,11 @@ using fs_testing::permuter::Permuter;
 using fs_testing::permuter::permuter_create_t;
 using fs_testing::permuter::permuter_destroy_t;
 using fs_testing::utils::disk_write;
+
+namespace {
+  constexpr char kExt4[] = "ext4";
+  constexpr char kErrMountRo[] = "errors=remount-ro";
+}  // namespace
 
 Tester::Tester(const unsigned int dev_size, const bool verbosity)
   : device_size(dev_size), verbose(verbosity) {}
@@ -108,6 +116,16 @@ void Tester::set_device(const string device_path) {
 
 void Tester::set_flag_device(const std::string device_path) {
   flags_device = device_path;
+}
+
+void Tester::StartTestSuite() {
+  // Construct a new element at the end of our vector.
+  test_results_.emplace_back();
+  current_test_suite_ = &test_results_.back();
+}
+
+void Tester::EndTestSuite() {
+  current_test_suite_ = NULL;
 }
 
 int Tester::clone_device() {
@@ -463,13 +481,109 @@ int Tester::test_run() {
   return test_loader.get_instance()->run();
 }
 
+/*
+ * Tests a block device with fsck (or equivalent) and the user test case
+ * provided.
+ *
+ * This function assumes that the block device is *not* mounted when the
+ * function is entered. The function will take care of mounting the device as
+ * needed and will unmount the device before exiting.
+ *
+ * On return, the amount of time it took for both fsck (or equivalent) and the
+ * user test case are returned in the pair <fsck, user_test>. If one or both of
+ * fsck and the user test is not run, then those values are returned as -1.
+ * Furthermore, the SingleTestInfo object is modified to reflect the results of
+ * fsck and the user test case.
+ */
+pair<milliseconds, milliseconds> Tester::test_fsck_and_user_test(
+    const string device_path, const unsigned int last_checkpoint,
+    SingleTestInfo &test_info) {
+  pair<milliseconds, milliseconds> res(duration<int, std::milli>(-1),
+      duration<int, std::milli>(-1));
+  // Try mounting the file system so that the kernel can clean up orphan lists
+  // and anything else it may need to so that fsck does a better job later if
+  // we run it.
+  string mount_opts("");
+  // If ext4, remount with "errors=remount-ro".
+  if (fs_type.compare(kExt4) == 0) {
+    if (!mount_opts.empty()) {
+      mount_opts += ",";
+    }
+    mount_opts += kErrMountRo;
+  }
+  if (mount_device(device_path.c_str(), mount_opts.c_str()) != SUCCESS) {
+    test_info.fs_test.SetError(FileSystemTestResult::kKernelMount);
+  }
+  umount_device();
+
+  // TODO(ashmrtn): Change this command for btrfs to use `btrfs check`.
+  string command(TEST_CASE_FSCK + fs_type + " " + device_path + " -- -y 2>&1");
+
+  // Begin fsck timing.
+  time_point<steady_clock> fsck_start_time = steady_clock::now();
+
+  // Use popen so that we can throw all the output from fsck into the log that
+  // we are keeping. This information will go just before the summary of what
+  // went wrong in the test.
+  FILE *pipe = popen(command.c_str(), "r");
+  char tmp[128];
+  if (!pipe) {
+    test_info.fs_test.SetError(FileSystemTestResult::kOther);
+    test_info.fs_test.error_description = "error running fsck";
+    time_point<steady_clock> fsck_end_time = steady_clock::now();
+    res.first = duration_cast<milliseconds>(fsck_end_time - fsck_start_time);
+    return res;
+  }
+  while (!feof(pipe)) {
+    char *r = fgets(tmp, 128, pipe);
+    // NULL can be returned on error.
+    if (r != NULL) {
+      test_info.fs_test.fsck_result += tmp;
+    }
+  }
+  test_info.fs_test.fs_check_return = pclose(pipe);
+  time_point<steady_clock> fsck_end_time = steady_clock::now();
+  res.first = duration_cast<milliseconds>(fsck_end_time - fsck_start_time);
+
+  // End fsck timing.
+  if (!(test_info.fs_test.fs_check_return == 0
+        || WEXITSTATUS(test_info.fs_test.fs_check_return) == 1)) {
+    test_info.fs_test.SetError(FileSystemTestResult::kCheck);
+    test_info.fs_test.error_description = string("exit status ") +
+      to_string(WEXITSTATUS(test_info.fs_test.fs_check_return));
+    return res;
+  }
+  // TODO(ashmrtn): Consider mounting with options specified for test
+  // profile?
+  if (mount_device(device_path.c_str(), NULL) != SUCCESS) {
+    test_info.fs_test.SetError(FileSystemTestResult::kUnmountable);
+    return res;
+  } else {
+    // Begin test case timing.
+    time_point<steady_clock> test_case_start_time = steady_clock::now();
+    const int test_check_res =
+        test_loader.get_instance()->check_test(last_checkpoint,
+                                               &test_info.data_test);
+    time_point<steady_clock> test_case_end_time = steady_clock::now();
+    res.second = duration_cast<milliseconds>(
+        test_case_end_time - test_case_start_time);
+    // End test case timing.
+
+    if (test_check_res == 0 && test_info.fs_test.fs_check_return != 0) {
+      test_info.fs_test.SetError(FileSystemTestResult::kFixed);
+    }
+  }
+  umount_device();
+  return res;
+}
+
 int Tester::test_check_random_permutations(const int num_rounds,
     ofstream& log) {
+  assert(current_test_suite_ != NULL);
   time_point<steady_clock> start_time = steady_clock::now();
   Permuter *p = permuter_loader.get_instance();
   p->InitDataVector(&log_data);
   vector<disk_write> permutes;
-  TestSuiteResult test_suite;
   for (int rounds = 0; rounds < num_rounds; ++rounds) {
     // Print status every 1024 iterations.
     if (rounds & (~((1 << 10) - 1)) && !(rounds & ((1 << 10) - 1))) {
@@ -501,7 +615,7 @@ int Tester::test_check_random_permutations(const int num_rounds,
     if (cow_brd_snapshot_fd < 0) {
       test_info.fs_test.SetError(FileSystemTestResult::kSnapshotRestore);
       test_info.PrintResults(log);
-      test_suite.TallyResult(test_info);
+      current_test_suite_->TallyReorderingResult(test_info);
       continue;
     }
     // Begin snapshot timing.
@@ -509,7 +623,7 @@ int Tester::test_check_random_permutations(const int num_rounds,
     if (clone_device_restore(cow_brd_snapshot_fd, false) != SUCCESS) {
       test_info.fs_test.SetError(FileSystemTestResult::kSnapshotRestore);
       test_info.PrintResults(log);
-      test_suite.TallyResult(test_info);
+      current_test_suite_->TallyReorderingResult(test_info);
       continue;
     }
     time_point<steady_clock> snapshot_end_time = steady_clock::now();
@@ -529,102 +643,146 @@ int Tester::test_check_random_permutations(const int num_rounds,
       test_info.fs_test.SetError(FileSystemTestResult::kBioWrite);
       close(cow_brd_snapshot_fd);
       test_info.PrintResults(log);
-      test_suite.TallyResult(test_info);
+      current_test_suite_->TallyReorderingResult(test_info);
       continue;
     }
     close(cow_brd_snapshot_fd);
 
-    /***************************************************************************
-     * Begin testing the crash state that was just written out.
-     **************************************************************************/
+    // Test the crash state that was just written out.
+    pair<milliseconds, milliseconds> check_res = test_fsck_and_user_test(
+        SNAPSHOT_PATH, test_info.permute_data.last_checkpoint, test_info);
+    test_info.PrintResults(log);
+    current_test_suite_->TallyReorderingResult(test_info);
 
-    // Try mounting the file system so that the kernel can clean up orphan lists
-    // and anything else it may need to so that fsck does a better job later if
-    // we run it.
-    if (mount_device(SNAPSHOT_PATH, "errors=remount-ro") != SUCCESS) {
-      test_info.fs_test.SetError(FileSystemTestResult::kKernelMount);
+    // Accounting for time it took to run the test.
+    if (check_res.first.count() > -1) {
+      timing_stats[FSCK_TIME] + check_res.first;
     }
-    umount_device();
-
-    string command(TEST_CASE_FSCK + fs_type + " " + SNAPSHOT_PATH
-        + " -- -y 2>&1");
-
-    // Begin fsck timing.
-    time_point<steady_clock> fsck_start_time = steady_clock::now();
-
-    // Use popen so that we can throw all the output from fsck into the log that
-    // we are keeping. This information will go just before the summary of what
-    // went wrong in the test.
-    FILE *pipe = popen(command.c_str(), "r");
-    char tmp[128];
-    if (!pipe) {
-      test_info.fs_test.SetError(FileSystemTestResult::kOther);
-      test_info.fs_test.error_description = "error running fsck";
-      test_info.PrintResults(log);
-      test_suite.TallyResult(test_info);
-      continue;
+    if (check_res.second.count() > -1) {
+      timing_stats[TEST_CASE_TIME] + check_res.second;
     }
-    while (!feof(pipe)) {
-      char *r = fgets(tmp, 128, pipe);
-      // NULL can be returned on error.
-      if (r != NULL) {
-        test_info.fs_test.fsck_result += tmp;
-      }
-    }
-    test_info.fs_test.fs_check_return = pclose(pipe);
-    time_point<steady_clock> fsck_end_time = steady_clock::now();
-    timing_stats[FSCK_TIME] +=
-        duration_cast<milliseconds>(fsck_end_time - fsck_start_time);
-
-    // End fsck timing.
-    if (!(test_info.fs_test.fs_check_return == 0
-          || WEXITSTATUS(test_info.fs_test.fs_check_return) == 1)) {
-      /*
-      cerr << "Error running fsck on snapshot file system: " <<
-        WEXITSTATUS(fsck_res) << "\n";
-      */
-      test_info.fs_test.SetError(FileSystemTestResult::kCheck);
-      test_info.fs_test.error_description = string("exit status ") +
-        to_string(WEXITSTATUS(test_info.fs_test.fs_check_return));
-      test_info.PrintResults(log);
-      test_suite.TallyResult(test_info);
-      continue;
-    }
-    // TODO(ashmrtn): Consider mounting with options specified for test
-    // profile?
-    if (mount_device(SNAPSHOT_PATH, NULL) != SUCCESS) {
-      test_info.fs_test.SetError(FileSystemTestResult::kUnmountable);
-      test_info.PrintResults(log);
-      test_suite.TallyResult(test_info);
-      continue;
-    } else {
-      // Begin test case timing.
-      time_point<steady_clock> test_case_start_time = steady_clock::now();
-      const int test_check_res =
-          test_loader.get_instance()->check_test(
-              test_info.permute_data.last_checkpoint, &test_info.data_test);
-      time_point<steady_clock> test_case_end_time = steady_clock::now();
-      timing_stats[TEST_CASE_TIME] += duration_cast<milliseconds>(
-        test_case_end_time - test_case_start_time);
-      // End test case timing.
-
-      if (test_check_res == 0 && test_info.fs_test.fs_check_return != 0) {
-        test_info.fs_test.SetError(FileSystemTestResult::kFixed);
-      }
-      test_info.PrintResults(log);
-      test_suite.TallyResult(test_info);
-    }
-    umount_device();
   }
-  test_results_.push_back(test_suite);
+
   time_point<steady_clock> end_time = steady_clock::now();
   timing_stats[TOTAL_TIME] = duration_cast<milliseconds>(end_time - start_time);
 
-  if (test_suite.GetCompleted() < num_rounds) {
-    cout << "=============== Unable to find new unique state, stopping at "
-      << test_suite.GetCompleted() << " tests ===============" << endl << endl;
-    log << "=============== Unable to find new unique state, stopping at "
-      << test_suite.GetCompleted() << " tests ===============" << endl << endl;
+  if (current_test_suite_->GetReorderingCompleted() < num_rounds) {
+    cout << "=============== Unable to find new unique state, stopping at " <<
+      current_test_suite_->GetReorderingCompleted() <<
+      " tests ===============" << endl << endl;
+    log << "=============== Unable to find new unique state, stopping at " <<
+      current_test_suite_->GetReorderingCompleted() <<
+      " tests ===============" << endl << endl;
+  }
+  return SUCCESS;
+}
+
+/*
+ * Replays the operations in the recorded workload, stopping at each Checkpoint
+ * found in the workload. At each Checkpoint, the user test case is called so
+ * that it can check that things are in order.
+ *
+ * TODO(ashmrtn): Should this call a separate method in the user test case or
+ * should it still call the check_test() method?
+ */
+int Tester::test_check_log_replay(std::ofstream& log) {
+  assert(current_test_suite_ != NULL);
+
+  // A single entry in the log data would just be the leading Checkpoint in the
+  // log. In this case, there are no tests to run, so just return.
+  if (log_data.size() == 1) {
+    return SUCCESS;
+  }
+
+  // Skip the first disk write as it is just the Checkpoint at the start of the
+  // log.
+  auto log_iter = log_data.begin() + 1;
+  unsigned int last_checkpoint = 0;
+  unsigned int test_num = 1;
+  vector<unsigned int> crash_state;
+  unsigned int crash_state_counter = 1;
+
+  while (log_iter != log_data.end()) {
+    // Keep going through the workload data log until we reach a Checkpoint.
+    // Also, skip the very first checkpoint which occurs at the very beginning
+    // of the log.
+    while (log_iter != log_data.end() && !log_iter->is_checkpoint()) {
+      crash_state.push_back(crash_state_counter);
+      ++crash_state_counter;
+      ++log_iter;
+    }
+
+    // When we see a Checkpoint, we need to do several things:
+    // 0. Setup the test result struct with info about this test
+    // 1. Restore the disk so that we start from a clean state
+    // 2. Write out the data in the log from the start until the checkpoint we
+    //    found
+    // 3. Test the resulting disk state with fsck and the user test case
+
+    // 0.
+
+    // Update checkpoint. It's not always the log_iter's value as log_iter may
+    // point to the end of the recorded workload, not a checkpoint.
+    if (log_iter->is_checkpoint()) {
+      last_checkpoint = log_iter->metadata.write_sector;
+    }
+    SingleTestInfo test_info;
+    test_info.permute_data.crash_state = crash_state;
+    // We reached the checkpoint, so it is indeed the last one we saw, unless we
+    // have replayed the entire log.
+    test_info.permute_data.last_checkpoint = last_checkpoint;
+    // Tests for this portion will be numbered starting from 1.
+    test_info.test_num = test_num++;
+
+    // 1. Restore disk clone.
+    int cow_brd_snapshot_fd = open(SNAPSHOT_PATH, O_WRONLY);
+    if (cow_brd_snapshot_fd < 0) {
+      test_info.fs_test.SetError(FileSystemTestResult::kSnapshotRestore);
+      test_info.PrintResults(log);
+      current_test_suite_->TallyTimingResult(test_info);
+      continue;
+    }
+    if (clone_device_restore(cow_brd_snapshot_fd, false) != SUCCESS) {
+      test_info.fs_test.SetError(FileSystemTestResult::kSnapshotRestore);
+      test_info.PrintResults(log);
+      current_test_suite_->TallyTimingResult(test_info);
+      continue;
+    }
+
+    // 2. Write recorded data out to block device. If the iterator points to the
+    // end of the log, we are alright because the function is [begin, end) and
+    // the end iterator is a sentinal value. The same logic applies for
+    // checkpoints (which we don't really want to replay).
+    const int write_data_res =
+      test_write_data(cow_brd_snapshot_fd, log_data.begin(), log_iter);
+    if (!write_data_res) {
+      test_info.fs_test.SetError(FileSystemTestResult::kBioWrite);
+      close(cow_brd_snapshot_fd);
+      test_info.PrintResults(log);
+      current_test_suite_->TallyTimingResult(test_info);
+      continue;
+    }
+    close(cow_brd_snapshot_fd);
+
+    // 3. Check the resulting disk image with fsck and the user test. For now,
+    // just ignore the timing data that we can get from this function.
+    test_fsck_and_user_test(SNAPSHOT_PATH,
+        test_info.permute_data.last_checkpoint, test_info);
+
+    test_info.PrintResults(log);
+    current_test_suite_->TallyTimingResult(test_info);
+
+    // Exit loop after doing final test.
+    if (log_iter == log_data.end()) {
+      break;
+    }
+
+    // Increment our end pointer iterater passed the Checkpoint we just stopped
+    // at.
+    ++log_iter;
+    // Increment because this is what we use to say what disk_writes we've
+    // included and we omit Checkpoints in the random version of check.
+    ++crash_state_counter;
   }
   return SUCCESS;
 }

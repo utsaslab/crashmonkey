@@ -11,6 +11,7 @@
 
 #include <fstream>
 #include <iostream>
+#include <locale>
 #include <string>
 #include <vector>
 
@@ -35,7 +36,7 @@
 #define DIRECTORY_PERMS \
   (S_IRUSR | S_IWUSR | S_IRGRP | S_IWGRP | S_IROTH | S_IWOTH)
 
-#define OPTS_STRING "bd:f:e:l:m:np:r:s:t:v"
+#define OPTS_STRING "bd:f:e:l:m:np:r:s:t:vIP"
 
 namespace {
   unsigned int kSocketQueueDepth;
@@ -66,6 +67,8 @@ static const option long_options[] = {
   {"iterations", required_argument, NULL, 's'},
   {"fs-type", required_argument, NULL, 't'},
   {"verbose", no_argument, NULL, 'v'},
+  {"no-in-order-replay", no_argument, NULL, 'I'},
+  {"no-permuted-order-replay", no_argument, NULL, 'P'},
   {0, 0, 0, 0},
 };
 
@@ -85,6 +88,8 @@ int main(int argc, char** argv) {
   bool dry_run = false;
   bool no_lvm = false;
   bool verbose = false;
+  bool in_order_replay = true;
+  bool permuted_order_replay = true;
   int iterations = 1000;
   int disk_size = 10240;
   int option_idx = 0;
@@ -114,6 +119,8 @@ int main(int argc, char** argv) {
         mount_opts = string(optarg);
         break;
       case 'n':
+        in_order_replay = false;
+        permuted_order_replay = false;
         dry_run = 1;
         break;
       case 'p':
@@ -127,9 +134,19 @@ int main(int argc, char** argv) {
         break;
       case 't':
         fs_type = string(optarg);
+        // Convert to lower so we can compare against it later if we want.
+        for (auto c : fs_type) {
+          c = std::tolower(c);
+        }
         break;
       case 'v':
         verbose = true;
+        break;
+      case 'I':
+        in_order_replay = false;
+        break;
+      case 'P':
+        permuted_order_replay = false;
         break;
       case '?':
       default:
@@ -236,6 +253,7 @@ int main(int argc, char** argv) {
 
 
   Tester test_harness(disk_size, verbose);
+  test_harness.StartTestSuite();
 
   cout << "Inserting RAM disk module" << endl;
   logfile << "Inserting RAM disk module" << endl;
@@ -827,28 +845,37 @@ int main(int argc, char** argv) {
 
   // TODO(ashmrtn): Fix the meaning of "dry-run". Right now it means do
   // everything but run tests (i.e. run setup and profiling but not testing.)
-  if (!dry_run) {
-    /***************************************************************************
-     * Run tests and print the results of said tests.
-     **************************************************************************/
+  /***************************************************************************
+   * Run tests and print the results of said tests.
+   **************************************************************************/
+  if (permuted_order_replay) {
     cout << "Writing profiled data to block device and checking with fsck" <<
       endl;
     logfile << "Writing profiled data to block device and checking with fsck" <<
       endl;
 
     test_harness.test_check_random_permutations(iterations, logfile);
-    test_harness.PrintTestStats(logfile);
-    test_harness.remove_cow_brd();
-
-    test_harness.PrintTestStats(cout);
-    cout << endl;
 
     for (unsigned int i = 0; i < Tester::NUM_TIME; ++i) {
-      cout << "\t" << (Tester::time_stats) i << ": "
-        << test_harness.get_timing_stat((Tester::time_stats) i).count() << " ms"
-        << endl;
+      cout << "\t" << (Tester::time_stats) i << ": " <<
+        test_harness.get_timing_stat((Tester::time_stats) i).count() <<
+        " ms" << endl;
     }
   }
+
+  if (in_order_replay) {
+    cout << endl << endl <<
+      "Writing data out to each Checkpoint and checking with fsck" << endl;
+    logfile << endl << endl <<
+      "Writing data out to each Checkpoint and checking with fsck" << endl;
+    test_harness.test_check_log_replay(logfile);
+  }
+
+  cout << endl;
+  logfile << endl;
+  test_harness.PrintTestStats(cout);
+  test_harness.PrintTestStats(logfile);
+  test_harness.EndTestSuite();
 
   cout << endl << "========== PHASE 4: Cleaning up ==========" << endl;
   logfile << endl << "========== PHASE 4: Cleaning up ==========" << endl;
@@ -859,6 +886,7 @@ int main(int argc, char** argv) {
    * testing if the -b flag was given and we are running in background mode.
    ****************************************************************************/
   logfile.close();
+  test_harness.remove_cow_brd();
   test_harness.cleanup_harness();
 
   if (background) {
