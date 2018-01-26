@@ -697,6 +697,8 @@ int Tester::test_check_log_replay(std::ofstream& log) {
   // Skip the first disk write as it is just the Checkpoint at the start of the
   // log.
   auto log_iter = log_data.begin() + 1;
+  unsigned int last_checkpoint = 0;
+  unsigned int test_num = 1;
   vector<unsigned int> crash_state;
   unsigned int crash_state_counter = 1;
 
@@ -704,37 +706,33 @@ int Tester::test_check_log_replay(std::ofstream& log) {
     // Keep going through the workload data log until we reach a Checkpoint.
     // Also, skip the very first checkpoint which occurs at the very beginning
     // of the log.
-    while (log_iter != log_data.end() &&
-        (!log_iter->is_checkpoint() || log_iter == log_data.begin())) {
+    while (log_iter != log_data.end() && !log_iter->is_checkpoint()) {
       crash_state.push_back(crash_state_counter);
       ++crash_state_counter;
       ++log_iter;
     }
 
-    // Required since this is a nested loop and `break` in the inner loop would
-    // just exit that loop, but still run the tests below (which we should skip
-    // if we don't have a Checkpoint?).
-    //
-    // TODO(ashmrtn): See if we should test that the entire log replay
-    // (i.e. when we reach the end of the log. If so, delete the below check).
-    if (log_iter == log_data.end()) {
-      break;
-    }
-
     // When we see a Checkpoint, we need to do several things:
-    // 0. Setup the test result struct with  info about this test
+    // 0. Setup the test result struct with info about this test
     // 1. Restore the disk so that we start from a clean state
     // 2. Write out the data in the log from the start until the checkpoint we
     //    found
     // 3. Test the resulting disk state with fsck and the user test case
 
     // 0.
+
+    // Update checkpoint. It's not always the log_iter's value as log_iter may
+    // point to the end of the recorded workload, not a checkpoint.
+    if (log_iter->is_checkpoint()) {
+      last_checkpoint = log_iter->metadata.write_sector;
+    }
     SingleTestInfo test_info;
     test_info.permute_data.crash_state = crash_state;
-    // We reached the checkpoint, so it is indeed the last one we saw.
-    test_info.permute_data.last_checkpoint = log_iter->metadata.write_sector;
+    // We reached the checkpoint, so it is indeed the last one we saw, unless we
+    // have replayed the entire log.
+    test_info.permute_data.last_checkpoint = last_checkpoint;
     // Tests for this portion will be numbered starting from 1.
-    test_info.test_num = test_info.permute_data.last_checkpoint;
+    test_info.test_num = test_num++;
 
     // 1. Restore disk clone.
     int cow_brd_snapshot_fd = open(SNAPSHOT_PATH, O_WRONLY);
@@ -751,10 +749,12 @@ int Tester::test_check_log_replay(std::ofstream& log) {
       continue;
     }
 
-    // 2. Write recorded data out to block device. Theoretically, it shouldn't
-    // matter if we also "replay" the checkpoint, but skip it anyway.
+    // 2. Write recorded data out to block device. If the iterator points to the
+    // end of the log, we are alright because the function is [begin, end) and
+    // the end iterator is a sentinal value. The same logic applies for
+    // checkpoints (which we don't really want to replay).
     const int write_data_res =
-      test_write_data(cow_brd_snapshot_fd, log_data.begin(), log_iter - 1);
+      test_write_data(cow_brd_snapshot_fd, log_data.begin(), log_iter);
     if (!write_data_res) {
       test_info.fs_test.SetError(FileSystemTestResult::kBioWrite);
       close(cow_brd_snapshot_fd);
@@ -771,6 +771,11 @@ int Tester::test_check_log_replay(std::ofstream& log) {
 
     test_info.PrintResults(log);
     current_test_suite_->TallyTimingResult(test_info);
+
+    // Exit loop after doing final test.
+    if (log_iter == log_data.end()) {
+      break;
+    }
 
     // Increment our end pointer iterater passed the Checkpoint we just stopped
     // at.
