@@ -14,18 +14,16 @@ namespace utils {
 
 class disk_write {
  public:
-  disk_write() = default;
+  disk_write();
   disk_write(const struct disk_write_op_meta& m, const char *d);
-  disk_write(const disk_write& other);
 
   struct disk_write_op_meta metadata;
 
-  void operator=(const disk_write& other);
   friend bool operator==(const disk_write& a, const disk_write& b);
   friend bool operator!=(const disk_write& a, const disk_write& b);
 
   bool has_write_flag();
-  bool is_barrier_write();
+  bool is_barrier();
   bool is_async_write();
   bool is_checkpoint();
   bool is_meta();
@@ -51,6 +49,7 @@ class disk_write {
   // Pointer is valid only as long as the object exists or otherwise attempt
   // memory management of it.
   std::shared_ptr<char> get_data();
+  void clear_data();
 
  private:
   std::shared_ptr<char> data;

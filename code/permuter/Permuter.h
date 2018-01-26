@@ -1,7 +1,9 @@
 #ifndef PERMUTER_H
 #define PERMUTER_H
 
+#include <list>
 #include <unordered_set>
+#include <utility>
 #include <vector>
 
 #include "../utils/utils.h"
@@ -38,7 +40,7 @@ struct epoch {
 class Permuter {
  public:
   virtual ~Permuter() {};
-  void InitDataVector(std::vector<fs_testing::utils::disk_write>* data);
+  void InitDataVector(std::vector<fs_testing::utils::disk_write> &data);
   bool GenerateCrashState(std::vector<fs_testing::utils::disk_write>& res,
       PermuteTestResult &log_data);
 
@@ -49,6 +51,8 @@ class Permuter {
   virtual void init_data(std::vector<epoch> *data) = 0;
   virtual bool gen_one_state(std::vector<epoch_op>& res,
       PermuteTestResult &log_data) = 0;
+  bool FindOverlapsAndInsert(fs_testing::utils::disk_write &dw,
+      std::list<std::pair<unsigned int, unsigned int>> &ranges) const;
 
   std::vector<epoch> epochs_;
   std::unordered_set<std::vector<unsigned int>, BioVectorHash, BioVectorEqual>

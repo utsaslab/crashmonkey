@@ -15,7 +15,7 @@ extern "C"
 #include "../disk_wrapper_ioctl.h"
 
 bool c_is_async_write(struct disk_write_op_meta *m);
-bool c_is_barrier_write(struct disk_write_op_meta *m);
+bool c_is_barrier(struct disk_write_op_meta *m);
 bool c_is_meta(struct disk_write_op_meta *m);
 bool c_is_checkpoint(struct disk_write_op_meta *m);
 bool c_has_write_flag(struct disk_write_op_meta *m);

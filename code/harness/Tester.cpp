@@ -582,7 +582,7 @@ int Tester::test_check_random_permutations(const int num_rounds,
   assert(current_test_suite_ != NULL);
   time_point<steady_clock> start_time = steady_clock::now();
   Permuter *p = permuter_loader.get_instance();
-  p->InitDataVector(&log_data);
+  p->InitDataVector(log_data);
   vector<disk_write> permutes;
   for (int rounds = 0; rounds < num_rounds; ++rounds) {
     // Print status every 1024 iterations.
