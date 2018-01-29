@@ -58,7 +58,7 @@ bool Permuter::FindOverlapsAndInsert(disk_write &dw,
     list<pair<unsigned int, unsigned int>> &ranges) const {
 
   unsigned int start = dw.metadata.write_sector;
-  unsigned int end = start + dw.metadata.size;
+  unsigned int end = start + dw.metadata.size - 1;
   for (auto range_iter = ranges.begin(); range_iter != ranges.end();
       range_iter++) {
     if ((range_iter->first <= start && range_iter->second >= start) ||
@@ -69,7 +69,7 @@ bool Permuter::FindOverlapsAndInsert(disk_write &dw,
         range_iter->first = dw.metadata.write_sector;
       }
       unsigned int end =
-        dw.metadata.write_sector + dw.metadata.size;
+        dw.metadata.write_sector + dw.metadata.size - 1;
       if (range_iter->second < end) {
         range_iter->second = end;
       }
@@ -82,7 +82,7 @@ bool Permuter::FindOverlapsAndInsert(disk_write &dw,
       // disk_write in the list where we currently are.
       ranges.insert(range_iter,
           {dw.metadata.write_sector,
-          dw.metadata.write_sector + dw.metadata.size});
+          dw.metadata.write_sector + dw.metadata.size - 1});
       return false;
     }
   }
@@ -90,7 +90,7 @@ bool Permuter::FindOverlapsAndInsert(disk_write &dw,
   // We reached the end of the list of ranges without finding anything starting
   // after the end of what we are looking at.
   ranges.emplace_back(dw.metadata.write_sector,
-      dw.metadata.write_sector + dw.metadata.size);
+      dw.metadata.write_sector + dw.metadata.size - 1);
   return false;
 }
 
@@ -186,7 +186,6 @@ void Permuter::InitDataVector(vector<disk_write> &data) {
         current_epoch->ops.push_back({abs_index, flag_half});
         current_epoch->num_meta += flag_half.is_meta();
         current_epoch->has_barrier = true;
-        epochs_.push_back(*current_epoch);
 
         // Switch epochs.
         epochs_.emplace_back();
@@ -198,7 +197,7 @@ void Permuter::InitDataVector(vector<disk_write> &data) {
         // We are adding a new operation to the new epoch, so we need to record
         // it in the list of things to check for overlaps.
         epoch_overlaps.emplace_back(data_half.metadata.write_sector,
-            data_half.metadata.write_sector + data_half.metadata.size);
+            data_half.metadata.write_sector + data_half.metadata.size - 1);
 
         // Setup the rest of the data part of the operation.
         // TODO(ashmrtn): Find a better way to handle matching an index to a bio
