@@ -15,57 +15,61 @@
 #define COW_BRD_WIPE              0xff09
 
 // Defines that are separate from the kernel because these values aren't stable.
-// Based on 4.4 kernel flags.
+// Based on 4.4 kernel flags. Comments below sourced from 4.4 Linux kernel.
 //
 // TODO(ashmrtn): These should be narrowed down to just the flags that we
 // actually care about.
 enum flag_shifts {
   // Common flags.
-  REQ_WRITE_,
-  REQ_FAILFAST_DEV_,
-  REQ_FAILFAST_TRANSPORT_,
-  REQ_FAILFAST_DRIVER_,
+  REQ_WRITE_,               // Set for write, else read.
+  REQ_FAILFAST_DEV_,        // No driver retries for device errors.
+  REQ_FAILFAST_TRANSPORT_,  // No driver retries for transport errors.
+  REQ_FAILFAST_DRIVER_,     // No driver retires for driver errors.
 
-  REQ_SYNC_,
-  REQ_META_,
-  REQ_PRIO_,
-  REQ_DISCARD_,
+  REQ_SYNC_,                // Sync request, process waiting on IO?
+  REQ_META_,                // Metadata IO request. Appears to be for things
+                            //  like inode data and journal data.
+  REQ_PRIO_,                // Boost priority in CFQ.
+  REQ_DISCARD_,             // Request to discard sectors.
 
-  REQ_SECURE_,
-  REQ_WRITE_SAME_,
-  REQ_NOIDLE_,
-  REQ_INTEGRITY_,
+  REQ_SECURE_,              // Used with REQ_DISCARD_.
+  REQ_WRITE_SAME_,          // Write the same block many times.
+  REQ_NOIDLE_,              // Don't wait for more IO after this one.
+  REQ_INTEGRITY_,           // IO includes block integrity payload.
 
-  REQ_FUA_,
-  REQ_FLUSH_,
+  REQ_FUA_,                 // Forced Unit Access.
+  REQ_FLUSH_,               // Cache flush.
   // Bio only flags.
-  REQ_READAHEAD_,
-  REQ_THROTTLED_,
+  REQ_READAHEAD_,           // Can fail anytime.
+  REQ_THROTTLED_,           // Already throttled, don't throttle again.
 
   // Request only flags.
-  REQ_SORTED_,
-  REQ_SOFTBARRIER_,
-  REQ_NOMERGE_,
-  REQ_STARTED_,
+  REQ_SORTED_,              // Elevator knows about this request.
+  REQ_SOFTBARRIER_,         // May not be passed when reordering by ioscheduler.
+  REQ_NOMERGE_,             // Don't merge this with others.
+  REQ_STARTED_,             // Drive may have already started this.
 
-  REQ_DONTPREP_,
-  REQ_QUEUED_,
-  REQ_ELVPRIV_,
-  REQ_FAILED_,
+  REQ_DONTPREP_,            // Don't call prep on this one.
+  REQ_QUEUED_,              // Uses queuing.
+  REQ_ELVPRIV_,             // Elevator private data attached.
+  REQ_FAILED_,              // Set if request failed.
 
-  REQ_QUIET_,
-  REQ_PREEMPT_,
-  REQ_ALLOCED_,
-  REQ_COPY_USER_,
+  REQ_QUIET_,               // Don't worry about errors.
+  REQ_PREEMPT_,             // Set for "ide_preempt" and when SCSI "quiesce"
+                            //  should be ignored.
+  REQ_ALLOCED_,             // Request came from alloc pool.
+  REQ_COPY_USER_,           // Contains copies of user pages.
 
-  REQ_FLUSH_SEQ_,
-  REQ_IO_STAT_,
-  REQ_MIXED_MERGE_,
-  REQ_PM_,
+  REQ_FLUSH_SEQ_,           // Request for flush sequence. Appears to be part
+                            //  of sequence for merged flushes (see comment in
+                            //  https://patchwork.kernel.org/patch/498741/).
+  REQ_IO_STAT_,             // Account for IO stat.
+  REQ_MIXED_MERGE_,         // Merge of different types, fail separately.
+  REQ_PM_,                  // Runtime pm request.
 
-  REQ_HASHED_,
-  REQ_MQ_INFLIGHT_,
-  REQ_NO_TIMEOUT_,
+  REQ_HASHED_,              // On IO scheduler merge hash.
+  REQ_MQ_INFLIGHT_,         // Track inflgiht for MQ (multi-queue?).
+  REQ_NO_TIMEOUT_,          // Requests never expire.
   REQ_NR_BITS_,
 };
 

@@ -62,6 +62,11 @@ static void VerifyEpoch(epoch &result,
   }
 }
 
+/*
+ * Basic test that checks flush operations terminate an epoch and that other
+ * operations are properly represented in the epoch vector (i.e. checks size,
+ * sector, flags, etc).
+ */
 TEST(Permuter, InitDataVectorSingleEpochFlushTerminated) {
   const unsigned int num_regular_writes = 9;
   const unsigned int write_size = 1024;
@@ -110,6 +115,11 @@ TEST(Permuter, InitDataVectorSingleEpochFlushTerminated) {
   VerifyEpoch(internal->front(), test_epoch.begin() + 1, test_epoch.end(), 1);
 }
 
+/*
+ * Basic test that checks fua operations terminate an epoch and that other
+ * operations are properly represented in the epoch vector (i.e. checks size,
+ * sector, flags, etc).
+ */
 TEST(Permuter, InitDataVectorSingleEpochFuaTerminated) {
   const unsigned int num_regular_writes = 9;
   vector<disk_write> test_epoch;
@@ -157,6 +167,10 @@ TEST(Permuter, InitDataVectorSingleEpochFuaTerminated) {
   VerifyEpoch(internal->front(), test_epoch.begin() + 1, test_epoch.end(), 1);
 }
 
+/*
+ * Basic test that makes sure the `has_barrier` flag is only set on epochs that
+ * actually have a barrier terminating them.
+ */
 TEST(Permuter, InitDataVectorSingleEpochUnTerminated) {
   const unsigned int num_regular_writes = 9;
   vector<disk_write> test_epoch;
@@ -198,6 +212,10 @@ TEST(Permuter, InitDataVectorSingleEpochUnTerminated) {
   VerifyEpoch(internal->front(), test_epoch.begin() + 1, test_epoch.end(), 1);
 }
 
+/*
+ * Test that ensure the `overlaps` flag on an epoch is set when a write is
+ * contained within another write in the same epoch.
+ */
 TEST(Permuter, InitDataVectorSingleEpochOverlap) {
   const unsigned int num_regular_writes = 9;
   vector<disk_write> test_epoch;
@@ -251,6 +269,10 @@ TEST(Permuter, InitDataVectorSingleEpochOverlap) {
   VerifyEpoch(internal->front(), test_epoch.begin() + 1, test_epoch.end(), 1);
 }
 
+/*
+ * Another test for setting the `overlaps` flag on an epoch, this time with one
+ * operation only partially overlapping another operation within the same epoch.
+ */
 TEST(Permuter, InitDataVectorSingleEpochOverlap2) {
   const unsigned int num_regular_writes = 9;
   vector<disk_write> test_epoch;
@@ -304,6 +326,13 @@ TEST(Permuter, InitDataVectorSingleEpochOverlap2) {
   VerifyEpoch(internal->front(), test_epoch.begin() + 1, test_epoch.end(), 1);
 }
 
+/*
+ * Test that ensures the `overlap` flag is only set when operations within a
+ * single epoch overlap, not when operations from one epoch overlap another
+ * epoch. This test creates two flush terminated epochs, both of which write to
+ * the same sectors. Neither epoch should have the `overlaps` flag set in this
+ * case.
+ */
 TEST(Permuter, InitDataVectorTwoEpochsFlushTerminatedNoOverlap) {
   const unsigned int num_epochs = 2;
   const unsigned int num_regular_writes = 9;
@@ -354,9 +383,25 @@ TEST(Permuter, InitDataVectorTwoEpochsFlushTerminatedNoOverlap) {
   }
   VerifyEpoch(internal->front(), test_epochs.begin() + 1,
       test_epochs.begin() + 11, 1);
-  VerifyEpoch(internal->back(), test_epochs.begin() + 11, test_epochs.end(), 11);
+  VerifyEpoch(internal->back(), test_epochs.begin() + 11,
+      test_epochs.end(), 11);
 }
 
+/*
+ * Test to ensure that flush operations that also contain data are split into
+ * two separate operations across two different epochs. The first operation
+ * should consist of only the flags and have no data. This operation will also
+ * terminate the previous epoch. The second operation should consist of the
+ * flags excluding the flush flag and have the data found in the original
+ * operation. This operation will be the first operation in a new epoch.
+ *
+ * This behavior is based on the definition of the flush flag which only
+ * specifies that previous data is persisted, thus making no gaurantees about
+ * data within the flush request itself. If the FUA flag is present, then the
+ * operation should not be split across two epochs. Likewise, if no data is
+ * contained in the operations (i.e. size = 0) then the operation should not be
+ * split across two epochs.
+ */
 TEST(Permuter, InitDataVectorSplitFlush) {
   vector<disk_write> test_epoch;
   const unsigned int write_sector = 512;
@@ -407,6 +452,11 @@ TEST(Permuter, InitDataVectorSplitFlush) {
   EXPECT_EQ(internal->back().ops.front().op.metadata.bi_rw, HWM_WRITE_FLAG);
 }
 
+/*
+ * Test to ensure that an operation bearing all of the flush, fua, and write
+ * flags (with non-zero size) is not split across two epochs (see comment on
+ * InitDataVectorSplitFlush test case for why this split might happen).
+ */
 TEST(Permuter, InitDataVectorNoSplitFlush) {
   vector<disk_write> test_epoch;
 
@@ -440,6 +490,11 @@ TEST(Permuter, InitDataVectorNoSplitFlush) {
   VerifyEpoch(internal->front(), test_epoch.begin() + 1, test_epoch.end(), 1);
 }
 
+/*
+ * Test to ensure that an operation bearing the flush and write flags with a
+ * size of zero is not split across two epochs (see comment on
+ * InitDataVectorSplitFlush test case for why this split might happen).
+ */
 TEST(Permuter, InitDataVectorNoSplitFlush2) {
   vector<disk_write> test_epoch;
 
@@ -473,6 +528,13 @@ TEST(Permuter, InitDataVectorNoSplitFlush2) {
   VerifyEpoch(internal->front(), test_epoch.begin() + 1, test_epoch.end(), 1);
 }
 
+/*
+ * Test that ensures the most recently seen checkpoint is updated properly,
+ * even if two checkpoints are seen in a row. In the case where multiple
+ * checkpoints are seen in a row (or within a single epoch), the checkpoint of
+ * that epoch is recorded as the last checkpoint, potentially causing a skip in
+ * the checkpoint numbers when looking at all the epochs together.
+ */
 TEST(Permuter, InitDataVectorCheckpointSkip) {
   const unsigned int write_sector = 512;
   vector<disk_write> test_epoch;
@@ -521,6 +583,13 @@ TEST(Permuter, InitDataVectorCheckpointSkip) {
       HWM_FLUSH_FLAG | HWM_WRITE_FLAG);
 }
 
+/*
+ * Test that nothing bad happens if you have a barrier operation immediately
+ * followed by a checkpoint at the very end of the log (i.e. the checkpoint is
+ * the last operation in the log). In this case, the checkpoint will be the last
+ * thing seen and the final epoch will be empty in the Permuter, but will have
+ * an incremented checkpoint number.
+ */
 TEST(Permuter, InitDataVectorEmptyEndEpoch) {
   const unsigned int write_sector = 512;
   vector<disk_write> test_epoch;
@@ -575,6 +644,12 @@ TEST(Permuter, InitDataVectorEmptyEndEpoch) {
   EXPECT_EQ(internal->back().ops.size(), 0);
 }
 
+/*
+ * Test to ensure per epoch metadata counts are properly maintained. Operations
+ * with the meta flag should be added to the count of metadata operations in an
+ * epoch. This includes barrier operations that are split across two epochs,
+ * normal barrier operations, and regular wrties.
+ */
 TEST(Permuter, InitDataVectorCountMetadata) {
   const unsigned int num_regular_writes = 9;
   const unsigned int write_sector = 512;
@@ -596,7 +671,7 @@ TEST(Permuter, InitDataVectorCountMetadata) {
     write.metadata.size = 1024;
     write.metadata.bi_rw = HWM_WRITE_FLAG;
 
-    // Make a sync operation.
+    // Make a meta operation.
     if (i % 3 == 0) {
       write.metadata.bi_rw |= HWM_META_FLAG;
     }
