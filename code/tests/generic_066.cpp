@@ -8,6 +8,7 @@ Reproducing fstest generic/066
 5. Fsync file foo
 
 If  we crash now and recover, only xattr 1 and 3 must be present
+Tested to fail on btrfs (kernel 3.13)
 (https://patchwork.kernel.org/patch/5872261/
 https://www.spinics.net/lists/linux-btrfs/msg42162.html)
 */
@@ -48,7 +49,7 @@ class Generic066: public BaseTestCase {
   virtual int setup() override {
 
 
-    //Create file foo in TEST_DIR_X (X has foo)
+    //Create file foo
     const int fd_foo = open(foo_path.c_str(), O_RDWR | O_CREAT, TEST_FILE_PERMS);
     if (fd_foo < 0) {
       return -1;
@@ -73,6 +74,7 @@ class Generic066: public BaseTestCase {
     sync();
 
     close(fd_foo);
+    sleep(2);
 
     return 0;
   }
@@ -114,10 +116,10 @@ class Generic066: public BaseTestCase {
   virtual int check_test(unsigned int last_checkpoint,
       DataTestResult *test_result) override {
     
-    system("getfattr -d /mnt/snapshot/foo");
+    //system("getfattr -d /mnt/snapshot/foo");
 
-    char* val;
-    if(getxattr(foo_path.c_str(), "user.xattr2", val, 4) < 0){
+    char val[1024];
+    if(getxattr(foo_path.c_str(), "user.xattr2", val, sizeof(val)) < 0){
       return -1;
     }
 
@@ -128,7 +130,7 @@ class Generic066: public BaseTestCase {
     }
 
     if(last_checkpoint == 1 && attr2_present){
-      std::cout << "\nCheckpoint is 1 and error" << std::endl;
+      //std::cout << "\nCheckpoint is 1 and error" << std::endl;
       test_result->SetError(DataTestResult::kFileMetadataCorrupted); 
       test_result->error_description = " : " + foo_path + " has deleted xattr";
       return 0; 
