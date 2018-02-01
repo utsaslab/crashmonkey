@@ -78,7 +78,6 @@ $(BUILD_DIR)/c_harness: \
 		harness/c_harness.cpp \
 		harness/Tester.cpp \
 		$(BUILD_DIR)/utils/utils.o \
-		$(BUILD_DIR)/utils/utils_c.o \
 		$(BUILD_DIR)/utils/communication/ServerSocket.o \
 		$(BUILD_DIR)/utils/communication/BaseSocket.o \
 		$(BUILD_DIR)/permuter/Permuter.o \
@@ -120,8 +119,7 @@ $(BUILD_DIR)/permuter/Permuter.o: \
 $(BUILD_DIR)/permuter/%.so: \
 		permuter/%.cpp \
 		$(BUILD_DIR)/permuter/Permuter.o \
-		$(BUILD_DIR)/utils/utils.o \
-		$(BUILD_DIR)/utils/utils_c.o
+		$(BUILD_DIR)/utils/utils.o
 	mkdir -p $(@D)
 	$(GPP) $(GOPTS) $(GOTPSSO) -Wl,-soname,RandomPermuter.so \
 		-o $@ $^
@@ -130,11 +128,6 @@ $(BUILD_DIR)/utils/utils.o: \
 		utils/utils.cpp
 	mkdir -p $(@D)
 	$(GPP) $(GOPTS) -fPIC -c -o $@ $<
-
-$(BUILD_DIR)/utils/utils_c.o: \
-		utils/utils_c.c
-	mkdir -p $(@D)
-	$(GCC) -fPIC -c -o $@ $< -I /usr/src/linux-headers-$(shell uname -r)/include/
 
 $(BUILD_DIR)/user_tools/%: \
 		user_tools/%.cpp \

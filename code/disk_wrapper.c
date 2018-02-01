@@ -195,6 +195,129 @@ static const struct block_device_operations disk_wrapper_ops = {
   .ioctl   = disk_wrapper_ioctl,
 };
 
+/*
+ * Converts from kernel specific flags to flags that CrashMonkey uses.
+ */
+static unsigned long long convert_flags(unsigned long long flags) {
+  unsigned long long res = 0;
+
+  // These flags are in both 3.13 and 4.4.
+  if (flags & REQ_WRITE) {
+    res |= HWM_WRITE_FLAG;
+  }
+  if (flags & REQ_FAILFAST_DEV) {
+    res |= HWM_FAILFAST_DEV_FLAG;
+  }
+  if (flags & REQ_FAILFAST_TRANSPORT) {
+    res |= HWM_FAILFAST_TRANSPORT_FLAG;
+  }
+  if (flags & REQ_FAILFAST_DRIVER) {
+    res |= HWM_FAILFAST_DRIVER_FLAG;
+  }
+  if (flags & REQ_SYNC) {
+    res |= HWM_SYNC_FLAG;
+  }
+  if (flags & REQ_META) {
+    res |= HWM_META_FLAG;
+  }
+  if (flags & REQ_PRIO) {
+    res |= HWM_PRIO_FLAG;
+  }
+  if (flags & REQ_DISCARD) {
+    res |= HWM_DISCARD_FLAG;
+  }
+  if (flags & REQ_SECURE) {
+    res |= HWM_SECURE_FLAG;
+  }
+  if (flags & REQ_WRITE_SAME) {
+    res |= HWM_WRITE_SAME_FLAG;
+  }
+  if (flags & REQ_NOIDLE) {
+    res |= HWM_NOIDLE_FLAG;
+  }
+  if (flags & REQ_FUA) {
+    res |= HWM_FUA_FLAG;
+  }
+  if (flags & REQ_FLUSH) {
+    res |= HWM_FLUSH_FLAG;
+  }
+  if (flags & REQ_RAHEAD) {
+    res |= HWM_READAHEAD_FLAG;
+  }
+  if (flags & REQ_THROTTLED) {
+    res |= HWM_THROTTLED_FLAG;
+  }
+  if (flags & REQ_SORTED) {
+    res |= HWM_SORTED_FLAG;
+  }
+  if (flags & REQ_SOFTBARRIER) {
+    res |= HWM_SOFTBARRIER_FLAG;
+  }
+  if (flags & REQ_NOMERGE) {
+    res |= HWM_NOMERGE_FLAG;
+  }
+  if (flags & REQ_STARTED) {
+    res |= HWM_STARTED_FLAG;
+  }
+  if (flags & REQ_DONTPREP) {
+    res |= HWM_DONTPREP_FLAG;
+  }
+  if (flags & REQ_QUEUED) {
+    res |= HWM_QUEUED_FLAG;
+  }
+  if (flags & REQ_ELVPRIV) {
+    res |= HWM_ELVPRIV_FLAG;
+  }
+  if (flags & REQ_FAILED) {
+    res |= HWM_FAILED_FLAG;
+  }
+  if (flags & REQ_QUIET) {
+    res |= HWM_QUIET_FLAG;
+  }
+  if (flags & REQ_PREEMPT) {
+    res |= HWM_PREEMPT_FLAG;
+  }
+  if (flags & REQ_ALLOCED) {
+    res |= HWM_ALLOCED_FLAG;
+  }
+  if (flags & REQ_COPY_USER) {
+    res |= HWM_COPY_USER_FLAG;
+  }
+  if (flags & REQ_FLUSH_SEQ) {
+    res |= HWM_FLUSH_SEQ_FLAG;
+  }
+  if (flags & REQ_IO_STAT) {
+    res |= HWM_IO_STAT_FLAG;
+  }
+  if (flags & REQ_MIXED_MERGE) {
+    res |= HWM_MIXED_MERGE_FLAG;
+  }
+  if (flags & REQ_PM) {
+    res |= HWM_PM_FLAG;
+  }
+
+// These are flags present in 4.4 but not 3.13.
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(4, 4, 0) \
+  && LINUX_VERSION_CODE < KERNEL_VERSION(4, 5, 0)
+  if (flags & REQ_PM) {
+    res |= HWM_PM_FLAG;
+  }
+  if (flags & REQ_INTEGRITY) {
+    res |= HWM_INTEGRITY_FLAG;
+  }
+  if (flags & REQ_HASHED) {
+    res |= HWM_HASHED_FLAG;
+  }
+  if (flags & REQ_MQ_INFLIGHT) {
+    res |= HWM_MQ_INFLIGHT_FLAG;
+  }
+  if (flags & REQ_NO_TIMEOUT) {
+    res |= HWM_NO_TIMEOUT_FLAG;
+  }
+#endif
+  return res;
+}
+
 static void print_rw_flags(unsigned long rw, unsigned long flags) {
   int i;
   printk(KERN_INFO "\traw rw flags: 0x%.8lx\n", rw);
@@ -251,8 +374,9 @@ static void disk_wrapper_bio(struct request_queue* q, struct bio* bio) {
         printk(KERN_WARNING "hwm: unable to make new write node\n");
         goto passthrough;
       }
-      write->metadata.bi_flags = bio->bi_flags;
-      write->metadata.bi_rw = bio->bi_rw;
+
+      write->metadata.bi_flags = convert_flags(bio->bi_flags);
+      write->metadata.bi_rw = convert_flags(bio->bi_rw);
       write->metadata.write_sector = bio->BI_SECTOR;
       write->metadata.size = bio->BI_SIZE;
       write->metadata.time_ns = ktime_to_ns(curr_time);
