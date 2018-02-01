@@ -1,13 +1,22 @@
 /*
 Reproducing fstest generic/343
 
-Test that if we create a hard link for a file F in some directory A, then move
-some directory or file B from its parent directory C into directory A, fsync
-file F, power fail and mount the filesystem, the directory/file B is located
-only at directory A and both links for file F exist.
+1. Create dir X and Y in TEST_MNT 
+2. Create a file foo in X
+3. Create dir Z in dir Y.
+4. Create another file foo2 in dir Y
+5. Persist all changes so far - sync()
+6. Create a link for X/foo in X/bar
+7. Move dir Z from Y to X 
+8. Move file foo2 from Y to X
+9. fsync(X/foo)
 
-https://www.spinics.net/lists/linux-btrfs/msg53907.html
-https://patchwork.kernel.org/patch/8766401/
+If  we crash now and recover, directory Z and file foo2 must be present only in dir X
+
+This is tested to fail on btrfs (kernel 4.4) (https://www.spinics.net/lists/linux-btrfs/msg53907.html
+https://patchwork.kernel.org/patch/8766401/)
+
+In btrfs, the file foo2 and dir Z are present in both X and Y.
 */
 
 
@@ -45,7 +54,7 @@ namespace fs_testing {
 namespace tests {
 
 
-class Generic336: public BaseTestCase {
+class Generic343: public BaseTestCase {
  public:
   virtual int setup() override {
 
@@ -168,9 +177,13 @@ class Generic336: public BaseTestCase {
     }
 
     struct dirent *dir_entry;
-    bool foo_present_in_X, bar_present_in_X, foo_2_present_in_X, z_present_in_X  = false;
+    bool foo_present_in_X = false;
+    bool bar_present_in_X = false;
+    bool foo_2_present_in_X = false;
+    bool z_present_in_X  = false;
     bool empty_B = true;
-    bool foo_2_present_in_Y, z_present_in_Y = false;
+    bool foo_2_present_in_Y = false;
+    bool z_present_in_Y = false;
 
     DIR *dir = opendir(TEST_MNT "/" TEST_DIR_X);
 
@@ -247,7 +260,7 @@ class Generic336: public BaseTestCase {
 }  // namespace fs_testing
 
 extern "C" fs_testing::tests::BaseTestCase *test_case_get_instance() {
-  return new fs_testing::tests::Generic336;
+  return new fs_testing::tests::Generic343;
 }
 
 extern "C" void test_case_delete_instance(fs_testing::tests::BaseTestCase *tc) {

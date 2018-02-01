@@ -1,13 +1,22 @@
 /*
 Reproducing fstest generic/336
 
-Test that if we have a file F1 with two links, one in a directory A and the
-other in directory B, if we remove the link in directory B, move some other
-file F2 from directory B into directory C, fsync inode F1, power fail and
-remount the filesystem, file F2 exists and is located only in directory C.
+1. Create directories A, B and C under TEST_MNT.
+2. Create file foo in dir A
+3. Create a link for foo in B/foo_link
+4. Create another file bar in dir B.
+5. sync all changes so far
+6. Remove the link for foo in dir B
+7. Move file bar from dir B to C
+8. fsync(A/foo)
 
-This is tested to fail on btrfs-3.12 (https://patchwork.kernel.org/patch/8312691/)
-(https://patchwork.kernel.org/patch/8293181/). The file to be moved (F2) is lost
+If a power fail occurs now, and remount the filesystem, 
+file bar exists and should be located only in directory C.
+
+This is tested to fail on btrfs(kernel 4.4) (https://patchwork.kernel.org/patch/8312691/)
+(https://patchwork.kernel.org/patch/8293181/).
+
+File bar is lost in btrfs during rename - neither present in dir B nor C.
 */
 
 
