@@ -70,6 +70,8 @@ class Permuter {
   virtual ~Permuter() {};
   void InitDataVector(unsigned int sector_size,
       std::vector<fs_testing::utils::disk_write> &data);
+  void InitDataVectorSoft(unsigned int sector_size,
+      std::vector<fs_testing::utils::disk_write> &data);
   bool GenerateCrashState(std::vector<fs_testing::utils::DiskWriteData> &res,
       fs_testing::PermuteTestResult &log_data);
   bool GenerateSectorCrashState(
@@ -99,6 +101,10 @@ class Permuter {
 
   bool FindOverlapsAndInsert(fs_testing::utils::disk_write &dw,
       std::list<std::pair<unsigned int, unsigned int>> &ranges) const;
+  epoch* AddNewEpoch();
+  bool CanSplitBarrier(fs_testing::utils::disk_write &barrier_op);
+  std::pair<fs_testing::utils::disk_write, fs_testing::utils::disk_write>
+    SplitBarrier(fs_testing::utils::disk_write &barrier_op);
 
   std::vector<epoch> epochs_;
   std::unordered_set<std::vector<unsigned int>, BioVectorHash, BioVectorEqual>

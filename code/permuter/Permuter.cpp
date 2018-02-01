@@ -1,6 +1,7 @@
 #include <cassert>
 
 #include <algorithm>
+#include <chrono>
 #include <list>
 #include <memory>
 #include <unordered_set>
@@ -26,6 +27,11 @@ namespace {
 static const unsigned int kRetryMultiplier = 2;
 static const unsigned int kMinRetries = 1000;
 static const unsigned int kKernelSectorSize = 512;
+
+// Max time that can be between two bio positions before the current soft epoch
+// is ended and a new one is started. Equal to 2.5 seconds.
+// TODO(ashmrtn): Make this a parameter?
+static const unsigned long long kSoftEpochMaxDelayNs = 2500000000;
 
 }  // namespace
 
@@ -124,6 +130,60 @@ DiskWriteData EpochOpSector::ToWriteData() {
       (max_sector_size * parent_sector_index));
 }
 
+epoch* Permuter::AddNewEpoch() {
+  epochs_.emplace_back();
+  epochs_.back().ops.clear();
+  epochs_.back().num_meta = 0;
+  epochs_.back().overlaps = false;
+  epochs_.back().has_barrier = false;
+  epochs_.back().checkpoint_epoch = 0;
+
+  return &epochs_.back();
+}
+
+/*
+ * Check if the given op has a flush flag with data. If it does, then return
+ * true as it can be divided into an operation with the flush flag and an
+ * operation with the data where the data should be available only in the start
+ * of the next epoch. This is necessary because a flush flag only
+ * stipulates the previous data is persisted, and says nothing about the
+ * persistence of the data in this operation. If the FUA flag is present, then
+ * the data is persisted and this operation should not be split.
+ *
+ * Returns true if the operation can be split according to the above, otherwise
+ * false.
+ */
+bool Permuter::CanSplitBarrier(disk_write &barrier_op) {
+  return ((barrier_op.has_flush_flag() || barrier_op.has_flush_seq_flag()) &&
+      barrier_op.has_write_flag() && !barrier_op.has_FUA_flag() &&
+      barrier_op.metadata.size > 0);
+}
+
+/*
+ * Splits an operation into two operations, one with the flags and no data an
+ * the other with the flags (sans any flush flags) and the data. This method
+ * does no validation as to whether the operation should be split (use
+ * CanSplitBarrier()).
+ *
+ * Returns a pair of operations, one with the flags and no data, the other with
+ * the data and the flags sans flush flags.
+ */
+pair<disk_write, disk_write> Permuter::SplitBarrier(disk_write &barrier_op) {
+  pair<disk_write, disk_write> res(barrier_op, barrier_op);
+
+  if (res.first.has_flush_flag()) {
+    res.second.clear_flush_flag();
+  }
+  if (res.first.has_flush_seq_flag()) {
+    res.second.clear_flush_seq_flag();
+  }
+
+  res.first.metadata.size = 0;
+  res.first.clear_data();
+
+  return res;
+}
+
 /*
  * Given a disk_write operation and a *sorted* list of already existing ranges,
  * determine if the current operation partially or completely overlaps any of
@@ -172,12 +232,19 @@ bool Permuter::FindOverlapsAndInsert(disk_write &dw,
   return false;
 }
 
+/*
+ * Initializes the set of epochs based solely off the flags contained in the
+ * recorded workload. This will lead to more pessimistic crash states in many
+ * cases because nothing is assumed to be persisted unless a flush/fua operation
+ * has been seen. Basically, this assumes the disk caches *all* data (regardless
+ * of age) until a flush/fua operation, at which point all data is persisted.
+ */
 void Permuter::InitDataVector(unsigned int sector_size,
     vector<disk_write> &data) {
   sector_size_ = sector_size;
   epochs_.clear();
   list<pair<unsigned int, unsigned int>> epoch_overlaps;
-  struct epoch *current_epoch = NULL;
+  epoch *current_epoch = NULL;
   // Make sure that the first time we mark a checkpoint epoch, we start at 0 and
   // not 1.
   int curr_checkpoint_epoch = -1;
@@ -187,13 +254,10 @@ void Permuter::InitDataVector(unsigned int sector_size,
   auto curr_op = data.begin();
   while (curr_op != data.end()) {
     if (current_epoch == NULL) {
-      epochs_.emplace_back();
-      current_epoch = &epochs_.back();
+      current_epoch = AddNewEpoch();
       // Overlaps are only searched for within the current epoch, not across
       // epochs.
       epoch_overlaps.clear();
-      current_epoch->has_barrier = false;
-      current_epoch->overlaps = false;
       current_epoch->checkpoint_epoch = curr_checkpoint_epoch;
     }
 
@@ -243,48 +307,27 @@ void Permuter::InitDataVector(unsigned int sector_size,
       // data in the current operation's persistence. If the FUA flag is
       // present, then the current data is persisted with the previous data,
       // meaning this block does not apply.
-      if ((curr_op->has_flush_flag() || curr_op->has_flush_seq_flag()) &&
-          curr_op->has_write_flag() && !curr_op->has_FUA_flag() &&
-          curr_op->metadata.size > 0) {
-        disk_write flag_half(*curr_op);
-        disk_write data_half(*curr_op);
-        
-        if(curr_op->has_flush_flag()) {
-          flag_half.set_flush_flag();
-          data_half.clear_flush_flag();
-        }
-        
-        if(curr_op->has_flush_seq_flag()) {
-          flag_half.set_flush_seq_flag();
-          data_half.clear_flush_seq_flag();
-        }
-
-        flag_half.metadata.size = 0;
-        flag_half.clear_data();
+      if (CanSplitBarrier(*curr_op)) {
+        pair<disk_write, disk_write> split = SplitBarrier(*curr_op);
 
         // Add the flush to the current epoch.
-        current_epoch->ops.push_back({abs_index, flag_half});
-        current_epoch->num_meta += flag_half.is_meta();
+        current_epoch->ops.push_back({abs_index, split.first});
+        current_epoch->num_meta += split.first.is_meta();
         current_epoch->has_barrier = true;
 
         // Switch epochs.
-        epochs_.emplace_back();
-        current_epoch = &epochs_.back();
-        epoch_overlaps.clear();
-        current_epoch->has_barrier = false;
-        current_epoch->overlaps = false;
+        current_epoch = AddNewEpoch();
         current_epoch->checkpoint_epoch = curr_checkpoint_epoch;
+        epoch_overlaps.clear();
         // We are adding a new operation to the new epoch, so we need to record
         // it in the list of things to check for overlaps.
-        epoch_overlaps.emplace_back(data_half.metadata.write_sector,
-            data_half.metadata.write_sector + data_half.metadata.size - 1);
+        FindOverlapsAndInsert(split.second, epoch_overlaps);
 
         // Setup the rest of the data part of the operation.
         // TODO(ashmrtn): Find a better way to handle matching an index to a bio
         // in the profile dump.
-        //++abs_index;
-        current_epoch->ops.push_back({abs_index, data_half});
-        current_epoch->num_meta += data_half.is_meta();
+        current_epoch->ops.push_back({abs_index, split.second});
+        current_epoch->num_meta += split.second.is_meta();
 
         ++abs_index;
         ++curr_op;
@@ -302,6 +345,123 @@ void Permuter::InitDataVector(unsigned int sector_size,
         current_epoch = NULL;
       }
     }
+  }
+}
+
+/*
+ * Initializes the set of epochs based on both the relative times between bio
+ * submissions and the flags within the workload. This leads to crash states
+ * where opertions are considered persisted if enough time has passed between
+ * the submission of one operation and the submission of the next operation.
+ *
+ * If a checkpoint is between two operations such that the time between the
+ * checkpoint and either operation is less than the soft epoch cutoff time but
+ * the time between the operations themselves is greater than or equal to the
+ * soft epoch cutoff time, the operations are considered to be in different soft
+ * epochs and the later operation (and its soft epoch) is after the intervening
+ * checkpoint.
+ */
+void Permuter::InitDataVectorSoft(unsigned int sector_size,
+    vector<disk_write> &data) {
+  sector_size_ = sector_size;
+  const std::chrono::nanoseconds max_delay(kSoftEpochMaxDelayNs);
+
+  epochs_.clear();
+  list<pair<unsigned int, unsigned int>> epoch_overlaps;
+  epoch *current_epoch = AddNewEpoch();
+  // Make sure that the first time we mark a checkpoint epoch, we start at 0 and
+  // not 1.
+  int curr_checkpoint_epoch = -1;
+  // Aligns with the index of the bio in the profile dump, 0 indexed.
+  unsigned int abs_index = 0;
+
+  // Dummy starting value. Not changed when checkpoints are seen. Set to 0 every
+  // time we end an epoch with a flush/fua so that we don't compare times across
+  // soft epochs.
+  std::chrono::nanoseconds last_time_seen(0);
+  auto curr_op = data.begin();
+  while (curr_op != data.end()) {
+    if (curr_op->is_checkpoint()) {
+      // We may be switching soft epochs on the next opeation, so don't set the
+      // checkpoint epoch unless we know that we just switched epochs.
+      ++curr_checkpoint_epoch;
+      if (current_epoch->ops.size() == 0) {
+        current_epoch->checkpoint_epoch = curr_checkpoint_epoch;
+      }
+    } else if (!curr_op->is_barrier()) {
+      // Regular write operation, so compare times and add this operation to the
+      // proper soft epoch.
+      std::chrono::nanoseconds cur_time(curr_op->metadata.time_ns);
+      std::chrono::duration<long long, std::nano> diff =
+        cur_time - last_time_seen;
+      if (last_time_seen.count() > 0 && diff >= max_delay) {
+        // We need a new soft epoch.
+        current_epoch = AddNewEpoch();
+        epoch_overlaps.clear();
+        current_epoch->checkpoint_epoch = curr_checkpoint_epoch;
+      }
+
+      // In all cases, we need to put the current operation at the back of
+      // the current epoch.
+      current_epoch->ops.push_back({abs_index, *curr_op});
+      current_epoch->num_meta += curr_op->is_meta();
+      last_time_seen = std::chrono::nanoseconds(curr_op->metadata.time_ns);
+      if (FindOverlapsAndInsert(*curr_op, epoch_overlaps)) {
+        current_epoch->overlaps = true;
+      }
+    } else {
+      // We have a barrier operation. We need to decide if this barrier
+      // operation has data that appears in the next epoch or if it just ends
+      // the current epoch.
+      if (CanSplitBarrier(*curr_op)) {
+        pair<disk_write, disk_write> split = SplitBarrier(*curr_op);
+
+        // Add the flush to the current epoch.
+        current_epoch->ops.push_back({abs_index, split.first});
+        current_epoch->num_meta += split.first.is_meta();
+        current_epoch->has_barrier = true;
+
+        // Switch epochs.
+        current_epoch = AddNewEpoch();
+        epoch_overlaps.clear();
+        current_epoch->checkpoint_epoch = curr_checkpoint_epoch;
+        // We are adding a new operation to the new epoch, so we need to record
+        // it in the list of things to check for overlaps.
+        FindOverlapsAndInsert(split.second, epoch_overlaps);
+
+        // Setup the rest of the data part of the operation.
+        // TODO(ashmrtn): Find a better way to handle matching an index to a bio
+        // in the profile dump.
+        current_epoch->ops.push_back({abs_index, split.second});
+        current_epoch->num_meta += split.second.is_meta();
+      } else {
+        // This is just the case where we have a normal barrier operation ending
+        // the epoch.
+        current_epoch->ops.push_back({abs_index, *curr_op});
+        current_epoch->num_meta += curr_op->is_meta();
+        current_epoch->has_barrier = true;
+
+        // Create a new epoch.
+        current_epoch = AddNewEpoch();
+        epoch_overlaps.clear();
+        current_epoch->checkpoint_epoch = curr_checkpoint_epoch;
+      }
+
+      last_time_seen = std::chrono::nanoseconds(0);
+    }
+
+    ++curr_op;
+    ++abs_index;
+  }
+
+  // There is the possibility that we created an empty final epoch with no new
+  // checkpoint due to the way we switch epochs. If this the case, we should
+  // remove that element from the list of epochs we track.
+  if (epochs_.size() > 1 &&
+      (epochs_.at(epochs_.size() - 1).checkpoint_epoch ==
+        epochs_.at(epochs_.size() - 2).checkpoint_epoch) &&
+      epochs_.back().ops.size() == 0) {
+    epochs_.pop_back();
   }
 }
 
