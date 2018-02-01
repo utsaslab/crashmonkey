@@ -1,12 +1,20 @@
 /*
 Reproducing fstest generic/376
 
-Test that if we rename a file, without changing its parent directory, create
-a new file that has the old name of the file we renamed, doing an fsync
-against the file we renamed works correctly and after a power failure both
-files exists.
+1. mkdir test_dir
+2. Create file foo in test_dir
+3. fsync(test_dir)
+4. fsync(foo)
+5. rename test_dir/foo -> test_dir/bar
+6. touch test_dir/foo
+7. fsync(test_dir/bar)
 
-This is tested to fail on btrfs-3.12 (https://patchwork.kernel.org/patch/9297215/)
+If we rename a file, without changing its parent directory, create
+a new file that has the old name of the file we renamed and do an fsync
+against the file we renamed, after crash both foo and bar must exist. 
+
+This is tested to fail on btrfs (kernel 4.4) (https://patchwork.kernel.org/patch/9297215/)
+File foo is lost.
 */
 
 
@@ -39,7 +47,7 @@ namespace fs_testing {
 namespace tests {
 
 
-class RenameFsync: public BaseTestCase {
+class Generic376: public BaseTestCase {
  public:
   virtual int setup() override {
 
@@ -169,7 +177,7 @@ class RenameFsync: public BaseTestCase {
 }  // namespace fs_testing
 
 extern "C" fs_testing::tests::BaseTestCase *test_case_get_instance() {
-  return new fs_testing::tests::RenameFsync;
+  return new fs_testing::tests::Generic376;
 }
 
 extern "C" void test_case_delete_instance(fs_testing::tests::BaseTestCase *tc) {

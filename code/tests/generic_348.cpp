@@ -1,13 +1,19 @@
 /*
 Reproducing fstest generic/348
 
-Test creating a symlink, fsync its parent directory, power fail and mount
-again the filesystem. After these steps the symlink should exist and its
-content must match what we specified when we created it (must not be empty
-or point to something else).
+1. Create dir A in TEST_MNT and sync it
+2. Create file foo in TEST_MNT
+3. Create a symbolic link for file foo1 in A/bar1
+4. fsync the directory : fsync(TEST_MNT/A)
 
-This is tested to fail on btrfs-3.12 (https://patchwork.kernel.org/patch/8938991/)
+If we power fail and mount the filesystem again, symlink bar1 should exist and its
+content must match what we specified when we created it(i.e a readlink(bar1) 
+should point to foo1 and must not be empty or point to something else).
+
+This is tested to fail on btrfs (kernel 4.4) (https://patchwork.kernel.org/patch/8938991/)
 (https://patchwork.kernel.org/patch/9158353/) (Patched in 4.5)
+
+In btrfs, the file bar1 exists, but is empty.
 */
 
 
@@ -116,7 +122,8 @@ class Generic348: public BaseTestCase {
 
     std::string path1 = ReadLink(bar1_path);
     std::string path2 =  ReadLink(bar2_path);
-    bool link1_empty, link2_empty = false;
+    bool link1_empty = false;
+    bool link2_empty = false;
 
     /*if(path1.empty())
       std::cout <<"Bar 1 : Link empty" << std::endl;
