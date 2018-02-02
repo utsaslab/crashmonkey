@@ -1,5 +1,9 @@
 #include <iterator>
+#include <string>
 #include <vector>
+
+
+#include<iostream>
 
 #include "../../code/disk_wrapper_ioctl.h"
 #include "../../code/permuter/Permuter.h"
@@ -9,6 +13,7 @@
 
 namespace fs_testing {
 namespace test {
+
 using std::vector;
 
 using fs_testing::permuter::epoch;
@@ -16,6 +21,37 @@ using fs_testing::permuter::epoch_op;
 using fs_testing::permuter::EpochOpSector;
 using fs_testing::permuter::Permuter;
 using fs_testing::utils::disk_write;
+using fs_testing::utils::DiskWriteData;
+
+namespace {
+
+// Copied from Permuter.cpp so that we know what we should be above.
+// TODO(ashmrtn): Make this into a parameter?
+static const unsigned long long kSoftEpochMaxDelayNs = 2500000000;
+
+}
+
+typedef void (Permuter::*InitDataFunc)(unsigned int, vector<disk_write>&);
+
+// Just used for value parameterized testing. Don't really care about private
+// members or setup/teardown here.
+class GenericEpochTest :
+  public ::testing::TestWithParam<InitDataFunc> {};
+
+// This is to avoid it just spewing a 16-byte value when printing failures
+// (though it still kind of does that, at least we get the function name too).
+// Update if we add more InitDataVector* methods. The order here should match
+// the order the function pointers are declared in INSTANTIATE_TEST_CASE_P.
+std::string InitTypeToString(::testing::TestParamInfo<InitDataFunc> info) {
+  switch (info.index) {
+    case 0:
+      return std::string("InitDataVector");
+    case 1:
+      return std::string("InitDataVectorSoft");
+    default:
+      return ::testing::PrintToString(info.param);
+  }
+}
 
 class TestPermuter : public Permuter {
  public:
@@ -26,7 +62,7 @@ class TestPermuter : public Permuter {
       PermuteTestResult &log_data) {
     return false;
   }
-  bool gen_one_sector_state(std::vector<EpochOpSector>& res,
+  bool gen_one_sector_state(std::vector<DiskWriteData> &res,
       PermuteTestResult &log_data) {
     return false;
   }
@@ -71,12 +107,22 @@ static void VerifyEpoch(epoch &result,
   }
 }
 
+/*******************************************************************************
+ * Any permuter that operates on soft epochs should yield the same results as a
+ * permuter that operates on normal epochs *so long as the time between
+ * operations is less than the allowed time in the Permuter.* Therefore, we can
+ * use value-parameterized tests and some function pointer fun to test both
+ * types of epochs with the same test cases.
+ *
+ * Below are tests that should work for both soft epochs and regular epochs.
+ ******************************************************************************/
+
 /*
  * Basic test that checks flush operations terminate an epoch and that other
  * operations are properly represented in the epoch vector (i.e. checks size,
  * sector, flags, etc).
  */
-TEST(Permuter, InitDataVectorSingleEpochFlushTerminated) {
+TEST_P(GenericEpochTest, InitDataVectorSingleEpochFlushTerminated) {
   const unsigned int num_regular_writes = 9;
   const unsigned int write_size = 1024;
   vector<disk_write> test_epoch;
@@ -87,7 +133,7 @@ TEST(Permuter, InitDataVectorSingleEpochFlushTerminated) {
   checkpoint.metadata.bi_flags = HWM_CHECKPOINT_FLAG;
   checkpoint.metadata.bi_rw = HWM_CHECKPOINT_FLAG;
   checkpoint.metadata.size = 0;
-  checkpoint.metadata.time_ns = 0;
+  checkpoint.metadata.time_ns = 1;
   test_epoch.push_back(checkpoint);
 
   for (unsigned int i = 0; i < num_regular_writes; ++i) {
@@ -95,6 +141,7 @@ TEST(Permuter, InitDataVectorSingleEpochFlushTerminated) {
     write.metadata.write_sector = 4096 * i;
     write.metadata.size = write_size;
     write.metadata.bi_rw = HWM_WRITE_FLAG;
+    write.metadata.time_ns = 1;
 
     // Make a sync operation.
     if (i % 3 == 0) {
@@ -107,11 +154,12 @@ TEST(Permuter, InitDataVectorSingleEpochFlushTerminated) {
   barrier.metadata.bi_rw = HWM_FLUSH_FLAG | HWM_WRITE_FLAG;
   barrier.metadata.write_sector = 0;
   barrier.metadata.size = 0;
+  barrier.metadata.time_ns = 1;
   test_epoch.push_back(barrier);
 
   TestPermuter tp;
   const unsigned int sector_size = 512;
-  tp.InitDataVector(sector_size, test_epoch);
+  (tp.*GetParam())(sector_size, test_epoch);
   vector<epoch> *internal = tp.GetInternalEpochs();
 
   EXPECT_EQ(internal->size(), 1);
@@ -130,7 +178,7 @@ TEST(Permuter, InitDataVectorSingleEpochFlushTerminated) {
  * operations are properly represented in the epoch vector (i.e. checks size,
  * sector, flags, etc).
  */
-TEST(Permuter, InitDataVectorSingleEpochFuaTerminated) {
+TEST_P(GenericEpochTest, InitDataVectorSingleEpochFuaTerminated) {
   const unsigned int num_regular_writes = 9;
   vector<disk_write> test_epoch;
 
@@ -140,7 +188,7 @@ TEST(Permuter, InitDataVectorSingleEpochFuaTerminated) {
   checkpoint.metadata.bi_flags = HWM_CHECKPOINT_FLAG;
   checkpoint.metadata.bi_rw = HWM_CHECKPOINT_FLAG;
   checkpoint.metadata.size = 0;
-  checkpoint.metadata.time_ns = 0;
+  checkpoint.metadata.time_ns = 1;
   test_epoch.push_back(checkpoint);
 
   for (unsigned int i = 0; i < num_regular_writes; ++i) {
@@ -148,6 +196,7 @@ TEST(Permuter, InitDataVectorSingleEpochFuaTerminated) {
     write.metadata.write_sector = 4096 * i;
     write.metadata.size = 4096;
     write.metadata.bi_rw = HWM_WRITE_FLAG;
+    write.metadata.time_ns = 1;
 
     // Make a sync operation.
     if (i % 3 == 0) {
@@ -160,11 +209,12 @@ TEST(Permuter, InitDataVectorSingleEpochFuaTerminated) {
   barrier.metadata.bi_rw = HWM_FUA_FLAG | HWM_WRITE_FLAG;
   barrier.metadata.write_sector = 0;
   barrier.metadata.size = 0;
+  barrier.metadata.time_ns = 1;
   test_epoch.push_back(barrier);
 
   TestPermuter tp;
   const unsigned int sector_size = 512;
-  tp.InitDataVector(sector_size, test_epoch);
+  (tp.*GetParam())(sector_size, test_epoch);
   vector<epoch> *internal = tp.GetInternalEpochs();
 
   EXPECT_EQ(internal->size(), 1);
@@ -182,7 +232,7 @@ TEST(Permuter, InitDataVectorSingleEpochFuaTerminated) {
  * Basic test that makes sure the `has_barrier` flag is only set on epochs that
  * actually have a barrier terminating them.
  */
-TEST(Permuter, InitDataVectorSingleEpochUnTerminated) {
+TEST_P(GenericEpochTest, InitDataVectorSingleEpochUnTerminated) {
   const unsigned int num_regular_writes = 9;
   vector<disk_write> test_epoch;
 
@@ -192,7 +242,7 @@ TEST(Permuter, InitDataVectorSingleEpochUnTerminated) {
   checkpoint.metadata.bi_flags = HWM_CHECKPOINT_FLAG;
   checkpoint.metadata.bi_rw = HWM_CHECKPOINT_FLAG;
   checkpoint.metadata.size = 0;
-  checkpoint.metadata.time_ns = 0;
+  checkpoint.metadata.time_ns = 1;
   test_epoch.push_back(checkpoint);
 
   for (unsigned int i = 0; i < num_regular_writes; ++i) {
@@ -200,6 +250,7 @@ TEST(Permuter, InitDataVectorSingleEpochUnTerminated) {
     write.metadata.write_sector = 4096 * i;
     write.metadata.size = 4096;
     write.metadata.bi_rw = HWM_WRITE_FLAG;
+    write.metadata.time_ns = 1;
 
     // Make a sync operation.
     if (i % 3 == 0) {
@@ -210,7 +261,7 @@ TEST(Permuter, InitDataVectorSingleEpochUnTerminated) {
 
   TestPermuter tp;
   const unsigned int sector_size = 512;
-  tp.InitDataVector(sector_size, test_epoch);
+  (tp.*GetParam())(sector_size, test_epoch);
   vector<epoch> *internal = tp.GetInternalEpochs();
 
   EXPECT_EQ(internal->size(), 1);
@@ -228,7 +279,7 @@ TEST(Permuter, InitDataVectorSingleEpochUnTerminated) {
  * Test that ensure the `overlaps` flag on an epoch is set when a write is
  * contained within another write in the same epoch.
  */
-TEST(Permuter, InitDataVectorSingleEpochOverlap) {
+TEST_P(GenericEpochTest, InitDataVectorSingleEpochOverlap) {
   const unsigned int num_regular_writes = 9;
   vector<disk_write> test_epoch;
 
@@ -238,7 +289,7 @@ TEST(Permuter, InitDataVectorSingleEpochOverlap) {
   checkpoint.metadata.bi_flags = HWM_CHECKPOINT_FLAG;
   checkpoint.metadata.bi_rw = HWM_CHECKPOINT_FLAG;
   checkpoint.metadata.size = 0;
-  checkpoint.metadata.time_ns = 0;
+  checkpoint.metadata.time_ns = 1;
   test_epoch.push_back(checkpoint);
 
   for (unsigned int i = 0; i < num_regular_writes; ++i) {
@@ -246,6 +297,7 @@ TEST(Permuter, InitDataVectorSingleEpochOverlap) {
     write.metadata.write_sector = 4096 * i;
     write.metadata.size = 4096;
     write.metadata.bi_rw = HWM_WRITE_FLAG;
+    write.metadata.time_ns = 1;
 
     // Make a sync operation.
     if (i % 3 == 0) {
@@ -258,17 +310,19 @@ TEST(Permuter, InitDataVectorSingleEpochOverlap) {
   overlap.metadata.bi_rw = HWM_WRITE_FLAG;
   overlap.metadata.write_sector = 0;
   overlap.metadata.size = 128;
+  overlap.metadata.time_ns = 1;
   test_epoch.push_back(overlap);
 
   disk_write barrier;
   barrier.metadata.bi_rw = HWM_FUA_FLAG | HWM_WRITE_FLAG;
   barrier.metadata.write_sector = 0;
   barrier.metadata.size = 0;
+  barrier.metadata.time_ns = 1;
   test_epoch.push_back(barrier);
 
   TestPermuter tp;
   const unsigned int sector_size = 512;
-  tp.InitDataVector(sector_size, test_epoch);
+  (tp.*GetParam())(sector_size, test_epoch);
   vector<epoch> *internal = tp.GetInternalEpochs();
 
   EXPECT_EQ(internal->size(), 1);
@@ -286,7 +340,7 @@ TEST(Permuter, InitDataVectorSingleEpochOverlap) {
  * Another test for setting the `overlaps` flag on an epoch, this time with one
  * operation only partially overlapping another operation within the same epoch.
  */
-TEST(Permuter, InitDataVectorSingleEpochOverlap2) {
+TEST_P(GenericEpochTest, InitDataVectorSingleEpochOverlap2) {
   const unsigned int num_regular_writes = 9;
   vector<disk_write> test_epoch;
 
@@ -296,7 +350,7 @@ TEST(Permuter, InitDataVectorSingleEpochOverlap2) {
   checkpoint.metadata.bi_flags = HWM_CHECKPOINT_FLAG;
   checkpoint.metadata.bi_rw = HWM_CHECKPOINT_FLAG;
   checkpoint.metadata.size = 0;
-  checkpoint.metadata.time_ns = 0;
+  checkpoint.metadata.time_ns = 1;
   test_epoch.push_back(checkpoint);
 
   for (unsigned int i = 0; i < num_regular_writes; ++i) {
@@ -304,6 +358,7 @@ TEST(Permuter, InitDataVectorSingleEpochOverlap2) {
     write.metadata.write_sector = 4096 * 10;
     write.metadata.size = 1024;
     write.metadata.bi_rw = HWM_WRITE_FLAG;
+    write.metadata.time_ns = 1;
 
     // Make a sync operation.
     if (i % 3 == 0) {
@@ -316,17 +371,19 @@ TEST(Permuter, InitDataVectorSingleEpochOverlap2) {
   overlap.metadata.bi_rw = HWM_WRITE_FLAG;
   overlap.metadata.write_sector = 512;
   overlap.metadata.size = 1024;
+  overlap.metadata.time_ns = 1;
   test_epoch.push_back(overlap);
 
   disk_write barrier;
   barrier.metadata.bi_rw = HWM_FUA_FLAG | HWM_WRITE_FLAG;
   barrier.metadata.write_sector = 0;
   barrier.metadata.size = 0;
+  barrier.metadata.time_ns = 1;
   test_epoch.push_back(barrier);
 
   TestPermuter tp;
   const unsigned int sector_size = 512;
-  tp.InitDataVector(sector_size, test_epoch);
+  (tp.*GetParam())(sector_size, test_epoch);
   vector<epoch> *internal = tp.GetInternalEpochs();
 
   EXPECT_EQ(internal->size(), 1);
@@ -347,7 +404,7 @@ TEST(Permuter, InitDataVectorSingleEpochOverlap2) {
  * the same sectors. Neither epoch should have the `overlaps` flag set in this
  * case.
  */
-TEST(Permuter, InitDataVectorTwoEpochsFlushTerminatedNoOverlap) {
+TEST_P(GenericEpochTest, InitDataVectorTwoEpochsFlushTerminatedNoOverlap) {
   const unsigned int num_epochs = 2;
   const unsigned int num_regular_writes = 9;
   vector<disk_write> test_epochs;
@@ -358,7 +415,7 @@ TEST(Permuter, InitDataVectorTwoEpochsFlushTerminatedNoOverlap) {
   checkpoint.metadata.bi_flags = HWM_CHECKPOINT_FLAG;
   checkpoint.metadata.bi_rw = HWM_CHECKPOINT_FLAG;
   checkpoint.metadata.size = 0;
-  checkpoint.metadata.time_ns = 0;
+  checkpoint.metadata.time_ns = 1;
   test_epochs.push_back(checkpoint);
 
   for (unsigned int j = 0; j < num_epochs; ++j) {
@@ -367,6 +424,7 @@ TEST(Permuter, InitDataVectorTwoEpochsFlushTerminatedNoOverlap) {
       write.metadata.write_sector = 4096 * i;
       write.metadata.size = 4096;
       write.metadata.bi_rw = HWM_WRITE_FLAG;
+      write.metadata.time_ns = 1;
 
       // Make a sync operation.
       if (i % 3 == 0) {
@@ -379,12 +437,13 @@ TEST(Permuter, InitDataVectorTwoEpochsFlushTerminatedNoOverlap) {
     barrier.metadata.bi_rw = HWM_FLUSH_FLAG | HWM_WRITE_FLAG;
     barrier.metadata.write_sector = 0;
     barrier.metadata.size = 0;
+    barrier.metadata.time_ns = 1;
     test_epochs.push_back(barrier);
   }
 
   TestPermuter tp;
   const unsigned int sector_size = 512;
-  tp.InitDataVector(sector_size, test_epochs);
+  (tp.*GetParam())(sector_size, test_epochs);
   vector<epoch> *internal = tp.GetInternalEpochs();
 
   EXPECT_EQ(internal->size(), 2);
@@ -417,7 +476,7 @@ TEST(Permuter, InitDataVectorTwoEpochsFlushTerminatedNoOverlap) {
  * contained in the operations (i.e. size = 0) then the operation should not be
  * split across two epochs.
  */
-TEST(Permuter, InitDataVectorSplitFlush) {
+TEST_P(GenericEpochTest, InitDataVectorSplitFlush) {
   vector<disk_write> test_epoch;
   const unsigned int write_sector = 512;
   const unsigned int write_size = 1024;
@@ -428,18 +487,19 @@ TEST(Permuter, InitDataVectorSplitFlush) {
   checkpoint.metadata.bi_flags = HWM_CHECKPOINT_FLAG;
   checkpoint.metadata.bi_rw = HWM_CHECKPOINT_FLAG;
   checkpoint.metadata.size = 0;
-  checkpoint.metadata.time_ns = 0;
+  checkpoint.metadata.time_ns = 1;
   test_epoch.push_back(checkpoint);
 
   disk_write barrier;
   barrier.metadata.bi_rw = HWM_FLUSH_FLAG | HWM_WRITE_FLAG;
   barrier.metadata.write_sector = write_sector;
   barrier.metadata.size = write_size;
+  barrier.metadata.time_ns = 1;
   test_epoch.push_back(barrier);
 
   TestPermuter tp;
   const unsigned int sector_size = 512;
-  tp.InitDataVector(sector_size, test_epoch);
+  (tp.*GetParam())(sector_size, test_epoch);
   vector<epoch> *internal = tp.GetInternalEpochs();
 
   EXPECT_EQ(internal->size(), 2);
@@ -473,7 +533,7 @@ TEST(Permuter, InitDataVectorSplitFlush) {
  * flags (with non-zero size) is not split across two epochs (see comment on
  * InitDataVectorSplitFlush test case for why this split might happen).
  */
-TEST(Permuter, InitDataVectorNoSplitFlush) {
+TEST_P(GenericEpochTest, InitDataVectorNoSplitFlush) {
   vector<disk_write> test_epoch;
 
   // Create a Checkpoint in the log since all logs start with one.
@@ -482,18 +542,19 @@ TEST(Permuter, InitDataVectorNoSplitFlush) {
   checkpoint.metadata.bi_flags = HWM_CHECKPOINT_FLAG;
   checkpoint.metadata.bi_rw = HWM_CHECKPOINT_FLAG;
   checkpoint.metadata.size = 0;
-  checkpoint.metadata.time_ns = 0;
+  checkpoint.metadata.time_ns = 1;
   test_epoch.push_back(checkpoint);
 
   disk_write barrier;
   barrier.metadata.bi_rw = HWM_FLUSH_FLAG | HWM_FUA_FLAG | HWM_WRITE_FLAG;
   barrier.metadata.write_sector = 512;
   barrier.metadata.size = 1024;
+  barrier.metadata.time_ns = 1;
   test_epoch.push_back(barrier);
 
   TestPermuter tp;
   const unsigned int sector_size = 512;
-  tp.InitDataVector(sector_size, test_epoch);
+  (tp.*GetParam())(sector_size, test_epoch);
   vector<epoch> *internal = tp.GetInternalEpochs();
 
   EXPECT_EQ(internal->size(), 1);
@@ -512,7 +573,7 @@ TEST(Permuter, InitDataVectorNoSplitFlush) {
  * size of zero is not split across two epochs (see comment on
  * InitDataVectorSplitFlush test case for why this split might happen).
  */
-TEST(Permuter, InitDataVectorNoSplitFlush2) {
+TEST_P(GenericEpochTest, InitDataVectorNoSplitFlush2) {
   vector<disk_write> test_epoch;
 
   // Create a Checkpoint in the log since all logs start with one.
@@ -521,18 +582,19 @@ TEST(Permuter, InitDataVectorNoSplitFlush2) {
   checkpoint.metadata.bi_flags = HWM_CHECKPOINT_FLAG;
   checkpoint.metadata.bi_rw = HWM_CHECKPOINT_FLAG;
   checkpoint.metadata.size = 0;
-  checkpoint.metadata.time_ns = 0;
+  checkpoint.metadata.time_ns = 1;
   test_epoch.push_back(checkpoint);
 
   disk_write barrier;
   barrier.metadata.bi_rw = HWM_FLUSH_FLAG | HWM_WRITE_FLAG;
   barrier.metadata.write_sector = 512;
   barrier.metadata.size = 0;
+  barrier.metadata.time_ns = 1;
   test_epoch.push_back(barrier);
 
   TestPermuter tp;
   const unsigned int sector_size = 512;
-  tp.InitDataVector(sector_size, test_epoch);
+  (tp.*GetParam())(sector_size, test_epoch);
   vector<epoch> *internal = tp.GetInternalEpochs();
 
   EXPECT_EQ(internal->size(), 1);
@@ -553,7 +615,7 @@ TEST(Permuter, InitDataVectorNoSplitFlush2) {
  * that epoch is recorded as the last checkpoint, potentially causing a skip in
  * the checkpoint numbers when looking at all the epochs together.
  */
-TEST(Permuter, InitDataVectorCheckpointSkip) {
+TEST_P(GenericEpochTest, InitDataVectorCheckpointSkip) {
   const unsigned int write_sector = 512;
   vector<disk_write> test_epoch;
 
@@ -563,7 +625,7 @@ TEST(Permuter, InitDataVectorCheckpointSkip) {
   checkpoint.metadata.bi_flags = HWM_CHECKPOINT_FLAG;
   checkpoint.metadata.bi_rw = HWM_CHECKPOINT_FLAG;
   checkpoint.metadata.size = 0;
-  checkpoint.metadata.time_ns = 0;
+  checkpoint.metadata.time_ns = 1;
   test_epoch.push_back(checkpoint);
 
   // Another random checkpoint.
@@ -572,18 +634,19 @@ TEST(Permuter, InitDataVectorCheckpointSkip) {
   testing.metadata.bi_flags = HWM_CHECKPOINT_FLAG;
   testing.metadata.bi_rw = HWM_CHECKPOINT_FLAG;
   testing.metadata.size = 0;
-  testing.metadata.time_ns = 0;
+  testing.metadata.time_ns = 1;
   test_epoch.push_back(testing);
 
   disk_write barrier;
   barrier.metadata.bi_rw = HWM_FLUSH_FLAG | HWM_WRITE_FLAG;
   barrier.metadata.write_sector = write_sector;
   barrier.metadata.size = 0;
+  barrier.metadata.time_ns = 1;
   test_epoch.push_back(barrier);
 
   TestPermuter tp;
   const unsigned int sector_size = 512;
-  tp.InitDataVector(sector_size, test_epoch);
+  (tp.*GetParam())(sector_size, test_epoch);
   vector<epoch> *internal = tp.GetInternalEpochs();
 
   EXPECT_EQ(internal->size(), 1);
@@ -609,7 +672,7 @@ TEST(Permuter, InitDataVectorCheckpointSkip) {
  * thing seen and the final epoch will be empty in the Permuter, but will have
  * an incremented checkpoint number.
  */
-TEST(Permuter, InitDataVectorEmptyEndEpoch) {
+TEST_P(GenericEpochTest, InitDataVectorEmptyEndEpoch) {
   const unsigned int write_sector = 512;
   vector<disk_write> test_epoch;
 
@@ -619,13 +682,14 @@ TEST(Permuter, InitDataVectorEmptyEndEpoch) {
   checkpoint.metadata.bi_flags = HWM_CHECKPOINT_FLAG;
   checkpoint.metadata.bi_rw = HWM_CHECKPOINT_FLAG;
   checkpoint.metadata.size = 0;
-  checkpoint.metadata.time_ns = 0;
+  checkpoint.metadata.time_ns = 1;
   test_epoch.push_back(checkpoint);
 
   disk_write barrier;
   barrier.metadata.bi_rw = HWM_FLUSH_FLAG | HWM_WRITE_FLAG;
   barrier.metadata.write_sector = write_sector;
   barrier.metadata.size = 0;
+  barrier.metadata.time_ns = 1;
   test_epoch.push_back(barrier);
 
   // Another random checkpoint.
@@ -634,12 +698,12 @@ TEST(Permuter, InitDataVectorEmptyEndEpoch) {
   testing.metadata.bi_flags = HWM_CHECKPOINT_FLAG;
   testing.metadata.bi_rw = HWM_CHECKPOINT_FLAG;
   testing.metadata.size = 0;
-  testing.metadata.time_ns = 0;
+  testing.metadata.time_ns = 1;
   test_epoch.push_back(testing);
 
   TestPermuter tp;
   const unsigned int sector_size = 512;
-  tp.InitDataVector(sector_size, test_epoch);
+  (tp.*GetParam())(sector_size, test_epoch);
   vector<epoch> *internal = tp.GetInternalEpochs();
 
   EXPECT_EQ(internal->size(), 2);
@@ -670,7 +734,7 @@ TEST(Permuter, InitDataVectorEmptyEndEpoch) {
  * epoch. This includes barrier operations that are split across two epochs,
  * normal barrier operations, and regular wrties.
  */
-TEST(Permuter, InitDataVectorCountMetadata) {
+TEST_P(GenericEpochTest, InitDataVectorCountMetadata) {
   const unsigned int num_regular_writes = 9;
   const unsigned int write_sector = 512;
   const unsigned int write_size = 128;
@@ -682,7 +746,7 @@ TEST(Permuter, InitDataVectorCountMetadata) {
   checkpoint.metadata.bi_flags = HWM_CHECKPOINT_FLAG;
   checkpoint.metadata.bi_rw = HWM_CHECKPOINT_FLAG;
   checkpoint.metadata.size = 0;
-  checkpoint.metadata.time_ns = 0;
+  checkpoint.metadata.time_ns = 1;
   test_epoch.push_back(checkpoint);
 
   for (unsigned int i = 0; i < num_regular_writes; ++i) {
@@ -690,6 +754,7 @@ TEST(Permuter, InitDataVectorCountMetadata) {
     write.metadata.write_sector = 4096 * i;
     write.metadata.size = 1024;
     write.metadata.bi_rw = HWM_WRITE_FLAG;
+    write.metadata.time_ns = 1;
 
     // Make a meta operation.
     if (i % 3 == 0) {
@@ -702,17 +767,19 @@ TEST(Permuter, InitDataVectorCountMetadata) {
   barrier.metadata.bi_rw = HWM_FLUSH_FLAG | HWM_WRITE_FLAG | HWM_META_FLAG;
   barrier.metadata.write_sector = write_sector;
   barrier.metadata.size = write_size;
+  barrier.metadata.time_ns = 1;
   test_epoch.push_back(barrier);
 
   disk_write barrier2;
   barrier2.metadata.bi_rw = HWM_FUA_FLAG | HWM_WRITE_FLAG | HWM_META_FLAG;
   barrier2.metadata.write_sector = 0;
   barrier2.metadata.size = 0;
+  barrier2.metadata.time_ns = 1;
   test_epoch.push_back(barrier2);
 
   TestPermuter tp;
   const unsigned int sector_size = 512;
-  tp.InitDataVector(sector_size, test_epoch);
+  (tp.*GetParam())(sector_size, test_epoch);
   vector<epoch> *internal = tp.GetInternalEpochs();
 
   EXPECT_EQ(internal->size(), 2);
@@ -729,7 +796,6 @@ TEST(Permuter, InitDataVectorCountMetadata) {
   EXPECT_FALSE(internal->back().overlaps);
   EXPECT_EQ(internal->back().ops.size(), 2);
 }
-
 
 /*
  * Test to ensure CoalesceSector when no sectors overlap returns a vector with
@@ -955,6 +1021,266 @@ TEST(EpochOp, ToSectorNonMultipleSize) {
   EXPECT_EQ(sectors.at(2).size, 3);
   EXPECT_EQ(sectors.at(3).disk_offset, 9);
   EXPECT_EQ(sectors.at(3).size, 1);
+}
+
+
+INSTANTIATE_TEST_CASE_P(
+    RegularAndSoftEpochs, GenericEpochTest,
+    ::testing::Values(&Permuter::InitDataVector,
+                      &Permuter::InitDataVectorSoft),
+    InitTypeToString);
+
+
+/*******************************************************************************
+ * These tests are for soft epoch stuff. Mostly they focus on how epochs get
+ * split up if you have operations are further apart than the alloted time.
+ *
+ * Also note that if soft epochs didn't function properly in such a way that
+ * operations less than the cutoff time apart were placed in separate epochs,
+ * the general test cases for the soft epoch code would fail. This means that
+ * behavior does not need to be tested here as well.
+ ******************************************************************************/
+
+/*
+ * Test that two operations more than kSoftEpochMaxDelayNs apart are put into
+ * separate epochs.
+ */
+TEST(SoftEpochTest, SplitEpochsNoCheckpoint) {
+  vector<disk_write> test_epoch;
+
+  // Create a Checkpoint in the log since all logs start with one.
+  disk_write checkpoint;
+  checkpoint.metadata.write_sector = 0;
+  checkpoint.metadata.bi_flags = HWM_CHECKPOINT_FLAG;
+  checkpoint.metadata.bi_rw = HWM_CHECKPOINT_FLAG;
+  checkpoint.metadata.size = 0;
+  checkpoint.metadata.time_ns = 1;
+  test_epoch.push_back(checkpoint);
+
+  disk_write write1;
+  write1.metadata.bi_rw = HWM_WRITE_FLAG;
+  write1.metadata.write_sector = 512;
+  write1.metadata.size = 32;
+  write1.metadata.time_ns = 1;
+  test_epoch.push_back(write1);
+
+  disk_write write2;
+  write2.metadata.bi_rw = HWM_WRITE_FLAG;
+  write2.metadata.write_sector = 512;
+  write2.metadata.size = 32;
+  write2.metadata.time_ns = 1 + kSoftEpochMaxDelayNs;
+  test_epoch.push_back(write2);
+
+  TestPermuter tp;
+  const unsigned int sector_size = 512;
+  tp.InitDataVectorSoft(sector_size, test_epoch);
+  vector<epoch> *internal = tp.GetInternalEpochs();
+
+  EXPECT_EQ(internal->size(), 2);
+
+  EXPECT_EQ(internal->front().num_meta, 0);
+  EXPECT_EQ(internal->front().checkpoint_epoch, 0);
+  EXPECT_FALSE(internal->front().has_barrier);
+  EXPECT_FALSE(internal->front().overlaps);
+  EXPECT_EQ(internal->front().ops.size(), 1);
+
+  EXPECT_EQ(internal->back().num_meta, 0);
+  EXPECT_EQ(internal->back().checkpoint_epoch, 0);
+  EXPECT_FALSE(internal->back().has_barrier);
+  EXPECT_FALSE(internal->back().overlaps);
+  EXPECT_EQ(internal->back().ops.size(), 1);
+
+  VerifyEpoch(internal->front(), test_epoch.begin() + 1, test_epoch.end() - 1,
+      1);
+  VerifyEpoch(internal->back(), test_epoch.begin() + 2, test_epoch.end(), 2);
+}
+
+/*
+ * Test that two operations more than kSoftEpochMaxDelayNs apart but with a
+ * checkpoint between them are put into separate epochs.
+ */
+TEST(SoftEpochTest, SplitEpochsInterveningCheckpoint) {
+  vector<disk_write> test_epoch;
+
+  // Create a Checkpoint in the log since all logs start with one.
+  disk_write checkpoint;
+  checkpoint.metadata.write_sector = 0;
+  checkpoint.metadata.bi_flags = HWM_CHECKPOINT_FLAG;
+  checkpoint.metadata.bi_rw = HWM_CHECKPOINT_FLAG;
+  checkpoint.metadata.size = 0;
+  checkpoint.metadata.time_ns = 1;
+  test_epoch.push_back(checkpoint);
+
+  disk_write write1;
+  write1.metadata.bi_rw = HWM_WRITE_FLAG;
+  write1.metadata.write_sector = 512;
+  write1.metadata.size = 32;
+  write1.metadata.time_ns = 1;
+  test_epoch.push_back(write1);
+
+  disk_write checkpoint2;
+  checkpoint2.metadata.write_sector = 1;
+  checkpoint2.metadata.bi_flags = HWM_CHECKPOINT_FLAG;
+  checkpoint2.metadata.bi_rw = HWM_CHECKPOINT_FLAG;
+  checkpoint2.metadata.size = 0;
+  checkpoint2.metadata.time_ns = kSoftEpochMaxDelayNs >> 1;
+  test_epoch.push_back(checkpoint2);
+
+  disk_write write2;
+  write2.metadata.bi_rw = HWM_WRITE_FLAG;
+  write2.metadata.write_sector = 512;
+  write2.metadata.size = 32;
+  write2.metadata.time_ns = 1 + kSoftEpochMaxDelayNs;
+  test_epoch.push_back(write2);
+
+  TestPermuter tp;
+  const unsigned int sector_size = 512;
+  tp.InitDataVectorSoft(sector_size, test_epoch);
+  vector<epoch> *internal = tp.GetInternalEpochs();
+
+  EXPECT_EQ(internal->size(), 2);
+
+  EXPECT_EQ(internal->front().num_meta, 0);
+  EXPECT_EQ(internal->front().checkpoint_epoch, 0);
+  EXPECT_FALSE(internal->front().has_barrier);
+  EXPECT_FALSE(internal->front().overlaps);
+  EXPECT_EQ(internal->front().ops.size(), 1);
+
+  EXPECT_EQ(internal->back().num_meta, 0);
+  EXPECT_EQ(internal->back().checkpoint_epoch, 1);
+  EXPECT_FALSE(internal->back().has_barrier);
+  EXPECT_FALSE(internal->back().overlaps);
+  EXPECT_EQ(internal->back().ops.size(), 1);
+
+  VerifyEpoch(internal->front(), test_epoch.begin() + 1, test_epoch.end() - 2,
+      1);
+  VerifyEpoch(internal->back(), test_epoch.begin() + 3, test_epoch.end(), 3);
+}
+
+/*
+ * Test that two operations more than kSoftEpochMaxDelayNs apart but with a
+ * flush operation between them are placed in different epochs with no empty
+ * epoch between them.
+ */
+TEST(SoftEpochTest, SplitEpochsDontCrossFlush) {
+  vector<disk_write> test_epoch;
+
+  // Create a Checkpoint in the log since all logs start with one.
+  disk_write checkpoint;
+  checkpoint.metadata.write_sector = 0;
+  checkpoint.metadata.bi_flags = HWM_CHECKPOINT_FLAG;
+  checkpoint.metadata.bi_rw = HWM_CHECKPOINT_FLAG;
+  checkpoint.metadata.size = 0;
+  checkpoint.metadata.time_ns = 1;
+  test_epoch.push_back(checkpoint);
+
+  disk_write write1;
+  write1.metadata.bi_rw = HWM_WRITE_FLAG;
+  write1.metadata.write_sector = 512;
+  write1.metadata.size = 32;
+  write1.metadata.time_ns = 1;
+  test_epoch.push_back(write1);
+
+  disk_write barrier;
+  barrier.metadata.write_sector = 0;
+  barrier.metadata.bi_flags = HWM_FLUSH_FLAG | HWM_WRITE_FLAG;
+  barrier.metadata.bi_rw = HWM_FLUSH_FLAG | HWM_WRITE_FLAG;
+  barrier.metadata.size = 0;
+  barrier.metadata.time_ns = 2;
+  test_epoch.push_back(barrier);
+
+  disk_write write2;
+  write2.metadata.bi_rw = HWM_WRITE_FLAG;
+  write2.metadata.write_sector = 512;
+  write2.metadata.size = 32;
+  write2.metadata.time_ns = 1 + kSoftEpochMaxDelayNs;
+  test_epoch.push_back(write2);
+
+  TestPermuter tp;
+  const unsigned int sector_size = 512;
+  tp.InitDataVectorSoft(sector_size, test_epoch);
+  vector<epoch> *internal = tp.GetInternalEpochs();
+
+  EXPECT_EQ(internal->size(), 2);
+
+  EXPECT_EQ(internal->front().num_meta, 0);
+  EXPECT_EQ(internal->front().checkpoint_epoch, 0);
+  EXPECT_TRUE(internal->front().has_barrier);
+  EXPECT_FALSE(internal->front().overlaps);
+  EXPECT_EQ(internal->front().ops.size(), 2);
+
+  EXPECT_EQ(internal->back().num_meta, 0);
+  EXPECT_EQ(internal->back().checkpoint_epoch, 0);
+  EXPECT_FALSE(internal->back().has_barrier);
+  EXPECT_FALSE(internal->back().overlaps);
+  EXPECT_EQ(internal->back().ops.size(), 1);
+
+  VerifyEpoch(internal->front(), test_epoch.begin() + 1, test_epoch.end() - 1,
+      1);
+  VerifyEpoch(internal->back(), test_epoch.begin() + 3, test_epoch.end(), 3);
+}
+
+/*
+ * Test that two operations more than kSoftEpochMaxDelayNs apart but with a
+ * fua operation between them are placed in different epochs with no empty
+ * epoch between them.
+ */
+TEST(SoftEpochTest, SplitEpochsDontCrossFua) {
+  vector<disk_write> test_epoch;
+
+  // Create a Checkpoint in the log since all logs start with one.
+  disk_write checkpoint;
+  checkpoint.metadata.write_sector = 0;
+  checkpoint.metadata.bi_flags = HWM_CHECKPOINT_FLAG;
+  checkpoint.metadata.bi_rw = HWM_CHECKPOINT_FLAG;
+  checkpoint.metadata.size = 0;
+  checkpoint.metadata.time_ns = 1;
+  test_epoch.push_back(checkpoint);
+
+  disk_write write1;
+  write1.metadata.bi_rw = HWM_WRITE_FLAG;
+  write1.metadata.write_sector = 512;
+  write1.metadata.size = 32;
+  write1.metadata.time_ns = 1;
+  test_epoch.push_back(write1);
+
+  disk_write barrier;
+  barrier.metadata.write_sector = 0;
+  barrier.metadata.bi_flags = HWM_FUA_FLAG | HWM_WRITE_FLAG;
+  barrier.metadata.bi_rw = HWM_FUA_FLAG | HWM_WRITE_FLAG;
+  barrier.metadata.size = 0;
+  barrier.metadata.time_ns = 2;
+  test_epoch.push_back(barrier);
+
+  disk_write write2;
+  write2.metadata.bi_rw = HWM_WRITE_FLAG;
+  write2.metadata.write_sector = 512;
+  write2.metadata.size = 32;
+  write2.metadata.time_ns = 1 + kSoftEpochMaxDelayNs;
+  test_epoch.push_back(write2);
+
+  TestPermuter tp;
+  const unsigned int sector_size = 512;
+  tp.InitDataVectorSoft(sector_size, test_epoch);
+  vector<epoch> *internal = tp.GetInternalEpochs();
+
+  EXPECT_EQ(internal->size(), 2);
+
+  EXPECT_EQ(internal->front().num_meta, 0);
+  EXPECT_EQ(internal->front().checkpoint_epoch, 0);
+  EXPECT_TRUE(internal->front().has_barrier);
+  EXPECT_FALSE(internal->front().overlaps);
+  EXPECT_EQ(internal->front().ops.size(), 2);
+
+  EXPECT_EQ(internal->back().num_meta, 0);
+  EXPECT_EQ(internal->back().checkpoint_epoch, 0);
+  EXPECT_FALSE(internal->back().has_barrier);
+  EXPECT_FALSE(internal->back().overlaps);
+  EXPECT_EQ(internal->back().ops.size(), 1);
+
+  VerifyEpoch(internal->front(), test_epoch.begin() + 1, test_epoch.end() - 1,
+      1);
+  VerifyEpoch(internal->back(), test_epoch.begin() + 3, test_epoch.end(), 3);
 }
 
 }  // namespace test
