@@ -70,7 +70,11 @@ enum flag_shifts {
   REQ_HASHED_,              // On IO scheduler merge hash.
   REQ_MQ_INFLIGHT_,         // Track inflgiht for MQ (multi-queue?).
   REQ_NO_TIMEOUT_,          // Requests never expire.
-  REQ_NR_BITS_,
+
+  REQ_OP_WRITE_ZEROES_,     // Write the zero filled sector many times (4.15+).
+
+  REQ_NR_BITS_,             // No longer accurate according to the number of
+                            // bits the kernel uses.
 };
 
 #define HWM_WRITE_FLAG (1ULL << REQ_WRITE_)
@@ -84,7 +88,7 @@ enum flag_shifts {
 #define HWM_DISCARD_FLAG (1ULL << REQ_DISCARD_)
 
 #define HWM_SECURE_FLAG (1ULL << REQ_SECURE_)
-#define HWM_WRITE_SAME_FLAG (1ULL << REQ_WRITE_SAME)
+#define HWM_WRITE_SAME_FLAG (1ULL << REQ_WRITE_SAME_)
 #define HWM_NOIDLE_FLAG (1ULL << REQ_NOIDLE_)
 #define HWM_INTEGRITY_FLAG (1ULL << REQ_INTEGRITY_)
 
@@ -116,6 +120,9 @@ enum flag_shifts {
 #define HWM_HASHED_FLAG (1ULL << REQ_HASHED_)
 #define HWM_MQ_INFLIGHT_FLAG (1ULL << REQ_MQ_INFLIGHT_)
 #define HWM_NO_TIMEOUT_FLAG (1ULL << REQ_NO_TIMEOUT_)
+
+// Kernel 4.15+.
+#define HWM_WRITE_ZEROES_FLAG (1ULL << REQ_OP_WRITE_ZEROES_)
 
 #define HWM_CHECKPOINT_FLAG       (1ULL << 63)
 
