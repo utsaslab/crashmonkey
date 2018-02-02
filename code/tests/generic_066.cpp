@@ -55,6 +55,7 @@ class Generic066: public BaseTestCase {
       return -1;
     }
 
+    //add xattrs to the file foo
     int res = fsetxattr(fd_foo, "user.xattr1", "val1", 4, 0);
     if (res < 0) {
       return -1;
@@ -102,8 +103,6 @@ class Generic066: public BaseTestCase {
     }
 
     //Make a user checkpoint here. Checkpoint must be 1 beyond this point. 
-    //We expect that after a log replay we see the new link for foo's inode(bar) 
-    //and that z and foo_2 are only located at directory x.
     if (Checkpoint() < 0){
       return -5;
     }
@@ -117,20 +116,22 @@ class Generic066: public BaseTestCase {
       DataTestResult *test_result) override {
     
     //system("getfattr -d /mnt/snapshot/foo");
-
     char val[1024];
+
+    //if xattr2 is not present, it is correct behavior
     if(getxattr(foo_path.c_str(), "user.xattr2", val, sizeof(val)) < 0){
-      return -1;
+      return 0;
     }
 
+    // Check if xattr2 is present and value is what we set
     bool attr2_present = false;
     if(strcmp(val, "val2") == 0){
-      //std::cout << "\nAttr 2 present" << std::endl;
       attr2_present = true;
     }
 
+    // If we crashed after the checkpoint (i.e fsync()), and
+    // if xattr2 is still present, it is a bug.
     if(last_checkpoint == 1 && attr2_present){
-      //std::cout << "\nCheckpoint is 1 and error" << std::endl;
       test_result->SetError(DataTestResult::kFileMetadataCorrupted); 
       test_result->error_description = " : " + foo_path + " has deleted xattr";
       return 0; 
