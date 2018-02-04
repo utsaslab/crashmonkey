@@ -4,7 +4,6 @@
 #include <sys/stat.h>
 #include <sys/types.h>
 #include <unistd.h>
-#include <map>
 
 #include <cassert>
 #include <cerrno>
@@ -15,9 +14,12 @@
 #include <fstream>
 #include <iostream>
 #include <memory>
+#include <sstream>
+#include <map>
 
 #include "../disk_wrapper_ioctl.h"
 #include "Tester.h"
+#include "../utils/utils.h"
 
 #define TEST_CLASS_FACTORY        "test_case_get_instance"
 #define TEST_CLASS_DEFACTORY      "test_case_delete_instance"
@@ -467,7 +469,9 @@ int Tester::test_check_random_permutations(const int num_rounds, bool add_to_tra
   p->InitDataVector(&log_data);
   vector<disk_write> permutes;
   vector<vector<disk_write>> crash_states;
+  std::vector<SingleTestInfo> test_suite_info;
   for (int rounds = 0; rounds < num_rounds; ++rounds) {
+  // for (int rounds = 0; rounds < 10000; ++rounds) {
     // Print status every 1024 iterations.
     if (rounds & (~((1 << 10) - 1)) && !(rounds & ((1 << 10) - 1))) {
       cout << rounds << std::endl;
@@ -493,6 +497,7 @@ int Tester::test_check_random_permutations(const int num_rounds, bool add_to_tra
 
     if (add_to_train) {
       crash_states.push_back(permutes);
+      test_suite_info.push_back(test_info);
     }
 
     //cout << '.' << std::flush;
@@ -613,50 +618,35 @@ int Tester::test_check_random_permutations(const int num_rounds, bool add_to_tra
   if (add_to_train) { 
     std::cout << "Adding workload to training_data" << std::endl;
     std::vector<int> failed_tests;
-    std::map<int, float> bio_to_probability;
-    std::map<int, int> bio_to_count;
-    int bio_count = log_data.size();
-    string sample_data_file = "../code/dlModel/sample-bio-seq-dist.txt";
-    // Initialize the bio counts and their probabilities
-    for (int i = 1; i <= bio_count; i++) {
-      bio_to_probability[i] = float(0);
-      bio_to_count[i] = 0;
-    }
-    // For every failed test, assigning credits to the bios in the last_epoch
-    test_suite.RetrieveFailedTests(failed_tests);
-    for (int i = 0; i < failed_tests.size(); i++) {
-      std::vector<int> last_epoch;
-      p->BioIndexesOfLastEpoch(crash_states[failed_tests[i]], last_epoch);
-      for (int j = 0; j < last_epoch.size(); j++) {
-        bio_to_probability[last_epoch[j]] += float(1/float(last_epoch.size()));
-        bio_to_count[last_epoch[j]]++;
-      }
-    }
-    // Printing the bio sequences
-    add_bio_sequences();
     std::fstream fs;
+    string sample_data_file;
+    test_suite.RetrieveFailedTests(failed_tests);
+    // dlModel that predicts scores of crash-states (A value that represents the chance that
+    // the crash_consistency tests would fail on replaying this subset of bios) learns from
+    // mapping of crash_states to their scores
+    sample_data_file = "../code/dlModel/sample-crash-state-score.txt";
     fs.open(sample_data_file, std::fstream::in | std::fstream::out | std::fstream::app);
-
-    // Computing and printing bio_probabilities
-    fs << "[";
-    for (int i = 1; i < bio_count; i++) {
-      float probability = bio_to_probability[i];
-      if (abs(bio_to_count[i]-float(0)) <= 0.1) {
-        probability = 0;
-      }
-      else {
-        probability /= bio_to_count[i];
-      }
-      fs << probability << ",";
+    for (int i = 0; i < failed_tests.size(); i++) {
+      bool return_val = add_bio_sequences(crash_states[failed_tests[i]], fs);
+      if (return_val == false)
+      	continue;
+      // Compute and print the scores
+      std::vector<int> bios;
+      // p->BiosInCrashState(crash_states[failed_tests[i]], bios);
+      // int score = 0;
+      // for (int j = 0; j < bios.size(); j++) {
+      //   score += bio_to_count[bios[j]];
+      // }
+      // fs << score << endl;      
+      fs << 100 << endl;
     }
-    float probability = bio_to_probability[bio_count];
-    if (abs(bio_to_count[bio_count]-float(0)) <= 0.1) {
-      probability = 0;
+    for (int i = 0; i < crash_states.size(); i++) {
+      if (find(failed_tests.begin(), failed_tests.end(), i) != failed_tests.end())
+      	continue;
+      add_bio_sequences(crash_states[i], fs);
+      fs << 0 << endl;
     }
-    else {
-      probability /= bio_to_count[bio_count];
-    }
-    fs << probability  << ']' << endl;
+    fs.close();
   }
 
   return SUCCESS;
@@ -794,28 +784,55 @@ int Tester::clear_caches() {
   return SUCCESS;
 }
 
-bool Tester::add_bio_sequences() {
-  string sample_data_file = "../code/dlModel/sample-bio-seq-dist.txt";
+
+bool Tester::add_bio_sequences(std::vector<disk_write> bio_data, std::fstream& fs) {
+  if (bio_data.size() == 0)
+    return false;
   std::string bio_sequence = "[";
-  std::fstream fs;
-  fs.open(sample_data_file, std::fstream::in | std::fstream::out | std::fstream::app);
-  for (const disk_write& dw: log_data) {
+  for (disk_write& dw: bio_data) {
     std::string bio_value = "[";
-    bio_value += std::to_string(dw.metadata.bi_flags);
+    unsigned long long write_sector;
+    // flush, fua, sync
+    (dw.is_async_write())? (bio_value += "1") : (bio_value += "0"); // std::to_string(dw.metadata.bi_flags);
     bio_value += ",";
-    bio_value += std::to_string(dw.metadata.bi_rw);
+    (dw.is_barrier_write())? (bio_value += "1") : (bio_value += "0"); // std::to_string(dw.metadata.bi_flags);
     bio_value += ",";
-    bio_value += std::to_string(dw.metadata.write_sector);
+    (dw.is_meta())? (bio_value += "1") : (bio_value += "0"); // std::to_string(dw.metadata.bi_flags);
     bio_value += ",";
-    bio_value += std::to_string(dw.metadata.size);
+    (dw.has_flush_flag())? (bio_value += "1") : (bio_value += "0"); // std::to_string(dw.metadata.bi_flags);
+    bio_value += ",";
+    (dw.has_flush_seq_flag())? (bio_value += "1") : (bio_value += "0"); // std::to_string(dw.metadata.bi_flags);
+    bio_value += ",";
+    (dw.has_FUA_flag())? (bio_value += "1") : (bio_value += "0"); // std::to_string(dw.metadata.bi_flags);
+    bio_value += ",";
+    write_sector = dw.metadata.write_sector;
+    if (write_sector >= 760 && write_sector <= 2806) {
+      bio_value += std::to_string(1);
+      bio_value += ",";
+    }
+    else if (write_sector >= 2 || write_sector <= 730) {
+      bio_value += std::to_string(2);
+      bio_value += ",";
+    }
+    else {
+      bio_value += std::to_string(3);
+      bio_value += ",";
+    }
+    if (dw.get_data() != NULL) {
+      bio_value += std::to_string(1);
+    }
+    else {
+      bio_value += std::to_string(0);
+    }
     bio_value += "],";
     bio_sequence += bio_value;
   }
+  if (bio_sequence.length() == 1)
+    return false;
+
   bio_sequence[bio_sequence.length()-1] = ']';
   fs << bio_sequence << "\t";
-  // std::cout << bio_sequence << endl;
-  fs.close();
-  return SUCCESS;
+  return true;
 }
 
 int Tester::log_profile_save(string log_file) {
