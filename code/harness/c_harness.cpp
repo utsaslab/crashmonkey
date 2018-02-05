@@ -36,7 +36,7 @@
 #define DIRECTORY_PERMS \
   (S_IRUSR | S_IWUSR | S_IRGRP | S_IWGRP | S_IROTH | S_IWOTH)
 
-#define OPTS_STRING "bd:f:e:l:m:np:r:s:t:vIP"
+#define OPTS_STRING "a:bd:f:e:l:m:np:r:s:t:vIP"
 
 namespace {
   unsigned int kSocketQueueDepth;
@@ -55,6 +55,7 @@ using fs_testing::utils::communication::SocketError;
 using fs_testing::utils::communication::SocketMessage;
 
 static const option long_options[] = {
+  {"add-data-to-train", no_argument, NULL, 'a'},
   {"background", no_argument, NULL, 'b'},
   {"test-dev", required_argument, NULL, 'd'},
   {"disk_size", required_argument, NULL, 'e'},
@@ -84,6 +85,7 @@ int main(int argc, char** argv) {
   string log_file_save("");
   string log_file_load("");
   string permuter(PERMUTER_SO_PATH "RandomPermuter.so");
+  bool add_to_train = false;
   bool background = false;
   bool dry_run = false;
   bool no_lvm = false;
@@ -100,6 +102,9 @@ int main(int argc, char** argv) {
         c != -1;
         c = getopt_long(argc, argv, OPTS_STRING, long_options, &option_idx)) {
     switch (c) {
+      case 'a':
+        add_to_train = true;
+        break;
       case 'b':
         background = true;
         break;
@@ -854,7 +859,7 @@ int main(int argc, char** argv) {
     logfile << "Writing profiled data to block device and checking with fsck" <<
       endl;
 
-    test_harness.test_check_random_permutations(iterations, logfile);
+    test_harness.test_check_random_permutations(iterations, add_to_train, logfile);
 
     for (unsigned int i = 0; i < Tester::NUM_TIME; ++i) {
       cout << "\t" << (Tester::time_stats) i << ": " <<

@@ -577,13 +577,66 @@ pair<milliseconds, milliseconds> Tester::test_fsck_and_user_test(
   return res;
 }
 
-int Tester::test_check_random_permutations(const int num_rounds,
+bool Tester::add_bio_sequences(std::vector<disk_write> bio_data, std::fstream& fs) {
+  if (bio_data.size() == 0)
+    return false;
+  std::string bio_sequence = "[";
+  for (disk_write& dw: bio_data) {
+    std::string bio_value = "[";
+    unsigned long long write_sector;
+    // flush, fua, sync
+    (dw.is_async_write())? (bio_value += "1") : (bio_value += "0"); // std::to_string(dw.metadata.bi_flags);
+    bio_value += ",";
+    (dw.is_barrier())? (bio_value += "1") : (bio_value += "0"); // std::to_string(dw.metadata.bi_flags);
+    bio_value += ",";
+    (dw.is_meta())? (bio_value += "1") : (bio_value += "0"); // std::to_string(dw.metadata.bi_flags);
+    bio_value += ",";
+    (dw.has_flush_flag())? (bio_value += "1") : (bio_value += "0"); // std::to_string(dw.metadata.bi_flags);
+    bio_value += ",";
+    (dw.has_flush_seq_flag())? (bio_value += "1") : (bio_value += "0"); // std::to_string(dw.metadata.bi_flags);
+    bio_value += ",";
+    (dw.has_FUA_flag())? (bio_value += "1") : (bio_value += "0"); // std::to_string(dw.metadata.bi_flags);
+    bio_value += ",";
+    write_sector = dw.metadata.write_sector;
+    // if (write_sector >= 760 && write_sector <= 2806) {
+    //   bio_value += std::to_string(1);
+    //   bio_value += ",";
+    // }
+    // else if (write_sector >= 2 || write_sector <= 730) {
+    //   bio_value += std::to_string(2);
+    //   bio_value += ",";
+    // }
+    // else {
+    //   bio_value += std::to_string(3);
+    //   bio_value += ",";
+    // }
+    // if (dw.get_data() != NULL) {
+    //   bio_value += std::to_string(1);
+    // }
+    // else {
+    //   bio_value += std::to_string(0);
+    // }
+    bio_value += std::to_string(write_sector);
+    bio_value += "],";
+    bio_sequence += bio_value;
+  }
+  if (bio_sequence.length() == 1)
+    return false;
+
+  bio_sequence[bio_sequence.length()-1] = ']';
+  fs << bio_sequence << "\t";
+  return true;
+}
+
+int Tester::test_check_random_permutations(const int num_rounds, const bool add_to_train,
     ofstream& log) {
   assert(current_test_suite_ != NULL);
   time_point<steady_clock> start_time = steady_clock::now();
   Permuter *p = permuter_loader.get_instance();
   p->InitDataVector(log_data);
   vector<disk_write> permutes;
+  vector<vector<disk_write>> crash_states;
+  std::vector<SingleTestInfo> test_suite_info;
   for (int rounds = 0; rounds < num_rounds; ++rounds) {
     // Print status every 1024 iterations.
     if (rounds & (~((1 << 10) - 1)) && !(rounds & ((1 << 10) - 1))) {
@@ -653,6 +706,8 @@ int Tester::test_check_random_permutations(const int num_rounds,
         SNAPSHOT_PATH, test_info.permute_data.last_checkpoint, test_info);
     test_info.PrintResults(log);
     current_test_suite_->TallyReorderingResult(test_info);
+    test_suite_info.push_back(test_info);
+    crash_states.push_back(permutes);
 
     // Accounting for time it took to run the test.
     if (check_res.first.count() > -1) {
@@ -674,6 +729,40 @@ int Tester::test_check_random_permutations(const int num_rounds,
       current_test_suite_->GetReorderingCompleted() <<
       " tests ===============" << endl << endl;
   }
+  // The -a flag adds the execution of the current workload to the sample_data_file
+  // for the ML model to train on
+  if (add_to_train) {
+    std::cout << "Adding workload to training_data" << std::endl;
+    std::fstream fs;
+    string sample_data_file;
+    // failed_tests has tests indexes (starting from 0) that fail
+    std::vector<int> failed_tests;
+    for (int i = 0; i < test_suite_info.size(); i++) {
+      std::cout << test_suite_info[i].GetTestResult()  << " : " << SingleTestInfo::kPassed << endl;
+      if (test_suite_info[i].GetTestResult() != SingleTestInfo::kPassed) {
+        failed_tests.push_back(i);
+      }
+    }
+    std::cout << "FAILED TESTS : " << failed_tests.size() << "out of " << test_suite_info.size() << endl;
+    // test_suite.GetFailedTests(failed_tests);
+    sample_data_file = "../code/dlModel/sample-crash-state-score.txt";
+    fs.open(sample_data_file, std::fstream::in | std::fstream::out | std::fstream::app);
+    for (int i = 0; i < failed_tests.size(); i++) {
+      bool return_val = add_bio_sequences(crash_states[failed_tests[i]], fs);
+      if (return_val == false)
+        continue;
+      std::vector<int> bios;
+      fs << 100 << endl;
+    }
+    for (int i = 0; i < crash_states.size(); i++) {
+      if (find(failed_tests.begin(), failed_tests.end(), i) != failed_tests.end())
+        continue;
+      add_bio_sequences(crash_states[i], fs);
+      fs << 0 << endl;
+    }
+    fs.close();
+  }
+
   return SUCCESS;
 }
 
