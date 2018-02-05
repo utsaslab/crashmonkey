@@ -336,19 +336,19 @@ static unsigned long long convert_flags(unsigned long long flags) {
 #elif LINUX_VERSION_CODE >= KERNEL_VERSION(4, 15, 0) \
     && LINUX_VERSION_CODE < KERNEL_VERSION(4, 16, 0)
 
-  if (flags & REQ_OP_WRITE) {
+  if ((flags & REQ_OP_MASK) == REQ_OP_WRITE) {
     res |= HWM_WRITE_FLAG;
   }
-  if (flags & REQ_OP_DISCARD) {
+  if ((flags & REQ_OP_MASK) == REQ_OP_DISCARD) {
     res |= HWM_DISCARD_FLAG;
   }
-  if (flags & REQ_OP_SECURE_ERASE) {
+  if ((flags & REQ_OP_MASK) == REQ_OP_SECURE_ERASE) {
     res |= HWM_SECURE_FLAG;
   }
-  if (flags & REQ_OP_WRITE_SAME) {
+  if ((flags & REQ_OP_MASK) == REQ_OP_WRITE_SAME) {
     res |= HWM_WRITE_SAME_FLAG;
   }
-  if (flags & REQ_OP_WRITE_ZEROES) {
+  if ((flags & REQ_OP_MASK) == REQ_OP_WRITE_ZEROES) {
     res |= HWM_WRITE_ZEROES_FLAG;
   }
 
@@ -388,6 +388,7 @@ static unsigned long long convert_flags(unsigned long long flags) {
   if (flags & REQ_RAHEAD) {
     res |= HWM_READAHEAD_FLAG;
   }
+
 #else
 #error "Unsupported kernel version: CrashMonkey has not been tested with " \
   "your kernel version."
@@ -635,6 +636,7 @@ static int __init disk_wrapper_init(void) {
     LINUX_VERSION_CODE < KERNEL_VERSION(4, 16, 0)
   Device.target_dev = target_device->bd_disk;
   Device.target_partno = target_device->bd_partno;
+  Device.target_bd = target_device;
 #else
 #error "Unsupported kernel version: CrashMonkey has not been tested with " \
   "your kernel version."

@@ -373,7 +373,7 @@ out:
   return err;
 }
 
-#if LINUX_VERSION_CODE < KERNEL_VERSION(4, 4, 0)
+#if LINUX_VERSION_CODE <= KERNEL_VERSION(4, 4, 0)
 static void brd_make_request(struct request_queue *q, struct bio *bio) {
 #else
 static blk_qc_t brd_make_request(struct request_queue *q, struct bio *bio) {
@@ -385,19 +385,20 @@ static blk_qc_t brd_make_request(struct request_queue *q, struct bio *bio) {
 
   sector = bio->BI_SECTOR;
   if (bio_end_sector(bio) > get_capacity(bio->BI_DISK)) {
-    printk(KERN_INFO DEVICE_NAME ": cow_brd%d past end of disk, EIO\n",
-        brd->brd_number);
     goto out_err;
   }
 
   if ((bio->BI_RW & WRITE || bio->BI_RW & BIO_DISCARD_FLAG) &&
       !brd->is_writable) {
-    printk(KERN_INFO DEVICE_NAME ": cow_brd%d not writable, EIO\n",
-        brd->brd_number);
     goto out_err;
   }
 
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(4, 15, 0) && \
+  LINUX_VERSION_CODE < KERNEL_VERSION(4, 16, 0)
+  if (unlikely(bio_op(bio) == BIO_DISCARD_FLAG)) {
+#else
   if (unlikely(bio->BI_RW & BIO_DISCARD_FLAG)) {
+#endif
     err = 0;
     discard_from_brd(brd, sector, bio->BI_SIZE);
     goto out;
