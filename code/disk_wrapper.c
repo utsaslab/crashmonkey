@@ -397,7 +397,7 @@ static unsigned long long convert_flags(unsigned long long flags) {
 }
 
 static bool should_log(struct bio *bio) {
-#if LINUX_VERSION_CODE <= KERNEL_VERSION(4, 4, 0)
+#if LINUX_VERSION_CODE < KERNEL_VERSION(4, 5, 0)
   return
     (bio->BI_RW & REQ_FLUSH || bio->BI_RW & REQ_FUA ||
      bio->BI_RW & REQ_FLUSH_SEQ || bio->BI_RW & REQ_WRITE ||
