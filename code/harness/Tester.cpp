@@ -513,6 +513,7 @@ pair<milliseconds, milliseconds> Tester::test_fsck_and_user_test(
   }
   if (mount_device(device_path.c_str(), mount_opts.c_str()) != SUCCESS) {
     test_info.fs_test.SetError(FileSystemTestResult::kKernelMount);
+    return res;
   }
   umount_device();
 
