@@ -22,7 +22,8 @@ https://www.spinics.net/lists/linux-btrfs/msg42162.html)
 #include <iostream>
 #include <dirent.h>
 #include <cstring>
-#include <attr/xattr.h>
+#include <linux/xattr.h>
+#include <sys/xattr.h>
 #include <errno.h>
 
 #include "BaseTestCase.h"

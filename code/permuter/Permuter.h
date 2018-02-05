@@ -43,7 +43,7 @@ class Permuter {
   void InitDataVector(std::vector<fs_testing::utils::disk_write> &data);
   bool GenerateCrashState(std::vector<fs_testing::utils::disk_write>& res,
       PermuteTestResult &log_data);
-
+  
  protected:
   std::vector<epoch>* GetEpochs();
 

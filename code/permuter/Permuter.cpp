@@ -229,7 +229,6 @@ vector<epoch>* Permuter::GetEpochs() {
   return &epochs_;
 }
 
-
 bool Permuter::GenerateCrashState(vector<disk_write>& res,
     PermuteTestResult &log_data) {
   vector<epoch_op> crash_state;

@@ -513,7 +513,6 @@ pair<milliseconds, milliseconds> Tester::test_fsck_and_user_test(
   }
   if (mount_device(device_path.c_str(), mount_opts.c_str()) != SUCCESS) {
     test_info.fs_test.SetError(FileSystemTestResult::kKernelMount);
-    return res;
   }
   umount_device();
 
@@ -739,7 +738,6 @@ int Tester::test_check_random_permutations(const int num_rounds, const bool add_
     // failed_tests has tests indexes (starting from 0) that fail
     std::vector<int> failed_tests;
     for (int i = 0; i < test_suite_info.size(); i++) {
-      std::cout << test_suite_info[i].GetTestResult()  << " : " << SingleTestInfo::kPassed << endl;
       if (test_suite_info[i].GetTestResult() != SingleTestInfo::kPassed) {
         failed_tests.push_back(i);
       }
