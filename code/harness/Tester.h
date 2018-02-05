@@ -107,7 +107,7 @@ class Tester {
   int clear_caches();
   void cleanup_harness();
 
-  bool add_bio_sequences();
+bool add_bio_sequences(std::vector<fs_testing::utils::disk_write> bio_data, std::fstream& fs);
 
   // TODO(ashmrtn): Save the fstype in the log file so that we don't
   // accidentally mix logs of one fs type with mount options for another?
