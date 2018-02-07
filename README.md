@@ -23,6 +23,7 @@ The easiest (and recommended) way to start working on (or using) CrashMonkey is 
 * git
 * gcc
 * g++
+* libattr1-dev
 * linux kernel headers
      * install with `sudo apt-get install linux-headers-$(uname -r)`
 
@@ -137,6 +138,8 @@ XFSMonkey is a file-system crash consistency test suite that uses CrashMonkey. X
 
 #### Running XFSMonkey ####
 To run XFSMonkey, first get CrashMonkey up and working. XFSMonkey accepts the same parameters as CrashMonkey standalone tests. To get a list of all supported flags and their default setting, run `python xfsMonkey.py -h` in the root directory of CrashMonkey repository. You can kickstart the XFSMonkey test suite on `ext4` filesystem with default configurations (disk size of 200MB and 1000 iterations per test) by running `python xfsMonkey.py -t ext4`. The test summary can be found in a log file `<date_timestamp>-xfsMonkey.log`. In addition, each test case that was run has a detailed log file `<date_timestamp>-test_name.log`, that can be found in the `build` directory.
+
+The complete list of bugs reproducible with XFSMonkey can be found [here](bugs.md)
 
 
 
