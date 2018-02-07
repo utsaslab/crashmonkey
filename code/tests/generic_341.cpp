@@ -107,7 +107,6 @@ class Generic341: public BaseTestCase {
     // Create test dirA/dirX.
     int res = mkdir(dir_x_path.c_str(), 0777);
     if (res < 0) {
-      std::cout << "DIr create fails X" << std::endl;
       return -2;
     }
 
@@ -135,10 +134,10 @@ class Generic341: public BaseTestCase {
   virtual int check_test(unsigned int last_checkpoint,
       DataTestResult *test_result) override {
 
-    std::cout << "Dir X :" << std::endl;
+    /*std::cout << "Dir X :" << std::endl;
     system("ls /mnt/snapshot/test_dir_a/test_dir_x");
     std::cout << "Dir Y :" << std::endl;    
-    system("ls /mnt/snapshot/test_dir_a/test_dir_y"); 
+    system("ls /mnt/snapshot/test_dir_a/test_dir_y");*/ 
 
     struct stat stats_old;
     struct stat stats_new;
