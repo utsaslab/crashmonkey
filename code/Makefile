@@ -1,3 +1,5 @@
+KERNEL_VERSION := $(shell uname -r)
+
 GCC = gcc
 GPP = g++
 DEBUG_FLAGS += -g -DDEBUG
@@ -9,7 +11,7 @@ TESTING := testing/log_on_off testing/test_get_log_ent_size
 
 MODULES = cow_brd disk_wrapper
 obj-m := $(addsuffix .o, $(MODULES))
-KDIR := /lib/modules/$(shell uname -r)/build
+KDIR := /lib/modules/$(KERNEL_VERSION)/build
 
 CM_TESTS_EXCLUDE = BaseTestCase.cpp
 CM_TESTS = \
@@ -21,6 +23,18 @@ CM_PERMUTERS = \
 		$(patsubst %.cpp, %.so, \
 			$(filter-out $(CM_PERMUTER_EXCLUDE), \
 				$(notdir $(wildcard $(CURDIR)/permuter/*.cpp))))
+
+# Some Makefile magic to get the right include for xattr depending on kernel
+# version. To avoid including kernel headers in user test cases, we don't want
+# to compare against the KERNEL_VERSION macro. Thanks to some random SO post for
+# how to compare the kernel version.
+KERNEL_MAJ := $(shell echo $(KERNEL_VERSION) | cut -f1 -d.)
+KERNEL_MIN := $(shell echo $(KERNEL_VERSION) | cut -f2 -d.)
+XATTR_DEF_FLAG := ""
+ifeq ($(shell [ $(KERNEL_MAJ) -gt 4 -o \
+	\( $(KERNEL_MAJ) -eq 4 -a $(KERNEL_MIN) -ge 15 \) ] && echo true), true)
+XATTR_DEF_FLAG := -DNEW_XATTR_INC
+endif
 
 .PHONY: all modules c_harness user_tool $(CM_TESTS) $(CM_PERMUTERS) clean
 
@@ -99,7 +113,8 @@ $(BUILD_DIR)/tests/%.so: \
 		$(BUILD_DIR)/utils/communication/ClientCommandSender.o \
 		$(BUILD_DIR)/results/DataTestResult.o
 	mkdir -p $(@D)
-	$(GPP) $(GOPTS) $(GOTPSSO) -Wl,-soname,$(notdir $@) -o $@ $^
+	$(GPP) $(GOPTS) $(GOTPSSO) $(XATTR_DEF_FLAG) -Wl,-soname,$(notdir $@) \
+		-o $@ $^
 
 $(BUILD_DIR)/tests/%.o: \
 		tests/%.cpp

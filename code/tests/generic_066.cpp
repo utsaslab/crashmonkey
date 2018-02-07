@@ -22,8 +22,14 @@ https://www.spinics.net/lists/linux-btrfs/msg42162.html)
 #include <iostream>
 #include <dirent.h>
 #include <cstring>
-#include <attr/xattr.h>
 #include <errno.h>
+
+// Header file was changed in 4.15 kernel.
+#ifdef NEW_XATTR_INC
+#include <sys/xattr.h>
+#else
+#include <attr/xattr.h>
+#endif
 
 #include "BaseTestCase.h"
 #include "../user_tools/api/workload.h"
