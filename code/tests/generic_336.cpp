@@ -177,11 +177,11 @@ class Generic336: public BaseTestCase {
     if (dir) {
       //Get all files in this directory
       while ((dir_entry = readdir(dir)) != NULL) {
-        if (dir_entry->d_type == DT_REG){
+        //if (dir_entry->d_type == DT_REG){
           if (strcmp(dir_entry->d_name, "foo") == 0){
             foo_present_in_A = true;
           }
-        }
+        //}
       }
     }
 

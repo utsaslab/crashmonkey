@@ -190,7 +190,7 @@ class Generic343: public BaseTestCase {
     if (dir) {
       //Get all files in this directory
       while ((dir_entry = readdir(dir)) != NULL) {
-        if (dir_entry->d_type == DT_REG || DT_DIR){
+        //if (dir_entry->d_type == DT_REG || DT_DIR){
           if (strcmp(dir_entry->d_name, "foo") == 0){
           	foo_present_in_X = true;
           }
@@ -204,7 +204,7 @@ class Generic343: public BaseTestCase {
             z_present_in_X = true;
           }
           else ;
-        }
+        //}
       }
     }
 
@@ -215,7 +215,7 @@ class Generic343: public BaseTestCase {
     if (dir) {
       //Get all files in this directory
       while ((dir_entry = readdir(dir)) != NULL) {
-        if (dir_entry->d_type == DT_REG || DT_DIR){
+        //if (dir_entry->d_type == DT_REG || DT_DIR){
         	if (strcmp(dir_entry->d_name, "foo_2") == 0){
           		foo_2_present_in_Y = true;
           	}
@@ -223,7 +223,7 @@ class Generic343: public BaseTestCase {
             	z_present_in_Y = true;
          	}
          	else ;
-        }
+        //}
       }
     }
 
