@@ -87,8 +87,8 @@ def main():
 			#Build command to run c_harness 
 			command = ('cd build; ./c_harness -f '+ parsed_args.flag_dev +' -d '+ 
 			parsed_args.test_dev +' -t ' + parsed_args.fs_type + ' -e ' + 
-			str(parsed_args.disk_size) + ' -s ' + str(parsed_args.iterations) +' -r '+ 
-			snapshot + ' ' + test_file + ' 2>&1')
+			str(parsed_args.disk_size) + ' -s ' + str(parsed_args.iterations) +' -l '+ 
+			snapshot + ' -v ' + test_file + ' 2>&1')
 	
 			#Cleanup errors due to prev runs if any
 			cleanup()
