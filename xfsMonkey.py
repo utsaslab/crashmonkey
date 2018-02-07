@@ -20,10 +20,10 @@ class Log(object):
             f.flush()
 
 def build_parser():
-    parser = argparse.ArgumentParser(description='CrashMonkey Test Suite v1.0')
+    parser = argparse.ArgumentParser(description='XFSMonkey Test Suite v1.0')
 
     # global args
-    parser.add_argument('--fs_type', '-t', default='ext4', help='Filesystem on which you wish to run CrashMonkey test suite. Default = ext4')
+    parser.add_argument('--fs_type', '-t', default='ext4', help='Filesystem on which you wish to run XFSMonkey test suite. Default = ext4')
 
     # crash monkey args
     parser.add_argument('--disk_size', '-e', default=204800, type=int, help='Size of disk in KB. Default = 200MB')
@@ -44,10 +44,10 @@ def cleanup():
 	print 'Done cleaning up test harness'
 
 def print_setup(parsed_args):
-	print '\n{: ^50s}'.format('xfsMonkey Test Suite v1.0\n')
+	print '\n{: ^50s}'.format('XFSMonkey Test Suite v0.1\n')
 	print '='*20, 'Setup' , '='*20, '\n'
 	print '{0:20}  {1}'.format('Filesystem type', parsed_args.fs_type)
-	print '{0:20}  {1}'.format('Disk size', parsed_args.disk_size)
+	print '{0:20}  {1}'.format('Disk size (MB)', parsed_args.disk_size/1024)
 	print '{0:20}  {1}'.format('Iterations per test', parsed_args.iterations)
 	print '{0:20}  {1}'.format('Test device', parsed_args.test_dev)	
 	print '{0:20}  {1}'.format('Flags device', parsed_args.flag_dev)	
