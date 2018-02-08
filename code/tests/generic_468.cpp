@@ -89,18 +89,18 @@ class EOFBlocksLoss: public BaseTestCase {
       return 0;
     }
 
-    std::cout << "Stat of the file :" << std::endl;
+    /*std::cout << "Stat of the file :" << std::endl;
     std::cout << "Size = " << stats.st_size << std::endl;
     std::cout << "Block count = " << stats.st_blocks << std::endl;
     std::cout << "FS block size = "<< stats.st_blksize << std::endl;
-    std::cout << "Inode num = "<< stats.st_ino << std::endl;
+    std::cout << "Inode num = "<< stats.st_ino << std::endl;*/
 
     //After fdatasync call, if you crash at any point, and on recovery
     //if blocks != 32, EOF blocks are missing.
     if (last_checkpoint == 2 && stats.st_blocks != 32) {
     	test_result->SetError(DataTestResult::kIncorrectBlockCount);
       test_result->error_description =
-        "expected file to have 32 blocks but found " +
+        "Expected file to have 32 blocks but found " +
         std::to_string(stats.st_blocks);
     	return 0;
     }
