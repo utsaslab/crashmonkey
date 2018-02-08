@@ -43,7 +43,7 @@ static const char* const flag_names[] = {
   "flush", "read ahead", "throttled", "sorted", "soft barrier", "no merge",
   "started", "don't prep", "queued", "elv priv", "failed", "quiet", "preempt",
   "alloced", "copy user", "flush seq", "io stat", "mixed merge", "pm",
-  "hashed", "mq_inflight", "no timeout", "nr bits"
+  "hashed", "mq_inflight", "no timeout", "op write zeroes", "nr bits"
 };
 
 static char const checkpoint_name[] = "checkpoint";

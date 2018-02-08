@@ -347,20 +347,20 @@ static void copy_from_brd(void *dst, struct brd_device *brd, sector_t sector,
  * Process a single bvec of a bio.
  */
 static int brd_do_bvec(struct brd_device *brd, struct page *page,
-      unsigned int len, unsigned int off, int rw,
+      unsigned int len, unsigned int off, bool is_write,
       sector_t sector)
 {
   void *mem;
   int err = 0;
 
-  if (rw != READ) {
+  if (is_write) {
     err = copy_to_brd_setup(brd, sector, len);
     if (err)
       goto out;
   }
 
   mem = kmap_atomic(page);
-  if (rw == READ) {
+  if (!is_write) {
     copy_from_brd(mem + off, brd, sector, len);
     flush_dcache_page(page);
   } else {
@@ -373,39 +373,40 @@ out:
   return err;
 }
 
-static void brd_make_request(struct request_queue *q, struct bio *bio)
-{
-  struct block_device *bdev = bio->bi_bdev;
-  struct brd_device *brd = bdev->bd_disk->private_data;
-  int rw;
+#if LINUX_VERSION_CODE <= KERNEL_VERSION(4, 4, 0)
+static void brd_make_request(struct request_queue *q, struct bio *bio) {
+#else
+static blk_qc_t brd_make_request(struct request_queue *q, struct bio *bio) {
+#endif
+  struct brd_device *brd = bio->BI_DISK->private_data;
+  bool rw;
   sector_t sector;
   int err = -EIO;
 
   sector = bio->BI_SECTOR;
-  if (bio_end_sector(bio) > get_capacity(bdev->bd_disk)) {
-    printk(KERN_INFO DEVICE_NAME ": cow_brd%d past end of disk, EIO\n",
-        brd->brd_number);
-    goto out;
+  if (bio_end_sector(bio) > get_capacity(bio->BI_DISK)) {
+    goto out_err;
   }
 
-  if ((bio->bi_rw & WRITE || bio->bi_rw & REQ_DISCARD) && !brd->is_writable) {
-    printk(KERN_INFO DEVICE_NAME ": cow_brd%d not writable, EIO\n",
-        brd->brd_number);
-    goto out;
+  if ((bio->BI_RW & WRITE || bio->BI_RW & BIO_DISCARD_FLAG) &&
+      !brd->is_writable) {
+    goto out_err;
   }
 
-  if (unlikely(bio->bi_rw & REQ_DISCARD)) {
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(4, 15, 0) && \
+  LINUX_VERSION_CODE < KERNEL_VERSION(4, 16, 0)
+  if (unlikely(bio_op(bio) == BIO_DISCARD_FLAG)) {
+#else
+  if (unlikely(bio->BI_RW & BIO_DISCARD_FLAG)) {
+#endif
     err = 0;
     discard_from_brd(brd, sector, bio->BI_SIZE);
     goto out;
   }
 
-  rw = bio_rw(bio);
-  if (rw == READA) {
-    rw = READ;
-  }
+  rw = BIO_IS_WRITE(bio);
 
-  #if LINUX_VERSION_CODE < KERNEL_VERSION(3, 16, 0)
+#if LINUX_VERSION_CODE < KERNEL_VERSION(3, 14, 0)
   struct bio_vec *bvec;
   int iter;
   bio_for_each_segment(bvec, bio, iter) {
@@ -413,11 +414,11 @@ static void brd_make_request(struct request_queue *q, struct bio *bio)
     err = brd_do_bvec(brd, bvec->bv_page, len,
           bvec->bv_offset, rw, sector);
     if (err) {
-      break;
+      goto out_err;
     }
     sector += len >> SECTOR_SHIFT;
   }
-  #else
+#else
   struct bio_vec bvec;
   struct bvec_iter iter;
   bio_for_each_segment(bvec, bio, iter) {
@@ -425,14 +426,24 @@ static void brd_make_request(struct request_queue *q, struct bio *bio)
     err = brd_do_bvec(brd, bvec.bv_page, len,
           bvec.bv_offset, rw, sector);
     if (err) {
-      break;
+      goto out_err;
     }
     sector += len >> SECTOR_SHIFT;
   }
-  #endif
+#endif
 
 out:
   BIO_ENDIO(bio, err);
+#if LINUX_VERSION_CODE < KERNEL_VERSION(4, 5, 0)
+  return;
+#else
+  return BLK_QC_T_NONE;
+#endif
+out_err:
+  BIO_IO_ERR(bio, err);
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(4, 5, 0)
+  return BLK_QC_T_NONE;
+#endif
 }
 
 #ifdef CONFIG_BLK_DEV_XIP
@@ -463,7 +474,6 @@ static int brd_ioctl(struct block_device *bdev, fmode_t mode,
 {
   int error = 0;
   struct brd_device *brd = bdev->bd_disk->private_data;
-  struct brd_device *snapshots;
 
   switch (cmd) {
     case COW_BRD_SNAPSHOT:
@@ -570,7 +580,9 @@ static struct brd_device *brd_alloc(int i)
 
   brd->brd_queue->limits.discard_granularity = PAGE_SIZE;
   brd->brd_queue->limits.max_discard_sectors = UINT_MAX;
+#if LINUX_VERSION_CODE < KERNEL_VERSION(4, 12, 0)
   brd->brd_queue->limits.discard_zeroes_data = 1;
+#endif
   queue_flag_set_unlocked(QUEUE_FLAG_DISCARD, brd->brd_queue);
 
   disk = brd->brd_disk = alloc_disk(1 << part_shift);
