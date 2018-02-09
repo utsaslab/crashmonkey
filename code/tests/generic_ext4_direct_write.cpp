@@ -64,7 +64,6 @@ class genericDirectWrite: public BaseTestCase {
 
     //Open the same file for direct write
     fd_reg = open(kTestFile, O_RDWR | O_DIRECT | O_SYNC, TEST_FILE_PERMS);
-    //fd_reg = open(kTestFile, O_RDWR , TEST_FILE_PERMS);
     if (fd_reg < 0) {
       return -3;
     }
@@ -83,11 +82,6 @@ class genericDirectWrite: public BaseTestCase {
       close(fd_reg);
       return -5;
     }
-
-    /*if (WriteData(fd_reg, 0, 4096) < 0) {
-      close(fd_reg);
-      return -4;
-    }*/
 
     //Let's ensure journal entries for direct write went through
     sleep(5);
@@ -108,12 +102,15 @@ class genericDirectWrite: public BaseTestCase {
 
     struct stat stats;
     int res = stat(TEST_MNT "/" TEST_FILE, &stats);
+
+    //Should never happen. We persist the file in setup
     if (res < 0) {
       test_result->SetError(DataTestResult::kFileMissing);
       return 0;
     }
 
-    std::cout << "Stat of the file :" << std::endl;
+    //We don't want to print these stuff. Uncomment for debugging only
+    /*std::cout << "Stat of the file :" << std::endl;
     std::cout << "Size = " << stats.st_size << std::endl;
     std::cout << "Block count = " << stats.st_blocks << std::endl;
     std::cout << "FS block size = "<< stats.st_blksize << std::endl;
@@ -122,44 +119,19 @@ class genericDirectWrite: public BaseTestCase {
     //Just to verify, stat the file using debugfs to see the extents allocated
     std::string block_command = "debugfs -R \'stat <12>\' /dev/cow_ram_snapshot1_0 ";
     system(block_command.c_str());
+	*/
 
+    //If blocks allocated is > 0, then i_size must be > 0
     if(stats.st_blocks > 0){
-      std::cout << "Blocks > 0 and size = " << stats.st_size << std::endl;
-      //FILE* f = fopen(kTestFile, "rw");
-      int fd = open(kTestFile, O_RDWR);
-      unsigned int bytes_read = 0;
-      char* buf = (char*) calloc(TEXT_SIZE, sizeof(char));
-      if (buf == NULL) {
-        test_result->SetError(DataTestResult::kOther);
-      }
 
-      //read offset 0-4K
-      //bytes_read = fread(buf, 1, TEXT_SIZE, f);
-      bytes_read = read(fd, buf, TEXT_SIZE);
-
-      //std::cout << "Buf size strlen = " << strlen(buf) << std::endl;
-      //std::cout << "Bytes read = " << bytes_read << std::endl;
-      if (bytes_read < TEXT_SIZE) {
-        //data corrupted
-        std::cout << "File data corrupted" << std::endl;
-        test_result->SetError(DataTestResult::kFileDataCorrupted);
-      }
-
-      //Just sanity checks
-      if(stats.st_blocks == 8){
-        block_command = "debugfs -R \'cat <12>\' /dev/cow_ram_snapshot1_0 ";
-        system(block_command.c_str());
-
-        block_command = "debugfs -R \'testb 8481\' /dev/cow_ram_snapshot1_0 ";
-        system(block_command.c_str());
-      }
-
-      close(fd);
-      //fclose(f);
-      free(buf);
+      if(stats.st_size == 0) {
+      	test_result->SetError(DataTestResult::kFileMetadataCorrupted);
+      	test_result->error_description =
+        " : File size = 0 but block count = " +
+        std::to_string(stats.st_blocks);
+      	return 0;
+      }	
     }
-
-    std::cout << "\n" << std::endl;
 
     return 0;
   }
