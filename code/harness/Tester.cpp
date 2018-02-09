@@ -1089,8 +1089,6 @@ void Tester::log_disk_write_data(std::ostream &log) {
     "time" << " " << std::setw(18) << "sector" << " " << std::setw(18) <<
     "size" << std::endl;
   for (unsigned int i = 0; i < log_data.size(); ++i) {
-    std::cout << "logging data at address " << std::hex << &log_data.at(i) <<
-      std::dec << std::endl;
     log << std::setw(5) << i << ' ' << log_data.at(i);
   }
   log.precision(digits);
