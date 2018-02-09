@@ -91,6 +91,7 @@ $(BUILD_DIR)/harness/%.o: \
 $(BUILD_DIR)/c_harness: \
 		harness/c_harness.cpp \
 		harness/Tester.cpp \
+		$(BUILD_DIR)/harness/FsSpecific.o \
 		$(BUILD_DIR)/utils/utils.o \
 		$(BUILD_DIR)/utils/communication/ServerSocket.o \
 		$(BUILD_DIR)/utils/communication/BaseSocket.o \

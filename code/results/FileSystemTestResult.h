@@ -13,6 +13,7 @@ namespace {
   static const unsigned int kBioWrite_ = 4;
   static const unsigned int kOther_ = 5;
   static const unsigned int kKernelMount_ = 6;
+  static const unsigned int kCheckUnfixed_ = 7;
 }  // namespace
 
 class FileSystemTestResult {
@@ -26,6 +27,7 @@ class FileSystemTestResult {
     kBioWrite = (1 << kBioWrite_),
     kOther = (1 << kOther_),
     kKernelMount = (1 << kKernelMount_),
+    kCheckUnfixed = (1 << kCheckUnfixed_),
   };
 
   FileSystemTestResult();
