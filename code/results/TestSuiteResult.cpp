@@ -83,6 +83,8 @@ void TestSuiteResult::PrintResults(ostream& os) const {
     "\n\t\tfile data corrupted: " << reordering_results_.file_data_corrupted <<
     "\n\t\tfile metadata corrupted: " <<
       reordering_results_.file_metadata_corrupted <<
+    "\n\t\tincorrect block count: " <<
+      reordering_results_.incorrect_block_count <<
     "\n\t\tother: " << reordering_results_.other << endl << endl;
 
   os << "Timing tests ran " << GetTimingCompleted() << " tests with" <<
