@@ -508,21 +508,19 @@ pair<milliseconds, milliseconds> Tester::test_fsck_and_user_test(
         fs_specific_ops_->GetPostReplayMntOpts().c_str()) != SUCCESS) {
     test_info.fs_test.SetError(FileSystemTestResult::kKernelMount);
   }
-  umount_device();
 
-  // Take the comamnd we are given and redirect stderr to stdout so we can pull
-  // it all out with popen below.
-  string command(fs_specific_ops_->GetFsckCommand(device_path) + " 2>&1");
+  // Only run fsck if we failed when mounting the file system above.
+  if (test_info.fs_test.GetError() & FileSystemTestResult::kKernelMount) {
+    // Take the comamnd we are given and redirect stderr to stdout so we can
+    // pull it all out with popen below.
+    string command(fs_specific_ops_->GetFsckCommand(device_path) + " 2>&1");
 
-  // Begin fsck timing.
-  time_point<steady_clock> fsck_start_time = steady_clock::now();
+    // Begin fsck timing.
+    time_point<steady_clock> fsck_start_time = steady_clock::now();
 
-  // Use popen so that we can throw all the output from fsck into the log that
-  // we are keeping. This information will go just before the summary of what
-  // went wrong in the test.
-  if (fs_specific_ops_->AlwaysRunFsck() ||
-      (test_info.fs_test.GetError() & FileSystemTestResult::kKernelMount)) {
-    std::cout << "running fsck" << std::endl;
+    // Use popen so that we can throw all the output from fsck into the log that
+    // we are keeping. This information will go just before the summary of what
+    // went wrong in the test.
     FILE *pipe = popen(command.c_str(), "r");
     char tmp[128];
     if (!pipe) {
@@ -552,27 +550,34 @@ pair<milliseconds, milliseconds> Tester::test_fsck_and_user_test(
       test_info.fs_test.error_description = string("exit status ") +
         to_string(WEXITSTATUS(test_info.fs_test.fs_check_return));
       return res;
-    } else {
-      test_info.fs_test.SetError(fs_specific_ops_->GetFsckReturn(
-            WEXITSTATUS(test_info.fs_test.fs_check_return)));
+    }
+
+    // Fsck (or equivalent) finished without anything major going wrong. Record
+    // this and remount the file system so that we're ready to run the user test
+    // case.
+    test_info.fs_test.SetError(fs_specific_ops_->GetFsckReturn(
+          WEXITSTATUS(test_info.fs_test.fs_check_return)));
+
+    // TODO(ashmrtn): Consider mounting with options specified for test
+    // profile?
+    if (mount_device(device_path.c_str(), NULL) != SUCCESS) {
+      test_info.fs_test.SetError(FileSystemTestResult::kUnmountable);
+      return res;
     }
   }
-  // TODO(ashmrtn): Consider mounting with options specified for test
-  // profile?
-  if (mount_device(device_path.c_str(), NULL) != SUCCESS) {
-    test_info.fs_test.SetError(FileSystemTestResult::kUnmountable);
-    return res;
-  } else {
-    // Begin test case timing.
-    time_point<steady_clock> test_case_start_time = steady_clock::now();
-    const int test_check_res =
-        test_loader.get_instance()->check_test(last_checkpoint,
-                                               &test_info.data_test);
-    time_point<steady_clock> test_case_end_time = steady_clock::now();
-    res.second = duration_cast<milliseconds>(
-        test_case_end_time - test_case_start_time);
-    // End test case timing.
-  }
+
+  // Begin test case timing.
+  time_point<steady_clock> test_case_start_time = steady_clock::now();
+  const int test_check_res =
+      test_loader.get_instance()->check_test(last_checkpoint,
+                                             &test_info.data_test);
+  time_point<steady_clock> test_case_end_time = steady_clock::now();
+  res.second = duration_cast<milliseconds>(
+      test_case_end_time - test_case_start_time);
+  // End test case timing.
+
+  // File system was either mounted at the very start of this segment or after
+  // fsck was run. Unmount it before moving on.
   umount_device();
   return res;
 }

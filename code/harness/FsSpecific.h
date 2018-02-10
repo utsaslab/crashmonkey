@@ -46,12 +46,6 @@ class FsSpecific {
    */
   virtual fs_testing::FileSystemTestResult::ErrorType
     GetFsckReturn(int return_code) = 0;
-
-  /*
-   * Whether or not to run fsck (or equivalent) each time we have a new crash
-   * state or just when there are mount problems with the file system.
-   */
-  virtual bool AlwaysRunFsck() = 0;
 };
 
 class Ext4FsSpecific : public FsSpecific {
@@ -62,12 +56,8 @@ class Ext4FsSpecific : public FsSpecific {
   virtual std::string GetFsckCommand(const std::string &fs_path);
   virtual fs_testing::FileSystemTestResult::ErrorType GetFsckReturn(
       int return_code);
-  virtual bool AlwaysRunFsck();
 
   static constexpr char kFsType[] = "ext4";
-
- private:
-  static const bool kAlwaysRunFsck = true;
 };
 
 class BtrfsFsSpecific : public FsSpecific {
@@ -78,12 +68,8 @@ class BtrfsFsSpecific : public FsSpecific {
   virtual std::string GetFsckCommand(const std::string &fs_path);
   virtual fs_testing::FileSystemTestResult::ErrorType GetFsckReturn(
       int return_code);
-  virtual bool AlwaysRunFsck();
 
   static constexpr char kFsType[] = "btrfs";
-
- private:
-  static const bool kAlwaysRunFsck = true;
 };
 
 class F2fsFsSpecific : public FsSpecific {
@@ -94,12 +80,8 @@ class F2fsFsSpecific : public FsSpecific {
   virtual std::string GetFsckCommand(const std::string &fs_path);
   virtual fs_testing::FileSystemTestResult::ErrorType GetFsckReturn(
       int return_code);
-  virtual bool AlwaysRunFsck();
 
   static constexpr char kFsType[] = "f2fs";
-
- private:
-  static const bool kAlwaysRunFsck = true;
 };
 
 class XfsFsSpecific : public FsSpecific {
@@ -110,12 +92,8 @@ class XfsFsSpecific : public FsSpecific {
   virtual std::string GetFsckCommand(const std::string &fs_path);
   virtual fs_testing::FileSystemTestResult::ErrorType GetFsckReturn(
       int return_code);
-  virtual bool AlwaysRunFsck();
 
   static constexpr char kFsType[] = "xfs";
-
- private:
-  static const bool kAlwaysRunFsck = false;
 };
 
 /*

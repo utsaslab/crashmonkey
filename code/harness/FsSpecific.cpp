@@ -76,10 +76,6 @@ string Ext4FsSpecific::GetFsTypeString() {
   return string(Ext4FsSpecific::kFsType);
 }
 
-bool Ext4FsSpecific::AlwaysRunFsck() {
-  return Ext4FsSpecific::kAlwaysRunFsck;
-}
-
 /******************************* Btrfs ****************************************/
 constexpr char BtrfsFsSpecific::kFsType[];
 
@@ -111,10 +107,6 @@ FileSystemTestResult::ErrorType BtrfsFsSpecific::GetFsckReturn(
 
 string BtrfsFsSpecific::GetFsTypeString() {
   return string(BtrfsFsSpecific::kFsType);
-}
-
-bool BtrfsFsSpecific::AlwaysRunFsck() {
-  return BtrfsFsSpecific::kAlwaysRunFsck;
 }
 
 /******************************* F2fs *****************************************/
@@ -150,10 +142,6 @@ string F2fsFsSpecific::GetFsTypeString() {
   return string(F2fsFsSpecific::kFsType);
 }
 
-bool F2fsFsSpecific::AlwaysRunFsck() {
-  return F2fsFsSpecific::kAlwaysRunFsck;
-}
-
 /******************************* Xfs ******************************************/
 constexpr char XfsFsSpecific::kFsType[];
 
@@ -180,10 +168,6 @@ FileSystemTestResult::ErrorType XfsFsSpecific::GetFsckReturn(
 
 string XfsFsSpecific::GetFsTypeString() {
   return string(XfsFsSpecific::kFsType);
-}
-
-bool XfsFsSpecific::AlwaysRunFsck() {
-  return XfsFsSpecific::kAlwaysRunFsck;
 }
 
 }  // namespace fs_testing
