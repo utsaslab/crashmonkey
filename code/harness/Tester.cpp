@@ -657,10 +657,10 @@ int Tester::test_check_random_permutations(const int num_rounds,
 
     // Accounting for time it took to run the test.
     if (check_res.first.count() > -1) {
-      timing_stats[FSCK_TIME] + check_res.first;
+      timing_stats[FSCK_TIME] += check_res.first;
     }
     if (check_res.second.count() > -1) {
-      timing_stats[TEST_CASE_TIME] + check_res.second;
+      timing_stats[TEST_CASE_TIME] += check_res.second;
     }
   }
 
