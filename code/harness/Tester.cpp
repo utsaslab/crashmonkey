@@ -19,8 +19,9 @@
 #include <string>
 #include <utility>
 
-#include "../disk_wrapper_ioctl.h"
+#include "FsSpecific.h"
 #include "Tester.h"
+#include "../disk_wrapper_ioctl.h"
 
 #define TEST_CLASS_FACTORY        "test_case_get_instance"
 #define TEST_CLASS_DEFACTORY      "test_case_delete_instance"
@@ -43,7 +44,6 @@
 #define PART_PART_DRIVE_2 " << EOF\no\nn\np\n1\n\n\nw\nEOF\n"
 #define PART_DEL_PART_DRIVE   "fdisk "
 #define PART_DEL_PART_DRIVE_2 " << EOF\no\nw\nEOF\n"
-#define FMT_FMT_DRIVE   "mkfs -t "
 
 #define WRAPPER_MODULE_NAME "../build/disk_wrapper.ko"
 #define WRAPPER_INSMOD      "insmod " WRAPPER_MODULE_NAME " target_device_path="
@@ -64,9 +64,6 @@
 #define DEV_SECTORS_PATH_2  "/size"
 
 #define SECTOR_SIZE 512
-
-// TODO(ashmrtn): Expand to work with other file system types.
-#define TEST_CASE_FSCK "fsck -T -t "
 
 namespace fs_testing {
 
@@ -97,16 +94,19 @@ using fs_testing::permuter::permuter_create_t;
 using fs_testing::permuter::permuter_destroy_t;
 using fs_testing::utils::disk_write;
 
-namespace {
-  constexpr char kExt4[] = "ext4";
-  constexpr char kErrMountRo[] = "errors=remount-ro";
-}  // namespace
-
 Tester::Tester(const unsigned int dev_size, const bool verbosity)
   : device_size(dev_size), verbose(verbosity) {}
 
+Tester::~Tester() {
+  if (fs_specific_ops_ != NULL) {
+    delete fs_specific_ops_;
+  }
+}
+
 void Tester::set_fs_type(const string type) {
   fs_type = type;
+  fs_specific_ops_ = GetFsSpecific(fs_type);
+  assert(fs_specific_ops_ != NULL);
 }
 
 void Tester::set_device(const string device_path) {
@@ -460,7 +460,7 @@ int Tester::format_drive() {
   if (device_raw.empty()) {
     return PART_PART_ERR;
   }
-  string command(FMT_FMT_DRIVE + fs_type + " " +  device_mount);
+  string command = fs_specific_ops_->GetMkfsCommand(device_mount);
   if (!verbose) {
     command += SILENT;
   }
@@ -504,76 +504,80 @@ pair<milliseconds, milliseconds> Tester::test_fsck_and_user_test(
   // Try mounting the file system so that the kernel can clean up orphan lists
   // and anything else it may need to so that fsck does a better job later if
   // we run it.
-  string mount_opts("");
-  // If ext4, remount with "errors=remount-ro".
-  if (fs_type.compare(kExt4) == 0) {
-    if (!mount_opts.empty()) {
-      mount_opts += ",";
-    }
-    mount_opts += kErrMountRo;
-  }
-  if (mount_device(device_path.c_str(), mount_opts.c_str()) != SUCCESS) {
+  if (mount_device(device_path.c_str(),
+        fs_specific_ops_->GetPostReplayMntOpts().c_str()) != SUCCESS) {
     test_info.fs_test.SetError(FileSystemTestResult::kKernelMount);
   }
-  umount_device();
 
-  // TODO(ashmrtn): Change this command for btrfs to use `btrfs check`.
-  string command(TEST_CASE_FSCK + fs_type + " " + device_path + " -- -y 2>&1");
+  // Only run fsck if we failed when mounting the file system above.
+  if (test_info.fs_test.GetError() & FileSystemTestResult::kKernelMount) {
+    // Take the comamnd we are given and redirect stderr to stdout so we can
+    // pull it all out with popen below.
+    string command(fs_specific_ops_->GetFsckCommand(device_path) + " 2>&1");
 
-  // Begin fsck timing.
-  time_point<steady_clock> fsck_start_time = steady_clock::now();
+    // Begin fsck timing.
+    time_point<steady_clock> fsck_start_time = steady_clock::now();
 
-  // Use popen so that we can throw all the output from fsck into the log that
-  // we are keeping. This information will go just before the summary of what
-  // went wrong in the test.
-  FILE *pipe = popen(command.c_str(), "r");
-  char tmp[128];
-  if (!pipe) {
-    test_info.fs_test.SetError(FileSystemTestResult::kOther);
-    test_info.fs_test.error_description = "error running fsck";
+    // Use popen so that we can throw all the output from fsck into the log that
+    // we are keeping. This information will go just before the summary of what
+    // went wrong in the test.
+    FILE *pipe = popen(command.c_str(), "r");
+    char tmp[128];
+    if (!pipe) {
+      test_info.fs_test.SetError(FileSystemTestResult::kOther);
+      test_info.fs_test.error_description = "error running fsck";
+      time_point<steady_clock> fsck_end_time = steady_clock::now();
+      res.first = duration_cast<milliseconds>(fsck_end_time - fsck_start_time);
+      return res;
+    }
+    while (!feof(pipe)) {
+      char *r = fgets(tmp, 128, pipe);
+      // NULL can be returned on error.
+      if (r != NULL) {
+        test_info.fs_test.fsck_result += tmp;
+      }
+    }
+    test_info.fs_test.fs_check_return = pclose(pipe);
     time_point<steady_clock> fsck_end_time = steady_clock::now();
     res.first = duration_cast<milliseconds>(fsck_end_time - fsck_start_time);
-    return res;
-  }
-  while (!feof(pipe)) {
-    char *r = fgets(tmp, 128, pipe);
-    // NULL can be returned on error.
-    if (r != NULL) {
-      test_info.fs_test.fsck_result += tmp;
+    // End fsck timing.
+
+    if (!WIFEXITED(test_info.fs_test.fs_check_return)) {
+      // Processes exited abnormally (no exit(3) or _exit(2) call (from wait(2)
+      // manpage).
+      test_info.fs_test.SetError(FileSystemTestResult::kCheck);
+      // This may not be valid for this case.
+      test_info.fs_test.error_description = string("exit status ") +
+        to_string(WEXITSTATUS(test_info.fs_test.fs_check_return));
+      return res;
+    }
+
+    // Fsck (or equivalent) finished without anything major going wrong. Record
+    // this and remount the file system so that we're ready to run the user test
+    // case.
+    test_info.fs_test.SetError(fs_specific_ops_->GetFsckReturn(
+          WEXITSTATUS(test_info.fs_test.fs_check_return)));
+
+    // TODO(ashmrtn): Consider mounting with options specified for test
+    // profile?
+    if (mount_device(device_path.c_str(), NULL) != SUCCESS) {
+      test_info.fs_test.SetError(FileSystemTestResult::kUnmountable);
+      return res;
     }
   }
-  test_info.fs_test.fs_check_return = pclose(pipe);
-  time_point<steady_clock> fsck_end_time = steady_clock::now();
-  res.first = duration_cast<milliseconds>(fsck_end_time - fsck_start_time);
 
-  // End fsck timing.
-  if (!(test_info.fs_test.fs_check_return == 0
-        || WEXITSTATUS(test_info.fs_test.fs_check_return) == 1)) {
-    test_info.fs_test.SetError(FileSystemTestResult::kCheck);
-    test_info.fs_test.error_description = string("exit status ") +
-      to_string(WEXITSTATUS(test_info.fs_test.fs_check_return));
-    return res;
-  }
-  // TODO(ashmrtn): Consider mounting with options specified for test
-  // profile?
-  if (mount_device(device_path.c_str(), NULL) != SUCCESS) {
-    test_info.fs_test.SetError(FileSystemTestResult::kUnmountable);
-    return res;
-  } else {
-    // Begin test case timing.
-    time_point<steady_clock> test_case_start_time = steady_clock::now();
-    const int test_check_res =
-        test_loader.get_instance()->check_test(last_checkpoint,
-                                               &test_info.data_test);
-    time_point<steady_clock> test_case_end_time = steady_clock::now();
-    res.second = duration_cast<milliseconds>(
-        test_case_end_time - test_case_start_time);
-    // End test case timing.
+  // Begin test case timing.
+  time_point<steady_clock> test_case_start_time = steady_clock::now();
+  const int test_check_res =
+      test_loader.get_instance()->check_test(last_checkpoint,
+                                             &test_info.data_test);
+  time_point<steady_clock> test_case_end_time = steady_clock::now();
+  res.second = duration_cast<milliseconds>(
+      test_case_end_time - test_case_start_time);
+  // End test case timing.
 
-    if (test_check_res == 0 && test_info.fs_test.fs_check_return != 0) {
-      test_info.fs_test.SetError(FileSystemTestResult::kFixed);
-    }
-  }
+  // File system was either mounted at the very start of this segment or after
+  // fsck was run. Unmount it before moving on.
   umount_device();
   return res;
 }
@@ -899,6 +903,10 @@ void Tester::cleanup_harness() {
 
   permuter_unload_class();
   test_unload_class();
+  if (fs_specific_ops_ != NULL) {
+    delete fs_specific_ops_;
+    fs_specific_ops_ = NULL;
+  }
 }
 
 int Tester::clear_caches() {

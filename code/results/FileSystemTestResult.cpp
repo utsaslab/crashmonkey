@@ -37,12 +37,13 @@ ostream& FileSystemTestResult::PrintErrors(ostream& os) {
 ostream& operator<<(ostream& os, FileSystemTestResult::ErrorType err) {
   switch (err) {
     case fs_testing::FileSystemTestResult::kClean:
+      os << "no_error";
       break;
     case fs_testing::FileSystemTestResult::kUnmountable:
       os << "unmountable_file_system";
       break;
     case fs_testing::FileSystemTestResult::kCheck:
-      os << "file_system_checker";
+      os << "file_system_checker_error";
       break;
     case fs_testing::FileSystemTestResult::kFixed:
       os << "file_system_fixed";
@@ -58,6 +59,9 @@ ostream& operator<<(ostream& os, FileSystemTestResult::ErrorType err) {
       break;
     case fs_testing::FileSystemTestResult::kKernelMount:
       os << "kernel_mount";
+      break;
+    case fs_testing::FileSystemTestResult::kCheckUnfixed:
+      os << "unfixed_fsck_errors";
       break;
     default:
       os.setstate(std::ios_base::failbit);
