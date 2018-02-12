@@ -10,6 +10,9 @@ constexpr char kMkfsStart[] = "mkfs -t ";
 constexpr char kFsckCommand[] = "fsck -T -t ";
 
 constexpr char kExt4RemountOpts[] = "errors=remount-ro";
+// Disable lazy init for now.
+constexpr char kExt4MkfsOpts[] =
+  "-E lazy_itable_init=0,lazy_journal_init=0";
 
 constexpr char kBtrfsFsckCommand[] = "btrfs check ";
 
@@ -36,7 +39,8 @@ FsSpecific* GetFsSpecific(std::string &fs_type) {
 constexpr char Ext4FsSpecific::kFsType[];
 
 string Ext4FsSpecific::GetMkfsCommand(string &device_path) {
-  return string(kMkfsStart) + Ext4FsSpecific::kFsType + " " +  device_path;
+  return string(kMkfsStart) + Ext4FsSpecific::kFsType + " " +
+    kExt4MkfsOpts + " " + device_path;
 }
 
 string Ext4FsSpecific::GetPostReplayMntOpts() {
