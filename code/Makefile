@@ -50,7 +50,9 @@ all: \
 		permuters
 
 modules: \
-		$(foreach MOD, $(MODULES), $(addsuffix .ko, $(BUILD_DIR)/$(MOD)))
+		$(foreach MOD, $(MODULES), $(addsuffix .c, $(MOD))) \
+		$(BUILD_DIR)/Makefile
+	$(MAKE) -C $(KDIR) M=$(BUILD_DIR) src=$(CURDIR) modules
 
 c_harness: \
 		$(BUILD_DIR)/c_harness
@@ -77,11 +79,6 @@ permuters: \
 $(BUILD_DIR)/Makefile:
 	mkdir -p $(BUILD_DIR)
 	touch "$@"
-
-$(BUILD_DIR)/%.ko: \
-		%.c \
-		$(BUILD_DIR)/Makefile
-	$(MAKE) -C $(KDIR) M=$(BUILD_DIR) src=$(CURDIR) modules
 
 $(BUILD_DIR)/harness/%.o: \
 		harness/%.cpp

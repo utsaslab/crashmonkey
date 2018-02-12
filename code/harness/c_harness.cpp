@@ -90,7 +90,7 @@ int main(int argc, char** argv) {
   bool verbose = false;
   bool in_order_replay = true;
   bool permuted_order_replay = true;
-  int iterations = 1000;
+  int iterations = 10000;
   int disk_size = 10240;
   int option_idx = 0;
   ServerSocket* background_com = NULL;
