@@ -1,3 +1,18 @@
+/*
+1. Create test_file
+2. Do a buffered write 16-20K into the file
+3. Now do a direct write 0-4K to the same file
+
+If  we crash now and recover,the direct write should go through successfully and increment both 
+i_size and i_blocks
+
+This is tested to fail on ext4 (kernel 4.15 - latest now) 
+https://marc.info/?l=linux-ext4&m=151669669030547&w=2
+
+In ext4, the block count for direct write is incremented, but the i_size remains 0 
+*/
+
+
 #include <fcntl.h>
 #include <sys/stat.h>
 #include <sys/types.h>
