@@ -100,13 +100,14 @@ FileSystemTestResult::ErrorType BtrfsFsSpecific::GetFsckReturn(
   // The following is taken from the specification in man(8) btrfs-check.
   // `btrfs check` is much less expressive in its return codes than fsck.ext4.
   // Here all we get is 0/1 corresponding to success/failure respectively. For
-  // 0, FileSystemTestResult::kClean will be assumed. For 1,
-  // FileSystemTestResult::kOtherError will be assumed. This is temporary until
-  // we know better how to assign output values.
+  // 0, `btrfs check` did not find anything out of the ordinary. For 1,
+  // `btrfs check` found something. The tests in the btrfs-progs repo seem to
+  // imply that it won't automatically fix things for you so we return
+  // FileSystemTestResult::kCheckUnfixed.
   if (return_code == 0) {
     return FileSystemTestResult::kClean;
   }
-  return FileSystemTestResult::kCheck;
+  return FileSystemTestResult::kCheckUnfixed;
 }
 
 string BtrfsFsSpecific::GetFsTypeString() {
