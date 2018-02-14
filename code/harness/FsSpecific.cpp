@@ -14,7 +14,11 @@ constexpr char kExt4RemountOpts[] = "errors=remount-ro";
 constexpr char kExt4MkfsOpts[] =
   "-E lazy_itable_init=0,lazy_journal_init=0";
 
-constexpr char kBtrfsFsckCommand[] = "btrfs check ";
+// TODO(ashmrtn): See if we actually want the repair flag or not. The man page
+// for btrfs check is not clear on whether it will try to cleanup the file
+// system some without it. It also says to be careful about using the repair
+// flag.
+constexpr char kBtrfsFsckCommand[] = "btrfs check --repair ";
 
 constexpr char kXfsFsckCommand[] = "xfs_repair ";
 }
@@ -100,13 +104,14 @@ FileSystemTestResult::ErrorType BtrfsFsSpecific::GetFsckReturn(
   // The following is taken from the specification in man(8) btrfs-check.
   // `btrfs check` is much less expressive in its return codes than fsck.ext4.
   // Here all we get is 0/1 corresponding to success/failure respectively. For
-  // 0, FileSystemTestResult::kClean will be assumed. For 1,
-  // FileSystemTestResult::kOtherError will be assumed. This is temporary until
-  // we know better how to assign output values.
+  // 0, `btrfs check` did not find anything out of the ordinary. For 1,
+  // `btrfs check` found something. The tests in the btrfs-progs repo seem to
+  // imply that it won't automatically fix things for you so we return
+  // FileSystemTestResult::kCheckUnfixed.
   if (return_code == 0) {
-    return FileSystemTestResult::kClean;
+    return FileSystemTestResult::kFixed;
   }
-  return FileSystemTestResult::kCheck;
+  return FileSystemTestResult::kCheckUnfixed;
 }
 
 string BtrfsFsSpecific::GetFsTypeString() {
@@ -125,7 +130,7 @@ string F2fsFsSpecific::GetPostReplayMntOpts() {
 }
 
 string F2fsFsSpecific::GetFsckCommand(const string &fs_path) {
-  return string(kFsckCommand) + kFsType + " " + fs_path;
+  return string(kFsckCommand) + kFsType + " " + fs_path + " -- -y";
 }
 
 FileSystemTestResult::ErrorType F2fsFsSpecific::GetFsckReturn(
@@ -133,11 +138,13 @@ FileSystemTestResult::ErrorType F2fsFsSpecific::GetFsckReturn(
   // The following is taken from the specification in man(8) fsck.f2fs.
   // `fsck.f2fs` is much less expressive in its return codes than fsck.ext4.
   // Here all we get is 0/-1 corresponding to success/failure respectively. For
-  // 0, FileSystemTestResult::kClean will be assumed. For -1,
-  // FileSystemTestResult::kOther will be assumed. This is temporary until we
-  // know better how to assign output values.
+  // 0, FileSystemTestResult::kFixed will be assumed as it appears that 0 is the
+  // return when fsck has completed running (the function that runs fsck is void
+  // in the source code so there is no way to tell what it did easily). For -1,
+  // FileSystemTestResult::kCheck will be assumed.
+  // TODO(ashmrtn): Update with better values based on string parsing.
   if (return_code == 0) {
-    return FileSystemTestResult::kClean;
+    return FileSystemTestResult::kFixed;
   }
   return FileSystemTestResult::kCheck;
 }
@@ -163,9 +170,10 @@ string XfsFsSpecific::GetFsckCommand(const string &fs_path) {
 
 FileSystemTestResult::ErrorType XfsFsSpecific::GetFsckReturn(
     int return_code) {
-  // Always returns 0...
   if (return_code == 0) {
-    return FileSystemTestResult::kClean;
+    // Will always return 0 when running without the dry-run flag. Things have
+    // been fixed though.
+    return FileSystemTestResult::kFixed;
   }
   return FileSystemTestResult::kCheck;
 }

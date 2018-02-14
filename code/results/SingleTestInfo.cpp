@@ -18,7 +18,8 @@ SingleTestInfo::SingleTestInfo() {
 }
 
 SingleTestInfo::ResultType SingleTestInfo::GetTestResult() const {
-  if (fs_test.GetError() == FileSystemTestResult::kClean
+  if ((fs_test.GetError() == FileSystemTestResult::kClean ||
+        fs_test.GetError() == FileSystemTestResult::kCheckNotRun)
       && data_test.GetError() == DataTestResult::kClean) {
     return SingleTestInfo::kPassed;
   } else if (fs_test.GetError() == FileSystemTestResult::kFixed
@@ -42,7 +43,10 @@ void SingleTestInfo::PrintResults(ostream& os) const {
   os << "\tcrash state (" << permute_data.crash_state.size() << " bios): ";
   permute_data.PrintCrashState(os) << endl;
   os << "\tlast checkpoint: " << permute_data.last_checkpoint << endl;
-  os << "\tfsck output:" << endl << fs_test.fsck_result << endl <<endl;
+  os << "\tfsck result: ";
+  fs_test.PrintErrors(os);
+  os << endl;
+  os << "\tfsck output:" << endl << fs_test.fsck_result << endl << endl;
 }
 
 ostream& operator<<(ostream& os, SingleTestInfo::ResultType rt) {

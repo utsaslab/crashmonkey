@@ -5,45 +5,51 @@ namespace fs_testing {
 using std::ostream;
 
 FileSystemTestResult::FileSystemTestResult() {
-  error_summary_ = FileSystemTestResult::kClean;
+  error_summary_ = FileSystemTestResult::kCheckNotRun;
 }
 
 void FileSystemTestResult::ResetError() {
-  error_summary_ = FileSystemTestResult::kClean;
+  error_summary_ = FileSystemTestResult::kCheckNotRun;
 }
 
 void FileSystemTestResult::SetError(ErrorType err) {
-  error_summary_ = err;
+  error_summary_ = error_summary_ | err;
 }
 
-FileSystemTestResult::ErrorType FileSystemTestResult::GetError() const {
+unsigned int FileSystemTestResult::GetError() const {
   return error_summary_;
 }
 
-ostream& FileSystemTestResult::PrintErrors(ostream& os) {
+void FileSystemTestResult::PrintErrors(ostream& os) const {
+  if (error_summary_ == 0) {
+    os << FileSystemTestResult::kCheckNotRun;
+    return;
+  }
+
   unsigned int noted_errors = error_summary_;
   unsigned int shift = 0;
   while (noted_errors != 0) {
     if (noted_errors & 1) {
-      os << (FileSystemTestResult::ErrorType) (1 << shift);
+      os << (FileSystemTestResult::ErrorType) (1 << shift) << " ";
     }
     ++shift;
     noted_errors >>= 1;
   }
-
-  return os;
 }
 
 ostream& operator<<(ostream& os, FileSystemTestResult::ErrorType err) {
   switch (err) {
+    case fs_testing::FileSystemTestResult::kCheckNotRun:
+      os << "fsck_not_run";
+      break;
     case fs_testing::FileSystemTestResult::kClean:
-      os << "no_error";
+      os << "fsck_no_errors";
       break;
     case fs_testing::FileSystemTestResult::kUnmountable:
       os << "unmountable_file_system";
       break;
     case fs_testing::FileSystemTestResult::kCheck:
-      os << "file_system_checker_error";
+      os << "fsck_error";
       break;
     case fs_testing::FileSystemTestResult::kFixed:
       os << "file_system_fixed";

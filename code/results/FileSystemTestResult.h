@@ -6,20 +6,22 @@
 namespace fs_testing {
 
 namespace {
-  static const unsigned int kUnmountable_ = 0;
-  static const unsigned int kFixed_ = 1;
-  static const unsigned int kCheck_ = 2;
-  static const unsigned int kSnapshotRestore_ = 3;
-  static const unsigned int kBioWrite_ = 4;
-  static const unsigned int kOther_ = 5;
-  static const unsigned int kKernelMount_ = 6;
-  static const unsigned int kCheckUnfixed_ = 7;
+  static const unsigned int kClean_ = 0;
+  static const unsigned int kUnmountable_ = 1;
+  static const unsigned int kFixed_ = 2;
+  static const unsigned int kCheck_ = 3;
+  static const unsigned int kSnapshotRestore_ = 4;
+  static const unsigned int kBioWrite_ = 5;
+  static const unsigned int kOther_ = 6;
+  static const unsigned int kKernelMount_ = 7;
+  static const unsigned int kCheckUnfixed_ = 8;
 }  // namespace
 
 class FileSystemTestResult {
  public:
   enum ErrorType {
-    kClean = 0,
+    kCheckNotRun = 0,
+    kClean = (1 << kClean_),
     kUnmountable = (1 << kUnmountable_),
     kFixed = (1 << kFixed_),
     kCheck = (1 << kCheck_),
@@ -33,15 +35,15 @@ class FileSystemTestResult {
   FileSystemTestResult();
   void ResetError();
   void SetError(ErrorType errors);
-  ErrorType GetError() const;
-  std::ostream& PrintErrors(std::ostream& os);
+  unsigned int GetError() const;
+  void PrintErrors(std::ostream& os) const;
   std::string error_description;
   std::string fsck_result;
 
   int fs_check_return;
 
  private:
-  ErrorType error_summary_;
+  unsigned int error_summary_;
 };
 
 std::ostream& operator<<(std::ostream& os, FileSystemTestResult::ErrorType err);
