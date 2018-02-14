@@ -143,7 +143,7 @@ class Generic342: public BaseTestCase {
 
     //We have lost file bar(contents of old foo)
     if(last_checkpoint ==1 && stat_bar < 0 && errno_bar == ENOENT && stats_old.st_size != FOO_OLD_SIZE){
-      test_result->SetError(DataTestResult::kFileDataCorrupted); 
+      test_result->SetError(DataTestResult::kFileMissing); 
       test_result->error_description = " : " + foo_path + " has new data " + bar_path + " missing";
     }
 
