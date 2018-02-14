@@ -14,7 +14,11 @@ constexpr char kExt4RemountOpts[] = "errors=remount-ro";
 constexpr char kExt4MkfsOpts[] =
   "-E lazy_itable_init=0,lazy_journal_init=0";
 
-constexpr char kBtrfsFsckCommand[] = "btrfs check ";
+// TODO(ashmrtn): See if we actually want the repair flag or not. The man page
+// for btrfs check is not clear on whether it will try to cleanup the file
+// system some without it. It also says to be careful about using the repair
+// flag.
+constexpr char kBtrfsFsckCommand[] = "btrfs check --repair ";
 
 constexpr char kXfsFsckCommand[] = "xfs_repair ";
 }
@@ -105,7 +109,7 @@ FileSystemTestResult::ErrorType BtrfsFsSpecific::GetFsckReturn(
   // imply that it won't automatically fix things for you so we return
   // FileSystemTestResult::kCheckUnfixed.
   if (return_code == 0) {
-    return FileSystemTestResult::kClean;
+    return FileSystemTestResult::kFixed;
   }
   return FileSystemTestResult::kCheckUnfixed;
 }
