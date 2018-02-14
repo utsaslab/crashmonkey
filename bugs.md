@@ -87,15 +87,15 @@ Test that if we delete a xattr from a file and fsync the file, after log replay 
 
 **Output** :
 ```
-Reordering tests ran 680 tests with
-	passed cleanly: 561
+Reordering tests ran 28 tests with
+	passed cleanly: 24
 	passed fixed: 0
 	fsck required: 0
-	failed: 119
+	failed: 4
 		old file persisted: 0
 		file missing: 0
-		file data corrupted: 119
-		file metadata corrupted: 0
+		file data corrupted: 0
+		file metadata corrupted: 4
 		other: 0
 
 ```
@@ -140,6 +140,46 @@ Reordering tests ran 74 tests with
 		other: 0
 
 ```
+
+### generic_342 ###
+We rename a file, and create a new file with the old name o the renamed file, and fsync it. If we recover after a crash now, we should see both the renamed file and the new file.
+
+**Result** : Fails on f2fs (kernel 4.15) and btrfs (kernel 4.4). The renamed file is lost : [f2fs](https://git.kernel.org/pub/scm/linux/kernel/git/jaegeuk/f2fs.git/commit/?id=0a007b97aad6e1700ef5c3815d14e88192cc1124), [btrfs](https://patchwork.kernel.org/patch/8694301/)
+
+**Output** :
+
+f2fs:
+```
+Timing tests ran 2 tests with
+	passed cleanly: 1
+	passed fixed: 0
+	fsck required: 0
+	failed: 1
+		old file persisted: 0
+		file missing: 1
+		file data corrupted: 0
+		file metadata corrupted: 0
+		incorrect block count: 0
+		other: 0
+
+```
+
+btrfs:
+```
+Reordering tests ran 1000 tests with
+	passed cleanly: 974
+	passed fixed: 0
+	fsck required: 0
+	failed: 26
+		old file persisted: 0
+		file missing: 26
+		file data corrupted: 0
+		file metadata corrupted: 0
+		other: 0
+
+```
+
+
 
 ### generic_343 ###
 If we move a directory to a new parent and later log that parent and don't explicitly log the old parent, when we replay the log we should not end up with entries for the moved directory in both the old and new parent directories.
@@ -207,6 +247,7 @@ Test that fallocate with KEEP_SIZE followed by a fdatasync then crash, we see th
 **Result** : Fails on ext4 and f2fs (kernel 4.4). [The blocks allocated beyond EOF are all lost.](https://patchwork.kernel.org/patch/10120293/)
 
 **Output** :
+
 f2fs:
 ```
 Timing tests ran 3 tests with
@@ -235,6 +276,26 @@ Timing tests ran 3 tests with
 		file data corrupted: 0
 		file metadata corrupted: 0
 		incorrect block count: 1
+		other: 0
+
+```
+
+### generic_ext4_direct_write ###
+If a buffered write extends a file, and before it is resolved, if we do a direct write, the file size should be updated correctly. In ext4 direct write path, we update i_disksize only when new eof is greater than i_size, and don't update it even when new eof is greater than i_disksize but less than i_size
+
+**Result** : Fails on ext4 (kernel 4.15). [The file size is 0, while block count is non zero due to direct write](https://marc.info/?l=linux-ext4&m=151669669030547&w=2)
+
+**Output** :
+```
+Reordering tests ran 1000 tests with
+	passed cleanly: 629
+	passed fixed: 0
+	fsck required: 0
+	failed: 371
+		old file persisted: 0
+		file missing: 0
+		file data corrupted: 0
+		file metadata corrupted: 371
 		other: 0
 
 ```
