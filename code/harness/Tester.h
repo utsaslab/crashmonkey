@@ -36,7 +36,7 @@
 
 #define FMT_EXT4               0
 
-#define DIRTY_EXPIRE_TIME_SIZE 10
+#define DIRTY_EXPIRE_TIME_SIZE 11
 
 namespace fs_testing {
 #ifdef TEST_CASE
@@ -57,6 +57,7 @@ class Tester {
     BIO_WRITE_TIME,
     FSCK_TIME,
     TEST_CASE_TIME,
+    MOUNT_TIME,
     TOTAL_TIME,
     NUM_TIME,
   };
@@ -157,10 +158,9 @@ class Tester {
       const std::vector<fs_testing::utils::disk_write>::iterator& start,
       const std::vector<fs_testing::utils::disk_write>::iterator& end);
 
-  std::pair<std::chrono::milliseconds, std::chrono::milliseconds>
-    test_fsck_and_user_test(const std::string device_path,
-                            const unsigned int last_checkpoint,
-                            SingleTestInfo &test_info);
+  std::vector<std::chrono::milliseconds> test_fsck_and_user_test(
+      const std::string device_path, const unsigned int last_checkpoint,
+      SingleTestInfo &test_info);
 
   std::vector<TestSuiteResult> test_results_;
   std::chrono::milliseconds timing_stats[NUM_TIME] =

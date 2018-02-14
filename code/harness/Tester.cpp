@@ -490,24 +490,27 @@ int Tester::test_run() {
  * function is entered. The function will take care of mounting the device as
  * needed and will unmount the device before exiting.
  *
- * On return, the amount of time it took for both fsck (or equivalent) and the
- * user test case are returned in the pair <fsck, user_test>. If one or both of
- * fsck and the user test is not run, then those values are returned as -1.
- * Furthermore, the SingleTestInfo object is modified to reflect the results of
- * fsck and the user test case.
+ * On return, the amount of time it took for fsck (or equivalent), the user test
+ * case, and the time it took to mount/unmount the file system  are returned in
+ * the vector <fsck, user_test, mount/umount>. If one or both of fsck and the
+ * user test is not run, then those values are returned as -1. Furthermore, the
+ * SingleTestInfo object is modified to reflect the results of fsck and the user
+ * test case.
  */
-pair<milliseconds, milliseconds> Tester::test_fsck_and_user_test(
+vector<milliseconds> Tester::test_fsck_and_user_test(
     const string device_path, const unsigned int last_checkpoint,
     SingleTestInfo &test_info) {
-  pair<milliseconds, milliseconds> res(duration<int, std::milli>(-1),
-      duration<int, std::milli>(-1));
+  vector<milliseconds> res(3, duration<int, std::milli>(-1));
   // Try mounting the file system so that the kernel can clean up orphan lists
   // and anything else it may need to so that fsck does a better job later if
   // we run it.
+  time_point<steady_clock> mount_start_time = steady_clock::now();
   if (mount_device(device_path.c_str(),
         fs_specific_ops_->GetPostReplayMntOpts().c_str()) != SUCCESS) {
     test_info.fs_test.SetError(FileSystemTestResult::kKernelMount);
   }
+  time_point<steady_clock> mount_end_time = steady_clock::now();
+  res.at(2) = duration_cast<milliseconds>(mount_end_time - mount_start_time);
 
   // Only run fsck if we failed when mounting the file system above.
   if (test_info.fs_test.GetError() & FileSystemTestResult::kKernelMount) {
@@ -527,7 +530,7 @@ pair<milliseconds, milliseconds> Tester::test_fsck_and_user_test(
       test_info.fs_test.SetError(FileSystemTestResult::kOther);
       test_info.fs_test.error_description = "error running fsck";
       time_point<steady_clock> fsck_end_time = steady_clock::now();
-      res.first = duration_cast<milliseconds>(fsck_end_time - fsck_start_time);
+      res.at(0) = duration_cast<milliseconds>(fsck_end_time - fsck_start_time);
       return res;
     }
     while (!feof(pipe)) {
@@ -539,7 +542,7 @@ pair<milliseconds, milliseconds> Tester::test_fsck_and_user_test(
     }
     test_info.fs_test.fs_check_return = pclose(pipe);
     time_point<steady_clock> fsck_end_time = steady_clock::now();
-    res.first = duration_cast<milliseconds>(fsck_end_time - fsck_start_time);
+    res.at(0) = duration_cast<milliseconds>(fsck_end_time - fsck_start_time);
     // End fsck timing.
 
     if (!WIFEXITED(test_info.fs_test.fs_check_return)) {
@@ -560,10 +563,13 @@ pair<milliseconds, milliseconds> Tester::test_fsck_and_user_test(
 
     // TODO(ashmrtn): Consider mounting with options specified for test
     // profile?
+    mount_start_time = steady_clock::now();
     if (mount_device(device_path.c_str(), NULL) != SUCCESS) {
       test_info.fs_test.SetError(FileSystemTestResult::kUnmountable);
       return res;
     }
+    mount_end_time = steady_clock::now();
+    res.at(2) += duration_cast<milliseconds>(mount_end_time - mount_start_time);
   }
 
   // Begin test case timing.
@@ -572,13 +578,17 @@ pair<milliseconds, milliseconds> Tester::test_fsck_and_user_test(
       test_loader.get_instance()->check_test(last_checkpoint,
                                              &test_info.data_test);
   time_point<steady_clock> test_case_end_time = steady_clock::now();
-  res.second = duration_cast<milliseconds>(
+  res.at(1) = duration_cast<milliseconds>(
       test_case_end_time - test_case_start_time);
   // End test case timing.
 
   // File system was either mounted at the very start of this segment or after
   // fsck was run. Unmount it before moving on.
+  mount_start_time = steady_clock::now();
   umount_device();
+  mount_end_time = steady_clock::now();
+  res.at(2) += duration_cast<milliseconds>(mount_end_time - mount_start_time);
+
   return res;
 }
 
@@ -654,17 +664,20 @@ int Tester::test_check_random_permutations(const int num_rounds,
     close(cow_brd_snapshot_fd);
 
     // Test the crash state that was just written out.
-    pair<milliseconds, milliseconds> check_res = test_fsck_and_user_test(
-        SNAPSHOT_PATH, test_info.permute_data.last_checkpoint, test_info);
+    vector<milliseconds> check_res = test_fsck_and_user_test(SNAPSHOT_PATH,
+        test_info.permute_data.last_checkpoint, test_info);
     test_info.PrintResults(log);
     current_test_suite_->TallyReorderingResult(test_info);
 
     // Accounting for time it took to run the test.
-    if (check_res.first.count() > -1) {
-      timing_stats[FSCK_TIME] += check_res.first;
+    if (check_res.at(0).count() > -1) {
+      timing_stats[FSCK_TIME] += check_res.at(0);
     }
-    if (check_res.second.count() > -1) {
-      timing_stats[TEST_CASE_TIME] += check_res.second;
+    if (check_res.at(1).count() > -1) {
+      timing_stats[TEST_CASE_TIME] += check_res.at(1);
+    }
+    if (check_res.at(2).count() > -1) {
+      timing_stats[MOUNT_TIME] += check_res.at(2);
     }
   }
 
@@ -1129,6 +1142,9 @@ std::ostream& operator<<(std::ostream& os, Tester::time_stats time) {
       break;
     case fs_testing::Tester::TEST_CASE_TIME:
       os << "test case time";
+      break;
+    case fs_testing::Tester::MOUNT_TIME:
+      os << "mount/umount time";
       break;
     case fs_testing::Tester::TOTAL_TIME:
       os << "total time";
