@@ -19,6 +19,7 @@ using fs_testing::user_tools::api::Checkpoint;
 
 #define TEST_FILE_PERMS  ((mode_t) (S_IRWXU | S_IRWXG | S_IRWXO))
 
+
 namespace fs_testing {
 namespace tests {
 
@@ -26,7 +27,7 @@ namespace {
   static constexpr char kTestFile[] = "/mnt/snapshot/test_file";
 }
 
-class EOFBlocksLoss: public BaseTestCase {
+class EOFBlocksLossVariant: public BaseTestCase {
  public:
   virtual int setup() override {
     const int fd = open(kTestFile, O_WRONLY | O_TRUNC | O_CREAT,
@@ -35,11 +36,13 @@ class EOFBlocksLoss: public BaseTestCase {
       return -1;
     }
 
+    // Write 8K data to the file
     if (WriteData(fd, 8192, 8192) < 0) {
       close(fd);
       return -2;
     }
 
+    //Persist the write
     syncfs(fd);
     close(fd);
 
@@ -52,27 +55,25 @@ class EOFBlocksLoss: public BaseTestCase {
       return -1;
     }
 
-    fsync(fd_reg);
-    if (Checkpoint() < 0){
+    system("stat /mnt/snapshot/test_file");
+
+    // Fallocate (zero-range, keep_size) at offset 4MB+8K, length =8K
+    // This should increase block count, but not the size
+    if (fallocate(fd_reg, FALLOC_FL_ZERO_RANGE | FALLOC_FL_KEEP_SIZE, 4202496,
+        8192) < 0) {
+      close(fd_reg);
       return -2;
     }
 
-    //To ensure checkpoint 1 is in a seperate epoch, force a flush
-    syncfs(fd_reg);
-
-    if (fallocate(fd_reg, FALLOC_FL_KEEP_SIZE, 4202496,
-        8192) < 0) {
+    //Now do a fdatasync. This should atleast flush size and block count
+    if (fdatasync(fd_reg) < 0){
       close(fd_reg);
       return -3;
     }
-    
-    if (fdatasync(fd_reg) < 0){
-      close(fd_reg);
-      return -4;
-    }
 
+    //Beyond this checkpoint, block count must be >16, but size = 16K
     if (Checkpoint() < 0){
-      return -5;
+      return -4;
     }
 
     system("stat /mnt/snapshot/test_file");
@@ -91,6 +92,7 @@ class EOFBlocksLoss: public BaseTestCase {
       return 0;
     }
 
+    std::cout << "Size expected = " << size << std::endl;
     std::cout << "Stat of the file :" << std::endl;
     std::cout << "Size = " << stats.st_size << std::endl;
     std::cout << "Block count = " << stats.st_blocks << std::endl;
@@ -98,25 +100,36 @@ class EOFBlocksLoss: public BaseTestCase {
     std::cout << "Inode num = "<< stats.st_ino << std::endl;
 
     //After fdatasync call, if you crash at any point, and on recovery
-    //if blocks ==16, which is the block count before falloc, EOF blocks are missing.
-    if (last_checkpoint == 2 && stats.st_blocks == 16) {
-    	test_result->SetError(DataTestResult::kIncorrectBlockCount);
-      test_result->error_description =
-        "Expected file to have 32 blocks but found " +
+    //if file_size != 16K (we used keep_size option), or if block count isn't
+    // incremented, then its a bug
+    if (last_checkpoint == 1 && (stats.st_size != size || stats.st_blocks == blocks)) {
+      if(stats.st_blocks == blocks) {
+          test_result->SetError(DataTestResult::kIncorrectBlockCount);
+          test_result->error_description = "Expected file to have 32 blocks but found " +
         std::to_string(stats.st_blocks);
+      }
+      else {
+          test_result->SetError(DataTestResult::kFileMetadataCorrupted);
+          test_result->error_description = ": Expected file size to be " + std::to_string(size) + " but found " +
+        std::to_string(stats.st_size);
+      }
     	return 0;
     }
 
 
     return 0;
   }
+
+private:
+  int size = 16384;
+  int blocks = 16;
 };
 
 }  // namespace tests
 }  // namespace fs_testing
 
 extern "C" fs_testing::tests::BaseTestCase *test_case_get_instance() {
-  return new fs_testing::tests::EOFBlocksLoss;
+  return new fs_testing::tests::EOFBlocksLossVariant;
 }
 
 extern "C" void test_case_delete_instance(fs_testing::tests::BaseTestCase *tc) {
