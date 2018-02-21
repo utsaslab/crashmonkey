@@ -74,8 +74,6 @@ class EOFBlocksLoss: public BaseTestCase {
     if (Checkpoint() < 0){
       return -5;
     }
-
-    system("stat /mnt/snapshot/test_file");
     
     close(fd_reg);
     return 0;
@@ -91,11 +89,13 @@ class EOFBlocksLoss: public BaseTestCase {
       return 0;
     }
 
+    /*
     std::cout << "Stat of the file :" << std::endl;
     std::cout << "Size = " << stats.st_size << std::endl;
     std::cout << "Block count = " << stats.st_blocks << std::endl;
     std::cout << "FS block size = "<< stats.st_blksize << std::endl;
     std::cout << "Inode num = "<< stats.st_ino << std::endl;
+    */
 
     //After fdatasync call, if you crash at any point, and on recovery
     //if blocks ==16, which is the block count before falloc, EOF blocks are missing.

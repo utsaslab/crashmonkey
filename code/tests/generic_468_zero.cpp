@@ -1,3 +1,19 @@
+/* A variant of generic/468
+If we do a falloc_zero_range with keep_size and then crash, the recovered file size should be
+the value before crash.
+
+Eg, consider the workload:
+1. create foo
+2. Write (8K - 16K) -> foo size = 16K now
+3. fsync()
+4. falloc zero_range , keep_size (4202496 - 4210688) -> foo_size must be 16K
+5. fdatasync()
+Crash 
+
+In f2fs, if we recover after a crash, we see the file size to be 4210688 and not 16K
+*/
+
+
 #include <fcntl.h>
 #include <sys/stat.h>
 #include <sys/types.h>
