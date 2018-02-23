@@ -1,3 +1,4 @@
+#include <errno.h>
 #include <fcntl.h>
 #include <string.h>
 #include <sys/mount.h>
@@ -585,7 +586,17 @@ vector<milliseconds> Tester::test_fsck_and_user_test(
   // File system was either mounted at the very start of this segment or after
   // fsck was run. Unmount it before moving on.
   mount_start_time = steady_clock::now();
-  umount_device();
+  // Retry unmount while the device is busy. Hopefully this will only actually
+  // execute the loop more than once on only a few occasions.
+  int umount_res;
+  int err;
+  do {
+    umount_res = umount_device();
+    if (umount_res < 0) {
+      err = errno;
+      usleep(500);
+    }
+  } while (umount_res < 0 && err == EBUSY);
   mount_end_time = steady_clock::now();
   res.at(2) += duration_cast<milliseconds>(mount_end_time - mount_start_time);
 
