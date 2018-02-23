@@ -16,8 +16,8 @@ the contents of file foo must match the state after fsync-2
 This is tested to fail on btrfs(latest kernel 4.16) - Acknowledged here :
 https://www.spinics.net/lists/linux-btrfs/msg75108.html
 
-File foo contents match the state after fsync-1. Blocks allocated by falloc
-are lost, even though there is a fsync after the operation.
+File foo contents match the state after fsync-1. Blocks allocated by 
+falloc are lost, even though there is a fsync after the operation.
 */
 
 #include <fcntl.h>
@@ -89,7 +89,7 @@ class BtrfsFsyncFalloc: public BaseTestCase {
       return -1;
     }
 
-    system("stat /mnt/snapshot/foo");
+    // system("stat /mnt/snapshot/foo");
 
 
     /*-------------------Variant 1 ---------------------------*/
@@ -115,7 +115,7 @@ class BtrfsFsyncFalloc: public BaseTestCase {
     }
 
     //Expected output if checkpoint = 1 : Size = 16K, blocks == 40  (32 + 8)
-    system("stat /mnt/snapshot/foo");
+    // system("stat /mnt/snapshot/foo");
 
 
 
@@ -141,7 +141,7 @@ class BtrfsFsyncFalloc: public BaseTestCase {
       return -4;
     }
     //Expected output if checkpoint = 2: size = 16K, blocks == 48 (40 + 8)
-    system("stat /mnt/snapshot/foo");
+    // system("stat /mnt/snapshot/foo");
 
 
     /*-------------------Variant 3 ---------------------------*/
@@ -166,7 +166,7 @@ class BtrfsFsyncFalloc: public BaseTestCase {
       return -4;
     }
     //Expected output if checkpoint = 3: size = 16K, blocks == 64 (48 + 16)
-    system("stat /mnt/snapshot/foo");
+    // system("stat /mnt/snapshot/foo");
 
 
     /*-------------------Variant 4 ---------------------------*/
@@ -192,7 +192,7 @@ class BtrfsFsyncFalloc: public BaseTestCase {
     }
 
     //Expected output if checkpoint = 4 : Size = 16K, blocks == 72  (64 + 8)
-    system("stat /mnt/snapshot/foo");
+    // system("stat /mnt/snapshot/foo");
 
 
 
@@ -218,10 +218,10 @@ class BtrfsFsyncFalloc: public BaseTestCase {
       return -4;
     }
     //Expected output if checkpoint = 5: size = 16K, blocks == 80 (72 + 8)
-    system("stat /mnt/snapshot/foo");
+    // system("stat /mnt/snapshot/foo");
 
 
-    /*-------------------Variant 3 ---------------------------*/
+    /*-------------------Variant 6 ---------------------------*/
     //Aligned offset and size > a page
     //Fzero from off 52K of length 8192
     if(fallocate(fd_foo, FALLOC_FL_ZERO_RANGE | FALLOC_FL_KEEP_SIZE , 53248, 8192) < 0){
@@ -243,7 +243,7 @@ class BtrfsFsyncFalloc: public BaseTestCase {
       return -4;
     }
     //Expected output if checkpoint = 6: size = 16K, blocks == 96 (80 + 16)
-    system("stat /mnt/snapshot/foo");
+    // system("stat /mnt/snapshot/foo");
 
 
 
@@ -259,7 +259,7 @@ class BtrfsFsyncFalloc: public BaseTestCase {
   virtual int check_test(unsigned int last_checkpoint,
       DataTestResult *test_result) override {
 
-    system("stat /mnt/snapshot/foo");
+    // system("stat /mnt/snapshot/foo");
 
 
     struct stat stats;
