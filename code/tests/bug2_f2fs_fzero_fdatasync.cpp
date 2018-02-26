@@ -1,4 +1,7 @@
-/* A variant of generic/468
+/* 
+
+NEW_BUG #2
+
 If we do a falloc_zero_range with keep_size and then crash, the recovered file size should be
 the value before crash.
 
@@ -11,6 +14,9 @@ Eg, consider the workload:
 Crash 
 
 In f2fs, if we recover after a crash, we see the file size to be 4210688 and not 16K
+https://sourceforge.net/p/linux-f2fs/mailman/message/36236482/ 
+https://patchwork.kernel.org/patch/10240977/ 
+
 */
 
 
@@ -43,7 +49,7 @@ namespace {
   static constexpr char kTestFile[] = "/mnt/snapshot/test_file";
 }
 
-class EOFBlocksLossVariant: public BaseTestCase {
+class F2fsFzero: public BaseTestCase {
  public:
   virtual int setup() override {
     const int fd = open(kTestFile, O_WRONLY | O_TRUNC | O_CREAT,
@@ -108,12 +114,14 @@ class EOFBlocksLossVariant: public BaseTestCase {
       return 0;
     }
 
+    /*
     std::cout << "Size expected = " << size << std::endl;
     std::cout << "Stat of the file :" << std::endl;
     std::cout << "Size = " << stats.st_size << std::endl;
     std::cout << "Block count = " << stats.st_blocks << std::endl;
     std::cout << "FS block size = "<< stats.st_blksize << std::endl;
     std::cout << "Inode num = "<< stats.st_ino << std::endl;
+    */
 
     //After fdatasync call, if you crash at any point, and on recovery
     //if file_size != 16K (we used keep_size option), or if block count isn't
@@ -145,7 +153,7 @@ private:
 }  // namespace fs_testing
 
 extern "C" fs_testing::tests::BaseTestCase *test_case_get_instance() {
-  return new fs_testing::tests::EOFBlocksLossVariant;
+  return new fs_testing::tests::F2fsFzero;
 }
 
 extern "C" void test_case_delete_instance(fs_testing::tests::BaseTestCase *tc) {
