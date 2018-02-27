@@ -1,6 +1,6 @@
 /*
 
-NEW BUG #1
+NEW BUG #1 (Acknowledged, but not yet patched)
 
 1. Create file foo
 2. Write data (offset 0 -16K) into the file foo

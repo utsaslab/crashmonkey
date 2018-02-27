@@ -1,6 +1,6 @@
 /* 
 
-NEW_BUG #2
+NEW_BUG #2 (Acknowledged and patched)
 
 If we do a falloc_zero_range with keep_size and then crash, the recovered file size should be
 the value before crash.
@@ -14,6 +14,7 @@ Eg, consider the workload:
 Crash 
 
 In f2fs, if we recover after a crash, we see the file size to be 4210688 and not 16K
+
 https://sourceforge.net/p/linux-f2fs/mailman/message/36236482/ 
 https://patchwork.kernel.org/patch/10240977/ 
 
