@@ -299,3 +299,24 @@ Reordering tests ran 1000 tests with
 		other: 0
 
 ```
+
+### btrfs_link_unlink ###
+Suppose we remove a hard link to a file, and create a new file with the same name, followed by a fsync. If we crash now, the fsync log cannot be replayed, and makes the FS unmountable.      
+
+**Result** : Fails on btrfs (kernel 4.16). [Filesystem becomes unmountable.](https://www.spinics.net/lists/linux-btrfs/msg75204.html)
+
+**Output** :
+```
+Reordering tests ran 1000 tests with
+	passed cleanly: 678
+	passed fixed: 0
+	fsck required: 0
+	failed: 322
+		old file persisted: 0
+		file missing: 0
+		file data corrupted: 0
+		file metadata corrupted: 0
+		incorrect block count: 0
+		other: 0
+
+```

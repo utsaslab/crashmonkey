@@ -18,7 +18,7 @@ constexpr char kExt4MkfsOpts[] =
 // for btrfs check is not clear on whether it will try to cleanup the file
 // system some without it. It also says to be careful about using the repair
 // flag.
-constexpr char kBtrfsFsckCommand[] = "btrfs check --repair ";
+constexpr char kBtrfsFsckCommand[] = "yes | btrfs check ";
 
 constexpr char kXfsFsckCommand[] = "xfs_repair ";
 }
