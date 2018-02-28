@@ -54,9 +54,9 @@ class BtrfsLinkUnlink: public BaseTestCase {
   virtual int setup() override {
 
     //initialize paths
-    foo_path = string(mnt_dir_) + "/"+ TEST_DIR_A + "/" + TEST_FILE_FOO;    
-    bar_path = string(mnt_dir_) +  "/" TEST_DIR_A + "/" + TEST_FILE_BAR;
-    dira_path = string(mnt_dir_) + "/" + TEST_DIR_A;
+    foo_path = mnt_dir_ + "/"+ TEST_DIR_A + "/" + TEST_FILE_FOO;    
+    bar_path = mnt_dir_ +  "/" TEST_DIR_A + "/" + TEST_FILE_BAR;
+    dira_path = mnt_dir_ + "/" + TEST_DIR_A;
 
     // Create test directory A.
     int res = mkdir(dira_path.c_str(), 0777);
@@ -77,6 +77,8 @@ class BtrfsLinkUnlink: public BaseTestCase {
 
     //Sync everything
     sync();
+    close(fd_foo);
+
     return 0;
   }
 
@@ -84,9 +86,9 @@ class BtrfsLinkUnlink: public BaseTestCase {
 
     //initialize paths
         //initialize paths
-    foo_path = string(mnt_dir_) + "/"+ TEST_DIR_A + "/" + TEST_FILE_FOO;    
-    bar_path = string(mnt_dir_) +  "/" TEST_DIR_A + "/" + TEST_FILE_BAR;
-    dira_path = string(mnt_dir_) + "/" + TEST_DIR_A;
+    foo_path = mnt_dir_ + "/"+ TEST_DIR_A + "/" + TEST_FILE_FOO;    
+    bar_path = mnt_dir_ +  "/" TEST_DIR_A + "/" + TEST_FILE_BAR;
+    dira_path = mnt_dir_ + "/" + TEST_DIR_A;
   
     //unlink file bar
     if(unlink(bar_path.c_str()) < 0){
@@ -118,17 +120,14 @@ class BtrfsLinkUnlink: public BaseTestCase {
 
   virtual int check_test(unsigned int last_checkpoint,
       DataTestResult *test_result) override {
-    foo_path = string(mnt_dir_) + "/"+ TEST_DIR_A + "/" + TEST_FILE_FOO;    
-    bar_path = string(mnt_dir_) +  "/" TEST_DIR_A + "/" + TEST_FILE_BAR;
-    dira_path = string(mnt_dir_) + "/" + TEST_DIR_A;
 
     return 0;
   }
 
    private:
-    string foo_path = string(mnt_dir_) + "/"+ TEST_DIR_A + "/" + TEST_FILE_FOO;    
-    string bar_path = string(mnt_dir_) +  "/" TEST_DIR_A + "/" + TEST_FILE_BAR;
-    string dira_path = string(mnt_dir_) + "/" + TEST_DIR_A;
+    string foo_path;   
+    string bar_path;
+    string dira_path;
     
 };
 
