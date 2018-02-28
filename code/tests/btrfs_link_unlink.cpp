@@ -34,7 +34,6 @@ https://marc.info/?l=linux-btrfs&m=151983349112005&w=2
 #include "../user_tools/api/actions.h"
 #define TEST_FILE_FOO "foo"
 #define TEST_FILE_BAR "bar"
-#define TEST_MNT "/mnt/snapshot"
 #define TEST_DIR_A "test_dir_a"
 
 
@@ -54,8 +53,13 @@ class BtrfsLinkUnlink: public BaseTestCase {
  public:
   virtual int setup() override {
 
+    //initialize paths
+    foo_path = string(mnt_dir_) + "/"+ TEST_DIR_A + "/" + TEST_FILE_FOO;    
+    bar_path = string(mnt_dir_) +  "/" TEST_DIR_A + "/" + TEST_FILE_BAR;
+    dira_path = string(mnt_dir_) + "/" + TEST_DIR_A;
+
     // Create test directory A.
-    int res = mkdir(TEST_MNT "/" TEST_DIR_A, 0777);
+    int res = mkdir(dira_path.c_str(), 0777);
     if (res < 0) {
       return -1;
     }
@@ -77,6 +81,12 @@ class BtrfsLinkUnlink: public BaseTestCase {
   }
 
   virtual int run() override {
+
+    //initialize paths
+        //initialize paths
+    foo_path = string(mnt_dir_) + "/"+ TEST_DIR_A + "/" + TEST_FILE_FOO;    
+    bar_path = string(mnt_dir_) +  "/" TEST_DIR_A + "/" + TEST_FILE_BAR;
+    dira_path = string(mnt_dir_) + "/" + TEST_DIR_A;
   
     //unlink file bar
     if(unlink(bar_path.c_str()) < 0){
@@ -108,13 +118,17 @@ class BtrfsLinkUnlink: public BaseTestCase {
 
   virtual int check_test(unsigned int last_checkpoint,
       DataTestResult *test_result) override {
+    foo_path = string(mnt_dir_) + "/"+ TEST_DIR_A + "/" + TEST_FILE_FOO;    
+    bar_path = string(mnt_dir_) +  "/" TEST_DIR_A + "/" + TEST_FILE_BAR;
+    dira_path = string(mnt_dir_) + "/" + TEST_DIR_A;
 
     return 0;
   }
 
    private:
-    const string foo_path = TEST_MNT "/" TEST_DIR_A "/" TEST_FILE_FOO;    
-    const string bar_path = TEST_MNT "/" TEST_DIR_A "/" TEST_FILE_BAR;
+    string foo_path = string(mnt_dir_) + "/"+ TEST_DIR_A + "/" + TEST_FILE_FOO;    
+    string bar_path = string(mnt_dir_) +  "/" TEST_DIR_A + "/" + TEST_FILE_BAR;
+    string dira_path = string(mnt_dir_) + "/" + TEST_DIR_A;
     
 };
 
