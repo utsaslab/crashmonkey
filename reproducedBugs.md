@@ -320,3 +320,25 @@ Reordering tests ran 1000 tests with
 		other: 0
 
 ```
+
+
+### btrfs_rename_special_file ###
+Suppose we rename a special file(FIFO, character/block device or symlink), and then create a hard link with the old name of the special file. If we now persist the fsync log tree, and crash, the filesystem becomes unmountable.     
+
+**Result** : Fails on btrfs (kernel 4.16). [Filesystem becomes unmountable.](https://www.mail-archive.com/linux-btrfs@vger.kernel.org/msg73890.html)
+
+**Output** :
+```
+Reordering tests ran 1000 tests with
+	passed cleanly: 633
+	passed fixed: 0
+	fsck required: 0
+	failed: 367
+		old file persisted: 0
+		file missing: 0
+		file data corrupted: 0
+		file metadata corrupted: 0
+		incorrect block count: 0
+		other: 0
+
+```
