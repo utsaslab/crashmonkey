@@ -26,7 +26,7 @@ namespace tests {
 
 class Generic042Fallocate: public Generic042Base {
  public:
-   Generic042Fallocate() : Generic042Base(0) {}
+   Generic042Fallocate() : Generic042Base((1024 * 64), (1024 * 60), 4096, 0) {}
 
    int check_test(unsigned int last_checkpoint, DataTestResult *test_result)
        override {
@@ -34,14 +34,9 @@ class Generic042Fallocate: public Generic042Base {
      if (res <= 0) {
        // Either something went wrong or the file size was 0.
        return res;
-     } else {
-       res = CheckDataBase(test_result);
-       if (res < 0) {
-         return res;
-       }
-
-       return CheckDataNoZeros(test_result);
      }
+
+     return CheckDataNoZeros(0, start_file_size_, test_result);
    }
 };
 

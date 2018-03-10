@@ -25,7 +25,8 @@ class Generic042Base: public BaseTestCase {
    * Therefore, we can specialize a base test case by having the derived class
    * pass the base class constructor args like here.
    */
-  Generic042Base(int mode);
+  Generic042Base(unsigned int start_file_size, unsigned int falloc_offset,
+      unsigned int falloc_len, int mode);
 
   /*
    * Checks the size of the file.
@@ -37,36 +38,35 @@ class Generic042Base: public BaseTestCase {
   int CheckBase(DataTestResult *test_result);
 
   /*
-   * Checks that the first kFallocOffset bytes in the file are 0xff. Returns 0
-   * if this is true, else returns a value < 0.
-   */
-  int CheckDataBase(DataTestResult *test_result);
-
-  /*
    * Checks that the bytes starting at kFallocOffset and continuing for
    * kFallocSize bytes are 0xff. Returns 0 if this is the case, else returns a
    * value < 0.
    */
-  int CheckDataNoZeros(DataTestResult *test_result);
+  int CheckDataNoZeros(const unsigned int offset, const unsigned int len,
+      DataTestResult *test_result);
 
   /*
    * Checks that the bytes starting at kFallocOffset and continuing for
    * kFallocSize bytes are 0x00. Returns 0 if this is the case, else returns a
    * value < 0.
    */
-  int CheckDataWithZeros(DataTestResult *test_result);
+  int CheckDataWithZeros(const unsigned int offset, const unsigned int len,
+      DataTestResult *test_result);
+
+  const unsigned int start_file_size_;
+  const unsigned int falloc_offset_;
+  const unsigned int falloc_len_;
+  const int falloc_mode_;
 
  private:
-  int falloc_mode_;
-
   /*
    * Read len bytes of file data starting at offset and 'and' and 'or' the
    * values of that data into bit_and and bit_or respectively. If something goes
    * wrong, return a value < 0 and update test_result. Otherwise, test_result is
    * unmodified and the function returns 0.
    */
-  int ReadData(DataTestResult *test_result, int fd, unsigned int offset,
-      unsigned int len, uint32_t *bit_and, uint32_t *bit_or);
+  int ReadData(DataTestResult *test_result, int fd, const unsigned int offset,
+      const unsigned int len, uint8_t *bit_and, uint8_t *bit_or);
 
   /*
    * Place the output of `hexdump -C <path>` in the output string. Returns 0 on

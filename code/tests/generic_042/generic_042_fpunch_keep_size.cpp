@@ -30,7 +30,8 @@ namespace tests {
 class Generic042FpunchKeepSize: public Generic042Base {
  public:
    Generic042FpunchKeepSize() :
-     Generic042Base(FALLOC_FL_PUNCH_HOLE | FALLOC_FL_KEEP_SIZE) {}
+     Generic042Base((1024 * 64), (1024 * 60), 4096,
+         FALLOC_FL_PUNCH_HOLE | FALLOC_FL_KEEP_SIZE) {}
 
    int check_test(unsigned int last_checkpoint, DataTestResult *test_result)
        override {
@@ -38,14 +39,20 @@ class Generic042FpunchKeepSize: public Generic042Base {
      if (res <= 0) {
        // Either something went wrong or the file size was 0.
        return res;
-     } else {
-       res = CheckDataBase(test_result);
-       if (res < 0) {
-         return res;
-       }
-
-       return CheckDataWithZeros(test_result);
      }
+
+     res = CheckDataNoZeros(0, falloc_offset_, test_result);
+     if (res < 0) {
+       return res;
+     }
+
+     res = CheckDataWithZeros(falloc_offset_, falloc_len_, test_result);
+     if (res < 0) {
+       return res;
+     }
+
+     const unsigned int offset = falloc_offset_ + falloc_len_;
+     return CheckDataNoZeros(offset, start_file_size_ - offset, test_result);
    }
 };
 
