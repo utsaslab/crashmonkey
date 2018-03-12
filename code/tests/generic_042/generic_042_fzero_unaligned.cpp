@@ -36,6 +36,9 @@ class Generic042FzeroUnaligned: public Generic042Base {
 
    int check_test(unsigned int last_checkpoint, DataTestResult *test_result)
        override {
+
+    // Since we cannot guarantee data consistency before fsync(), let's check only if checkpoint >=1     
+    if (last_checkpoint >= 1){   
      int res = CheckBase(test_result);
      if (res <= 0) {
        // Either something went wrong or the file size was 0.
@@ -55,6 +58,7 @@ class Generic042FzeroUnaligned: public Generic042Base {
      const unsigned int offset = falloc_offset_ + falloc_len_;
      return CheckDataNoZeros(offset, start_file_size_ - offset, test_result);
    }
+  }
 };
 
 }  // namespace tests

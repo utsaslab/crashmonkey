@@ -17,6 +17,8 @@ namespace tests {
 
 using fs_testing::tests::DataTestResult;
 using fs_testing::user_tools::api::WriteData;
+using fs_testing::user_tools::api::Checkpoint;
+
 using std::string;
 
 namespace {
@@ -107,12 +109,21 @@ int Generic042Base::run() {
     written_data += res;
   }
 
+  // If we fsync here, it resolves the delayed allocation
+  // fsync(fd_file);
+
   if (fallocate(fd_file, falloc_mode_, falloc_offset_, falloc_len_) != 0) {
     close(fd_file);
     return -2;
   }
 
+  fsync(fd_file);
+
+  //Any crash beyond this point should have persisted both the write and the appropriate fallocate
+  Checkpoint();
+
   close(fd_file);
+
   return 0;
 }
 
@@ -175,7 +186,7 @@ int Generic042Base::CheckDataNoZeros(const unsigned int offset,
     // If somewhere along the way a byte wasn't 0xff then bit_and will no longer
     // be 0xffffffff by the & in ReadData.
     test_result->SetError(DataTestResult::kFileDataCorrupted);
-    test_result->error_description = ": stale data was leaked\n\n";
+    test_result->error_description = ": stale data was leaked at offset :" + std::to_string(offset) + "\n\n";
 
     string file_cont;
     HexdumpFile(file_path, file_cont);
@@ -212,8 +223,7 @@ int Generic042Base::CheckDataWithZeros(const unsigned int offset,
     // If somewhere along the way a byte wasn't 0xff then bit_or will no longer
     // be 0 by the | in ReadData.
     test_result->SetError(DataTestResult::kFileDataCorrupted);
-    test_result->error_description = ": stale data was leaked\n\n";
-
+    test_result->error_description = ": stale data was leaked at offset :" + std::to_string(offset) + "\n\n";
     string file_cont;
     HexdumpFile(file_path, file_cont);
     test_result->error_description += file_cont;
