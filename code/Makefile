@@ -13,11 +13,21 @@ MODULES = cow_brd disk_wrapper
 obj-m := $(addsuffix .o, $(MODULES))
 KDIR := /lib/modules/$(KERNEL_VERSION)/build
 
+CM_GEN_042_EXCLUDE = generic_042_base.cpp
+CM_GEN_042 = \
+		$(patsubst %.cpp, %.so, \
+			$(filter-out $(CM_GEN_042_EXCLUDE), \
+				$(notdir $(wildcard $(CURDIR)/tests/generic_042/*.cpp))))
+CM_GEN_042_OUT = \
+		$(foreach TEST, $(CM_GEN_042), \
+			$(BUILD_DIR)/tests/generic_042/$(TEST))
+
 CM_TESTS_EXCLUDE = BaseTestCase.cpp
 CM_TESTS = \
 		$(patsubst %.cpp, %.so, \
 			$(filter-out $(CM_TESTS_EXCLUDE), \
 				$(notdir $(wildcard $(CURDIR)/tests/*.cpp))))
+
 CM_PERMUTER_EXCLUDE = Permuter.cpp
 CM_PERMUTERS = \
 		$(patsubst %.cpp, %.so, \
@@ -64,7 +74,8 @@ user_tools: \
 		$(BUILD_DIR)/user_tools/cm_checkpoint
 
 tests: \
-		$(foreach TEST, $(CM_TESTS), $(BUILD_DIR)/tests/$(TEST))
+		$(foreach TEST, $(CM_TESTS), $(BUILD_DIR)/tests/$(TEST)) \
+		$(CM_GEN_042_OUT)
 
 permuters: \
 		$(foreach PERMUTER, $(CM_PERMUTERS), $(BUILD_DIR)/permuter/$(PERMUTER))
@@ -100,6 +111,26 @@ $(BUILD_DIR)/c_harness: \
 		$(BUILD_DIR)/results/PermuteTestResult.o
 	mkdir -p $(@D)
 	$(GPP) $(GOPTS) $^ -ldl -o $@
+
+$(BUILD_DIR)/tests/generic_042/%.o: %.cpp
+	mkdir -p $(@D)
+	$(GPP) $(GOPTS) -fPIC -c -o $@ $<
+
+# For static pattern rules like the one below, the pattern and prereqs must be
+# separated by ' :' including the space!
+$(CM_GEN_042_OUT): $(BUILD_DIR)/tests/generic_042/%.so : \
+		tests/generic_042/%.cpp \
+		$(BUILD_DIR)/tests/BaseTestCase.o \
+		$(BUILD_DIR)/tests/generic_042/generic_042_base.o \
+		$(BUILD_DIR)/user_tools/src/actions.o \
+		$(BUILD_DIR)/user_tools/src/workload.o \
+		$(BUILD_DIR)/utils/communication/BaseSocket.o \
+		$(BUILD_DIR)/utils/communication/ClientSocket.o \
+		$(BUILD_DIR)/utils/communication/ClientCommandSender.o \
+		$(BUILD_DIR)/results/DataTestResult.o
+	mkdir -p $(@D)
+	$(GPP) $(GOPTS) $(GOTPSSO) $(XATTR_DEF_FLAG) -Wl,-soname,$(notdir $@) \
+		-o $@ $^
 
 $(BUILD_DIR)/tests/%.so: \
 		tests/%.cpp \

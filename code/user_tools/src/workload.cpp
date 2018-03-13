@@ -1,3 +1,4 @@
+#include <errno.h>
 #include <sys/mman.h>
 #include <unistd.h>
 
@@ -63,7 +64,7 @@ int WriteData(int fd, unsigned int offset, unsigned int size) {
       int res = pwrite(fd, kTestDataBlock + mod_offset,
           rounded_offset - (offset + num_written), offset + num_written);
       if (res < 0) {
-        return -1;
+        return errno;
       }
       num_written += res;
     } while (offset + num_written < rounded_offset);
@@ -78,7 +79,7 @@ int WriteData(int fd, unsigned int offset, unsigned int size) {
     int res = pwrite(fd, kTestDataBlock + mod_offset,
         kTestDataSize - mod_offset, offset + num_written);
     if (res < 0) {
-      return -1;
+      return errno;
     }
     num_written += res;
     aligned_written += res;
@@ -97,7 +98,7 @@ int WriteData(int fd, unsigned int offset, unsigned int size) {
     int res = pwrite(fd, kTestDataBlock + mod_offset,
         size - num_written, offset + num_written);
     if (res < 0) {
-      return -1;
+      return errno;
     }
     num_written += res;
     end_written += res;
