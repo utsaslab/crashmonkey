@@ -25,6 +25,9 @@ class RandomPermuter : public Permuter {
   void permute_epoch(
       std::vector<epoch_op>::iterator& res_start,
       std::vector<epoch_op>::iterator& res_end, epoch& epoch);
+  void subset_epoch(
+      std::vector<epoch_op>::iterator& res_start,
+      std::vector<epoch_op>::iterator& res_end, epoch& epoch);
 
   std::mt19937 rand;
 };

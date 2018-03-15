@@ -2,7 +2,7 @@
 #include <list>
 #include <numeric>
 #include <vector>
-
+#include <algorithm>
 #include <cassert>
 
 #include "Permuter.h"
@@ -77,11 +77,19 @@ bool RandomPermuter::gen_one_state(vector<epoch_op>& res,
 
   auto curr_iter = res.begin();
   for (unsigned int i = 0; i < num_epochs; ++i) {
-    if (GetEpochs()->at(i).overlaps || i == num_epochs - 1) {
-      unsigned int size =
-        (i != num_epochs - 1) ? GetEpochs()->at(i).ops.size() : num_requests;
+    // if (GetEpochs()->at(i).overlaps || i == num_epochs - 1) {
+
+    // We donot want to modify epochs prior to the one we are crashing at.
+    // We will drop a subset of bios in the epoch we are currently crashing at
+    // Only if num_req < ops in the target epoch, we need to pick a subset, else 
+    // we'll just copy all the bios in this epoch
+    if (i == num_epochs - 1 && num_requests < target->ops.size()) {
+
+      unsigned int size = num_requests;
       auto res_end = curr_iter + size;
-      permute_epoch(curr_iter, res_end, GetEpochs()->at(i));
+
+      //This should drop a subset of bios instead of permuting them
+      subset_epoch(curr_iter, res_end, GetEpochs()->at(i));
 
       curr_iter = res_end;
     } else {
@@ -103,6 +111,61 @@ bool RandomPermuter::gen_one_state(vector<epoch_op>& res,
   }
   return true;
 }
+
+
+void RandomPermuter::subset_epoch(
+      vector<epoch_op>::iterator& res_start,
+      vector<epoch_op>::iterator& res_end,
+      epoch& epoch) {
+
+  unsigned int req_size = distance(res_start, res_end);
+  assert(req_size <= epoch.ops.size());
+
+  // Even if the number of bios we're placing is less than the number in the
+  // epoch, allow any bio but the barrier (if present) to be picked.
+  unsigned int slots = epoch.ops.size();
+  if (epoch.has_barrier) {
+    --slots;
+  }
+
+  // bitmap to indicate which bios in the epoch we want to pick for the crash state
+  vector<unsigned int> epoch_op_bitmap(epoch.ops.size());
+
+  // Fill the list with the empty slots, either [0, epoch.size() - 1] or
+  // [0, epoch.size() - 2]. Prefer a list so that removals are fast. We have
+  // this so that each time we shuffle the indexes of bios in the epoch, and pick 
+  // the first req_size number of bios. 
+
+  std::vector<unsigned int> indices(slots);
+  std::iota(indices.begin(), indices.end(), 0);
+  std::random_shuffle(indices.begin(), indices.end());
+
+  // Populate the bitmap to set req_set number of bios
+  for(int i =0; i < req_size; i++) {
+    epoch_op_bitmap[indices[i]] = 1;
+  }
+
+  // Return the bios corresponding to bitmap indexes.
+  for(unsigned int filled = 0; filled < epoch_op_bitmap.size() && res_start!=res_end; filled ++){
+    if(epoch_op_bitmap[filled] == 1){
+      *res_start = epoch.ops.at(filled);
+      ++res_start;
+    }
+  }
+
+  // We are only placing part of an epoch so we need to return here.
+  if (res_start == res_end) {
+    return;
+  }
+
+  assert(epoch.has_barrier);
+
+  // Place the barrier operation if it exists since the entire vector already
+  // exists (i.e. we won't cause extra shifting when adding the other elements).
+  // Decrement out count of empty slots since we have filled one.
+  *res_start = epoch.ops.back();
+}
+
 
 void RandomPermuter::permute_epoch(
       vector<epoch_op>::iterator& res_start,
