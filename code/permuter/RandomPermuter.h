@@ -13,6 +13,15 @@ namespace permuter {
 
 using fs_testing::PermuteTestResult;
 
+class GenRandom {
+ public:
+  GenRandom();
+  int operator()(int max);
+
+ private:
+  std::mt19937 rand;
+};
+
 class RandomPermuter : public Permuter {
  public:
   RandomPermuter();
@@ -26,10 +35,11 @@ class RandomPermuter : public Permuter {
       std::vector<epoch_op>::iterator& res_start,
       std::vector<epoch_op>::iterator& res_end, epoch& epoch);
   void subset_epoch(
-      std::vector<epoch_op>::iterator& res_start,
-      std::vector<epoch_op>::iterator& res_end, epoch& epoch);
+      std::vector<epoch_op>::iterator &res_start,
+      std::vector<epoch_op>::iterator &res_end, epoch &epoch);
 
   std::mt19937 rand;
+  GenRandom subset_random_;
 };
 
 }  // namespace permuter

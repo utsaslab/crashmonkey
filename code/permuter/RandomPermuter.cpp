@@ -19,8 +19,11 @@ using std::vector;
 
 using fs_testing::utils::disk_write;
 
-RandomPermuter::RandomPermuter() {
-  rand = mt19937(42);
+GenRandom::GenRandom() : rand(mt19937(42)) { }
+
+int GenRandom::operator()(int max) {
+  uniform_int_distribution<unsigned int> uid(0, max - 1);
+  return uid(rand);
 }
 
 RandomPermuter::RandomPermuter(vector<disk_write> *data) {
@@ -77,7 +80,6 @@ bool RandomPermuter::gen_one_state(vector<epoch_op>& res,
 
   auto curr_iter = res.begin();
   for (unsigned int i = 0; i < num_epochs; ++i) {
-    // if (GetEpochs()->at(i).overlaps || i == num_epochs - 1) {
 
     // We donot want to modify epochs prior to the one we are crashing at.
     // We will drop a subset of bios in the epoch we are currently crashing at
@@ -114,9 +116,9 @@ bool RandomPermuter::gen_one_state(vector<epoch_op>& res,
 
 
 void RandomPermuter::subset_epoch(
-      vector<epoch_op>::iterator& res_start,
-      vector<epoch_op>::iterator& res_end,
-      epoch& epoch) {
+      vector<epoch_op>::iterator &res_start,
+      vector<epoch_op>::iterator &res_end,
+      epoch &epoch) {
 
   unsigned int req_size = distance(res_start, res_end);
   assert(req_size <= epoch.ops.size());
@@ -128,26 +130,29 @@ void RandomPermuter::subset_epoch(
     --slots;
   }
 
-  // bitmap to indicate which bios in the epoch we want to pick for the crash state
+  // Bitmap to indicate which bios in the epoch we want to pick for the crash
+  // state.
   vector<unsigned int> epoch_op_bitmap(epoch.ops.size());
 
   // Fill the list with the empty slots, either [0, epoch.size() - 1] or
   // [0, epoch.size() - 2]. Prefer a list so that removals are fast. We have
-  // this so that each time we shuffle the indexes of bios in the epoch, and pick 
-  // the first req_size number of bios. 
+  // this so that each time we shuffle the indexes of bios in the epoch, and
+  // pick the first req_size number of bios.
 
-  std::vector<unsigned int> indices(slots);
-  std::iota(indices.begin(), indices.end(), 0);
-  std::random_shuffle(indices.begin(), indices.end());
+  vector<unsigned int> indices(slots);
+  iota(indices.begin(), indices.end(), 0);
+  // Use a known random generator function for repeatability.
+  std::random_shuffle(indices.begin(), indices.end(), subset_random_);
 
-  // Populate the bitmap to set req_set number of bios
-  for(int i =0; i < req_size; i++) {
+  // Populate the bitmap to set req_set number of bios.
+  for (int i = 0; i < req_size; i++) {
     epoch_op_bitmap[indices[i]] = 1;
   }
 
   // Return the bios corresponding to bitmap indexes.
-  for(unsigned int filled = 0; filled < epoch_op_bitmap.size() && res_start!=res_end; filled ++){
-    if(epoch_op_bitmap[filled] == 1){
+  for (unsigned int filled = 0;
+      filled < epoch_op_bitmap.size() && res_start != res_end; filled++) {
+    if (epoch_op_bitmap[filled] == 1) {
       *res_start = epoch.ops.at(filled);
       ++res_start;
     }
