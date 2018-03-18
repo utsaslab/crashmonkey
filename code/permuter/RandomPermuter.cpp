@@ -171,53 +171,6 @@ void RandomPermuter::subset_epoch(
   *res_start = epoch.ops.back();
 }
 
-
-void RandomPermuter::permute_epoch(
-      vector<epoch_op>::iterator& res_start,
-      vector<epoch_op>::iterator& res_end,
-      epoch& epoch) {
-  assert(distance(res_start, res_end) <= epoch.ops.size());
-
-  // Even if the number of bios we're placing is less than the number in the
-  // epoch, allow any bio but the barrier (if present) to be picked.
-  unsigned int slots = epoch.ops.size();
-  if (epoch.has_barrier) {
-    --slots;
-  }
-
-  // Fill the list with the empty slots, either [0, epoch.size() - 1] or
-  // [0, epoch.size() - 2]. Prefer a list so that removals are fast. We have
-  // this so that each time we pick a number we can find a bio which we haven't
-  // already placed.
-  list<unsigned int> empty_slots(slots);
-  iota(empty_slots.begin(), empty_slots.end(), 0);
-
-  // First case is when we are placing a subset of the bios, the second is when
-  // we are placing all the bios but a barrier operation is present.
-  while (res_start != res_end && !empty_slots.empty()) {
-    // Uniform distribution includes both ends, so we need to subtract 1 from
-    // the size.
-    uniform_int_distribution<unsigned int> uid(0, empty_slots.size() - 1);
-    auto shift = empty_slots.begin();
-    advance(shift, uid(rand));
-    *res_start = epoch.ops.at(*shift);
-    ++res_start;
-    empty_slots.erase(shift);
-  }
-
-  // We are only placing part of an epoch so we need to return here.
-  if (res_start == res_end) {
-    return;
-  }
-
-  assert(epoch.has_barrier);
-
-  // Place the barrier operation if it exists since the entire vector already
-  // exists (i.e. we won't cause extra shifting when adding the other elements).
-  // Decrement out count of empty slots since we have filled one.
-  *res_start = epoch.ops.back();
-}
-
 }  // namespace permuter
 }  // namespace fs_testing
 
