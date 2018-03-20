@@ -1,4 +1,5 @@
 #include <list>
+#include <memory>
 #include <vector>
 
 #include <cassert>
@@ -11,6 +12,7 @@ namespace permuter {
 
 using std::list;
 using std::pair;
+using std::shared_ptr;
 using std::size_t;
 using std::vector;
 
@@ -20,6 +22,7 @@ namespace {
 
 static const unsigned int kRetryMultiplier = 2;
 static const unsigned int kMinRetries = 1000;
+static const unsigned int kKernelSectorSize = 512;
 
 }  // namespace
 
@@ -44,6 +47,62 @@ bool BioVectorEqual::operator() (const std::vector<unsigned int>& a,
     }
   }
   return true;
+}
+
+vector<EpochOpSector> epoch_op::ToSectors(unsigned int sector_size) {
+  const unsigned int num_sectors =
+    (op.metadata.size + (sector_size - 1)) / sector_size;
+  vector<EpochOpSector> res(num_sectors);
+
+  for (unsigned int i = 0; i < num_sectors; ++i) {
+    unsigned int size = sector_size;
+    if (i == num_sectors - 1) {
+      // Last sector may not be comepletely filled. This is really only a
+      // problem if someone was silly and picked a sector size that isn't a
+      // multiple of two smaller than the size of the bio data.
+      size = op.metadata.size - (i * sector_size);
+    }
+
+    res.at(i) =
+      EpochOpSector(this, i,
+          (kKernelSectorSize * op.metadata.write_sector) + (i * sector_size),
+          size, sector_size);
+  }
+
+  return res;
+}
+
+EpochOpSector::EpochOpSector() :
+      parent(NULL), parent_sector_index(0), disk_offset(0), max_sector_size(0),
+      size(0){ }
+
+EpochOpSector::EpochOpSector(epoch_op *parent, unsigned int parent_sector_index,
+    unsigned int disk_offset, unsigned int size, unsigned int max_sector_size) :
+      parent(parent), parent_sector_index(parent_sector_index),
+      disk_offset(disk_offset), max_sector_size(max_sector_size), size(size) { }
+
+bool EpochOpSector::operator==(const EpochOpSector &other) const {
+  if (parent != other.parent) {
+    return false;
+  }
+  if (parent_sector_index != other.parent_sector_index) {
+    return false;
+  }
+  if (disk_offset != other.disk_offset) {
+    return false;
+  }
+  if (size != other.size) {
+    return false;
+  }
+  if (max_sector_size != other.max_sector_size) {
+    return false;
+  }
+
+  return true;
+}
+
+void * EpochOpSector::GetData() {
+  return parent->op.get_data().get() + (max_sector_size * parent_sector_index);
 }
 
 /*
@@ -230,7 +289,7 @@ vector<epoch>* Permuter::GetEpochs() {
 }
 
 
-bool Permuter::GenerateCrashState(vector<disk_write>& res,
+bool Permuter::GenerateCrashState(vector<EpochOpSector>& res,
     PermuteTestResult &log_data) {
   vector<epoch_op> crash_state;
   unsigned long retries = 0;
@@ -266,9 +325,16 @@ bool Permuter::GenerateCrashState(vector<disk_write>& res,
   // Move the permuted crash state data over into the returned crash state
   // vector.
   res.clear();
-  res.resize(crash_state.size());
+  log_data.crash_state.resize(crash_state.size());
   for (unsigned int i = 0; i < crash_state.size(); ++i) {
-    res.at(i) = crash_state.at(i).op;
+    // Here sector size doesn't matter so much since we are writing all the
+    // sectors anyway, as long as possible bio lengths are a multiple of it.
+    vector<EpochOpSector> sectors =
+      crash_state.at(i).ToSectors(kKernelSectorSize);
+    res.insert(res.end(), sectors.begin(), sectors.end());
+
+    // Messy bit to add everything to the logging data struct.
+    log_data.crash_state.at(i) = crash_state.at(i).abs_index;
   }
 
   if (exists == 0) {

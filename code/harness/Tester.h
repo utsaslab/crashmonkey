@@ -154,9 +154,12 @@ class Tester {
   bool read_dirty_expire_time(int fd);
   bool write_dirty_expire_time(int fd, const char* time);
 
-  bool test_write_data(const int disk_fd,
+  bool test_write_data_dw(const int disk_fd,
       const std::vector<fs_testing::utils::disk_write>::iterator& start,
       const std::vector<fs_testing::utils::disk_write>::iterator& end);
+  bool test_write_data(const int disk_fd,
+      const std::vector<fs_testing::permuter::EpochOpSector>::iterator& start,
+      const std::vector<fs_testing::permuter::EpochOpSector>::iterator& end);
 
   std::vector<std::chrono::milliseconds> test_fsck_and_user_test(
       const std::string device_path, const unsigned int last_checkpoint,

@@ -1,9 +1,10 @@
+#include <cassert>
+
+#include <algorithm>
 #include <iterator>
 #include <list>
 #include <numeric>
 #include <vector>
-#include <algorithm>
-#include <cassert>
 
 #include "Permuter.h"
 #include "RandomPermuter.h"
@@ -59,7 +60,7 @@ bool RandomPermuter::gen_one_state(vector<epoch_op>& res,
   }
   total_elements += num_requests;
   res.resize(total_elements);
-  log_data.crash_state.resize(total_elements);
+
   // Tell CrashMonkey the most recently seen checkpoint for the crash state
   // we're generating. We can't just pull the last epoch because it could be the
   // case that there's a checkpoint at the end of this disk write epoch.
@@ -107,10 +108,6 @@ bool RandomPermuter::gen_one_state(vector<epoch_op>& res,
     }
   }
 
-  // Messy bit to add everything to the logging data struct.
-  for (unsigned int i = 0; i < res.size(); ++i) {
-    log_data.crash_state.at(i) = res.at(i).abs_index;
-  }
   return true;
 }
 

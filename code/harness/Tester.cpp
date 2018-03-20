@@ -90,6 +90,7 @@ using std::vector;
 
 using fs_testing::tests::test_create_t;
 using fs_testing::tests::test_destroy_t;
+using fs_testing::permuter::EpochOpSector;
 using fs_testing::permuter::Permuter;
 using fs_testing::permuter::permuter_create_t;
 using fs_testing::permuter::permuter_destroy_t;
@@ -609,7 +610,7 @@ int Tester::test_check_random_permutations(const int num_rounds,
   time_point<steady_clock> start_time = steady_clock::now();
   Permuter *p = permuter_loader.get_instance();
   p->InitDataVector(log_data);
-  vector<disk_write> permutes;
+  vector<EpochOpSector> permutes;
   for (int rounds = 0; rounds < num_rounds; ++rounds) {
     // Print status every 1024 iterations.
     if (rounds & (~((1 << 10) - 1)) && !(rounds & ((1 << 10) - 1))) {
@@ -713,6 +714,10 @@ int Tester::test_check_random_permutations(const int num_rounds,
  *
  * TODO(ashmrtn): Should this call a separate method in the user test case or
  * should it still call the check_test() method?
+ *
+ * TODO(ashmrtn): Convert other code in this file to handle epoch and epoch_op
+ * instead of disk_write so that we can have the same test_write_data function
+ * for this and for the replays created by the permuters.
  */
 int Tester::test_check_log_replay(std::ofstream& log) {
   assert(current_test_suite_ != NULL);
@@ -783,7 +788,7 @@ int Tester::test_check_log_replay(std::ofstream& log) {
     // the end iterator is a sentinal value. The same logic applies for
     // checkpoints (which we don't really want to replay).
     const int write_data_res =
-      test_write_data(cow_brd_snapshot_fd, log_data.begin(), log_iter);
+      test_write_data_dw(cow_brd_snapshot_fd, log_data.begin(), log_iter);
     if (!write_data_res) {
       test_info.fs_test.SetError(FileSystemTestResult::kBioWrite);
       close(cow_brd_snapshot_fd);
@@ -854,6 +859,7 @@ int Tester::test_check_current() {
 }
 */
 
+// TODO(ashmrtn): Should probably just remove this function.
 int Tester::test_restore_log() {
   // We need to mount the original device because we intercept bios after they
   // have been traslated to the current disk and lose information about sector
@@ -864,7 +870,7 @@ int Tester::test_restore_log() {
     cout << endl;
     return TEST_CASE_FILE_ERR;
   }
-  if (!test_write_data(sn_fd, log_data.begin(), log_data.end())) {
+  if (!test_write_data_dw(sn_fd, log_data.begin(), log_data.end())) {
     cout << "test errored in writing data" << endl;
     close(sn_fd);
     return TEST_TEST_ERR;
@@ -873,12 +879,12 @@ int Tester::test_restore_log() {
   return SUCCESS;
 }
 
-bool Tester::test_write_data(const int disk_fd,
+bool Tester::test_write_data_dw(const int disk_fd,
     const vector<disk_write>::iterator& start,
     const vector<disk_write>::iterator& end) {
   for (auto current = start; current != end; ++current) {
     // Operation is not a write so skip it.
-    if (!(current->has_write_flag())) {
+    if (!current->has_write_flag()) {
       continue;
     }
 
@@ -888,9 +894,8 @@ bool Tester::test_write_data(const int disk_fd,
       return false;
     }
     unsigned int bytes_written = 0;
-    shared_ptr<void> data = current->get_data();
-    void* data_base_addr = data.get();
-    do {
+    void *data_base_addr = current->get_data().get();
+    while (bytes_written < current->metadata.size) {
       int res = write(disk_fd,
           (void*) ((unsigned long) data_base_addr + bytes_written),
           current->metadata.size - bytes_written);
@@ -898,7 +903,34 @@ bool Tester::test_write_data(const int disk_fd,
         return false;
       }
       bytes_written += res;
-    } while (bytes_written < current->metadata.size);
+    }
+  }
+  return true;
+}
+
+bool Tester::test_write_data(const int disk_fd,
+    const vector<EpochOpSector>::iterator& start,
+    const vector<EpochOpSector>::iterator& end) {
+  for (auto current = start; current != end; ++current) {
+    if (current->size == 0) {
+      // It's *possible* that zero length sectors could have an invalid
+      // disk_offset (I have not tested/confirmed).
+      continue;
+    }
+    if (lseek(disk_fd, current->disk_offset, SEEK_SET) < 0) {
+      return false;
+    }
+    unsigned int bytes_written = 0;
+    void *data_base_addr = current->GetData();
+    while (bytes_written < current->size) {
+      int res = write(disk_fd,
+          (void*) ((unsigned long) data_base_addr + bytes_written),
+          current->size - bytes_written);
+      if (res < 0) {
+        return false;
+      }
+      bytes_written += res;
+    }
   }
   return true;
 }
