@@ -6,12 +6,13 @@ A/dummy
 
 # setup 
 mkdir A 0777
+open foo O_CREAT 0777
 falloc foo 8192 4096
 mknod foo perm 0
 sync
 
 # run
-open dummy O_RDWR|O_CREAT perm
+open dummy O_RDWR|O_CREAT 0777
 fsync dummy
 rename foo bar
 link bar foo
