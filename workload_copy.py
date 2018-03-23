@@ -15,8 +15,9 @@ from string import maketrans
 def enum(**enums):
     return type('Enum', (), enums)
 
+#Not using this currently. We need to add a way to track the parameter combinations already used and return a unused value each time
+#FallocOptions = enum(ONE='FALLOC_FL_ZERO_RANGE', TWO='FALLOC_FL_ZERO_RANGE | FALLOC_FL_KEEP_SIZE', THREE='FALLOC_FL_PUNCH_HOLE | FALLOC_FL_KEEP_SIZE', FOUR='0', FIVE = 'FALLOC_FL_KEEP_SIZE')
 
-#All functions that has options go here
 FallocOptions = ['FALLOC_FL_ZERO_RANGE','FALLOC_FL_ZERO_RANGE | FALLOC_FL_KEEP_SIZE','FALLOC_FL_PUNCH_HOLE | FALLOC_FL_KEEP_SIZE', '0',  'FALLOC_FL_KEEP_SIZE']
 
 FsyncOptions = ['fsync','fdatasync']
@@ -25,6 +26,124 @@ RemoveOptions = ['remove','unlink']
 
 LinkOptions = ['link','symlink']
 
+class Log(object):
+    def __init__(self, *files):
+        self.files = files
+    def write(self, obj):
+        for f in self.files:
+            f.write(obj)
+            f.flush() 
+    def flush(self) :
+        for f in self.files:
+            f.flush()
+
+class Command(object):
+    variations = []
+    def __init__(self, line, index, operation):
+        self.line = line
+        self.index = index
+        self.op = operation
+        self.variations = self.op.variants
+
+class Variations(object):
+    op = ""
+    
+    def __init__(self):
+        self.variants = []
+
+
+class FallocVariations(Variations):
+    #Here we will skip collapse_range for now: btrfs doesn't support it anyway
+    # Punch hole must always be ored with keep size
+    # Normal falloc (0) and with -k
+    # zero range and with -k
+    op = "fallocate"
+    fd = 0
+    mode = '0'
+    index = 0
+    length = 0
+    
+    def __init__(self):
+        self.variants = ['0', 'FALLOC_FL_KEEP_SIZE',  'FALLOC_FL_ZERO_RANGE', 'FALLOC_FL_ZERO_RANGE|FALLOC_FL_KEEP_SIZE', 'FALLOC_FL_PUNCH_HOLE|FALLOC_FL_KEEP_SIZE']
+
+    def Check_Test_Change(self, option, file):
+        self.variants
+#        if(option == 0):
+#            #Do nothing. Check if original file = state after falloc
+#        elif(option == FALLOC_KEEP_SIZE):
+#            #Check file size remains same
+#            #Check block count increase if beyond eof
+
+
+    def Replace(self, text, variant_name, line, map):
+        #int fallocate(int fd, int mode, off_t index, off_t len);
+        #let's split parameters by ,
+        line_strip = line.split('(')[-1].split(')')[0]
+        fd = re.sub(r"[\\n\\t\s]*", "", line_strip.split(',')[0])
+        mode = re.sub(r"[\\n\\t\s]*", "", line_strip.split(',')[1])
+        index = re.sub(r"[\\n\\t\s]*", "", line_strip.split(',')[2])
+        length = re.sub(r"[\\n\\t\s]*", "", line_strip.split(',')[3])
+#        print 'Mode : ' + mode
+        if mode in self.variants and not mode in map:
+            map[mode] = True
+        else:
+            map[variant_name] = True
+            text = text.replace()
+                    
+        
+        #we can return map of done - whatever is completed
+        return text
+
+class OpenVariations(Variations):
+    #Here we will skip collapse_range for now: btrfs doesn't support it anyway
+    # Punch hole must always be ored with keep size
+    # Normal falloc (0) and with -k
+    # zero range and with -k
+    op = "open"
+    
+    def __init__(self):
+        self.variants = ['O_RDWR | O_CREAT', 'O_DIRECT', 'mmap' ]
+    
+    def Check_Test_Change(self, option, file):
+        self.variants
+
+    def Replace(self, text, variant_name, line, map):
+#        print line
+        return text
+
+class RemoveVariations(Variations):
+    #Here we will skip collapse_range for now: btrfs doesn't support it anyway
+    # Punch hole must always be ored with keep size
+    # Normal falloc (0) and with -k
+    # zero range and with -k
+    op = "remove"
+    
+    def __init__(self):
+        self.variants = ['remove', 'unlink']
+    
+    def Check_Test_Change(self, option, file):
+        self.variants
+    
+    def Replace(self, text, variant_name, line, map):
+#        print line
+        return text
+
+class FsyncVariations(Variations):
+    #Here we will skip collapse_range for now: btrfs doesn't support it anyway
+    # Punch hole must always be ored with keep size
+    # Normal falloc (0) and with -k
+    # zero range and with -k
+    op = "fsync"
+    
+    def __init__(self):
+        self.variants = ['fsync', 'fdatasync']
+    
+    def Check_Test_Change(self, option, file):
+        self.variants
+    
+    def Replace(self, text, variant_name, line,  map):
+#        print line
+        return text
 
 def build_parser():
     parser = argparse.ArgumentParser(description='Workload Generator for XFSMonkey v1.0')
@@ -58,7 +177,6 @@ def create_dict():
     return operation_map
 
 
-#These maps keep track of the line number in each method, to add the next function to in the C++ file
 def updateSetupMap(index_map, num):
     index_map['setup'] += num
     index_map['run'] += num
@@ -77,9 +195,6 @@ def updateCheckMap(index_map, num):
 def updateDefineMap(index_map, num):
     index_map['define'] += num
 
-
-# Add the 'line' which declares a file/dir used in the workload into the 'file'
-# at position specified in the 'index_map'
 def insertDefine(line, file, index_map):
     with open(file, 'r+') as define:
         
@@ -110,6 +225,7 @@ def insertDefine(line, file, index_map):
         define.writelines(contents)
         define.close()
 
+#def getFallocVariant(line_num, op_map):
 
 def insertFalloc(contents, option, line, index_map, method):
 
@@ -117,10 +233,14 @@ def insertFalloc(contents, option, line, index_map, method):
 
     if method == 'setup':
         contents.insert(index_map['setup'], to_insert)
-        updateSetupMap(index_map, 5)
     else:
         contents.insert(index_map['run'], to_insert)
+
+    if method == 'setup':
+        updateSetupMap(index_map, 5)
+    elif method == 'run':
         updateRunMap(index_map, 5)
+
 
 def insertMkdir(contents, line, index_map, method):
     
@@ -128,11 +248,13 @@ def insertMkdir(contents, line, index_map, method):
     
     if method == 'setup':
         contents.insert(index_map['setup'], to_insert)
-        updateSetupMap(index_map, 4)
     else:
         contents.insert(index_map['run'], to_insert)
+    
+    if method == 'setup':
+        updateSetupMap(index_map, 4)
+    elif method == 'run':
         updateRunMap(index_map, 4)
-
 
 
 def insertOpenFile(contents, line, index_map, method):
@@ -141,67 +263,42 @@ def insertOpenFile(contents, line, index_map, method):
     
     if method == 'setup':
         contents.insert(index_map['setup'], to_insert)
-        updateSetupMap(index_map, 6)
     else:
         contents.insert(index_map['run'], to_insert)
+    
+    if method == 'setup':
+        updateSetupMap(index_map, 6)
+    elif method == 'run':
         updateRunMap(index_map, 6)
 
 
-def insertRemoveFile(contents,option, line, index_map, method):
+def insertRemoveFile(contents, line, index_map, method):
     
-    to_insert = '\n\t\t\t\tif ( '+ option +'(' + line.split(' ')[1] + '_path.c_str() ) < 0){ \n\t\t\t\t\treturn errno;\n\t\t\t\t}\n\n'
+    to_insert = '\n\t\t\t\tif ( '+ line.split(' ')[0] +'(' + line.split(' ')[1] + '_path.c_str() ) < 0){ \n\t\t\t\t\treturn errno;\n\t\t\t\t}\n\n'
     
     if method == 'setup':
         contents.insert(index_map['setup'], to_insert)
-        updateSetupMap(index_map, 4)
     else:
         contents.insert(index_map['run'], to_insert)
+    
+    if method == 'setup':
+        updateSetupMap(index_map, 4)
+    elif method == 'run':
         updateRunMap(index_map, 4)
 
-
 def insertClose(contents, line, index_map, method):
+    
     to_insert = '\n\t\t\t\tif ( ' + line.split(' ')[0] + '( fd_' + line.split(' ')[1] + ') < 0){ \n\t\t\t\t\treturn errno;\n\t\t\t\t}\n\n'
     
     if method == 'setup':
         contents.insert(index_map['setup'], to_insert)
-        updateSetupMap(index_map, 4)
     else:
         contents.insert(index_map['run'], to_insert)
-        updateRunMap(index_map, 4)
-
-
-def insertFsync(contents, option,  line, index_map, method):
-    to_insert = '\n\t\t\t\tif ( ' + option + '( fd_' + line.split(' ')[1] + ') < 0){ \n\t\t\t\t\treturn errno;\n\t\t\t\t}\n\n'
     
     if method == 'setup':
-        contents.insert(index_map['setup'], to_insert)
         updateSetupMap(index_map, 4)
-    else:
-        contents.insert(index_map['run'], to_insert)
+    elif method == 'run':
         updateRunMap(index_map, 4)
-
-
-def insertSync(contents, line, index_map, method):
-    to_insert = '\n\t\t\t\tif ( ' + line.split(' ')[0] + '() < 0){ \n\t\t\t\t\treturn errno;\n\t\t\t\t}\n\n'
-    
-    if method == 'setup':
-        contents.insert(index_map['setup'], to_insert)
-        updateSetupMap(index_map, 4)
-    else:
-        contents.insert(index_map['run'], to_insert)
-        updateRunMap(index_map, 4)
-
-
-def insertLink(contents, option, line, index_map, method):
-    to_insert = '\n\t\t\t\tif ( ' + option + '(' + line.split(' ')[1] + '_path.c_str() , '+ line.split(' ')[2] + '_path.c_str() '+ ') < 0){ \n\t\t\t\t\treturn errno;\n\t\t\t\t}\n\n'
-    
-    if method == 'setup':
-        contents.insert(index_map['setup'], to_insert)
-        updateSetupMap(index_map, 4)
-    else:
-        contents.insert(index_map['run'], to_insert)
-        updateRunMap(index_map, 4)
-
 
 def insertCheckpoint(contents, line, index_map, method):
     
@@ -209,37 +306,40 @@ def insertCheckpoint(contents, line, index_map, method):
     
     if method == 'setup':
         contents.insert(index_map['setup'], to_insert)
-        updateSetupMap(index_map, 4)
     else:
         contents.insert(index_map['run'], to_insert)
+    
+    if method == 'setup':
+        updateSetupMap(index_map, 4)
+    elif method == 'run':
         updateRunMap(index_map, 4)
-
 
 def insertRename(contents, line, index_map, method):
     to_insert = '\n\t\t\t\tif ( ' + line.split(' ')[0] + '(' + line.split(' ')[1] + '_path.c_str() , '+ line.split(' ')[2] + '_path.c_str() '+ ') < 0){ \n\t\t\t\t\treturn errno;\n\t\t\t\t}\n\n'
     
     if method == 'setup':
         contents.insert(index_map['setup'], to_insert)
-        updateSetupMap(index_map, 4)
     else:
         contents.insert(index_map['run'], to_insert)
+    
+    if method == 'setup':
+        updateSetupMap(index_map, 4)
+    elif method == 'run':
         updateRunMap(index_map, 4)
 
 
-# Insert a function in 'line' into 'file' at location specified by 'index_map' in the specified 'method'
-# If the workload has functions with various possible paramter options, the 'permutation' defines the set of
-# paramters to be set in this file.
-
 def insertFunctions(line, file, index_map, method, permutation, iter):
     with open(file, 'r+') as insert:
-        
+        #with each line number of input test file, associate a map of possible ops. Get the next possible options for the op here
+
         contents = insert.readlines()
-        
+#        print line
         if line.split(' ')[0] == 'falloc':
             if method == 'setup':
                 updateSetupMap(index_map, 1)
             else:
                 updateRunMap(index_map, 1)
+#            option = getFallocVariant(line_num, op_map)
             option = permutation[iter]
             iter += 1
             insertFalloc(contents, option, line, index_map, method)
@@ -263,9 +363,9 @@ def insertFunctions(line, file, index_map, method, permutation, iter):
                 updateSetupMap(index_map, 1)
             else:
                 updateRunMap(index_map, 1)
-            option = permutation[iter]
+            method = permutation[iter]
             iter += 1
-            insertRemoveFile(contents, option, line, index_map, method)
+            insertRemoveFile(contents, line, index_map, method)
 
         elif line.split(' ')[0] == 'close':
             if method == 'setup':
@@ -274,22 +374,17 @@ def insertFunctions(line, file, index_map, method, permutation, iter):
                 updateRunMap(index_map, 1)
             insertClose(contents, line, index_map, method)
 
-        elif line.split(' ')[0] == line.split(' ')[0] == 'fsync' or line.split(' ')[0] == 'fdatasync':
+            
+        elif line.split(' ')[0] == 'fsync' or line.split(' ')[0] == 'fdatasync':
             if method == 'setup':
                 updateSetupMap(index_map, 1)
             else:
                 updateRunMap(index_map, 1)
-            option = permutation[iter]
-            iter += 1
-            insertFsync(contents, option, line, index_map, method)
 
-        elif line.split(' ')[0] == 'sync':
-            if method == 'setup':
-                updateSetupMap(index_map, 1)
-            else:
-                updateRunMap(index_map, 1)
-            insertSync(contents, line, index_map, method)
-        
+            method = permutation[iter]
+            iter += 1
+            insertClose(contents, line, index_map, method)
+                
         elif line.split(' ')[0] == 'checkpoint':
             if method == 'setup':
                 updateSetupMap(index_map, 1)
@@ -309,41 +404,45 @@ def insertFunctions(line, file, index_map, method, permutation, iter):
                 updateSetupMap(index_map, 1)
             else:
                 updateRunMap(index_map, 1)
-            option = permutation[iter]
+            method = permutation[iter]
             iter += 1
-            insertLink(contents, option, line, index_map, method)
+            insertRename(contents, line, index_map, method)
+
 
         insert.seek(0)
         insert.writelines(contents)
         insert.close()
-            
     return iter
+
+        #if method is setup, update setup index, else run index
 
 
 def hasVariation(keyword):
     if keyword in ['fsync', 'fdatasync', 'falloc', 'remove', 'unlink', 'link', 'symlink']:
         return True
 
-def buildTuple(command):
+def updateDict(command):
     if command == 'fsync' or command == 'fdatasync' :
-        d = tuple(FsyncOptions)
+        d = dict.fromkeys(FsyncOptions, 0)
     elif command == 'falloc':
-        d = tuple(FallocOptions)
+        d = dict.fromkeys(FallocOptions, 0)
     elif command == 'remove' or command == 'unlink':
-        d = tuple(RemoveOptions)
+        d = dict.fromkeys(RemoveOptions, 0)
     elif command == 'link' or command == 'symlink':
-        d = tuple(LinkOptions)
+        d = dict.fromkeys(LinkOptions, 0)
     else:
-        d=()
+        d={}
     return d
 
 
 
 def main():
-    
-    #open log file
-    log_file = time.strftime('%Y%m%d_%H%M%S') + '-workloadGen.log'
-    log_file_handle = open(log_file, 'w')
+
+    # Open the log file
+#    log_file = time.strftime('%Y%m%d_%H%M%S') + '-workloadGen.log'
+#    log_file_handle = open(log_file, 'w')
+#    original = sys.stdout
+#    sys.stdout = Log(sys.stdout, log_file_handle)
 
     #Parse input args
     parsed_args = build_parser().parse_args()
@@ -390,11 +489,12 @@ def main():
             elif line.find('private') != -1:
                 if line.split(' ')[0] == 'private:':
                     index_map['define'] = index
+#    print index_map
     f.close()
 
 
     #Iterate through the lang spec and identify all possible lines that have alternative parameter options
-    done_list = []
+    done_map = []
     with open(test_file, 'r') as f:
         for line in f:
         
@@ -411,19 +511,28 @@ def main():
                 continue
 
             if hasVariation(line.split(' ')[0] ) is True:
-                d = buildTuple(line.split(' ')[0])
-                done_list.append(d)
+#                print line.split(' ')[0] , ' : has var'
+                d = updateDict(line.split(' ')[0])
+                done_map.append(d.copy())
 
 
     f.close()
 
+    #We have list of dicts of all possible variations for the given workload
+#    print done_map
+
+    done_list = []
+    for j in done_map:
+        done_list.append(tuple(j.keys()))
+
+#    print done_list
+#    print '\n'
     count = 0
     permutations = []
     for i in itertools.product(*done_list):
         permutations.append(i)
         count +=1
-
-    print 'Total files being created = ', count
+    print count
 
 
     #Now populate count num of files
@@ -432,11 +541,8 @@ def main():
         new_file = base_file.split('.cpp', 1)[0] + "_" + str(val) + ".cpp"
         copyfile(base_file, new_file)
         new_index_map = index_map.copy()
-        log = str(val) + ' : '
-        log = ' ,'.join(permutation);
-        log = log + '\n'
-        log_file_handle.write(log)
-        #Iterate through test file and fill up method by method
+        print permutation
+        #Iterate through test file and fill up base_file portion by portion
         with open(test_file, 'r') as f:
             iter = 0
             for line in f:
@@ -459,12 +565,115 @@ def main():
                 elif (method == 'setup' or method == 'run'):
                     op_map={}
                     iter = insertFunctions(line, new_file, new_index_map, method, permutation, iter)
-
+                    print new_index_map
+            print iter
         f.close()
         val += 1
+#       print done_map
 
 
-    log_file_handle.close()
+
+
+
+#    #iterate through the base file and update operation map
+#    found = False
+#    line_list = []
+#    line_index = []
+#    command_list = []
+#    index = 0
+#    newline = ""
+#    with open(base_file, 'r') as f:
+#        for line in f:
+#            for i in line.strip().split():
+#                key = i.split('(', 1)[0]
+#                value = operation_map.get(key)
+#                if value is not None:
+#                    value += 1
+#                    found = True
+#                    line_index.append(index)
+#                    true_key = key
+#                    operation_map[key] = value
+#            if found == True and not i.endswith(';') and not i.endswith('{'):
+#                newline = newline + line
+#                while not i.endswith(';') or not i.endswith('{'):
+#                    break
+#            elif found == True:
+#                newline = newline + line
+#                line_list.append(newline)
+#                if (true_key == 'open'):
+#                    c = Command(newline, line_index[-1], OpenVariations())
+#                elif (true_key == 'fsync'):
+#                    c = Command(newline, line_index[-1], FsyncVariations())
+#                elif (true_key == 'remove'):
+#                    c = Command(newline, line_index[-1], RemoveVariations())
+#                elif (true_key == 'fallocate'):
+#                    c = Command(newline, line_index[-1], FallocVariations())
+#                command_list.append(c)
+##                print "\nLine = ", c.line
+##                print "index = ", c.index
+##                print "Operation = ", c.op.op
+##                print "Variants = ", c.op.variants
+#                newline = ""
+#                found = False
+#
+#            index += len(line)
+#
+#        print line_index
+#
+##        f.seek(line_index[0])
+##        print f.readline()
+##        f.seek(line_index[1])
+##        print f.readline()
+##        f.seek(line_index[2])
+##        print f.readline()
+##        f.seek(line_index[3])
+##        print f.readline()
+#
+#
+#
+##    #Find max possible permutation
+##    perm = 0
+##    val = 1
+##    for i in operation_map:
+##        if(i =='open'):
+##            val*= 2*operation_map[i]
+##        elif(i =='fallocate'):
+##            val*= 3*operation_map[i]
+##        elif(i == 'fsync'):
+##            val*= 2*operation_map[i]
+##        else:
+##            val*=1
+##    print val
+#
+#    val = 0
+##    done_map = [dict() for x in range(len(command_list))]
+#    done_map = []
+#    for command in command_list:
+#        d = dict()
+#        done_map.append(d.copy())
+#        for com in command.op.variants:
+#            print com
+#            new_file = base_file.split('.cpp', 1)[0] + "_" + str(val) + ".cpp"
+#            copyfile(base_file, new_file)
+#            
+#            #replace by one variant
+#            f = open(new_file, "r+")
+#            content = f.read()
+#            content = command.op.Replace(content, com, command.line, done_map[val])
+##            content = content.replace(command.line, "Change made\n")
+#            f.write(content)
+#            f.close()
+#        val +=1
+##    print content
+#
+##    sys.stdout = original
+##    log_file_handle.close()
+#
+#
+#    #Now for all possible changes : while changes is true :
+#        #Create a test file
+#        #Make the change
+#        #add corresponding extra check_test if any
 
 
 if __name__ == '__main__':
