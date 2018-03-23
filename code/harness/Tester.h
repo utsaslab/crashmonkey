@@ -62,7 +62,8 @@ class Tester {
     NUM_TIME,
   };
 
-  Tester(const unsigned int device_size, const bool verbosity);
+  Tester(const unsigned int device_size, const unsigned int sector_size,
+      const bool verbosity);
   ~Tester();
   const bool verbose = false;
   void set_fs_type(const std::string type);
@@ -85,7 +86,8 @@ class Tester {
   int test_setup();
   int test_init_values(std::string mountDir, long filesysSize);
   int test_run();
-  int test_check_random_permutations(const int num_rounds, std::ofstream& log);
+  int test_check_random_permutations(const bool full_bio_replay,
+      const int num_rounds, std::ofstream& log);
   int test_check_log_replay(std::ofstream& log);
   int test_restore_log();
   int test_check_current();
@@ -147,6 +149,7 @@ class Tester {
   bool disk_mounted = false;
 
   int ioctl_fd = -1;
+  const unsigned int sector_size_;
   std::vector<fs_testing::utils::disk_write> log_data;
 
   int mount_device(const char* dev, const char* opts);

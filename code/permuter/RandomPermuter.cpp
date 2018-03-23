@@ -111,6 +111,110 @@ bool RandomPermuter::gen_one_state(vector<epoch_op>& res,
   return true;
 }
 
+bool RandomPermuter::gen_one_sector_state(vector<EpochOpSector> &res,
+    PermuteTestResult &log_data) {
+  res.clear();
+  // Return if there are no ops to work with.
+  if (GetEpochs()->size() == 0) {
+    return false;
+  }
+
+  vector<epoch> *epochs = GetEpochs();
+
+  // Pick the point in the sequence we will crash at.
+  // Find how many elements we will be returning (randomly determined).
+  uniform_int_distribution<unsigned int> permute_epochs(1, epochs->size());
+  unsigned int num_epochs = permute_epochs(rand);
+  unsigned int num_requests = 0;
+  if (!epochs->at(num_epochs - 1).ops.empty()) {
+    // It is not valid to call the random number generator with arguments (1, 0)
+    // (you get a large number if you do), so skip this if the epoch we crash in
+    // has no ops in it.
+
+    // Don't subtract 1 from this size so that we can send a complete epoch if
+    // we want.
+    uniform_int_distribution<unsigned int> permute_requests(1,
+        epochs->at(num_epochs - 1).ops.size());
+    num_requests = permute_requests(rand);
+  }
+
+  // Tell CrashMonkey the most recently seen checkpoint for the crash state
+  // we're generating. We can't just pull the last epoch because it could be the
+  // case that there's a checkpoint at the end of this disk write epoch.
+  // Therefore, we should determine 1. if we are writing out this entire epoch,
+  // and 2. if the checkpoint epoch for this disk write epoch is different than
+  // the checkpoint epoch of the disk write epoch before this one (indicating
+  // that this disk write epoch changes checkpoint epochs).
+  epoch *target = &(epochs->at(num_epochs - 1));
+  epoch *prev = NULL;
+  if (num_epochs > 1) {
+    prev = &epochs->at(num_epochs - 2);
+  }
+  if (num_requests != target->ops.size()) {
+    log_data.last_checkpoint = (prev) ? prev->checkpoint_epoch : 0;
+  } else {
+    log_data.last_checkpoint = target->checkpoint_epoch;
+  }
+
+  // Get all the sectors we will be writing out to disk except for the final
+  // epoch we crash in. These will not be coalesced.
+  // TODO(ashmrtn): These should probably be coalesced, as long as we don't drop
+  // any of them randomly (may make debugging file system errors harder).
+  for (unsigned int i = 0; i < num_epochs - 1; ++i) {
+    for (auto &op : epochs->at(i).ops) {
+      vector<EpochOpSector> sectors = op.ToSectors(sector_size_);
+      res.insert(res.end(), sectors.begin(), sectors.end());
+    }
+  }
+
+  // Get and coalesce the sectors of the final epoch we crashed in.
+  vector<EpochOpSector> final_epoch;
+  for (unsigned int i = 0; i < num_requests; ++i) {
+    vector<EpochOpSector> sectors =
+      epochs->at(num_epochs - 1).ops.at(i).ToSectors(sector_size_);
+    final_epoch.insert(final_epoch.end(), sectors.begin(), sectors.end());
+  }
+
+  if (final_epoch.empty()) {
+    // No sectors to drop in the final epoch so just reutrn.
+    return true;
+  } else if (num_requests == epochs->at(num_epochs - 1).ops.size() &&
+      epochs->at(num_epochs - 1).ops.back().op.is_barrier()) {
+    // We picked the entire epoch and it has a barrier, so we can't rearrange
+    // anything.
+    res.insert(res.end(), final_epoch.begin(), final_epoch.end());
+    return true;
+  }
+
+  final_epoch = CoalesceSectors(final_epoch);
+
+  // Randomly drop some sectors.
+  // Pick a number of sectors to keep.
+  uniform_int_distribution<unsigned int> rand_num_sectors(1,
+      final_epoch.size());
+  const unsigned int num_sectors = rand_num_sectors(rand);
+
+  vector<unsigned int> indices(final_epoch.size());
+  iota(indices.begin(), indices.end(), 0);
+  // Use a known random generator function for repeatability.
+  std::random_shuffle(indices.begin(), indices.end(), subset_random_);
+
+  // Populate the bitmap to set req_set number of bios. This is required to keep
+  // sectors in temporal order when we generate the crash state.
+  vector<unsigned char> sector_bitmap(final_epoch.size());
+  for (int i = 0; i < num_sectors; ++i) {
+    sector_bitmap[indices[i]] = 1;
+  }
+
+  // Add the sectors corresponding to bitmap indexes to the result.
+  for (unsigned int i = 0; i < sector_bitmap.size(); ++i) {
+    if (sector_bitmap[i] == 1) {
+      res.push_back(final_epoch.at(i));
+    }
+  }
+
+  return true;
+}
 
 void RandomPermuter::subset_epoch(
       vector<epoch_op>::iterator &res_start,

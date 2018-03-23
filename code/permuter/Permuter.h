@@ -65,17 +65,33 @@ struct EpochOpSector {
 class Permuter {
  public:
   virtual ~Permuter() {};
-  void InitDataVector(std::vector<fs_testing::utils::disk_write> &data);
+  void InitDataVector(unsigned int sector_size,
+      std::vector<fs_testing::utils::disk_write> &data);
   bool GenerateCrashState(std::vector<EpochOpSector>& res,
+      PermuteTestResult &log_data);
+  bool GenerateSectorCrashState(std::vector<EpochOpSector>& res,
       PermuteTestResult &log_data);
 
  protected:
   std::vector<epoch>* GetEpochs();
+  /*
+   * Given a vector of sectors ordered in time (i.e. the submission time of a
+   * sector at a higher index in the vector is later than the submission time of
+   * a sector at a lower index in the vector), remove earlier sectors that write
+   * to the same disk address as later sectors.
+   */
+  std::vector<EpochOpSector> CoalesceSectors(
+      std::vector<EpochOpSector> &sector_list);
+
+  unsigned int sector_size_;
 
  private:
   virtual void init_data(std::vector<epoch> *data) = 0;
   virtual bool gen_one_state(std::vector<epoch_op>& res,
       PermuteTestResult &log_data) = 0;
+  virtual bool gen_one_sector_state(std::vector<EpochOpSector> &res,
+      PermuteTestResult &log_data) = 0;
+
   bool FindOverlapsAndInsert(fs_testing::utils::disk_write &dw,
       std::list<std::pair<unsigned int, unsigned int>> &ranges) const;
 

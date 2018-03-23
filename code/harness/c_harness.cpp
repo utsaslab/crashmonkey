@@ -36,7 +36,7 @@
 #define DIRECTORY_PERMS \
   (S_IRUSR | S_IWUSR | S_IRGRP | S_IWGRP | S_IROTH | S_IWOTH)
 
-#define OPTS_STRING "bd:f:e:l:m:np:r:s:t:vIP"
+#define OPTS_STRING "bd:f:e:l:m:np:r:s:t:vFIPS:"
 
 namespace {
   unsigned int kSocketQueueDepth;
@@ -67,8 +67,10 @@ static const option long_options[] = {
   {"iterations", required_argument, NULL, 's'},
   {"fs-type", required_argument, NULL, 't'},
   {"verbose", no_argument, NULL, 'v'},
+  {"full-bio-replay", no_argument, NULL, 'F'},
   {"no-in-order-replay", no_argument, NULL, 'I'},
   {"no-permuted-order-replay", no_argument, NULL, 'P'},
+  {"sector-size", required_argument, NULL, 'S'},
   {0, 0, 0, 0},
 };
 
@@ -90,8 +92,10 @@ int main(int argc, char** argv) {
   bool verbose = false;
   bool in_order_replay = true;
   bool permuted_order_replay = true;
+  bool full_bio_replay = false;
   int iterations = 10000;
   int disk_size = 10240;
+  unsigned int sector_size = 512;
   int option_idx = 0;
   ServerSocket* background_com = NULL;
 
@@ -142,11 +146,17 @@ int main(int argc, char** argv) {
       case 'v':
         verbose = true;
         break;
+      case 'F':
+        full_bio_replay = true;
+        break;
       case 'I':
         in_order_replay = false;
         break;
       case 'P':
         permuted_order_replay = false;
+        break;
+      case 'S':
+        sector_size = atoi(optarg);
         break;
       case '?':
       default:
@@ -206,6 +216,11 @@ int main(int argc, char** argv) {
     return -1;
   }
 
+  if (sector_size <= 0) {
+    cerr << "Please give a positive number for the sector size" << endl;
+    return -1;
+  }
+
   // Create a socket to coordinate with the outside world.
   // TODO(ashmrtn): Fix permissions on the socket.
   /*
@@ -252,7 +267,7 @@ int main(int argc, char** argv) {
   }
 
 
-  Tester test_harness(disk_size, verbose);
+  Tester test_harness(disk_size, sector_size, verbose);
   test_harness.StartTestSuite();
 
   cout << "Inserting RAM disk module" << endl;
@@ -854,7 +869,8 @@ int main(int argc, char** argv) {
     logfile << "Writing profiled data to block device and checking with fsck" <<
       endl;
 
-    test_harness.test_check_random_permutations(iterations, logfile);
+    test_harness.test_check_random_permutations(full_bio_replay, iterations,
+        logfile);
 
     for (unsigned int i = 0; i < Tester::NUM_TIME; ++i) {
       cout << "\t" << (Tester::time_stats) i << ": " <<

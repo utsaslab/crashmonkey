@@ -31,6 +31,9 @@ class RandomPermuter : public Permuter {
   virtual void init_data(std::vector<epoch> *data);
   virtual bool gen_one_state(std::vector<epoch_op>& res,
       PermuteTestResult &log_data);
+  virtual bool gen_one_sector_state(std::vector<EpochOpSector> &res,
+      PermuteTestResult &log_data) override;
+
   void subset_epoch(
       std::vector<epoch_op>::iterator &res_start,
       std::vector<epoch_op>::iterator &res_end, epoch &epoch);

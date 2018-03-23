@@ -96,8 +96,9 @@ using fs_testing::permuter::permuter_create_t;
 using fs_testing::permuter::permuter_destroy_t;
 using fs_testing::utils::disk_write;
 
-Tester::Tester(const unsigned int dev_size, const bool verbosity)
-  : device_size(dev_size), verbose(verbosity) {}
+Tester::Tester(const unsigned int dev_size, const unsigned int sector_size,
+    const bool verbosity)
+  : device_size(dev_size), sector_size_(sector_size), verbose(verbosity) {}
 
 Tester::~Tester() {
   if (fs_specific_ops_ != NULL) {
@@ -604,12 +605,12 @@ vector<milliseconds> Tester::test_fsck_and_user_test(
   return res;
 }
 
-int Tester::test_check_random_permutations(const int num_rounds,
-    ofstream& log) {
+int Tester::test_check_random_permutations(bool full_bio_replay,
+    const int num_rounds, ofstream& log) {
   assert(current_test_suite_ != NULL);
   time_point<steady_clock> start_time = steady_clock::now();
   Permuter *p = permuter_loader.get_instance();
-  p->InitDataVector(log_data);
+  p->InitDataVector(sector_size_, log_data);
   vector<EpochOpSector> permutes;
   for (int rounds = 0; rounds < num_rounds; ++rounds) {
     // Print status every 1024 iterations.
@@ -626,8 +627,13 @@ int Tester::test_check_random_permutations(const int num_rounds,
 
     // Begin permute timing.
     time_point<steady_clock> permute_start_time = steady_clock::now();
-    bool new_state = p->GenerateCrashState(permutes,
-        test_info.permute_data);
+    bool new_state = false;
+    if (full_bio_replay) {
+      new_state = p->GenerateCrashState(permutes, test_info.permute_data);
+    } else {
+      new_state = p->GenerateSectorCrashState(permutes, test_info.permute_data);
+    }
+
     time_point<steady_clock> permute_end_time = steady_clock::now();
     timing_stats[PERMUTE_TIME] +=
         duration_cast<milliseconds>(permute_end_time - permute_start_time);
