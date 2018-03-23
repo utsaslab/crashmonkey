@@ -732,7 +732,7 @@ TEST_P(GenericEpochTest, InitDataVectorEmptyEndEpoch) {
  * Test to ensure per epoch metadata counts are properly maintained. Operations
  * with the meta flag should be added to the count of metadata operations in an
  * epoch. This includes barrier operations that are split across two epochs,
- * normal barrier operations, and regular wrties.
+ * normal barrier operations, and regular writes.
  */
 TEST_P(GenericEpochTest, InitDataVectorCountMetadata) {
   const unsigned int num_regular_writes = 9;

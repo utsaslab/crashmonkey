@@ -291,7 +291,7 @@ void Permuter::InitDataVector(unsigned int sector_size,
       ++curr_op;
     }
 
-    // Check is the op at the current index is a "barrier." If it is then add it
+    // Check if the op at the current index is a "barrier." If it is then add it
     // to the end of the epoch, otherwise just push the current epoch onto the
     // list and move to the next segment of the log. The only reasons you should
     // get here really are 1. you reached the end of the epoch (saw a barrier)
@@ -351,7 +351,7 @@ void Permuter::InitDataVector(unsigned int sector_size,
 /*
  * Initializes the set of epochs based on both the relative times between bio
  * submissions and the flags within the workload. This leads to crash states
- * where opertions are considered persisted if enough time has passed between
+ * where opertions are considered persisted if "enough" time has passed between
  * the submission of one operation and the submission of the next operation.
  *
  * If a checkpoint is between two operations such that the time between the
@@ -382,10 +382,12 @@ void Permuter::InitDataVectorSoft(unsigned int sector_size,
   auto curr_op = data.begin();
   while (curr_op != data.end()) {
     if (curr_op->is_checkpoint()) {
-      // We may be switching soft epochs on the next opeation, so don't set the
-      // checkpoint epoch unless we know that we just switched epochs.
+      // We may be switching soft epochs on the next operation, so don't set the
+      // checkpoint epoch unless we know that we just switched epochs. This
+      // works because when we create a new epoch we record the
+      // curr_checkpoint_epoch value in it.
       ++curr_checkpoint_epoch;
-      if (current_epoch->ops.size() == 0) {
+      if (current_epoch->ops.empty()) {
         current_epoch->checkpoint_epoch = curr_checkpoint_epoch;
       }
     } else if (!curr_op->is_barrier()) {
@@ -395,6 +397,8 @@ void Permuter::InitDataVectorSoft(unsigned int sector_size,
       std::chrono::duration<long long, std::nano> diff =
         cur_time - last_time_seen;
       if (last_time_seen.count() > 0 && diff >= max_delay) {
+        // Zero comparison is to make sure we're not comparing against our dummy
+        // starting value for last_time_seen.
         // We need a new soft epoch.
         current_epoch = AddNewEpoch();
         epoch_overlaps.clear();
@@ -460,7 +464,7 @@ void Permuter::InitDataVectorSoft(unsigned int sector_size,
   if (epochs_.size() > 1 &&
       (epochs_.at(epochs_.size() - 1).checkpoint_epoch ==
         epochs_.at(epochs_.size() - 2).checkpoint_epoch) &&
-      epochs_.back().ops.size() == 0) {
+      epochs_.back().ops.empty()) {
     epochs_.pop_back();
   }
 }
