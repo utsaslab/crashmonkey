@@ -12,9 +12,6 @@ import itertools
 from shutil import copyfile
 from string import maketrans
 
-def enum(**enums):
-    return type('Enum', (), enums)
-
 
 #All functions that has options go here
 FallocOptions = ['FALLOC_FL_ZERO_RANGE','FALLOC_FL_ZERO_RANGE | FALLOC_FL_KEEP_SIZE','FALLOC_FL_PUNCH_HOLE | FALLOC_FL_KEEP_SIZE', '0',  'FALLOC_FL_KEEP_SIZE']
@@ -24,6 +21,8 @@ FsyncOptions = ['fsync','fdatasync']
 RemoveOptions = ['remove','unlink']
 
 LinkOptions = ['link','symlink']
+
+WriteOptions = ['WriteData','WriteDataMmap', 'pwrite']
 
 
 def build_parser():
@@ -225,6 +224,25 @@ def insertRename(contents, line, index_map, method):
         contents.insert(index_map['run'], to_insert)
         updateRunMap(index_map, 4)
 
+def insertWrite(contents, option, line, index_map, method):
+    if option == 'WriteData' or option == 'WriteDataMmap' :
+        to_insert = '\n\t\t\t\tif ( ' + option + '( fd_' + line.split(' ')[1] + ', ' + line.split(' ')[2] + ', ' + line.split(' ')[3] + ') < 0){ \n\t\t\t\t\tclose( fd_' + line.split(' ')[1] + '); \n\t\t\t\t\treturn errno;\n\t\t\t\t}\n\n'
+        if method == 'setup':
+            contents.insert(index_map['setup'], to_insert)
+            updateSetupMap(index_map, 5)
+        else:
+            contents.insert(index_map['run'], to_insert)
+            updateRunMap(index_map, 5)
+    else:
+        to_insert = '\n\t\t\t\tclose(fd_' + line.split(' ')[1] + ');  \n\t\t\t\tconst int fd_' + line.split(' ')[1] + ' = open(' + line.split(' ')[1] + '_path.c_str() , O_DIRECT|O_SYNC , 0777); \n\t\t\t\tif ( fd_' + line.split(' ')[1] + ' < 0 ) { \n\t\t\t\t\tclose( fd_' + line.split(' ')[1] + '); \n\t\t\t\t\treturn errno;\n\t\t\t\t}\n\n\t\t\t\tvoid* data_' + line.split(' ')[1] + '; \n\t\t\t\tif (posix_memalign(&data_' + line.split(' ')[1] + ' , 4096, ' + line.split(' ')[3] +' ) < 0) {\n\t\t\t\t\treturn errno;\n\t\t\t\t}\n\n\t\t\t\tmemset(data_' + line.split(' ')[1] + ', \'a\', ' + line.split(' ')[3] + '); \n\n\t\t\t\tif ( ' + option + '( fd_' + line.split(' ')[1] + ', data_'+ line.split(' ')[1] + ', '  + line.split(' ')[3] + ', ' + line.split(' ')[2] + ') < 0){ \n\t\t\t\t\tclose( fd_' + line.split(' ')[1] + '); \n\t\t\t\t\treturn errno;\n\t\t\t\t}\n\n'
+
+        if method == 'setup':
+            contents.insert(index_map['setup'], to_insert)
+            updateSetupMap(index_map, 19)
+        else:
+            contents.insert(index_map['run'], to_insert)
+            updateRunMap(index_map, 19)
+
 
 # Insert a function in 'line' into 'file' at location specified by 'index_map' in the specified 'method'
 # If the workload has functions with various possible paramter options, the 'permutation' defines the set of
@@ -313,6 +331,15 @@ def insertFunctions(line, file, index_map, method, permutation, iter):
             iter += 1
             insertLink(contents, option, line, index_map, method)
 
+        elif line.split(' ')[0] == 'write':
+            if method == 'setup':
+                updateSetupMap(index_map, 1)
+            else:
+                updateRunMap(index_map, 1)
+            option = permutation[iter]
+            iter += 1
+            insertWrite(contents, option, line, index_map, method)
+
         insert.seek(0)
         insert.writelines(contents)
         insert.close()
@@ -321,7 +348,7 @@ def insertFunctions(line, file, index_map, method, permutation, iter):
 
 
 def hasVariation(keyword):
-    if keyword in ['fsync', 'fdatasync', 'falloc', 'remove', 'unlink', 'link', 'symlink']:
+    if keyword in ['fsync', 'fdatasync', 'falloc', 'remove', 'unlink', 'link', 'symlink', 'write']:
         return True
 
 def buildTuple(command):
@@ -333,6 +360,8 @@ def buildTuple(command):
         d = tuple(RemoveOptions)
     elif command == 'link' or command == 'symlink':
         d = tuple(LinkOptions)
+    elif command == 'write':
+        d = tuple(WriteOptions)
     else:
         d=()
     return d
@@ -432,9 +461,8 @@ def main():
         new_file = base_file.split('.cpp', 1)[0] + "_" + str(val) + ".cpp"
         copyfile(base_file, new_file)
         new_index_map = index_map.copy()
-        log = str(val) + ' : '
         log = ' ,'.join(permutation);
-        log = log + '\n'
+        log = `val` + ' : ' + log + '\n'
         log_file_handle.write(log)
         #Iterate through test file and fill up method by method
         with open(test_file, 'r') as f:
