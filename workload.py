@@ -91,12 +91,12 @@ def insertDefine(line, file, index_map):
         
         #Initialize paths in run phase
         updateRunMap(index_map, 1)
-        to_insert = '\t\t\t\t' + line.split('/')[-1] + '_path =  mnt_dir_/' + ' + "/' + line + '";\n'
+        to_insert = '\t\t\t\t' + line.split('/')[-1] + '_path =  mnt_dir_' + ' + "/' + line + '";\n'
         contents.insert(index_map['run'], to_insert)
         
         #Initialize paths in check phase
         updateCheckMap(index_map, 1)
-        to_insert = '\t\t\t\t' + line.split('/')[-1] + '_path =  mnt_dir_/' + ' + "/' + line + '";\n'
+        to_insert = '\t\t\t\t' + line.split('/')[-1] + '_path =  mnt_dir_' + ' + "/' + line + '";\n'
         contents.insert(index_map['check'], to_insert)
         
         #Update defines portion
@@ -112,7 +112,7 @@ def insertDefine(line, file, index_map):
 
 def insertFalloc(contents, option, line, index_map, method):
 
-    to_insert = '\n\t\t\t\tif ( fallocate( fd_' + line.split(' ')[1] + ' , ' + option + ' , ' + line.split(' ')[2] + ' , '  + line.split(' ')[3] + ') < 0){ \n\t\t\t\t\t close(' + line.split(' ')[1]  +');\n\t\t\t\t\t return errno;\n\t\t\t\t}\n\n'
+    to_insert = '\n\t\t\t\tif ( fallocate( fd_' + line.split(' ')[1] + ' , ' + option + ' , ' + line.split(' ')[2] + ' , '  + line.split(' ')[3] + ') < 0){ \n\t\t\t\t\t close( fd_' + line.split(' ')[1]  +');\n\t\t\t\t\t return errno;\n\t\t\t\t}\n\n'
 
     if method == 'setup':
         contents.insert(index_map['setup'], to_insert)
@@ -181,14 +181,14 @@ def insertFsync(contents, option,  line, index_map, method):
 
 
 def insertSync(contents, line, index_map, method):
-    to_insert = '\n\t\t\t\tif ( ' + line.split(' ')[0] + '() < 0){ \n\t\t\t\t\treturn errno;\n\t\t\t\t}\n\n'
+    to_insert = '\n\t\t\t\t' + line.split(' ')[0] + '(); \n\n'
     
     if method == 'setup':
         contents.insert(index_map['setup'], to_insert)
-        updateSetupMap(index_map, 4)
+        updateSetupMap(index_map, 2)
     else:
         contents.insert(index_map['run'], to_insert)
-        updateRunMap(index_map, 4)
+        updateRunMap(index_map, 2)
 
 
 def insertLink(contents, option, line, index_map, method):
@@ -395,7 +395,7 @@ def main():
 
     #Copy base file to target path
     base_file = parsed_args.target_path + "/" + base_test.split('/')[-1]
-    copyfile(base_test, base_file)
+    # copyfile(base_test, base_file)
     test_file = parsed_args.test_file
 
     index_map = {'define' : 0, 'setup' : 0, 'run' : 0, 'check' : 0}
