@@ -13,27 +13,6 @@ MODULES = cow_brd disk_wrapper
 obj-m := $(addsuffix .o, $(MODULES))
 KDIR := /lib/modules/$(KERNEL_VERSION)/build
 
-CM_GEN_042_EXCLUDE = generic_042_base.cpp
-CM_GEN_042 = \
-		$(patsubst %.cpp, %.so, \
-			$(filter-out $(CM_GEN_042_EXCLUDE), \
-				$(notdir $(wildcard $(CURDIR)/tests/generic_042/*.cpp))))
-CM_GEN_042_OUT = \
-		$(foreach TEST, $(CM_GEN_042), \
-			$(BUILD_DIR)/tests/generic_042/$(TEST))
-
-CM_TESTS_EXCLUDE = BaseTestCase.cpp
-CM_TESTS = \
-		$(patsubst %.cpp, %.so, \
-			$(filter-out $(CM_TESTS_EXCLUDE), \
-				$(notdir $(wildcard $(CURDIR)/tests/*.cpp))))
-
-CM_PERMUTER_EXCLUDE = Permuter.cpp
-CM_PERMUTERS = \
-		$(patsubst %.cpp, %.so, \
-			$(filter-out $(CM_PERMUTER_EXCLUDE), \
-				$(notdir $(wildcard $(CURDIR)/permuter/*.cpp))))
-
 # Some Makefile magic to get the right include for xattr depending on kernel
 # version. To avoid including kernel headers in user test cases, we don't want
 # to compare against the KERNEL_VERSION macro. Thanks to some random SO post for
@@ -45,6 +24,46 @@ ifeq ($(shell [ $(KERNEL_MAJ) -gt 4 -o \
 	\( $(KERNEL_MAJ) -eq 4 -a $(KERNEL_MIN) -ge 15 \) ] && echo true), true)
 XATTR_DEF_FLAG := -DNEW_XATTR_INC
 endif
+
+# Names of tests containing calls to fallocate with the zero range flag.
+FALLOC_ZERO_RANGE_TESTS = \
+	bug2_f2fs_fzero_fdatasync.cpp \
+	bug1_btrfs_falloc_fsync.cpp \
+	generic_042_fzero.cpp \
+	generic_042_fzero_keep_size.cpp \
+	generic_042_fzero_unaligned.cpp \
+	generic_042_fzero_keep_size_unaligned.cpp
+
+# Exclude the fallocate zero range tests on kernels < 3.15 since the call
+# doesn't exist in those kernels.
+FALLOC_EXCLUDE :=
+ifeq ($(shell [ $(KERNEL_MAJ) -lt 3 -o \
+	\( $(KERNEL_MAJ) -eq 3 -a $(KERNEL_MIN) -lt 15 \) ] && echo true), true)
+FALLOC_EXCLUDE := $(FALLOC_ZERO_RANGE_TESTS)
+endif
+
+CM_GEN_042_EXCLUDE = generic_042_base.cpp
+CM_GEN_042 = \
+		$(patsubst %.cpp, %.so, \
+			$(filter-out $(CM_GEN_042_EXCLUDE), \
+				$(filter-out $(FALLOC_EXCLUDE), \
+					$(notdir $(wildcard $(CURDIR)/tests/generic_042/*.cpp)))))
+CM_GEN_042_OUT = \
+		$(foreach TEST, $(CM_GEN_042), \
+			$(BUILD_DIR)/tests/generic_042/$(TEST))
+
+CM_TESTS_EXCLUDE = BaseTestCase.cpp
+CM_TESTS = \
+		$(patsubst %.cpp, %.so, \
+			$(filter-out $(CM_TESTS_EXCLUDE), \
+				$(filter-out $(FALLOC_EXCLUDE), \
+					$(notdir $(wildcard $(CURDIR)/tests/*.cpp)))))
+
+CM_PERMUTER_EXCLUDE = Permuter.cpp
+CM_PERMUTERS = \
+		$(patsubst %.cpp, %.so, \
+			$(filter-out $(CM_PERMUTER_EXCLUDE), \
+				$(notdir $(wildcard $(CURDIR)/permuter/*.cpp))))
 
 .PHONY: all modules c_harness user_tool $(CM_TESTS) $(CM_PERMUTERS) clean
 
