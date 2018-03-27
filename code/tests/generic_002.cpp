@@ -2,29 +2,14 @@
 Reproducing xfstest generic/002
 
 1. Create file foo
-2. Create 3000 links for file foo in the same dir
-    (link_0 to link_2999)
-3. sync() everything so far
-4. Remove a link -> link_0
-5. Create a new link with a new name -> link_3000
-6. Create a new link with the old name -> link_0
-5. fsync(foo)
+2. Create 10 links for file foo in the same dir
+    (link_0 to link_9) (sync and checkpoint after each create)
+3. Remove the 10 links created (sync and checkpoint after each remove)
 
-If a power fail occurs now, and remount the filesystem,
-the dir A must be removable, after file foo and all links
-are deleted.
+After a crash at random point, the file should have the correct number of links
+corresponding to the checkpoint number.
 
-
-This is tested to fail on btrfs(kernel 3.13) What happens here
-is that when we create a large number of links, some
-of which are extref and turn a regular ref into an 
-extref, fsync the inode and then replay the fsync log 
-we can endup with an fsync log that makes the replay code always fail with -EOVERFLOW when processing
-the inode's references. So the FS won't mount unless
-you explicitly use btrfs-zero-log to delete the fsync log.
-
-https://patchwork.kernel.org/patch/5622341/
-https://www.spinics.net/lists/linux-btrfs/msg41157.html
+https://github.com/kdave/xfstests/blob/master/tests/generic/002
 */
 
 
@@ -45,7 +30,7 @@ https://www.spinics.net/lists/linux-btrfs/msg41157.html
 #define TEST_FILE_FOO_LINK "foo_link_"
 #define TEST_MNT "/mnt/snapshot"
 #define TEST_DIR_A "test_dir_a"
-#define NUM_LINKS 5
+#define NUM_LINKS 10
 
 
 using fs_testing::tests::DataTestResult;
