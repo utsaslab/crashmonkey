@@ -18,7 +18,7 @@ rename foo bar
 link bar foo
 remove dummy
 fsync dummy
-write foo 0 4096
+write dummy 0 4096
 checkpoint 
 close dummy
 unlink dummy

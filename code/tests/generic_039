@@ -1,0 +1,17 @@
+# define 
+A
+A/foo 
+A/bar
+
+# setup 
+mkdir A 0777
+sync
+
+# run
+open foo O_RDWR|O_CREAT 0777
+link foo bar
+sync
+remove bar
+fsync foo
+checkpoint 
+close foo

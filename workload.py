@@ -136,7 +136,7 @@ def insertMkdir(contents, line, index_map, method):
 
 def insertOpenFile(contents, line, index_map, method):
     
-    to_insert = '\n\t\t\t\tconst int fd_' + line.split(' ')[1] + ' = open(' + line.split(' ')[1] + '_path.c_str() , ' + line.split(' ')[2] + ' , ' + line.split(' ')[3] + '); \n\t\t\t\tif ( fd_' + line.split(' ')[1] + ' < 0 ) { \n\t\t\t\t\tclose( fd_' + line.split(' ')[1] + '); \n\t\t\t\t\treturn errno;\n\t\t\t\t}\n\n'
+    to_insert = '\n\t\t\t\tint fd_' + line.split(' ')[1] + ' = open(' + line.split(' ')[1] + '_path.c_str() , ' + line.split(' ')[2] + ' , ' + line.split(' ')[3] + '); \n\t\t\t\tif ( fd_' + line.split(' ')[1] + ' < 0 ) { \n\t\t\t\t\tclose( fd_' + line.split(' ')[1] + '); \n\t\t\t\t\treturn errno;\n\t\t\t\t}\n\n'
     
     if method == 'setup':
         contents.insert(index_map['setup'], to_insert)
@@ -144,6 +144,17 @@ def insertOpenFile(contents, line, index_map, method):
     else:
         contents.insert(index_map['run'], to_insert)
         updateRunMap(index_map, 6)
+
+def insertOpenDir(contents, line, index_map, method):
+    
+    to_insert = '\n\t\t\t\tint fd_' + line.split(' ')[1] + ' = open(' + line.split(' ')[1] + '_path.c_str() , O_DIRECTORY , ' + line.split(' ')[2] + '); \n\t\t\t\tif ( fd_' + line.split(' ')[1] + ' < 0 ) { \n\t\t\t\t\tclose( fd_' + line.split(' ')[1] + '); \n\t\t\t\t\treturn errno;\n\t\t\t\t}\n\n'
+    
+    if method == 'setup':
+        contents.insert(index_map['setup'], to_insert)
+        updateSetupMap(index_map, 6)
+    else:
+        contents.insert(index_map['run'], to_insert)
+        updateRunMap(index_map, 6)        
 
 
 def insertRemoveFile(contents,option, line, index_map, method):
@@ -234,7 +245,7 @@ def insertWrite(contents, option, line, index_map, method):
             contents.insert(index_map['run'], to_insert)
             updateRunMap(index_map, 5)
     else:
-        to_insert = '\n\t\t\t\tclose(fd_' + line.split(' ')[1] + ');  \n\t\t\t\tconst int fd_' + line.split(' ')[1] + ' = open(' + line.split(' ')[1] + '_path.c_str() , O_DIRECT|O_SYNC , 0777); \n\t\t\t\tif ( fd_' + line.split(' ')[1] + ' < 0 ) { \n\t\t\t\t\tclose( fd_' + line.split(' ')[1] + '); \n\t\t\t\t\treturn errno;\n\t\t\t\t}\n\n\t\t\t\tvoid* data_' + line.split(' ')[1] + '; \n\t\t\t\tif (posix_memalign(&data_' + line.split(' ')[1] + ' , 4096, ' + line.split(' ')[3] +' ) < 0) {\n\t\t\t\t\treturn errno;\n\t\t\t\t}\n\n\t\t\t\tmemset(data_' + line.split(' ')[1] + ', \'a\', ' + line.split(' ')[3] + '); \n\n\t\t\t\tif ( ' + option + '( fd_' + line.split(' ')[1] + ', data_'+ line.split(' ')[1] + ', '  + line.split(' ')[3] + ', ' + line.split(' ')[2] + ') < 0){ \n\t\t\t\t\tclose( fd_' + line.split(' ')[1] + '); \n\t\t\t\t\treturn errno;\n\t\t\t\t}\n\n'
+        to_insert = '\n\t\t\t\tclose(fd_' + line.split(' ')[1] + ');  \n\t\t\t\tfd_' + line.split(' ')[1] + ' = open(' + line.split(' ')[1] + '_path.c_str() , O_DIRECT|O_SYNC , 0777); \n\t\t\t\tif ( fd_' + line.split(' ')[1] + ' < 0 ) { \n\t\t\t\t\tclose( fd_' + line.split(' ')[1] + '); \n\t\t\t\t\treturn errno;\n\t\t\t\t}\n\n\t\t\t\tvoid* data_' + line.split(' ')[1] + '; \n\t\t\t\tif (posix_memalign(&data_' + line.split(' ')[1] + ' , 4096, ' + line.split(' ')[3] +' ) < 0) {\n\t\t\t\t\treturn errno;\n\t\t\t\t}\n\n\t\t\t\tmemset(data_' + line.split(' ')[1] + ', \'a\', ' + line.split(' ')[3] + '); \n\n\t\t\t\tif ( ' + option + '( fd_' + line.split(' ')[1] + ', data_'+ line.split(' ')[1] + ', '  + line.split(' ')[3] + ', ' + line.split(' ')[2] + ') < 0){ \n\t\t\t\t\tclose( fd_' + line.split(' ')[1] + '); \n\t\t\t\t\treturn errno;\n\t\t\t\t}\n\n'
 
         if method == 'setup':
             contents.insert(index_map['setup'], to_insert)
@@ -275,6 +286,13 @@ def insertFunctions(line, file, index_map, method, permutation, iter):
             else:
                 updateRunMap(index_map, 1)
             insertOpenFile(contents, line, index_map, method)
+
+        elif line.split(' ')[0] == 'opendir':
+            if method == 'setup':
+                updateSetupMap(index_map, 1)
+            else:
+                updateRunMap(index_map, 1)
+            insertOpenDir(contents, line, index_map, method)            
                 
         elif line.split(' ')[0] == 'remove' or line.split(' ')[0] == 'unlink':
             if method == 'setup':
@@ -458,7 +476,7 @@ def main():
     #Now populate count num of files
     val = 0
     for permutation in permutations:
-        new_file = base_file.split('.cpp', 1)[0] + "_" + str(val) + ".cpp"
+        new_file = test_file + "_" + str(val) + ".cpp"
         copyfile(base_file, new_file)
         new_index_map = index_map.copy()
         log = ' ,'.join(permutation);

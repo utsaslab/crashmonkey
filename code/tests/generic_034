@@ -1,0 +1,19 @@
+# define 
+A
+A/foo 
+A/bar
+
+# setup 
+mkdir A 0777
+open foo O_CREAT|O_RDWR 0777
+sync
+close foo
+
+# run
+open bar O_RDWR|O_CREAT 0777
+opendir A 0777
+fsync A
+fsync bar
+checkpoint 
+close bar
+close A
