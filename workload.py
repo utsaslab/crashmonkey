@@ -29,7 +29,8 @@ def build_parser():
     parser = argparse.ArgumentParser(description='Workload Generator for XFSMonkey v1.0')
 
     # global args
-    parser.add_argument('--test_file', '-t', default='', help='Test file to generate workload')
+    parser.add_argument('--base_file', '-b', default='', help='Base test file to generate workload')
+    parser.add_argument('--test_file', '-t', default='', help='J lang test skeleton to generate workload')
 
     # crash monkey args
     parser.add_argument('--target_path', '-p', default='code/tests/', help='Directory to save the generated test files')
@@ -40,7 +41,8 @@ def build_parser():
 def print_setup(parsed_args):
     print '\n{: ^50s}'.format('XFSMonkey Workload generatorv0.1\n')
     print '='*20, 'Setup' , '='*20, '\n'
-    print '{0:20}  {1}'.format('Base test file', parsed_args.test_file)
+    print '{0:20}  {1}'.format('Base test file', parsed_args.base_file)
+    print '{0:20}  {1}'.format('Test skeleton', parsed_args.test_file)
     print '{0:20}  {1}'.format('Target directory', parsed_args.target_path)
     print '\n', '='*48, '\n'
     
@@ -396,7 +398,7 @@ def main():
     parsed_args = build_parser().parse_args()
 
     #Print the test setup - just for sanity
-    base_test = 'code/tests/base_test.cpp'
+    # base_test = 'code/tests/base_test.cpp'
     print_setup(parsed_args)
     
     
@@ -412,6 +414,7 @@ def main():
     operation_map = create_dict()
 
     #Copy base file to target path
+    base_test = parsed_args.base_file
     base_file = parsed_args.target_path + "/" + base_test.split('/')[-1]
     # copyfile(base_test, base_file)
     test_file = parsed_args.test_file
