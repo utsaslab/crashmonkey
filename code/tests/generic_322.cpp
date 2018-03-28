@@ -102,11 +102,11 @@ class Generic322: public BaseTestCase {
 	}
 
 	// Read contents of the file and check if contents are same
-	char *buf;
-	if (pread(fd_bar, buf, 10000, 0)) { // maximum of 10000 bytes - we know it's a small string
+	char buf[100];
+	if (pread(fd_bar, buf, sizeof(buf), 0) < 0) {
 		return -6;
 	}
-	if (strcmp(buf, file_contents.c_str()) != 0 && last_checkpoint >= 1) {
+	if (strncmp(buf, file_contents.c_str(), file_contents.length()) != 0 && last_checkpoint >= 1) {
         test_result->SetError(DataTestResult::kFileMetadataCorrupted);
         test_result->error_description = " : Contents of bar does not match with expected contents";
 	}
