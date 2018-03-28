@@ -25,6 +25,7 @@ https://github.com/kdave/xfstests/blob/master/tests/generic/322
 #include "../user_tools/api/workload.h"
 #include "../user_tools/api/actions.h"
 #define TEST_FILE_FOO "foo"
+#define TEST_FILE_FOO_BACKUP "foo_backup"
 #define TEST_FILE_BAR "bar"
 #define TEST_DIR_A "test_dir_a"
 
@@ -59,21 +60,28 @@ class Generic322: public BaseTestCase {
     if (fd_foo < 0) {
       return -1;
     }
+    const int fd_foo_backup = open(foo_backup_path.c_str(), O_RDWR | O_CREAT, TEST_FILE_PERMS);
+    if (fd_foo_backup < 0) {
+      return -1;
+    }
 
     // Write some contents to the file
     if (WriteData(fd_foo, 0, 1024) < 0) {
     	return -2;
     }
+    // Write some contents to the backup file (for verifying md5sum in check_test)
+    if (WriteData(fd_foo_backup, 0, 1024) < 0) {
+    	return -2;
+    }
 
     sync();
 
-    expected_md5sum = get_md5um(foo_path);
-//    cout << "expected md5sum: " << expected_md5sum;
     return 0;
   }
 
   virtual int run() override {
 
+	init_paths();
 	// Rename the foo to bar
 	if (rename(foo_path.c_str(), bar_path.c_str()) != 0) {
 		return -2;
@@ -99,6 +107,8 @@ class Generic322: public BaseTestCase {
 
   virtual int check_test(unsigned int last_checkpoint,
       DataTestResult *test_result) override {
+
+	init_paths();
 
 	const int fd_bar = open(bar_path.c_str(), O_RDONLY, TEST_FILE_PERMS);
 	const int fd_foo = open(foo_path.c_str(), O_RDONLY, TEST_FILE_PERMS);
@@ -126,9 +136,12 @@ class Generic322: public BaseTestCase {
         return 0;
 	}
 
-	if (expected_md5sum.compare(get_md5sum(bar_path)) != 0 && last_checkpoint >= 1) {
+	string expected_md5sum = get_md5sum(foo_backup_path);
+	string actual_md5sum = get_md5sum(bar_path);
+
+	if (expected_md5sum.compare(actual_md5sum) != 0 && last_checkpoint >= 1) {
         test_result->SetError(DataTestResult::kFileDataCorrupted);
-        test_result->error_description = " : md5sum of bar does not match with expected md5sum of foo";
+        test_result->error_description = " : md5sum of bar does not match with expected md5sum of foo backup";
 	}
 
 	if (fd_bar >= 0) {
@@ -139,11 +152,12 @@ class Generic322: public BaseTestCase {
 
    private:
     string foo_path;
+    string foo_backup_path;
     string bar_path;
-    string expected_md5sum;
     
     void init_paths() {
         foo_path = mnt_dir_ + "/" TEST_DIR_A "/" TEST_FILE_FOO;
+        foo_backup_path = mnt_dir_ + "/" + TEST_DIR_A "/" TEST_FILE_FOO_BACKUP;
         bar_path = mnt_dir_ + "/" TEST_DIR_A "/" TEST_FILE_BAR;
     }
 
