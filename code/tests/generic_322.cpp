@@ -1,5 +1,5 @@
 /*
-Reproducing xfstest generic/322
+Reproducing xfstest generic/322 _rename_test
 
 1. Create file foo and write some contents into it and do fsync
 2. Rename foo to bar and do fsync

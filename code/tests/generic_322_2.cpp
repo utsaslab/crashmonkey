@@ -1,8 +1,9 @@
 /*
-Reproducing xfstest generic/322
+Reproducing xfstest generic/322 _write_after_fsync_rename_test
 
 1. Create file foo and write some contents into it and do fsync
-2. Rename foo to bar and do fsync
+2. Write some more contents and do sync again
+3. Rename foo to bar and do fsync
 
 After a crash at random point, bar should be present and should have the same contents
 written to foo.
