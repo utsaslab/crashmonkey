@@ -110,10 +110,30 @@ class Generic322_2: public BaseTestCase {
   virtual int check_test(unsigned int last_checkpoint,
       DataTestResult *test_result) override {
 
-	const int fd_bar = open(bar_path.c_str(), O_RDWR | O_CREAT, TEST_FILE_PERMS);
+	const int fd_bar = open(bar_path.c_str(), O_RDONLY, TEST_FILE_PERMS);
+	const int fd_foo = open(foo_path.c_str(), O_RDONLY, TEST_FILE_PERMS);
+
+	if (fd_bar >= 0 && fd_foo >= 0) {
+		test_result->SetError(DataTestResult::kOldFilePersisted);
+		test_result->error_description = " : Both old and new files present after crash recovery";
+		close(fd_bar);
+		close(fd_foo);
+		return 0;
+	}
+	if (fd_bar < 0 && fd_foo < 0) {
+		test_result->SetError(DataTestResult::kFileMissing);
+		test_result->error_description = " : Both old and new files are missing after crash recovery";
+		return 0;
+	}
+
+	if (fd_foo >= 0) {
+		close(fd_foo);
+	}
+
 	if (fd_bar < 0 && last_checkpoint >= 1) {
-        test_result->SetError(DataTestResult::kFileMetadataCorrupted);
-        test_result->error_description = " : Unable to locate bar file after crash recovery";
+		test_result->SetError(DataTestResult::kFileMissing);
+		test_result->error_description = " : Unable to locate bar file after crash recovery";
+		return 0;
 	}
 
 	// Read contents of the file and check if contents are same
@@ -122,12 +142,14 @@ class Generic322_2: public BaseTestCase {
 		return -6;
 	}
 	if (strncmp(buf, file_contents2.c_str(), file_contents2.length()) != 0 && last_checkpoint >= 1) {
-        test_result->SetError(DataTestResult::kFileMetadataCorrupted);
-        test_result->error_description = " : Contents of bar does not match with expected contents";
+		test_result->SetError(DataTestResult::kFileDataCorrupted);
+		test_result->error_description = " : Contents of bar does not match with expected contents";
 	}
 
-	close(fd_bar);
-    return 0;
+	if (fd_bar >= 0) {
+		close(fd_bar);
+	}
+	return 0;
   }
 
    private:
