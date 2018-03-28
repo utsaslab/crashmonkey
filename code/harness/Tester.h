@@ -84,7 +84,7 @@ class Tester {
   void test_unload_class();
   int test_setup();
   int test_init_values(std::string mountDir, long filesysSize);
-  int test_run();
+  int test_run(int checkpoint);
   int test_check_random_permutations(const int num_rounds, std::ofstream& log);
   int test_check_log_replay(std::ofstream& log);
   int test_restore_log();

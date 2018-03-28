@@ -57,7 +57,7 @@
 #define COW_BRD_INSMOD3      " disk_size="
 #define COW_BRD_RMMOD       "rmmod " COW_BRD_MODULE_NAME
 #define NUM_DISKS           "1"
-#define NUM_SNAPSHOTS       "1"
+#define NUM_SNAPSHOTS       "20"
 #define SNAPSHOT_PATH       "/dev/cow_ram_snapshot1_0"
 #define COW_BRD_PATH        "/dev/cow_ram0"
 
@@ -130,7 +130,7 @@ void Tester::EndTestSuite() {
 }
 
 int Tester::clone_device() {
-  std::cout << "cloning device " << device_raw << std::endl;
+  std::cout << "cloning device " << device_raw  << std::endl;
   if (ioctl(cow_brd_fd, COW_BRD_SNAPSHOT) < 0) {
     return DRIVE_CLONE_ERR;
   }
@@ -479,8 +479,8 @@ int Tester::test_init_values(string mount_dir, long filesys_size) {
   return test_loader.get_instance()->init_values(mount_dir, filesys_size);
 }
 
-int Tester::test_run() {
-  return test_loader.get_instance()->run();
+int Tester::test_run(int checkpoint) {
+  return test_loader.get_instance()->run(checkpoint);
 }
 
 /*

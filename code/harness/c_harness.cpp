@@ -6,6 +6,7 @@
 #include <sys/un.h>
 #include <unistd.h>
 #include <wait.h>
+#include <signal.h>
 
 #include <ctime>
 
@@ -36,7 +37,7 @@
 #define DIRECTORY_PERMS \
   (S_IRUSR | S_IWUSR | S_IRGRP | S_IWGRP | S_IROTH | S_IWOTH)
 
-#define OPTS_STRING "bd:f:e:l:m:np:r:s:t:vIP"
+#define OPTS_STRING "bd:c:f:e:l:m:np:r:s:t:vIP"
 
 namespace {
   unsigned int kSocketQueueDepth;
@@ -46,6 +47,7 @@ using std::cerr;
 using std::cout;
 using std::endl;
 using std::ofstream;
+using std::ifstream;
 using std::string;
 using std::to_string;
 using fs_testing::Tester;
@@ -56,6 +58,7 @@ using fs_testing::utils::communication::SocketMessage;
 
 static const option long_options[] = {
   {"background", no_argument, NULL, 'b'},
+  {"automate_check_test", no_argument, NULL, 'c'},
   {"test-dev", required_argument, NULL, 'd'},
   {"disk_size", required_argument, NULL, 'e'},
   {"flag-device", required_argument, NULL, 'f'},
@@ -72,6 +75,66 @@ static const option long_options[] = {
   {0, 0, 0, 0},
 };
 
+
+void clear_log_enable_profiling(Tester& test_harness, std::ofstream& logfile) {
+  // Clearing wrapper module logs prior to profiling.
+  cout << "Clearing wrapper device logs" << endl;
+  logfile << "Clearing wrapper device logs" << endl;
+  test_harness.clear_wrapper_log();
+  // Enabling profiling
+  cout << "Enabling wrapper device logging" << endl;
+  logfile << "Enabling wrapper device logging" << endl;
+  test_harness.begin_wrapper_logging();
+
+}
+
+int disable_profiling_get_log(Tester& test_harness, ofstream& logfile) {
+  cout << "Disabling wrapper device logging" << endl;
+  logfile << "Disabling wrapper device logging" << endl;
+  test_harness.end_wrapper_logging();
+  cout << "Getting wrapper data" << endl;
+  logfile << "Getting wrapper data" << endl;
+  if (test_harness.get_wrapper_log() != SUCCESS) {
+    test_harness.cleanup_harness();
+    return -1;
+  }
+  return SUCCESS;
+}
+
+int mount_wrapper(Tester& test_harness, string mount_opts) {
+  // Mount the file system under the wrapper module for profiling.
+  cout << "Mounting wrapper file system" << endl;
+  if (test_harness.mount_wrapper_device(mount_opts.c_str()) != SUCCESS) {
+    cerr << "Error mounting wrapper file system" << endl;
+    return -1;
+  }
+
+  // TODO(ashmrtn): Can probably remove this...
+  cout << "Sleeping after mount" << endl;
+  unsigned int to_sleep = MOUNT_DELAY;
+  do {
+    to_sleep = sleep(to_sleep);
+  } while (to_sleep > 0);
+
+  return SUCCESS;
+}
+
+int unmount_wrapper_device(Tester& test_harness, ofstream& logfile) {
+  cout << "Unmounting wrapper file system after test profiling" << endl;
+  logfile << "Unmounting wrapper file system after test profiling" << endl;
+  if (test_harness.umount_device() != SUCCESS) {
+    cerr << "Error unmounting wrapper file system " << test_harness.umount_device() << endl;
+    test_harness.cleanup_harness();
+    return -1;
+  }
+}
+
+void wait_for_write_delay(ofstream& logfile) {
+  cout << "Waiting for writeback delay" << endl;
+  logfile << "Waiting for writeback delay" << endl;
+  sleep(WRITE_DELAY);
+}
+
 int main(int argc, char** argv) {
   cout << "running " << argv << endl;
 
@@ -85,6 +148,7 @@ int main(int argc, char** argv) {
   string log_file_load("");
   string permuter(PERMUTER_SO_PATH "RandomPermuter.so");
   bool background = false;
+  bool automate_check_test = false;
   bool dry_run = false;
   bool no_lvm = false;
   bool verbose = false;
@@ -102,6 +166,9 @@ int main(int argc, char** argv) {
     switch (c) {
       case 'b':
         background = true;
+        break;
+      case 'c':
+        automate_check_test = true;
         break;
       case 'f':
         flags_dev = string(optarg);
@@ -531,37 +598,17 @@ int main(int argc, char** argv) {
       return -1;
     }
 
-    // Clear wrapper module logs prior to test profiling.
-    cout << "Clearing wrapper device logs" << endl;
-    logfile << "Clearing wrapper device logs" << endl;
-    test_harness.clear_wrapper_log();
-    cout << "Enabling wrapper device logging" << endl;
-    logfile << "Enabling wrapper device logging" << endl;
-    test_harness.begin_wrapper_logging();
-
-    // We also need to log the changes made by mount of the FS
-    // because the snapshot is taken after an unmount.
-    
-    // Mount the file system under the wrapper module for profiling.
-    cout << "Mounting wrapper file system" << endl;
-    if (test_harness.mount_wrapper_device(mount_opts.c_str()) != SUCCESS) {
-      cerr << "Error mounting wrapper file system" << endl;
-      test_harness.cleanup_harness();
-      return -1;
-    }
-
-    // TODO(ashmrtn): Can probably remove this...
-    cout << "Sleeping after mount" << endl;
-    unsigned int to_sleep = MOUNT_DELAY;
-    do {
-      to_sleep = sleep(to_sleep);
-    } while (to_sleep > 0);
-
-
     /***************************************************************************
      * Run the actual workload that we will be testing.
      **************************************************************************/
     if (background) {
+      // If background mode is on, clear logs, enable profiling and mount the wrapper device
+      clear_log_enable_profiling(test_harness, logfile);
+      if (mount_wrapper(test_harness, mount_opts) != SUCCESS) {
+        test_harness.cleanup_harness();
+        return -1;
+      }
+
       /************************************************************************
        * Background mode user workload. Tell the user we have finished workload
        * preparations and are ready for them to run the workload since we are
@@ -634,77 +681,138 @@ int main(int argc, char** argv) {
        * aren't closed in the process running the worload, the parent won't hang
        * due to a busy mount point.
        ************************************************************************/
-      cout << "Running test profile" << endl;
-      logfile << "Running test profile" << endl;
-      {
-        const pid_t child = fork();
-        if (child < 0) {
-          cerr << "Error spinning off test process" << endl;
+
+      // TODO(P.S.): extra run vs having a full run initially
+
+      bool last_checkpoint = false;
+      int checkpoint = 0;
+      do {
+
+        if (checkpoint == 0)
+          clear_log_enable_profiling(test_harness, logfile);
+
+        if (mount_wrapper(test_harness, mount_opts) != SUCCESS) {
           test_harness.cleanup_harness();
           return -1;
-        } else if (child != 0) {
-          pid_t status = -1;
-          pid_t wait_res = 0;
-          do {
-            SocketMessage m;
-            SocketError se;
+        }
 
-            se = background_com->TryForMessage(&m);
+        cout << "Running test profile" << endl;
+        logfile << "Running test profile" << endl;
+        {
+          const pid_t child = fork();
+          if (child < 0) {
+            cerr << "Error spinning off test process" << endl;
+            test_harness.cleanup_harness();
+            return -1;
+          } else if (child != 0) {
+            pid_t status = -1;
+            pid_t wait_res = 0;
+            do {
+              SocketMessage m;
+              SocketError se;
 
-            if (se == SocketError::kNone) {
-              if (m.type == SocketMessage::kCheckpoint) {
-                if (test_harness.CreateCheckpoint() == SUCCESS) {
-                  if (background_com->SendCommand(
+              se = background_com->TryForMessage(&m);
+
+              if (se == SocketError::kNone) {
+                if (m.type == SocketMessage::kCheckpoint) {
+                  if (test_harness.CreateCheckpoint() == SUCCESS) {
+                    if (background_com->SendCommand(
                           SocketMessage::kCheckpointDone)
+                          != SocketError::kNone) {
+                        // TODO(ashmrtn): Handle better.
+                        cerr << "Error telling user done with checkpoint" << endl;
+                        delete background_com;
+                        test_harness.cleanup_harness();
+                        return -1;
+                      }
+                  } else {
+                    if (background_com->SendCommand(
+                        SocketMessage::kCheckpointFailed)
                         != SocketError::kNone) {
                       // TODO(ashmrtn): Handle better.
-                      cerr << "Error telling user done with checkpoint" << endl;
+                      cerr << "Error telling user checkpoint failed" << endl;
                       delete background_com;
                       test_harness.cleanup_harness();
                       return -1;
+                    }
                   }
                 } else {
                   if (background_com->SendCommand(
-                        SocketMessage::kCheckpointFailed)
+                      SocketMessage::kInvalidCommand)
                       != SocketError::kNone) {
-                    // TODO(ashmrtn): Handle better.
-                    cerr << "Error telling user checkpoint failed" << endl;
+                    cerr << "Error sending response to client" << endl;
                     delete background_com;
                     test_harness.cleanup_harness();
                     return -1;
                   }
                 }
-              } else {
-                if (background_com->SendCommand(
-                      SocketMessage::kInvalidCommand)
-                    != SocketError::kNone) {
-                  cerr << "Error sending response to client" << endl;
-                  delete background_com;
-                  test_harness.cleanup_harness();
-                  return -1;
-                }
+                background_com->CloseClient();
               }
-              background_com->CloseClient();
+              wait_res = waitpid(child, &status, WNOHANG);
+            } while (wait_res == 0);
+            if (status != 0) {
+              if (WIFEXITED(status) && WEXITSTATUS(status) != 0) {
+                cerr << "Error in test process, exited with status "
+                  << WEXITSTATUS(status) << endl;
+              } else {
+                cerr << "Error in test process" << endl;
+              }
+              test_harness.cleanup_harness();
+              return -1;
             }
-            wait_res = waitpid(child, &status, WNOHANG);
-          } while (wait_res == 0);
-          if (status != 0) {
-            if (WIFEXITED(status) && WEXITSTATUS(status) != 0) {
-              cerr << "Error in test process, exited with status "
-                << WEXITSTATUS(status) << endl;
-            } else {
-              cerr << "Error in test process" << endl;
-            }
+          } else {
+            // Forked process' stuff.
+            int test_ret_val = test_harness.test_run(checkpoint);
+            std::cout << test_ret_val << endl;
+            ofstream fout;
+            fout.open("comm.txt");
+            fout << test_ret_val;
+            fout.close();
+            return EXIT_SUCCESS;
+          }
+          kill(child, SIGTERM);
+        }
+
+        int test_ret_val;
+        ifstream fin;
+        fin.open("comm.txt");
+        fin >> test_ret_val;
+        fin.close();
+
+        if (test_ret_val == 1) {
+          last_checkpoint = true;
+          cout << "last checkpoint is set " << last_checkpoint << endl;
+        } else if (test_ret_val == -1) {
+          std::cout << "Test returned -1" << endl;
+        }
+
+        wait_for_write_delay(logfile);
+
+        if (checkpoint == 0) {
+          if (disable_profiling_get_log(test_harness, logfile) != SUCCESS) {
             test_harness.cleanup_harness();
             return -1;
           }
-        } else {
-          // Forked process' stuff.
-          return test_harness.test_run();
         }
-      }
-    }
 
+        if (unmount_wrapper_device(test_harness, logfile) != SUCCESS) {
+          test_harness.cleanup_harness();
+          return -1;
+        }
+        system("rm comm.txt");
+        checkpoint += 1;
+        // TODO(P.S.) check the creation of a snapshot
+        // Modify it to take path as parameter or dynamically change it
+        cout << "Making new snapshot" << endl;
+        logfile << "Making new snapshot" << endl;
+        if (test_harness.clone_device() != SUCCESS) {
+          test_harness.cleanup_harness();
+          return -1;
+        }
+
+      } while (automate_check_test && !last_checkpoint);
+
+    }
 
     /***************************************************************************
      * Worload complete, Clean up things and end logging.
@@ -712,28 +820,11 @@ int main(int argc, char** argv) {
 
     // Wait a small amount of time for writes to propogate to the block
     // layer and then stop logging writes.
-    cout << "Waiting for writeback delay" << endl;
-    logfile << "Waiting for writeback delay" << endl;
-    sleep(WRITE_DELAY);
-
-    cout << "Disabling wrapper device logging" << endl;
-    logfile << "Disabling wrapper device logging" << endl;
-    test_harness.end_wrapper_logging();
-    cout << "Getting wrapper data" << endl;
-    logfile << "Getting wrapper data" << endl;
-    if (test_harness.get_wrapper_log() != SUCCESS) {
-      test_harness.cleanup_harness();
-      return -1;
-    }
-
-    cout << "Unmounting wrapper file system after test profiling" << endl;
-    logfile << "Unmounting wrapper file system after test profiling" << endl;
-    if (test_harness.umount_device() != SUCCESS) {
-      cerr << "Error unmounting wrapper file system" << endl;
-      test_harness.cleanup_harness();
-      return -1;
-    }
-
+    // cout << "Waiting for writeback delay" << endl;
+    // logfile << "Waiting for writeback delay" << endl;
+    // sleep(WRITE_DELAY);
+    // disable_profiling_get_log(test_harness, logfile);
+    unmount_wrapper_device(test_harness, logfile);
     cout << "Close wrapper ioctl fd" << endl;
     logfile << "Close wrapper ioctl fd" << endl;
     test_harness.put_wrapper_ioctl();

@@ -18,6 +18,8 @@ using std::to_string;
 
 using fs_testing::tests::DataTestResult;
 using fs_testing::user_tools::api::Checkpoint;
+using std::cout;
+using std::endl;
 
 #define TEST_FILE "test_file"
 #define TEST_MNT "/mnt/snapshot"
@@ -74,44 +76,67 @@ using std::memcmp;
 class CheckpointExample : public BaseTestCase {
  public:
   virtual int setup() override {
-    return 0;
-  }
-
-  virtual int run() override {
-    // For fsyncs later.
     const int root_dir = open(TEST_MNT, O_RDONLY);
     if (root_dir < 0) {
+      std::cout << "Couldnt open root_dir" << endl;
       return -1;
     }
 
     // Create test directory.
     int res = mkdir(TEST_MNT "/" TEST_DIR, 0777);
     if (res < 0) {
+      cout << "Couldnt make dir " << TEST_MNT << "/" << "TEST_DIR" << endl;
       return -1;
     }
+
+    return 0;
+  }
+
+  virtual int run(int checkpoint) override {
+    int local_checkpoint = 0, res;
+    // For fsyncs later.
+    const int root_dir = open(TEST_MNT, O_RDONLY);
+    if (root_dir < 0) {
+      std::cout << "Couldnt open root_dir" << endl;
+      return -1;
+    }
+
     const int dir = open(TEST_MNT "/" TEST_DIR, O_RDONLY);
     if (dir < 0) {
+      cout << "Couldnt open test dir" << endl;
       return -1;
     }
     res = fsync(dir);
     if (res < 0) {
+      cout << "fsync failed" << endl;
       return -1;
     }
     res = fsync(root_dir);
     if (res < 0) {
+      cout << "fsync failed" << endl;
       return -1;
     }
+    
+    close(dir);
+
     res = Checkpoint();
     if (res < 0) {
+      cout << "checkpoint failed" << endl;
       return -1;
     }
-    close(dir);
+    local_checkpoint += 1;
+    if (local_checkpoint == checkpoint) {
+      std::cout << "Ran till checkpoint 1" << std::endl;
+      return 0;
+    }
+    
 
     // Create original file with permission etc.
     const int old_umask = umask(0000);
     const int fd = open(old_path.c_str(), O_RDWR | O_CREAT, TEST_FILE_PERMS);
     if (fd == -1) {
       umask(old_umask);
+      cout << "opening " << old_path.c_str() << " failed" << endl;
       return -1;
     }
     umask(old_umask);
@@ -122,22 +147,33 @@ class CheckpointExample : public BaseTestCase {
           strlen(TEST_TEXT) - written);
       if (res == -1) {
         close(fd);
+        cout << "Write failed" << endl;
         return -1;
       }
       written += res;
     } while (written != strlen(TEST_TEXT));
     fsync(fd);
     fsync(root_dir);
-    res = Checkpoint();
-    if (res < 0) {
-      return -1;
-    }
     close(fd);
 
+    res = Checkpoint();
+    if (res < 0) {
+      cout << "checkpoint failed" << endl;
+      return -1;
+    }
+    local_checkpoint += 1;
+    if (local_checkpoint == checkpoint) {
+      std::cout << "Ran till checkpoint 2" << std::endl;
+      return 1;
+    }
+    
+
     if (rename(old_path.c_str(), new_path.c_str()) < 0) {
+      cout << "rename failed" << endl;
       return -1;
     }
 
+    std::cout << "Ran till the end" << std::endl;
     return 0;
   }
 
