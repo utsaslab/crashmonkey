@@ -76,6 +76,9 @@ class Generic322: public BaseTestCase {
 
     sync();
 
+    close(fd_foo);
+    close(fd_foo_backup);
+
     return 0;
   }
 

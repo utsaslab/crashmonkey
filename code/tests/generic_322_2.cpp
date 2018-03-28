@@ -2,7 +2,7 @@
 Reproducing xfstest generic/322 _write_after_fsync_rename_test
 
 1. Create file foo and write some contents into it and do fsync
-2. Write some more contents and do sync again
+2. Write some more contents into different offset and do sync_range
 3. Rename foo to bar and do fsync
 
 After a crash at random point, bar should be present and should have the same contents
@@ -26,6 +26,7 @@ https://github.com/kdave/xfstests/blob/master/tests/generic/322
 #include "../user_tools/api/workload.h"
 #include "../user_tools/api/actions.h"
 #define TEST_FILE_FOO "foo"
+#define TEST_FILE_FOO_BACKUP "foo_backup"
 #define TEST_FILE_BAR "bar"
 #define TEST_DIR_A "test_dir_a"
 
@@ -46,7 +47,9 @@ class Generic322_2: public BaseTestCase {
  public:
   virtual int setup() override {
 
-    // Create test directory A.
+	init_paths();
+
+	// Create test directory A.
 	string dir_path = mnt_dir_ + "/" TEST_DIR_A;
 	int res = mkdir(dir_path.c_str(), 0777);
     if (res < 0) {
@@ -58,31 +61,54 @@ class Generic322_2: public BaseTestCase {
     if (fd_foo < 0) {
       return -1;
     }
+    const int fd_foo_backup = open(foo_backup_path.c_str(), O_RDWR | O_CREAT, TEST_FILE_PERMS);
+    if (fd_foo_backup < 0) {
+      return -1;
+    }
 
     // Write some contents to the file
-    const char *buf = file_contents.c_str();
-    if (pwrite(fd_foo, buf, strlen(buf), 0) < 0) {
+    if (WriteData(fd_foo, 0, 1024) < 0) {
+    	return -2;
+    }
+    // Write some contents to the backup file (for verifying md5sum in check_test)
+    if (WriteData(fd_foo_backup, 0, 1024) < 0) {
     	return -2;
     }
 
-    // Sync the file
+    // Sync the file and backup file
     if (fsync(fd_foo) < 0) {
     	return -1;
     }
+    if (fsync(fd_foo_backup) < 0) {
+    	return -1;
+    }
 
-    // write more contents
-    const char *buf2 = file_contents2.c_str();
-    if (pwrite(fd_foo, buf2, strlen(buf2), 0) < 0) {
+    // write more contents in a different offset
+    if (WriteData(fd_foo, 1024, 2048) < 0) {
+    	return -2;
+    }
+    if (WriteData(fd_foo_backup, 1024, 2048) < 0) {
     	return -2;
     }
 
-    // sync again
-    sync();
+    // sync range the foo file
+    if (sync_file_range(fd_foo, 1024, 2048, 0) < 0) {
+    	return -3;
+    }
+    // fsync the entire backup file
+    if (fsync(fd_foo_backup) < 0) {
+    	return -1;
+    }
+
     close(fd_foo);
+    close(fd_foo_backup);
+
     return 0;
   }
 
   virtual int run() override {
+
+	init_paths();
 
 	// Rename the foo to bar
 	if (rename(foo_path.c_str(), bar_path.c_str()) != 0) {
@@ -110,6 +136,8 @@ class Generic322_2: public BaseTestCase {
   virtual int check_test(unsigned int last_checkpoint,
       DataTestResult *test_result) override {
 
+	init_paths();
+
 	const int fd_bar = open(bar_path.c_str(), O_RDONLY, TEST_FILE_PERMS);
 	const int fd_foo = open(foo_path.c_str(), O_RDONLY, TEST_FILE_PERMS);
 
@@ -136,14 +164,12 @@ class Generic322_2: public BaseTestCase {
 		return 0;
 	}
 
-	// Read contents of the file and check if contents are same
-	char buf[100];
-	if (pread(fd_bar, buf, sizeof(buf), 0) < 0) {
-		return -6;
-	}
-	if (strncmp(buf, file_contents2.c_str(), file_contents2.length()) != 0 && last_checkpoint >= 1) {
-		test_result->SetError(DataTestResult::kFileDataCorrupted);
-		test_result->error_description = " : Contents of bar does not match with expected contents";
+	string expected_md5sum = get_md5sum(foo_backup_path);
+	string actual_md5sum = get_md5sum(bar_path);
+
+	if (expected_md5sum.compare(actual_md5sum) != 0 && last_checkpoint >= 1) {
+        test_result->SetError(DataTestResult::kFileDataCorrupted);
+        test_result->error_description = " : md5sum of bar does not match with expected md5sum of foo backup";
 	}
 
 	if (fd_bar >= 0) {
@@ -152,11 +178,16 @@ class Generic322_2: public BaseTestCase {
 	return 0;
   }
 
-   private:
-    const string foo_path = mnt_dir_ "/" TEST_DIR_A "/" TEST_FILE_FOO;
-    const string bar_path = mnt_dir_ "/" TEST_DIR_A "/" TEST_FILE_BAR;
-    const string file_contents = "some random file contents...";
-    const string file_contents2 = "some random file contents again...";
+ private:
+  string foo_path;
+  string foo_backup_path;
+  string bar_path;
+
+  void init_paths() {
+	  foo_path = mnt_dir_ + "/" TEST_DIR_A "/" TEST_FILE_FOO;
+	  foo_backup_path = mnt_dir_ + "/" TEST_DIR_A "/" TEST_FILE_FOO_BACKUP;
+	  bar_path = mnt_dir_ + "/" TEST_DIR_A "/" TEST_FILE_BAR;
+  }
     
 };
 
