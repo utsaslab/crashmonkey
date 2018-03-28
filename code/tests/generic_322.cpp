@@ -45,6 +45,8 @@ class Generic322: public BaseTestCase {
  public:
   virtual int setup() override {
 
+	init_paths();
+
     // Create test directory A.
 	string dir_path = mnt_dir_ + "/" TEST_DIR_A;
 	int res = mkdir(dir_path.c_str(), 0777);
@@ -59,11 +61,14 @@ class Generic322: public BaseTestCase {
     }
 
     // Write some contents to the file
-    const char *buf = file_contents.c_str();
-    pwrite(fd_foo, buf, strlen(buf), 0);
+    if (WriteData(fd_foo, 0, 1024) < 0) {
+    	return -2;
+    }
 
     sync();
-    close(fd_foo);
+
+    expected_md5sum = get_md5um(foo_path);
+//    cout << "expected md5sum: " << expected_md5sum;
     return 0;
   }
 
@@ -121,14 +126,9 @@ class Generic322: public BaseTestCase {
         return 0;
 	}
 
-	// Read contents of the file and check if contents are same
-	char buf[100];
-	if (pread(fd_bar, buf, sizeof(buf), 0) < 0) {
-		return -6;
-	}
-	if (strncmp(buf, file_contents.c_str(), file_contents.length()) != 0 && last_checkpoint >= 1) {
+	if (expected_md5sum.compare(get_md5sum(bar_path)) != 0 && last_checkpoint >= 1) {
         test_result->SetError(DataTestResult::kFileDataCorrupted);
-        test_result->error_description = " : Contents of bar does not match with expected contents";
+        test_result->error_description = " : md5sum of bar does not match with expected md5sum of foo";
 	}
 
 	if (fd_bar >= 0) {
@@ -138,10 +138,28 @@ class Generic322: public BaseTestCase {
   }
 
    private:
-    const string foo_path = mnt_dir_ "/" TEST_DIR_A "/" TEST_FILE_FOO;
-    const string bar_path = mnt_dir_ "/" TEST_DIR_A "/" TEST_FILE_BAR;
-    const string file_contents = "some random file contents...";
+    string foo_path;
+    string bar_path;
+    string expected_md5sum;
     
+    void init_paths() {
+        foo_path = mnt_dir_ + "/" TEST_DIR_A "/" TEST_FILE_FOO;
+        bar_path = mnt_dir_ + "/" TEST_DIR_A "/" TEST_FILE_BAR;
+    }
+
+    string get_md5sum(string file_name) {
+        FILE *fp;
+        string command = "md5sum " + file_name;
+
+        fp = popen(command.c_str(), "r");
+        char md5[100];
+        fscanf(fp,"%s", md5);
+        fclose(fp);
+
+        string md5_str(md5);
+        return md5_str;
+    }
+
 };
 
 }  // namespace tests
