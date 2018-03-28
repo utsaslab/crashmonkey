@@ -76,28 +76,28 @@ using std::memcmp;
 class CheckpointExample : public BaseTestCase {
  public:
   virtual int setup() override {
-    const int root_dir = open(TEST_MNT, O_RDONLY);
-    if (root_dir < 0) {
-      std::cout << "Couldnt open root_dir" << endl;
-      return -1;
-    }
-
-    // Create test directory.
-    int res = mkdir(TEST_MNT "/" TEST_DIR, 0777);
-    if (res < 0) {
-      cout << "Couldnt make dir " << TEST_MNT << "/" << "TEST_DIR" << endl;
-      return -1;
-    }
-
     return 0;
   }
 
   virtual int run(int checkpoint) override {
     int local_checkpoint = 0, res;
     // For fsyncs later.
+    if (checkpoint == 0) {
+      const int root_dir = open(TEST_MNT, O_RDONLY);
+      if (root_dir < 0) {
+        std::cout << "Couldnt open root_dir 1" << endl;
+        return -1;
+      }
+      // Create test directory.
+      int res = mkdir(TEST_MNT "/" TEST_DIR, 0777);
+      if (res < 0) {
+        cout << "Couldnt make dir " << TEST_MNT << "/" << "TEST_DIR" << endl;
+        return -1;
+      }
+    }
     const int root_dir = open(TEST_MNT, O_RDONLY);
     if (root_dir < 0) {
-      std::cout << "Couldnt open root_dir" << endl;
+      std::cout << "Couldnt open root_dir 2" << endl;
       return -1;
     }
 
@@ -126,7 +126,6 @@ class CheckpointExample : public BaseTestCase {
     }
     local_checkpoint += 1;
     if (local_checkpoint == checkpoint) {
-      std::cout << "Ran till checkpoint 1" << std::endl;
       return 0;
     }
     
@@ -163,7 +162,6 @@ class CheckpointExample : public BaseTestCase {
     }
     local_checkpoint += 1;
     if (local_checkpoint == checkpoint) {
-      std::cout << "Ran till checkpoint 2" << std::endl;
       return 1;
     }
     
@@ -173,7 +171,6 @@ class CheckpointExample : public BaseTestCase {
       return -1;
     }
 
-    std::cout << "Ran till the end" << std::endl;
     return 0;
   }
 

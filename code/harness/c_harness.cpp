@@ -37,7 +37,7 @@
 #define DIRECTORY_PERMS \
   (S_IRUSR | S_IWUSR | S_IRGRP | S_IWGRP | S_IROTH | S_IWOTH)
 
-#define OPTS_STRING "bd:c:f:e:l:m:np:r:s:t:vIP"
+#define OPTS_STRING "bd:cf:e:l:m:np:r:s:t:vIP"
 
 namespace {
   unsigned int kSocketQueueDepth;
@@ -76,7 +76,7 @@ static const option long_options[] = {
 };
 
 
-void clear_log_enable_profiling(Tester& test_harness, std::ofstream& logfile) {
+void clear_log_enable_profiling(Tester &test_harness, std::ofstream &logfile) {
   // Clearing wrapper module logs prior to profiling.
   cout << "Clearing wrapper device logs" << endl;
   logfile << "Clearing wrapper device logs" << endl;
@@ -85,7 +85,6 @@ void clear_log_enable_profiling(Tester& test_harness, std::ofstream& logfile) {
   cout << "Enabling wrapper device logging" << endl;
   logfile << "Enabling wrapper device logging" << endl;
   test_harness.begin_wrapper_logging();
-
 }
 
 int disable_profiling_get_log(Tester& test_harness, ofstream& logfile) {
@@ -101,7 +100,7 @@ int disable_profiling_get_log(Tester& test_harness, ofstream& logfile) {
   return SUCCESS;
 }
 
-int mount_wrapper(Tester& test_harness, string mount_opts) {
+int mount_wrapper(Tester &test_harness, const string &mount_opts) {
   // Mount the file system under the wrapper module for profiling.
   cout << "Mounting wrapper file system" << endl;
   if (test_harness.mount_wrapper_device(mount_opts.c_str()) != SUCCESS) {
@@ -119,7 +118,7 @@ int mount_wrapper(Tester& test_harness, string mount_opts) {
   return SUCCESS;
 }
 
-int unmount_wrapper_device(Tester& test_harness, ofstream& logfile) {
+int unmount_wrapper_device(Tester &test_harness, ofstream &logfile) {
   cout << "Unmounting wrapper file system after test profiling" << endl;
   logfile << "Unmounting wrapper file system after test profiling" << endl;
   if (test_harness.umount_device() != SUCCESS) {
@@ -129,10 +128,13 @@ int unmount_wrapper_device(Tester& test_harness, ofstream& logfile) {
   }
 }
 
-void wait_for_write_delay(ofstream& logfile) {
+void wait_for_write_delay(ofstream &logfile) {
   cout << "Waiting for writeback delay" << endl;
   logfile << "Waiting for writeback delay" << endl;
-  sleep(WRITE_DELAY);
+  unsigned int to_sleep = WRITE_DELAY;
+  do {
+    to_sleep = sleep(to_sleep);
+  } while (to_sleep > 0);
 }
 
 int main(int argc, char** argv) {
@@ -683,13 +685,17 @@ int main(int argc, char** argv) {
        ************************************************************************/
 
       // TODO(P.S.): extra run vs having a full run initially
-
       bool last_checkpoint = false;
       int checkpoint = 0;
+      // If automate_check_test is enabled, a snapshot is taken at every checkpoint
+      // in the run workload. We profile the first iteration - a complete execution
+      // of workload. Subsequent iterations create snapshots after executing run till
+      // a particular checkpoint.
       do {
 
-        if (checkpoint == 0)
+        if (checkpoint == 0) {
           clear_log_enable_profiling(test_harness, logfile);
+        }
 
         if (mount_wrapper(test_harness, mount_opts) != SUCCESS) {
           test_harness.cleanup_harness();
@@ -750,44 +756,38 @@ int main(int argc, char** argv) {
               }
               wait_res = waitpid(child, &status, WNOHANG);
             } while (wait_res == 0);
-            if (status != 0) {
-              if (WIFEXITED(status) && WEXITSTATUS(status) != 0) {
-                cerr << "Error in test process, exited with status "
-                  << WEXITSTATUS(status) << endl;
-              } else {
-                cerr << "Error in test process" << endl;
-              }
+            if (WIFEXITED(status) == 0) {
+              // child process didnt terminate normally
+              cerr << "Error terminating test process, status: " << status << endl;
               test_harness.cleanup_harness();
               return -1;
+            } else {
+              if (WEXITSTATUS(status) == 1) {
+                // If run returns 1, indicating we hit the last_checkpoint
+                last_checkpoint = true;
+                std::cout << "Detected last_checkpoint " << checkpoint << endl;
+              } else if (WEXITSTATUS(status) != 0) {
+                // child exited normally, but run failed and returned -1
+                cerr << "Error in test run process, status: " << status << " " << WEXITSTATUS(status) << endl;
+                test_harness.cleanup_harness();
+                return -1;
+              } else {
+                if (checkpoint == 0) {
+                  cout << "Completely executed test_run" << endl;
+                } else {
+                  cout << "Hit checkpoint " << checkpoint << endl;
+                }
+              }
             }
           } else {
             // Forked process' stuff.
             int test_ret_val = test_harness.test_run(checkpoint);
-            std::cout << test_ret_val << endl;
-            ofstream fout;
-            fout.open("comm.txt");
-            fout << test_ret_val;
-            fout.close();
-            return EXIT_SUCCESS;
+            return test_ret_val;
           }
-          kill(child, SIGTERM);
         }
-
-        int test_ret_val;
-        ifstream fin;
-        fin.open("comm.txt");
-        fin >> test_ret_val;
-        fin.close();
-
-        if (test_ret_val == 1) {
-          last_checkpoint = true;
-          cout << "last checkpoint is set " << last_checkpoint << endl;
-        } else if (test_ret_val == -1) {
-          std::cout << "Test returned -1" << endl;
+        if (checkpoint == 0) {
+          wait_for_write_delay(logfile);
         }
-
-        wait_for_write_delay(logfile);
-
         if (checkpoint == 0) {
           if (disable_profiling_get_log(test_harness, logfile) != SUCCESS) {
             test_harness.cleanup_harness();
@@ -799,7 +799,6 @@ int main(int argc, char** argv) {
           test_harness.cleanup_harness();
           return -1;
         }
-        system("rm comm.txt");
         checkpoint += 1;
         // TODO(P.S.) check the creation of a snapshot
         // Modify it to take path as parameter or dynamically change it
@@ -817,14 +816,11 @@ int main(int argc, char** argv) {
     /***************************************************************************
      * Worload complete, Clean up things and end logging.
      **************************************************************************/
-
-    // Wait a small amount of time for writes to propogate to the block
-    // layer and then stop logging writes.
-    // cout << "Waiting for writeback delay" << endl;
-    // logfile << "Waiting for writeback delay" << endl;
-    // sleep(WRITE_DELAY);
-    // disable_profiling_get_log(test_harness, logfile);
-    unmount_wrapper_device(test_harness, logfile);
+    if (background) {
+      wait_for_write_delay(logfile);
+      disable_profiling_get_log(test_harness, logfile);
+      unmount_wrapper_device(test_harness, logfile);
+    }
     cout << "Close wrapper ioctl fd" << endl;
     logfile << "Close wrapper ioctl fd" << endl;
     test_harness.put_wrapper_ioctl();

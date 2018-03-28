@@ -130,7 +130,7 @@ void Tester::EndTestSuite() {
 }
 
 int Tester::clone_device() {
-  std::cout << "cloning device " << device_raw  << std::endl;
+  std::cout << "cloning device " << device_raw << std::endl;
   if (ioctl(cow_brd_fd, COW_BRD_SNAPSHOT) < 0) {
     return DRIVE_CLONE_ERR;
   }
