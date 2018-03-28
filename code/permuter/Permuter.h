@@ -28,6 +28,8 @@ struct BioVectorEqual {
 
 struct epoch_op {
   std::vector<EpochOpSector> ToSectors(unsigned int sector_size);
+  fs_testing::utils::DiskWriteData ToWriteData();
+
   unsigned int abs_index;
   fs_testing::utils::disk_write op;
 };
@@ -51,7 +53,10 @@ struct EpochOpSector {
       unsigned int disk_offset, unsigned int size,
       unsigned int max_sector_size);
   bool operator==(const EpochOpSector &other) const;
+  bool operator!=(const EpochOpSector &other) const;
   void * GetData();
+  fs_testing::utils::DiskWriteData ToWriteData();
+
   epoch_op *parent;
   unsigned int parent_sector_index;
   unsigned int disk_offset;

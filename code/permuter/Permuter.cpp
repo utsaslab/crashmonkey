@@ -19,6 +19,7 @@ using std::size_t;
 using std::vector;
 
 using fs_testing::utils::disk_write;
+using fs_testing::utils::DiskWriteData;
 
 namespace {
 
@@ -74,6 +75,12 @@ vector<EpochOpSector> epoch_op::ToSectors(unsigned int sector_size) {
   return res;
 }
 
+DiskWriteData epoch_op::ToWriteData() {
+  return DiskWriteData(true, abs_index, 0,
+      op.metadata.write_sector * kKernelSectorSize, op.metadata.size,
+      op.get_data(), 0);
+}
+
 EpochOpSector::EpochOpSector() :
       parent(NULL), parent_sector_index(0), disk_offset(0), max_sector_size(0),
       size(0){ }
@@ -103,8 +110,18 @@ bool EpochOpSector::operator==(const EpochOpSector &other) const {
   return true;
 }
 
+bool EpochOpSector::operator!=(const EpochOpSector &other) const {
+  return !(*this == other);
+}
+
 void * EpochOpSector::GetData() {
   return parent->op.get_data().get() + (max_sector_size * parent_sector_index);
+}
+
+DiskWriteData EpochOpSector::ToWriteData() {
+  return DiskWriteData(false, parent->abs_index, parent_sector_index,
+      disk_offset, size, parent->op.get_data(),
+      (max_sector_size * parent_sector_index));
 }
 
 /*
