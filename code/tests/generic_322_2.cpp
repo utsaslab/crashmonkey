@@ -189,6 +189,18 @@ class Generic322_2: public BaseTestCase {
 	  bar_path = mnt_dir_ + "/" TEST_DIR_A "/" TEST_FILE_BAR;
   }
     
+  string get_md5sum(string file_name) {
+      FILE *fp;
+      string command = "md5sum " + file_name;
+
+      fp = popen(command.c_str(), "r");
+      char md5[100];
+      fscanf(fp,"%s", md5);
+      fclose(fp);
+
+      string md5_str(md5);
+      return md5_str;
+  }
 };
 
 }  // namespace tests
