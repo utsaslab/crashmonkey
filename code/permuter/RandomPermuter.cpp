@@ -19,6 +19,7 @@ using std::uniform_int_distribution;
 using std::vector;
 
 using fs_testing::utils::disk_write;
+using fs_testing::utils::DiskWriteData;
 
 GenRandom::GenRandom() : rand(mt19937(42)) { }
 
@@ -111,7 +112,7 @@ bool RandomPermuter::gen_one_state(vector<epoch_op>& res,
   return true;
 }
 
-bool RandomPermuter::gen_one_sector_state(vector<EpochOpSector> &res,
+bool RandomPermuter::gen_one_sector_state(vector<DiskWriteData> &res,
     PermuteTestResult &log_data) {
   res.clear();
   // Return if there are no ops to work with.
@@ -156,18 +157,10 @@ bool RandomPermuter::gen_one_sector_state(vector<EpochOpSector> &res,
     log_data.last_checkpoint = target->checkpoint_epoch;
   }
 
-  // Get all the sectors we will be writing out to disk except for the final
-  // epoch we crash in. These will not be coalesced.
-  // TODO(ashmrtn): These should probably be coalesced, as long as we don't drop
-  // any of them randomly (may make debugging file system errors harder).
-  for (unsigned int i = 0; i < num_epochs - 1; ++i) {
-    for (auto &op : epochs->at(i).ops) {
-      vector<EpochOpSector> sectors = op.ToSectors(sector_size_);
-      res.insert(res.end(), sectors.begin(), sectors.end());
-    }
-  }
-
-  // Get and coalesce the sectors of the final epoch we crashed in.
+  // Get and coalesce the sectors of the final epoch we crashed in. We do this
+  // here so that we can determine the size of the resulting crash state and
+  // allocate that many slots in `res` right off the bat, thus skipping later
+  // reallocations as the vector grows.
   vector<EpochOpSector> final_epoch;
   for (unsigned int i = 0; i < num_requests; ++i) {
     vector<EpochOpSector> sectors =
@@ -175,25 +168,47 @@ bool RandomPermuter::gen_one_sector_state(vector<EpochOpSector> &res,
     final_epoch.insert(final_epoch.end(), sectors.begin(), sectors.end());
   }
 
+  unsigned int total_elements = 0;
+  for (unsigned int i = 0; i < num_epochs - 1; ++i) {
+    total_elements += epochs->at(i).ops.size();
+  }
+
   if (final_epoch.empty()) {
-    // No sectors to drop in the final epoch so just reutrn.
+    // No sectors to drop in the final epoch.
+    res.resize(total_elements);
+    auto epoch_end_iterator = epochs->begin() + num_epochs;
+    AddEpochs(res.begin(), res.end(), epochs->begin(), epoch_end_iterator);
     return true;
   } else if (num_requests == epochs->at(num_epochs - 1).ops.size() &&
       epochs->at(num_epochs - 1).ops.back().op.is_barrier()) {
     // We picked the entire epoch and it has a barrier, so we can't rearrange
     // anything.
-    res.insert(res.end(), final_epoch.begin(), final_epoch.end());
+    res.resize(total_elements + epochs->at(num_epochs - 1).ops.size());
+    // + 1 because we also add the full epoch we "crash" in.
+    auto epoch_end_iterator = epochs->begin() + num_epochs;
+    AddEpochs(res.begin(), res.end(), epochs->begin(), epoch_end_iterator);
     return true;
   }
 
-  final_epoch = CoalesceSectors(final_epoch);
+  // For this branch of execution, we are dropping some sectors from the final
+  // epoch we are "crashing" in.
 
-  // Randomly drop some sectors.
-  // Pick a number of sectors to keep.
+  // Pick a number of sectors to keep. final_epoch.size() > 0 due to if block
+  // above, so no need to worry about getting an invalid range.
   uniform_int_distribution<unsigned int> rand_num_sectors(1,
       final_epoch.size());
   const unsigned int num_sectors = rand_num_sectors(rand);
 
+  final_epoch = CoalesceSectors(final_epoch);
+
+  // Result size is now a known quantity.
+  res.resize(total_elements + num_sectors);
+  // Add the requests not in the final epoch to the result.
+  auto epoch_end_iterator = epochs->begin() + (num_epochs - 1);
+  auto res_end = res.begin() + total_elements;
+  AddEpochs(res.begin(), res_end, epochs->begin(), epoch_end_iterator);
+
+  // Randomly drop some sectors.
   vector<unsigned int> indices(final_epoch.size());
   iota(indices.begin(), indices.end(), 0);
   // Use a known random generator function for repeatability.
@@ -207,9 +222,14 @@ bool RandomPermuter::gen_one_sector_state(vector<EpochOpSector> &res,
   }
 
   // Add the sectors corresponding to bitmap indexes to the result.
+  auto next_index = res.begin() + total_elements;
   for (unsigned int i = 0; i < sector_bitmap.size(); ++i) {
+    if (next_index == res.end()) {
+      break;
+    }
     if (sector_bitmap[i] == 1) {
-      res.push_back(final_epoch.at(i));
+      *next_index = final_epoch.at(i).ToWriteData();
+      ++next_index;
     }
   }
 
@@ -270,6 +290,29 @@ void RandomPermuter::subset_epoch(
   // exists (i.e. we won't cause extra shifting when adding the other elements).
   // Decrement out count of empty slots since we have filled one.
   *res_start = epoch.ops.back();
+}
+
+void RandomPermuter::AddEpochs(const vector<DiskWriteData>::iterator &res_start,
+    const vector<DiskWriteData>::iterator &res_end,
+    const vector<epoch>::iterator &start,
+    const vector<epoch>::iterator &end) {
+  auto current_res = res_start;
+  auto current_epoch = start;
+
+  while (current_epoch != end) {
+    for (auto &op : current_epoch->ops) {
+      // Check before we do the assignment so that this won't be run on the
+      // final time through the loop causing us to fail for no reason since we
+      // already incremented res_start to the end.
+      assert(current_res != res_end);
+      *current_res = op.ToWriteData();
+      ++current_res;
+    }
+    ++current_epoch;
+  }
+
+  // We should fill up the entire range that we were given.
+  assert(current_res == res_end);
 }
 
 }  // namespace permuter

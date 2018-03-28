@@ -310,7 +310,7 @@ vector<epoch>* Permuter::GetEpochs() {
 }
 
 
-bool Permuter::GenerateCrashState(vector<EpochOpSector>& res,
+bool Permuter::GenerateCrashState(vector<DiskWriteData> &res,
     PermuteTestResult &log_data) {
   vector<epoch_op> crash_state;
   unsigned long retries = 0;
@@ -345,18 +345,13 @@ bool Permuter::GenerateCrashState(vector<EpochOpSector>& res,
 
   // Move the permuted crash state data over into the returned crash state
   // vector.
-  res.clear();
-  log_data.crash_state.resize(crash_state.size());
+  res.resize(crash_state.size());
   for (unsigned int i = 0; i < crash_state.size(); ++i) {
-    // Here sector size doesn't matter so much since we are writing all the
-    // sectors anyway, as long as possible bio lengths are a multiple of it.
-    vector<EpochOpSector> sectors =
-      crash_state.at(i).ToSectors(kKernelSectorSize);
-    res.insert(res.end(), sectors.begin(), sectors.end());
-
-    // Messy bit to add everything to the logging data struct.
-    log_data.crash_state.at(i) = crash_state.at(i).abs_index;
+    res.at(i) = crash_state.at(i).ToWriteData();
   }
+
+  // Messy bit to add everything to the logging data struct.
+  log_data.crash_state = res;
 
   if (exists == 0) {
     completed_permutations_.insert(crash_state_hash);
@@ -369,7 +364,7 @@ bool Permuter::GenerateCrashState(vector<EpochOpSector>& res,
   return false;
 }
 
-bool Permuter::GenerateSectorCrashState(std::vector<EpochOpSector>& res,
+bool Permuter::GenerateSectorCrashState(std::vector<DiskWriteData> &res,
     PermuteTestResult &log_data) {
   unsigned long retries = 0;
   unsigned int exists = 0;
@@ -389,8 +384,8 @@ bool Permuter::GenerateSectorCrashState(std::vector<EpochOpSector>& res,
     // sectors across all epoch_ops, but we haven't done that).
     crash_state_hash.resize(res.size() * 2);
     for (unsigned int i = 0; i < res.size(); ++i) {
-      crash_state_hash.at((i << 1)) = res.at(i).parent->abs_index;
-      crash_state_hash.at((i << 1) + 1) = res.at(i).parent_sector_index;
+      crash_state_hash.at((i << 1)) = res.at(i).bio_index;
+      crash_state_hash.at((i << 1) + 1) = res.at(i).bio_sector_index;
     }
 
     ++retries;
@@ -407,14 +402,7 @@ bool Permuter::GenerateSectorCrashState(std::vector<EpochOpSector>& res,
 
   // Move the permuted crash state data over into the returned crash state
   // vector.
-  log_data.sector_crash_state.resize(res.size());
-  for (unsigned int i = 0; i < res.size(); ++i) {
-    // Messy bit to add everything to the logging data struct.
-    log_data.sector_crash_state.at(i) = {
-      res.at(i).parent->abs_index,
-      res.at(i).parent_sector_index
-    };
-  }
+  log_data.crash_state = res;
 
   if (exists == 0) {
     completed_permutations_.insert(crash_state_hash);
@@ -429,6 +417,7 @@ bool Permuter::GenerateSectorCrashState(std::vector<EpochOpSector>& res,
 
 vector<EpochOpSector> Permuter::CoalesceSectors(
     vector<EpochOpSector> &sector_list) {
+
   // At most, the returned vector will have as many elements as the given
   // vector.
   vector<EpochOpSector> res(sector_list.size());

@@ -6,6 +6,8 @@
 #include <utility>
 #include <vector>
 
+#include "../utils/utils.h"
+
 namespace fs_testing {
 
 class PermuteTestResult {
@@ -14,12 +16,8 @@ class PermuteTestResult {
   std::ostream& PrintCrashState(std::ostream& os) const;
 
   unsigned int last_checkpoint;
-  std::vector<unsigned int> crash_state;
-  std::vector<std::pair<unsigned int, unsigned int>> sector_crash_state;
+  std::vector<fs_testing::utils::DiskWriteData> crash_state;
 
- private:
-  std::ostream& PrintFullBioCrashState(std::ostream &os) const;
-  std::ostream& PrintSectorCrashState(std::ostream &os) const;
 };
 
 }  // namespace fs_testing

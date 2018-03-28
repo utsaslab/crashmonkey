@@ -90,11 +90,11 @@ using std::vector;
 
 using fs_testing::tests::test_create_t;
 using fs_testing::tests::test_destroy_t;
-using fs_testing::permuter::EpochOpSector;
 using fs_testing::permuter::Permuter;
 using fs_testing::permuter::permuter_create_t;
 using fs_testing::permuter::permuter_destroy_t;
 using fs_testing::utils::disk_write;
+using fs_testing::utils::DiskWriteData;
 
 Tester::Tester(const unsigned int dev_size, const unsigned int sector_size,
     const bool verbosity)
@@ -611,7 +611,7 @@ int Tester::test_check_random_permutations(bool full_bio_replay,
   time_point<steady_clock> start_time = steady_clock::now();
   Permuter *p = permuter_loader.get_instance();
   p->InitDataVector(sector_size_, log_data);
-  vector<EpochOpSector> permutes;
+  vector<DiskWriteData> permutes;
   for (int rounds = 0; rounds < num_rounds; ++rounds) {
     // Print status every 1024 iterations.
     if (rounds & (~((1 << 10) - 1)) && !(rounds & ((1 << 10) - 1))) {
@@ -739,17 +739,20 @@ int Tester::test_check_log_replay(std::ofstream& log) {
   auto log_iter = log_data.begin() + 1;
   unsigned int last_checkpoint = 0;
   unsigned int test_num = 1;
-  vector<unsigned int> crash_state;
-  unsigned int crash_state_counter = 1;
+  unsigned int op_index = 1;
+  vector<DiskWriteData> crash_state;
 
   while (log_iter != log_data.end()) {
     // Keep going through the workload data log until we reach a Checkpoint.
     // Also, skip the very first checkpoint which occurs at the very beginning
     // of the log.
     while (log_iter != log_data.end() && !log_iter->is_checkpoint()) {
-      crash_state.push_back(crash_state_counter);
-      ++crash_state_counter;
+      DiskWriteData wd = DiskWriteData(true, op_index, 0,
+          log_iter->metadata.write_sector * SECTOR_SIZE,
+          log_iter->metadata.size, log_iter->get_data(), 0);
+      crash_state.push_back(wd);
       ++log_iter;
+      ++op_index;
     }
 
     // When we see a Checkpoint, we need to do several things:
@@ -794,7 +797,8 @@ int Tester::test_check_log_replay(std::ofstream& log) {
     // the end iterator is a sentinal value. The same logic applies for
     // checkpoints (which we don't really want to replay).
     const int write_data_res =
-      test_write_data_dw(cow_brd_snapshot_fd, log_data.begin(), log_iter);
+      test_write_data(cow_brd_snapshot_fd, crash_state.begin(),
+          crash_state.end());
     if (!write_data_res) {
       test_info.fs_test.SetError(FileSystemTestResult::kBioWrite);
       close(cow_brd_snapshot_fd);
@@ -820,9 +824,7 @@ int Tester::test_check_log_replay(std::ofstream& log) {
     // Increment our end pointer iterater passed the Checkpoint we just stopped
     // at.
     ++log_iter;
-    // Increment because this is what we use to say what disk_writes we've
-    // included and we omit Checkpoints in the random version of check.
-    ++crash_state_counter;
+    ++op_index;
   }
   return SUCCESS;
 }
@@ -915,8 +917,8 @@ bool Tester::test_write_data_dw(const int disk_fd,
 }
 
 bool Tester::test_write_data(const int disk_fd,
-    const vector<EpochOpSector>::iterator& start,
-    const vector<EpochOpSector>::iterator& end) {
+    const vector<DiskWriteData>::iterator &start,
+    const vector<DiskWriteData>::iterator &end) {
   for (auto current = start; current != end; ++current) {
     if (current->size == 0) {
       // It's *possible* that zero length sectors could have an invalid

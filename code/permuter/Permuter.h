@@ -12,8 +12,6 @@
 namespace fs_testing {
 namespace permuter {
 
-using fs_testing::PermuteTestResult;
-
 // Declare just so that we can reference it in a function below.
 struct EpochOpSector;
 
@@ -72,10 +70,11 @@ class Permuter {
   virtual ~Permuter() {};
   void InitDataVector(unsigned int sector_size,
       std::vector<fs_testing::utils::disk_write> &data);
-  bool GenerateCrashState(std::vector<EpochOpSector>& res,
-      PermuteTestResult &log_data);
-  bool GenerateSectorCrashState(std::vector<EpochOpSector>& res,
-      PermuteTestResult &log_data);
+  bool GenerateCrashState(std::vector<fs_testing::utils::DiskWriteData> &res,
+      fs_testing::PermuteTestResult &log_data);
+  bool GenerateSectorCrashState(
+      std::vector<fs_testing::utils::DiskWriteData> &res,
+      fs_testing::PermuteTestResult &log_data);
 
  protected:
   std::vector<epoch>* GetEpochs();
@@ -93,9 +92,10 @@ class Permuter {
  private:
   virtual void init_data(std::vector<epoch> *data) = 0;
   virtual bool gen_one_state(std::vector<epoch_op>& res,
-      PermuteTestResult &log_data) = 0;
-  virtual bool gen_one_sector_state(std::vector<EpochOpSector> &res,
-      PermuteTestResult &log_data) = 0;
+      fs_testing::PermuteTestResult &log_data) = 0;
+  virtual bool gen_one_sector_state(
+      std::vector<fs_testing::utils::DiskWriteData> &res,
+      fs_testing::PermuteTestResult &log_data) = 0;
 
   bool FindOverlapsAndInsert(fs_testing::utils::disk_write &dw,
       std::list<std::pair<unsigned int, unsigned int>> &ranges) const;

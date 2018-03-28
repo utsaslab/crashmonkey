@@ -6,43 +6,32 @@ using std::ostream;
 using std::to_string;
 
 ostream& PermuteTestResult::PrintCrashStateSize(ostream& os) const {
-  if (crash_state.empty() && sector_crash_state.empty()) {
-    os << "0 bios";
-  } else if (!crash_state.empty()) {
-    os << to_string(crash_state.size()) << " bios";
+  if (crash_state.empty()) {
+    os << "0 bios/sectors";
   } else {
-    os << to_string(sector_crash_state.size()) << " sectors";
+    os << to_string(crash_state.size()) << " bios/sectors";
   }
   return os;
 }
 
 ostream& PermuteTestResult::PrintCrashState(ostream& os) const {
-  if (crash_state.empty() && sector_crash_state.empty()) {
+  if (crash_state.empty()) {
     return os;
   }
-  if (!crash_state.empty()) {
-    return PrintFullBioCrashState(os);
-  } else {
-    return PrintSectorCrashState(os);
-  }
-}
 
-ostream& PermuteTestResult::PrintFullBioCrashState(ostream &os) const {
   for (unsigned int i = 0; i < crash_state.size() - 1; ++i) {
-    os << to_string(crash_state.at(i)) << ", ";
+    os << "(" << to_string(crash_state.at(i).bio_index);
+    if (!crash_state.at(i).full_bio) {
+      os << ", " << to_string(crash_state.at(i).bio_sector_index);
+    }
+    os << "), ";
   }
-  os << to_string(crash_state.back());
-  return os;
-}
 
-ostream& PermuteTestResult::PrintSectorCrashState(ostream &os) const {
-  for (unsigned int i = 0; i < sector_crash_state.size() - 1; ++i) {
-    std::pair<unsigned int, unsigned int> sector = sector_crash_state.at(i);
-    os << "(" << to_string(sector.first) << ", " << to_string(sector.second) <<
-      "), ";
+  os << "(" << to_string(crash_state.back().bio_index);
+  if (!crash_state.back().full_bio) {
+    os << ", " << to_string(crash_state.back().bio_sector_index);
   }
-  std::pair<unsigned int, unsigned int> sector = sector_crash_state.back();
-  os << "(" << to_string(sector.first) << ", " << sector.second << ")";
+  os << ")";
 
   return os;
 }
