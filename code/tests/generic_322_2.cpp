@@ -67,11 +67,11 @@ class Generic322_2: public BaseTestCase {
     }
 
     // Write some contents to the file
-    if (WriteData(fd_foo, 0, 1024) < 0) {
+    if (WriteData(fd_foo, 0, 4096) < 0) {
     	return -2;
     }
     // Write some contents to the backup file (for verifying md5sum in check_test)
-    if (WriteData(fd_foo_backup, 0, 1024) < 0) {
+    if (WriteData(fd_foo_backup, 0, 4096) < 0) {
     	return -2;
     }
 
@@ -84,15 +84,15 @@ class Generic322_2: public BaseTestCase {
     }
 
     // write more contents in a different offset
-    if (WriteData(fd_foo, 1024, 2048) < 0) {
+    if (WriteData(fd_foo, 4096, 4096) < 0) {
     	return -2;
     }
-    if (WriteData(fd_foo_backup, 1024, 2048) < 0) {
+    if (WriteData(fd_foo_backup, 4096, 4096) < 0) {
     	return -2;
     }
 
     // sync range the foo file
-    if (sync_file_range(fd_foo, 1024, 2048, 0) < 0) {
+    if (sync_file_range(fd_foo, 4096, 4096, 0) < 0) {
     	return -3;
     }
     // fsync the entire backup file
