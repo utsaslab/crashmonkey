@@ -26,7 +26,6 @@ https://github.com/kdave/xfstests/blob/master/tests/generic/322
 #include "../user_tools/api/actions.h"
 #define TEST_FILE_FOO "foo"
 #define TEST_FILE_BAR "bar"
-#define TEST_MNT "/mnt/snapshot"
 #define TEST_DIR_A "test_dir_a"
 
 
@@ -47,7 +46,8 @@ class Generic322: public BaseTestCase {
   virtual int setup() override {
 
     // Create test directory A.
-    int res = mkdir(TEST_MNT "/" TEST_DIR_A, 0777);
+	string dir_path = mnt_dir_ + "/" TEST_DIR_A;
+	int res = mkdir(dir_path.c_str(), 0777);
     if (res < 0) {
       return -1;
     }
@@ -116,8 +116,8 @@ class Generic322: public BaseTestCase {
   }
 
    private:
-    const string foo_path = TEST_MNT "/" TEST_DIR_A "/" TEST_FILE_FOO;
-    const string bar_path = TEST_MNT "/" TEST_DIR_A "/" TEST_FILE_BAR;
+    const string foo_path = mnt_dir_ "/" TEST_DIR_A "/" TEST_FILE_FOO;
+    const string bar_path = mnt_dir_ "/" TEST_DIR_A "/" TEST_FILE_BAR;
     const string file_contents = "some random file contents...";
     
 };
