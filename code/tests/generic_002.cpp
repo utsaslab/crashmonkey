@@ -155,20 +155,6 @@ class Generic002: public BaseTestCase {
         test_result->error_description = " : Number of links not matching with expected count";
     }
 
-/*    // Remove all files within  test_dir_a
-    system("rm -f /mnt/snapshot/test_dir_a/*");
-
-    //Now try removing the directory itself.
-    const int rem = rmdir(TEST_MNT "/" TEST_DIR_A);
-    const int err = errno;
-
-
-    // If rmdir failed because the dir was not empty, it's a bug
-    if(rem < 0 && err == ENOTEMPTY){
-      test_result->SetError(DataTestResult::kFileMetadataCorrupted);
-      test_result->error_description = " : Cannot remove dir even if empty";
-    }
-*/
     return 0;
   }
 
