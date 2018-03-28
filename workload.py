@@ -1,6 +1,6 @@
 #!/usr/bin/env python
 
-#To run : python workload.py -t code/tests/test -p code/tests/target_dir
+#To run : python workload.py -b code/tests/generic_039/base_test.cpp  -t code/tests/generic_039/generic_039 -p code/tests/generic_039
 import os
 import re
 import sys
@@ -434,7 +434,7 @@ def main():
             elif line.find('run') != -1:
                 if line.split(' ')[2] == 'run()':
                     index_map['run'] = index
-            elif line.find('check') != -1:
+            elif line.find('check_test') != -1:
                 if line.split(' ')[2] == 'check_test(':
                     index_map['check'] = index
             elif line.find('private') != -1:
