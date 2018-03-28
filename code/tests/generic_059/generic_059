@@ -1,0 +1,18 @@
+# define 
+foo
+foo_compare
+
+# setup 
+open foo O_RDWR|O_CREAT 0777
+open foo_compare O_RDWR|O_CREAT 0777
+write foo 0 16384
+write foo_compare 0 16384
+close foo
+sync
+
+# run
+open foo O_RDWR|O_CREAT 0777
+falloc foo 8000 4096 addToSetup foo_compare
+fsync foo
+checkpoint 
+close foo

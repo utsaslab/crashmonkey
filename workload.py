@@ -238,23 +238,33 @@ def insertRename(contents, line, index_map, method):
         updateRunMap(index_map, 4)
 
 def insertWrite(contents, option, line, index_map, method):
-    if option == 'WriteData' or option == 'WriteDataMmap' :
+    if option == 'WriteDataMmap':
+        # insertFalloc(contents, '0', line, index_map, method)
+        to_insert = '\n\t\t\t\tif ( fallocate( fd_' + line.split(' ')[1] + ' , 0 , ' + line.split(' ')[2] + ' , '  + line.split(' ')[3] + ') < 0){ \n\t\t\t\t\t close( fd_' + line.split(' ')[1]  +');\n\t\t\t\t\t return errno;\n\t\t\t\t}\n\t\t\t\tif ( ' + option + '( fd_' + line.split(' ')[1] + ', ' + line.split(' ')[2] + ', ' + line.split(' ')[3] + ') < 0){ \n\t\t\t\t\tclose( fd_' + line.split(' ')[1] + '); \n\t\t\t\t\treturn errno;\n\t\t\t\t}\n\n'
+        if method == 'setup':
+            contents.insert(index_map['setup'], to_insert)
+            updateSetupMap(index_map, 9)
+        else:
+            contents.insert(index_map['run'], to_insert)
+            updateRunMap(index_map, 9) 
+
+    elif option == 'WriteData':
         to_insert = '\n\t\t\t\tif ( ' + option + '( fd_' + line.split(' ')[1] + ', ' + line.split(' ')[2] + ', ' + line.split(' ')[3] + ') < 0){ \n\t\t\t\t\tclose( fd_' + line.split(' ')[1] + '); \n\t\t\t\t\treturn errno;\n\t\t\t\t}\n\n'
         if method == 'setup':
             contents.insert(index_map['setup'], to_insert)
             updateSetupMap(index_map, 5)
         else:
             contents.insert(index_map['run'], to_insert)
-            updateRunMap(index_map, 5)
+            updateRunMap(index_map, 5)      
     else:
-        to_insert = '\n\t\t\t\tclose(fd_' + line.split(' ')[1] + ');  \n\t\t\t\tfd_' + line.split(' ')[1] + ' = open(' + line.split(' ')[1] + '_path.c_str() , O_DIRECT|O_SYNC , 0777); \n\t\t\t\tif ( fd_' + line.split(' ')[1] + ' < 0 ) { \n\t\t\t\t\tclose( fd_' + line.split(' ')[1] + '); \n\t\t\t\t\treturn errno;\n\t\t\t\t}\n\n\t\t\t\tvoid* data_' + line.split(' ')[1] + '; \n\t\t\t\tif (posix_memalign(&data_' + line.split(' ')[1] + ' , 4096, ' + line.split(' ')[3] +' ) < 0) {\n\t\t\t\t\treturn errno;\n\t\t\t\t}\n\n\t\t\t\tmemset(data_' + line.split(' ')[1] + ', \'a\', ' + line.split(' ')[3] + '); \n\n\t\t\t\tif ( ' + option + '( fd_' + line.split(' ')[1] + ', data_'+ line.split(' ')[1] + ', '  + line.split(' ')[3] + ', ' + line.split(' ')[2] + ') < 0){ \n\t\t\t\t\tclose( fd_' + line.split(' ')[1] + '); \n\t\t\t\t\treturn errno;\n\t\t\t\t}\n\n'
+        to_insert ='\n\t\t\t\tclose(fd_' + line.split(' ')[1] + '); \n\t\t\t\tfd_' + line.split(' ')[1] + ' = open(' + line.split(' ')[1] +'_path.c_str() , O_RDWR|O_DIRECT|O_SYNC , 0777); \n\t\t\t\tif ( fd_' + line.split(' ')[1] +' < 0 ) { \n\t\t\t\t\tclose( fd_' + line.split(' ')[1] +'); \n\t\t\t\t\treturn errno;\n\t\t\t\t}\n\n\t\t\t\tvoid* data_' +line.split(' ')[1] +';\n\t\t\t\tif (posix_memalign(&data_' + line.split(' ')[1] +' , 4096, ' + line.split(' ')[3] +' ) < 0) {\n\t\t\t\t\treturn errno;\n\t\t\t\t}\n\n\t\t\t\t \n\t\t\t\tint offset_'+ line.split(' ')[1] +' = 0;\n\t\t\t\tint to_write_'+line.split(' ')[1] +' = ' + line.split(' ')[3] + ' ;\n\t\t\t\tconst char *text_' + line.split(' ')[1] +'  = \"abcdefghijklmnopqrstuvwxyz123456\";\n\t\t\t\twhile (offset_'+line.split(' ')[1]+' < '+ line.split(' ')[3] +'){\n\t\t\t\t\tif (to_write_'+ line.split(' ')[1] +' < 32){\n\t\t\t\t\t\tmemcpy((char *)data_'+ line.split(' ')[1]+ '+ offset_'+ line.split(' ')[1] +', text_'+ line.split(' ')[1] +', to_write_' +line.split(' ')[1]+');\n\t\t\t\t\t\toffset_'+ line.split(' ')[1]+' += to_write_'+ line.split(' ')[1] +';\n\t\t\t\t\t}\n\t\t\t\t\telse {\n\t\t\t\t\t\tmemcpy((char *)data_'+ line.split(' ')[1] +'+ offset_'+line.split(' ')[1] +',text_'+line.split(' ')[1] +', 32);\n\t\t\t\t\t\toffset_'+line.split(' ')[1] +' += 32; \n\t\t\t\t\t} \n\t\t\t\t} \n\n\t\t\t\tif ( ' + option + '( fd_' + line.split(' ')[1] + ', data_'+ line.split(' ')[1] + ', '  + line.split(' ')[3] + ', ' + line.split(' ')[2] +') < 0){\n\t\t\t\t\tclose( fd_' + line.split(' ')[1] + '); \n\t\t\t\t\treturn errno;\n\t\t\t\t}\n\n'
 
         if method == 'setup':
             contents.insert(index_map['setup'], to_insert)
-            updateSetupMap(index_map, 19)
+            updateSetupMap(index_map, 31)
         else:
             contents.insert(index_map['run'], to_insert)
-            updateRunMap(index_map, 19)
+            updateRunMap(index_map, 31)
 
 
 # Insert a function in 'line' into 'file' at location specified by 'index_map' in the specified 'method'
@@ -265,7 +275,8 @@ def insertFunctions(line, file, index_map, method, permutation, iter):
     with open(file, 'r+') as insert:
         
         contents = insert.readlines()
-        
+
+
         if line.split(' ')[0] == 'falloc':
             if method == 'setup':
                 updateSetupMap(index_map, 1)
@@ -274,6 +285,9 @@ def insertFunctions(line, file, index_map, method, permutation, iter):
             option = permutation[iter]
             iter += 1
             insertFalloc(contents, option, line, index_map, method)
+            if line.split(' ')[-2] == 'addToSetup':
+                line = line.replace(line.split(' ')[1], line.split(' ')[-1], 1)
+                insertFalloc(contents, option, line, index_map, 'setup')
     
         elif line.split(' ')[0] == 'mkdir':
             if method == 'setup':
