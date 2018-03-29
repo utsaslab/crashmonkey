@@ -787,8 +787,6 @@ int main(int argc, char** argv) {
         }
         if (checkpoint == 0) {
           wait_for_write_delay(logfile);
-        }
-        if (checkpoint == 0) {
           if (disable_profiling_get_log(test_harness, logfile) != SUCCESS) {
             test_harness.cleanup_harness();
             return -1;
@@ -799,18 +797,11 @@ int main(int argc, char** argv) {
           test_harness.cleanup_harness();
           return -1;
         }
+        test_harness.mapCheckpointToSnapshot(checkpoint);
+        test_harness.getNewDiskClone(checkpoint);
         checkpoint += 1;
-        // TODO(P.S.) check the creation of a snapshot
-        // Modify it to take path as parameter or dynamically change it
-        cout << "Making new snapshot" << endl;
-        logfile << "Making new snapshot" << endl;
-        if (test_harness.clone_device() != SUCCESS) {
-          test_harness.cleanup_harness();
-          return -1;
-        }
 
       } while (automate_check_test && !last_checkpoint);
-
     }
 
     /***************************************************************************
@@ -821,6 +812,9 @@ int main(int argc, char** argv) {
       disable_profiling_get_log(test_harness, logfile);
       unmount_wrapper_device(test_harness, logfile);
     }
+
+    test_harness.getFullRunDiskClone();
+
     cout << "Close wrapper ioctl fd" << endl;
     logfile << "Close wrapper ioctl fd" << endl;
     test_harness.put_wrapper_ioctl();

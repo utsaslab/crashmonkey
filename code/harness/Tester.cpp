@@ -58,7 +58,6 @@
 #define COW_BRD_RMMOD       "rmmod " COW_BRD_MODULE_NAME
 #define NUM_DISKS           "1"
 #define NUM_SNAPSHOTS       "20"
-#define SNAPSHOT_PATH       "/dev/cow_ram_snapshot1_0"
 #define COW_BRD_PATH        "/dev/cow_ram0"
 
 #define DEV_SECTORS_PATH    "/sys/block/"
@@ -127,6 +126,34 @@ void Tester::StartTestSuite() {
 
 void Tester::EndTestSuite() {
   current_test_suite_ = NULL;
+}
+
+int Tester::mapCheckpointToSnapshot(int checkpoint) {
+  if (checkpointToSnapshot.find(checkpoint) != checkpointToSnapshot.end()) {
+    return -1;
+  }
+  // checkpointToSnapshot.insert(pair<int, char*>(checkpoint, SNAPSHOT_PATH));
+  checkpointToSnapshot[checkpoint] = SNAPSHOT_PATH;
+  cout << "Mapping " << SNAPSHOT_PATH << " to checkpoint " << checkpoint << endl;
+  return 0;
+}
+
+int Tester::getNewDiskClone(int checkpoint) {
+  char* new_snapshot_path;
+  new_snapshot_path = (char *) malloc(sizeof(char)*25);
+  // Construct the new snapshot path
+  string path = SNAPSHOT_PATH;
+  string device_number = path.substr(path.rfind('_'));
+  string snapshot_number = to_string(checkpoint+2);
+  strcpy(new_snapshot_path, "/dev/cow_ram_snapshot");
+  strcat(new_snapshot_path, snapshot_number.c_str());
+  strcat(new_snapshot_path, device_number.c_str());
+  SNAPSHOT_PATH = new_snapshot_path;
+  return 0;
+}
+
+void Tester::getFullRunDiskClone() {
+  SNAPSHOT_PATH = checkpointToSnapshot[0];
 }
 
 int Tester::clone_device() {

@@ -7,6 +7,7 @@
 #include <string>
 #include <utility>
 #include <vector>
+#include <map>
 
 #include "FsSpecific.h"
 #include "../utils/ClassLoader.h"
@@ -124,6 +125,10 @@ class Tester {
   void StartTestSuite();
   void EndTestSuite();
 
+  int mapCheckpointToSnapshot(int checkpoint);
+  int getNewDiskClone(int checkpoint);
+  void getFullRunDiskClone();
+
   // TODO(ashmrtn): Figure out why making these private slows things down a lot.
  private:
   FsSpecific *fs_specific_ops_ = NULL;
@@ -165,6 +170,9 @@ class Tester {
   std::vector<TestSuiteResult> test_results_;
   std::chrono::milliseconds timing_stats[NUM_TIME] =
       {std::chrono::milliseconds(0)};
+
+  char* SNAPSHOT_PATH = "/dev/cow_ram_snapshot1_0";
+  std::map<int, char*> checkpointToSnapshot;
 
 };
 
