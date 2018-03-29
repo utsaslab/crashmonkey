@@ -81,7 +81,7 @@ class Generic342: public BaseTestCase {
     return 0;
   }
 
-  virtual int run() override {
+  virtual int run(int checkpoint) override {
 
     //Rename foo to bar
     if (rename(foo_path.c_str(), bar_path.c_str()) < 0) {

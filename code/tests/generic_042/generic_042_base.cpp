@@ -85,7 +85,7 @@ int Generic042Base::setup() {
   return 0;
 }
 
-int Generic042Base::run() {
+int Generic042Base::run(int checkpoint) {
   // Write 64k of data to test file.
   const string file_path(mnt_dir_ + "/" + kTestFileName);
 

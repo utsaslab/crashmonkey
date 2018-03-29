@@ -72,7 +72,7 @@ class F2fsFzero: public BaseTestCase {
     return 0;
   }
 
-  virtual int run() override {
+  virtual int run(int checkpoint) override {
     const int fd_reg = open(kTestFile, O_RDWR);
     if (fd_reg < 0) {
       return -1;

@@ -82,7 +82,7 @@ class BtrfsLinkUnlink: public BaseTestCase {
     return 0;
   }
 
-  virtual int run() override {
+  virtual int run(int checkpoint) override {
 
     //initialize paths
         //initialize paths

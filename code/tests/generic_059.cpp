@@ -93,9 +93,7 @@ class Generic059: public BaseTestCase {
     return 0;
   }
 
-  virtual int run() override {
-
-
+  virtual int run(int checkpoint) override {
     //Open file foo
     const int fd_foo = open(foo_path.c_str(), O_RDWR);
     if (fd_foo < 0) {

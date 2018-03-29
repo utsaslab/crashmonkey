@@ -65,7 +65,7 @@ class echo_sub_dir_big : public BaseTestCase {
     return 0;
   }
 
-  virtual int run() override {
+  virtual int run(int checkpoint) override {
     for (unsigned int i = 0; i < NUM_TEST_FILES; ++i) {
       const int old_umask = umask(0000);
       string file_name = string(TEST_MNT "/" TEST_DIR "/" TEST_FILE

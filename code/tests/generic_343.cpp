@@ -97,7 +97,7 @@ class Generic343: public BaseTestCase {
     return 0;
   }
 
-  virtual int run() override {
+  virtual int run(int checkpoint) override {
 
   	//X has foo, Y has foo_2 and Z
 

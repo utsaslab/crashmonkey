@@ -60,7 +60,7 @@ class genericDirectWrite: public BaseTestCase {
     return 0;
   }
 
-  virtual int run() override {
+  virtual int run(int checkpoint) override {
 
     //Open the file
     int fd_reg = open(kTestFile, O_RDWR);

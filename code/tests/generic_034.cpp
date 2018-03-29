@@ -78,7 +78,7 @@ class Generic034: public BaseTestCase {
     return 0;
   }
 
-  virtual int run() override {
+  virtual int run(int checkpoint) override {
 
 
     //touch TEST_DIR_A/bar 

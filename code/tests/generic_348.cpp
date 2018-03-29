@@ -65,7 +65,7 @@ class Generic348: public BaseTestCase {
     return 0;
   }
 
-  virtual int run() override {
+  virtual int run(int checkpoint) override {
 
     // Create a symlink for foo1 in TEST_DIR_A/bar1 
     // Case 1 : Parent directory is durably persisted

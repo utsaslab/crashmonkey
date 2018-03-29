@@ -101,7 +101,7 @@ class Generic336: public BaseTestCase {
     return 0;
   }
 
-  virtual int run() override {
+  virtual int run(int checkpoint) override {
 
     //Unlink TEST_DIR_B/foo_link (B has bar)
     if (unlink(foo_link_path.c_str()) < 0){

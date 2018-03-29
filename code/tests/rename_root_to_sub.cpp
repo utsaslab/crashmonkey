@@ -111,7 +111,7 @@ class rename_root_to_sub : public BaseTestCase {
     return 0;
   }
 
-  virtual int run() override {
+  virtual int run(int checkpoint) override {
     if (rename(old_path.c_str(), new_path.c_str()) < 0) {
       return -1;
     }

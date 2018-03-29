@@ -97,7 +97,7 @@ class Generic341: public BaseTestCase {
     return 0;
   }
 
-  virtual int run() override {
+  virtual int run(int checkpoint) override {
 
     //Rename dir x to dir y
     if (rename(dir_x_path.c_str(), dir_y_path.c_str()) < 0) {

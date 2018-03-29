@@ -46,7 +46,7 @@ class echo_sub_dir : public BaseTestCase {
     return 0;
   }
 
-  virtual int run() override {
+  virtual int run(int checkpoint) override {
     const int old_umask = umask(0000);
     const int fd = open(TEST_MNT "/" TEST_DIR "/" TEST_FILE, O_RDWR | O_CREAT,
         TEST_FILE_PERMS);
