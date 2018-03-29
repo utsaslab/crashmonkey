@@ -48,6 +48,8 @@ class Generic002: public BaseTestCase {
  public:
   virtual int setup() override {
 
+	init_paths();
+
     // Create test directory A.
 	string dir_path = mnt_dir_ + "/" TEST_DIR_A;
     int res = mkdir(dir_path.c_str(), 0777);
@@ -67,6 +69,8 @@ class Generic002: public BaseTestCase {
   }
 
   virtual int run() override {
+
+	init_paths();
   
     const int fd_foo = open(foo_path.c_str(), O_RDWR | O_CREAT, TEST_FILE_PERMS);
     if (fd_foo < 0) {
@@ -120,6 +124,8 @@ class Generic002: public BaseTestCase {
   virtual int check_test(unsigned int last_checkpoint,
       DataTestResult *test_result) override {
 
+	init_paths();
+
     char mode[] = "0777";
     int i_mode = strtol(mode,0,8);
     chmod(foo_path.c_str(), i_mode);
@@ -159,9 +165,13 @@ class Generic002: public BaseTestCase {
   }
 
    private:
-    const string foo_path = mnt_dir_ + "/" TEST_DIR_A "/" TEST_FILE_FOO;
-    const string foo_link_path = mnt_dir_ + "/" TEST_DIR_A "/" TEST_FILE_FOO_LINK;
+    string foo_path;
+    string foo_link_path;
     
+    void init_paths() {
+        foo_path = mnt_dir_ + "/" TEST_DIR_A "/" TEST_FILE_FOO;
+        foo_link_path = mnt_dir_ + "/" TEST_DIR_A "/" TEST_FILE_FOO_LINK;
+    }
 };
 
 }  // namespace tests
