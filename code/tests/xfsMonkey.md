@@ -9,6 +9,11 @@ xfstests - https://github.com/kdave/xfstests/blob/master/tests/generic/056
 
 This tests for a bug in which data of a file gets lost after creating a link to the file and doing a fsync for some other file. It creates a new file foo, writes some contents, does a fsync,  creates a link to the file, creates a new file bar and fsyncs it and then crashes. After recovery, it checks if file foo contains the original contents written to it.    
 
+### generic 106
+xfstests - https://github.com/kdave/xfstests/blob/master/tests/generic/106  
+
+This tests if the file metadata is consistent after adding and removing a link to a file followed by dropping cache and crash. It creates a new file foo, adds a link foo_link to the file foo, and syncs. It then unlinks foo_link, drops the caches, and fsyncs foo. After a crash, removing the file foo should enable removing its directory.  
+
 ### generic 322
 xfstests - https://github.com/kdave/xfstests/blob/master/tests/generic/322  
 
