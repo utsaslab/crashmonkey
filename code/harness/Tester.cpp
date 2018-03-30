@@ -94,9 +94,11 @@ using fs_testing::permuter::Permuter;
 using fs_testing::permuter::permuter_create_t;
 using fs_testing::permuter::permuter_destroy_t;
 using fs_testing::utils::disk_write;
+using fs_testing::utils::DiskWriteData;
 
-Tester::Tester(const unsigned int dev_size, const bool verbosity)
-  : device_size(dev_size), verbose(verbosity) {}
+Tester::Tester(const unsigned int dev_size, const unsigned int sector_size,
+    const bool verbosity)
+  : device_size(dev_size), sector_size_(sector_size), verbose(verbosity) {}
 
 Tester::~Tester() {
   if (fs_specific_ops_ != NULL) {
@@ -603,13 +605,13 @@ vector<milliseconds> Tester::test_fsck_and_user_test(
   return res;
 }
 
-int Tester::test_check_random_permutations(const int num_rounds,
-    ofstream& log) {
+int Tester::test_check_random_permutations(bool full_bio_replay,
+    const int num_rounds, ofstream& log) {
   assert(current_test_suite_ != NULL);
   time_point<steady_clock> start_time = steady_clock::now();
   Permuter *p = permuter_loader.get_instance();
-  p->InitDataVector(log_data);
-  vector<disk_write> permutes;
+  p->InitDataVector(sector_size_, log_data);
+  vector<DiskWriteData> permutes;
   for (int rounds = 0; rounds < num_rounds; ++rounds) {
     // Print status every 1024 iterations.
     if (rounds & (~((1 << 10) - 1)) && !(rounds & ((1 << 10) - 1))) {
@@ -625,8 +627,13 @@ int Tester::test_check_random_permutations(const int num_rounds,
 
     // Begin permute timing.
     time_point<steady_clock> permute_start_time = steady_clock::now();
-    bool new_state = p->GenerateCrashState(permutes,
-        test_info.permute_data);
+    bool new_state = false;
+    if (full_bio_replay) {
+      new_state = p->GenerateCrashState(permutes, test_info.permute_data);
+    } else {
+      new_state = p->GenerateSectorCrashState(permutes, test_info.permute_data);
+    }
+
     time_point<steady_clock> permute_end_time = steady_clock::now();
     timing_stats[PERMUTE_TIME] +=
         duration_cast<milliseconds>(permute_end_time - permute_start_time);
@@ -713,6 +720,10 @@ int Tester::test_check_random_permutations(const int num_rounds,
  *
  * TODO(ashmrtn): Should this call a separate method in the user test case or
  * should it still call the check_test() method?
+ *
+ * TODO(ashmrtn): Convert other code in this file to handle epoch and epoch_op
+ * instead of disk_write so that we can have the same test_write_data function
+ * for this and for the replays created by the permuters.
  */
 int Tester::test_check_log_replay(std::ofstream& log) {
   assert(current_test_suite_ != NULL);
@@ -728,17 +739,20 @@ int Tester::test_check_log_replay(std::ofstream& log) {
   auto log_iter = log_data.begin() + 1;
   unsigned int last_checkpoint = 0;
   unsigned int test_num = 1;
-  vector<unsigned int> crash_state;
-  unsigned int crash_state_counter = 1;
+  unsigned int op_index = 1;
+  vector<DiskWriteData> crash_state;
 
   while (log_iter != log_data.end()) {
     // Keep going through the workload data log until we reach a Checkpoint.
     // Also, skip the very first checkpoint which occurs at the very beginning
     // of the log.
     while (log_iter != log_data.end() && !log_iter->is_checkpoint()) {
-      crash_state.push_back(crash_state_counter);
-      ++crash_state_counter;
+      DiskWriteData wd = DiskWriteData(true, op_index, 0,
+          log_iter->metadata.write_sector * SECTOR_SIZE,
+          log_iter->metadata.size, log_iter->get_data(), 0);
+      crash_state.push_back(wd);
       ++log_iter;
+      ++op_index;
     }
 
     // When we see a Checkpoint, we need to do several things:
@@ -783,7 +797,8 @@ int Tester::test_check_log_replay(std::ofstream& log) {
     // the end iterator is a sentinal value. The same logic applies for
     // checkpoints (which we don't really want to replay).
     const int write_data_res =
-      test_write_data(cow_brd_snapshot_fd, log_data.begin(), log_iter);
+      test_write_data(cow_brd_snapshot_fd, crash_state.begin(),
+          crash_state.end());
     if (!write_data_res) {
       test_info.fs_test.SetError(FileSystemTestResult::kBioWrite);
       close(cow_brd_snapshot_fd);
@@ -809,9 +824,7 @@ int Tester::test_check_log_replay(std::ofstream& log) {
     // Increment our end pointer iterater passed the Checkpoint we just stopped
     // at.
     ++log_iter;
-    // Increment because this is what we use to say what disk_writes we've
-    // included and we omit Checkpoints in the random version of check.
-    ++crash_state_counter;
+    ++op_index;
   }
   return SUCCESS;
 }
@@ -854,6 +867,7 @@ int Tester::test_check_current() {
 }
 */
 
+// TODO(ashmrtn): Should probably just remove this function.
 int Tester::test_restore_log() {
   // We need to mount the original device because we intercept bios after they
   // have been traslated to the current disk and lose information about sector
@@ -864,7 +878,7 @@ int Tester::test_restore_log() {
     cout << endl;
     return TEST_CASE_FILE_ERR;
   }
-  if (!test_write_data(sn_fd, log_data.begin(), log_data.end())) {
+  if (!test_write_data_dw(sn_fd, log_data.begin(), log_data.end())) {
     cout << "test errored in writing data" << endl;
     close(sn_fd);
     return TEST_TEST_ERR;
@@ -873,12 +887,12 @@ int Tester::test_restore_log() {
   return SUCCESS;
 }
 
-bool Tester::test_write_data(const int disk_fd,
+bool Tester::test_write_data_dw(const int disk_fd,
     const vector<disk_write>::iterator& start,
     const vector<disk_write>::iterator& end) {
   for (auto current = start; current != end; ++current) {
     // Operation is not a write so skip it.
-    if (!(current->has_write_flag())) {
+    if (!current->has_write_flag()) {
       continue;
     }
 
@@ -888,9 +902,8 @@ bool Tester::test_write_data(const int disk_fd,
       return false;
     }
     unsigned int bytes_written = 0;
-    shared_ptr<void> data = current->get_data();
-    void* data_base_addr = data.get();
-    do {
+    void *data_base_addr = current->get_data().get();
+    while (bytes_written < current->metadata.size) {
       int res = write(disk_fd,
           (void*) ((unsigned long) data_base_addr + bytes_written),
           current->metadata.size - bytes_written);
@@ -898,7 +911,34 @@ bool Tester::test_write_data(const int disk_fd,
         return false;
       }
       bytes_written += res;
-    } while (bytes_written < current->metadata.size);
+    }
+  }
+  return true;
+}
+
+bool Tester::test_write_data(const int disk_fd,
+    const vector<DiskWriteData>::iterator &start,
+    const vector<DiskWriteData>::iterator &end) {
+  for (auto current = start; current != end; ++current) {
+    if (current->size == 0) {
+      // It's *possible* that zero length sectors could have an invalid
+      // disk_offset (I have not tested/confirmed).
+      continue;
+    }
+    if (lseek(disk_fd, current->disk_offset, SEEK_SET) < 0) {
+      return false;
+    }
+    unsigned int bytes_written = 0;
+    void *data_base_addr = current->GetData();
+    while (bytes_written < current->size) {
+      int res = write(disk_fd,
+          (void*) ((unsigned long) data_base_addr + bytes_written),
+          current->size - bytes_written);
+      if (res < 0) {
+        return false;
+      }
+      bytes_written += res;
+    }
   }
   return true;
 }
