@@ -388,23 +388,21 @@ static blk_qc_t brd_make_request(struct request_queue *q, struct bio *bio) {
     goto out_err;
   }
 
-  if ((bio->BI_RW & WRITE || bio->BI_RW & BIO_DISCARD_FLAG) &&
-      !brd->is_writable) {
+  rw = BIO_IS_WRITE(bio);
+
+  if ((rw || bio->BI_RW & BIO_DISCARD_FLAG) && !brd->is_writable) {
     goto out_err;
   }
 
-#if LINUX_VERSION_CODE >= KERNEL_VERSION(4, 15, 0) && \
-  LINUX_VERSION_CODE < KERNEL_VERSION(4, 16, 0)
-  if (unlikely(bio_op(bio) == BIO_DISCARD_FLAG)) {
-#else
+#if LINUX_VERSION_CODE < KERNEL_VERSION(4, 15, 0)
   if (unlikely(bio->BI_RW & BIO_DISCARD_FLAG)) {
+#else
+  if (unlikely(bio_op(bio) == BIO_DISCARD_FLAG)) {
 #endif
     err = 0;
     discard_from_brd(brd, sector, bio->BI_SIZE);
     goto out;
   }
-
-  rw = BIO_IS_WRITE(bio);
 
 #if LINUX_VERSION_CODE < KERNEL_VERSION(3, 14, 0)
   struct bio_vec *bvec;
