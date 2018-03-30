@@ -1,0 +1,27 @@
+# define 
+A
+B
+C
+A/foo
+B/foo_link
+B/bar
+C/bar_moved
+
+# setup 
+mkdir A 0777
+mkdir B 0777
+mkdir C 0777
+open foo O_RDWR|O_CREAT 0777
+link foo foo_link
+open bar O_RDWR|O_CREAT 0777
+sync
+close foo
+close bar
+
+# run
+unlink foo_link
+rename bar bar_moved
+open foo O_RDWR|O_CREAT 0777
+fsync foo
+checkpoint 
+close foo
