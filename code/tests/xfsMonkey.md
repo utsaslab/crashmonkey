@@ -14,6 +14,11 @@ xfstests - https://github.com/kdave/xfstests/blob/master/tests/generic/106
 
 This tests if the file metadata is consistent after adding and removing a link to a file followed by dropping cache and crash. It creates a new file foo, adds a link foo_link to the file foo, and syncs. It then unlinks foo_link, drops the caches, and fsyncs foo. After a crash, removing the file foo should enable removing its directory.  
 
+### generic 107
+xfstests - https://github.com/kdave/xfstests/blob/master/tests/generic/107  
+
+This tests if the file metadata is consistent after adding and removing a link to a file followed by crash, when the links are within a different directory. It creates a new file foo, adds links foo_link and foo_link2 to the file foo inside a sub-directory, and syncs. It then unlinks foo_link2, and fsyncs foo. After a crash, removing the link foo_link should enable removing its directory.  
+
 ### generic 322
 xfstests - https://github.com/kdave/xfstests/blob/master/tests/generic/322  
 
