@@ -333,7 +333,7 @@ static void copy_from_brd(void *dst, struct brd_device *brd, sector_t sector,
         (page = brd_lookup_page(brd->parent_brd, sector))) {
       // Present in the old radix tree so this page has not been modified.
       src = kmap_atomic(page);
-      memcpy(dst, src + offset, copy);
+      memcpy(dst, src, copy);
       kunmap_atomic(src);
     } else {
       // Page doesn't exist in either radix tree so it must never have been
