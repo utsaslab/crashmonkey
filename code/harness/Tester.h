@@ -63,7 +63,8 @@ class Tester {
     NUM_TIME,
   };
 
-  Tester(const unsigned int device_size, const bool verbosity);
+  Tester(const unsigned int device_size, const unsigned int sector_size,
+      const bool verbosity);
   ~Tester();
   const bool verbose = false;
   void set_fs_type(const std::string type);
@@ -86,7 +87,8 @@ class Tester {
   int test_setup();
   int test_init_values(std::string mountDir, long filesysSize);
   int test_run(int checkpoint);
-  int test_check_random_permutations(const int num_rounds, std::ofstream& log);
+  int test_check_random_permutations(const bool full_bio_replay,
+      const int num_rounds, std::ofstream& log);
   int test_check_log_replay(std::ofstream& log, bool automate_check_test);
   int test_restore_log();
   int test_check_current();
@@ -156,6 +158,7 @@ class Tester {
   bool disk_mounted = false;
 
   int ioctl_fd = -1;
+  const unsigned int sector_size_;
   std::vector<fs_testing::utils::disk_write> log_data;
 
   int mount_device(const char* dev, const char* opts);
@@ -163,9 +166,12 @@ class Tester {
   bool read_dirty_expire_time(int fd);
   bool write_dirty_expire_time(int fd, const char* time);
 
-  bool test_write_data(const int disk_fd,
+  bool test_write_data_dw(const int disk_fd,
       const std::vector<fs_testing::utils::disk_write>::iterator& start,
       const std::vector<fs_testing::utils::disk_write>::iterator& end);
+  bool test_write_data(const int disk_fd,
+      const std::vector<fs_testing::utils::DiskWriteData>::iterator &start,
+      const std::vector<fs_testing::utils::DiskWriteData>::iterator &end);
 
   std::vector<std::chrono::milliseconds> test_fsck_and_user_test(
       const std::string device_path, const unsigned int last_checkpoint,

@@ -13,6 +13,7 @@ using std::vector;
 
 using fs_testing::permuter::epoch;
 using fs_testing::permuter::epoch_op;
+using fs_testing::permuter::EpochOpSector;
 using fs_testing::permuter::Permuter;
 using fs_testing::utils::disk_write;
 
@@ -23,7 +24,15 @@ class TestPermuter : public Permuter {
   void init_data(vector<epoch> *data) {};
   bool gen_one_state(std::vector<epoch_op>& res,
       PermuteTestResult &log_data) {
-    return GetEpochs();
+    return false;
+  }
+  bool gen_one_sector_state(std::vector<EpochOpSector>& res,
+      PermuteTestResult &log_data) {
+    return false;
+  }
+
+  vector<EpochOpSector> Coalesce(vector<EpochOpSector> &sectors) {
+    return CoalesceSectors(sectors);
   }
 
   vector<epoch>* GetInternalEpochs() {
@@ -101,7 +110,8 @@ TEST(Permuter, InitDataVectorSingleEpochFlushTerminated) {
   test_epoch.push_back(barrier);
 
   TestPermuter tp;
-  tp.InitDataVector(test_epoch);
+  const unsigned int sector_size = 512;
+  tp.InitDataVector(sector_size, test_epoch);
   vector<epoch> *internal = tp.GetInternalEpochs();
 
   EXPECT_EQ(internal->size(), 1);
@@ -153,7 +163,8 @@ TEST(Permuter, InitDataVectorSingleEpochFuaTerminated) {
   test_epoch.push_back(barrier);
 
   TestPermuter tp;
-  tp.InitDataVector(test_epoch);
+  const unsigned int sector_size = 512;
+  tp.InitDataVector(sector_size, test_epoch);
   vector<epoch> *internal = tp.GetInternalEpochs();
 
   EXPECT_EQ(internal->size(), 1);
@@ -198,7 +209,8 @@ TEST(Permuter, InitDataVectorSingleEpochUnTerminated) {
   }
 
   TestPermuter tp;
-  tp.InitDataVector(test_epoch);
+  const unsigned int sector_size = 512;
+  tp.InitDataVector(sector_size, test_epoch);
   vector<epoch> *internal = tp.GetInternalEpochs();
 
   EXPECT_EQ(internal->size(), 1);
@@ -255,7 +267,8 @@ TEST(Permuter, InitDataVectorSingleEpochOverlap) {
   test_epoch.push_back(barrier);
 
   TestPermuter tp;
-  tp.InitDataVector(test_epoch);
+  const unsigned int sector_size = 512;
+  tp.InitDataVector(sector_size, test_epoch);
   vector<epoch> *internal = tp.GetInternalEpochs();
 
   EXPECT_EQ(internal->size(), 1);
@@ -312,7 +325,8 @@ TEST(Permuter, InitDataVectorSingleEpochOverlap2) {
   test_epoch.push_back(barrier);
 
   TestPermuter tp;
-  tp.InitDataVector(test_epoch);
+  const unsigned int sector_size = 512;
+  tp.InitDataVector(sector_size, test_epoch);
   vector<epoch> *internal = tp.GetInternalEpochs();
 
   EXPECT_EQ(internal->size(), 1);
@@ -369,7 +383,8 @@ TEST(Permuter, InitDataVectorTwoEpochsFlushTerminatedNoOverlap) {
   }
 
   TestPermuter tp;
-  tp.InitDataVector(test_epochs);
+  const unsigned int sector_size = 512;
+  tp.InitDataVector(sector_size, test_epochs);
   vector<epoch> *internal = tp.GetInternalEpochs();
 
   EXPECT_EQ(internal->size(), 2);
@@ -423,7 +438,8 @@ TEST(Permuter, InitDataVectorSplitFlush) {
   test_epoch.push_back(barrier);
 
   TestPermuter tp;
-  tp.InitDataVector(test_epoch);
+  const unsigned int sector_size = 512;
+  tp.InitDataVector(sector_size, test_epoch);
   vector<epoch> *internal = tp.GetInternalEpochs();
 
   EXPECT_EQ(internal->size(), 2);
@@ -476,7 +492,8 @@ TEST(Permuter, InitDataVectorNoSplitFlush) {
   test_epoch.push_back(barrier);
 
   TestPermuter tp;
-  tp.InitDataVector(test_epoch);
+  const unsigned int sector_size = 512;
+  tp.InitDataVector(sector_size, test_epoch);
   vector<epoch> *internal = tp.GetInternalEpochs();
 
   EXPECT_EQ(internal->size(), 1);
@@ -514,7 +531,8 @@ TEST(Permuter, InitDataVectorNoSplitFlush2) {
   test_epoch.push_back(barrier);
 
   TestPermuter tp;
-  tp.InitDataVector(test_epoch);
+  const unsigned int sector_size = 512;
+  tp.InitDataVector(sector_size, test_epoch);
   vector<epoch> *internal = tp.GetInternalEpochs();
 
   EXPECT_EQ(internal->size(), 1);
@@ -564,7 +582,8 @@ TEST(Permuter, InitDataVectorCheckpointSkip) {
   test_epoch.push_back(barrier);
 
   TestPermuter tp;
-  tp.InitDataVector(test_epoch);
+  const unsigned int sector_size = 512;
+  tp.InitDataVector(sector_size, test_epoch);
   vector<epoch> *internal = tp.GetInternalEpochs();
 
   EXPECT_EQ(internal->size(), 1);
@@ -619,7 +638,8 @@ TEST(Permuter, InitDataVectorEmptyEndEpoch) {
   test_epoch.push_back(testing);
 
   TestPermuter tp;
-  tp.InitDataVector(test_epoch);
+  const unsigned int sector_size = 512;
+  tp.InitDataVector(sector_size, test_epoch);
   vector<epoch> *internal = tp.GetInternalEpochs();
 
   EXPECT_EQ(internal->size(), 2);
@@ -691,7 +711,8 @@ TEST(Permuter, InitDataVectorCountMetadata) {
   test_epoch.push_back(barrier2);
 
   TestPermuter tp;
-  tp.InitDataVector(test_epoch);
+  const unsigned int sector_size = 512;
+  tp.InitDataVector(sector_size, test_epoch);
   vector<epoch> *internal = tp.GetInternalEpochs();
 
   EXPECT_EQ(internal->size(), 2);
@@ -707,6 +728,233 @@ TEST(Permuter, InitDataVectorCountMetadata) {
   EXPECT_TRUE(internal->back().has_barrier);
   EXPECT_FALSE(internal->back().overlaps);
   EXPECT_EQ(internal->back().ops.size(), 2);
+}
+
+
+/*
+ * Test to ensure CoalesceSector when no sectors overlap returns a vector with
+ * the original vector's sectors.
+ */
+TEST(Permuter, CoalesceSectorsNoChange) {
+  const unsigned int sector_size = 512;
+  vector<disk_write> test_epoch;
+
+  TestPermuter tp;
+  tp.InitDataVector(sector_size, test_epoch);
+
+  // CoalesceSector only needs the disk_offset field.
+  vector<EpochOpSector> sectors;
+
+  for (unsigned int i = 0; i < 10; ++i) {
+    EpochOpSector s(NULL, i, i * sector_size, sector_size, sector_size);
+    sectors.push_back(s);
+  }
+
+  vector<EpochOpSector> coalesced = tp.Coalesce(sectors);
+
+  EXPECT_EQ(coalesced.size(), sectors.size());
+  for (unsigned int i = 0; i < sectors.size(); ++i) {
+    EXPECT_EQ(coalesced.at(i), sectors.at(i));
+  }
+}
+
+/*
+ * Test that CoalesceSectors() correctly drops EpochOpSectors that are earlier
+ * in the vector if they refer to the same disk_offset as an EpochOpSector later
+ * in the vector.
+ */
+TEST(Permuter, CoalesceSectorDropSector) {
+  const unsigned int num_sectors = 20;
+  const unsigned int sector_size = 512;
+  vector<disk_write> test_epoch;
+
+  TestPermuter tp;
+  tp.InitDataVector(sector_size, test_epoch);
+
+  // CoalesceSector only needs the disk_offset field.
+  vector<EpochOpSector> sectors(num_sectors);
+
+  for (unsigned int i = 0; i < (num_sectors >> 1); ++i) {
+    EpochOpSector s(NULL, i, i * sector_size, sector_size, sector_size);
+    EpochOpSector s2(NULL, (num_sectors - 1 - i), i * sector_size, sector_size,
+        sector_size);
+    sectors.at(i) = s;
+    sectors.at(num_sectors - 1 - i) = s2;
+  }
+
+  vector<EpochOpSector> coalesced = tp.Coalesce(sectors);
+
+  EXPECT_EQ(coalesced.size(), num_sectors >> 1);
+  for (unsigned int i = 0; i < num_sectors >> 1; ++i) {
+    EXPECT_EQ(coalesced.at(i), sectors.at((num_sectors >> 1) + i));
+  }
+}
+
+/*
+ * Test that CoalesceSectors() correctly drops EpochOpSectors that are earlier
+ * in the vector *only* if they refer to the same disk_offset as an
+ * EpochOpSector later in the vector.
+ */
+TEST(Permuter, CoalesceSectorDropSector2) {
+  const unsigned int num_sectors = 20;
+  const unsigned int sector_size = 512;
+  vector<disk_write> test_epoch;
+
+  TestPermuter tp;
+  tp.InitDataVector(sector_size, test_epoch);
+
+  // CoalesceSector only needs the disk_offset field.
+  vector<EpochOpSector> sectors(num_sectors + 1);
+
+  EpochOpSector s(NULL, 0, (num_sectors + 5) * sector_size, sector_size,
+      sector_size);
+  sectors.at(0) = s;
+  for (unsigned int i = 0; i < (num_sectors >> 1); ++i) {
+    EpochOpSector s(NULL, i + 1, i * sector_size, sector_size, sector_size);
+    EpochOpSector s2(NULL, (num_sectors - i), i * sector_size, sector_size,
+        sector_size);
+    // Skip the first slot.
+    sectors.at(i + 1) = s;
+    sectors.at(num_sectors - i) = s2;
+  }
+
+  vector<EpochOpSector> coalesced = tp.Coalesce(sectors);
+
+  // The 0th element of both vectors should be an EpochOpSector for offset
+  // sector_size * (num_sectors + 5). The next (num_sectors / 2) elements in the
+  // coalesced vector should be the last (num_sectors / 2) elements of the
+  // original vector.
+  EXPECT_EQ(coalesced.size(), (num_sectors >> 1) + 1);
+  for (unsigned int i = 0; i < num_sectors >> 1; ++i) {
+    EXPECT_EQ(coalesced.at(i + 1), sectors.at(((num_sectors >> 1) + 1) + i));
+  }
+  EXPECT_EQ(coalesced.at(0), sectors.at(0));
+}
+
+/*
+ * Test that ToSectors() generates the correct number of sectors.
+ */
+TEST(EpochOp, ToSectorSimple) {
+  const unsigned int sector_size = 512;
+  const unsigned int num_sectors = 3;
+
+  epoch_op op;
+  op.abs_index = 0;
+  op.op.metadata.write_sector = 0;
+  op.op.metadata.size = num_sectors * sector_size;
+
+  vector<EpochOpSector> sectors = op.ToSectors(sector_size);
+
+  EXPECT_EQ(sectors.size(), num_sectors);
+  for (unsigned int i = 0; i < sectors.size(); ++i) {
+    EXPECT_EQ(sectors.at(i).parent, &op);
+    EXPECT_EQ(sectors.at(i).parent_sector_index, i);
+    EXPECT_EQ(sectors.at(i).disk_offset, i * sector_size);
+    EXPECT_EQ(sectors.at(i).max_sector_size, sector_size);
+    EXPECT_EQ(sectors.at(i).size, sector_size);
+  }
+}
+
+/*
+ * Test that ToSectors() generates the correct number of sectors at the right
+ * disk_offsets.
+ */
+TEST(EpochOp, ToSectorSimple2) {
+  const unsigned int sector_size = 512;
+  const unsigned int num_sectors = 3;
+
+  epoch_op op;
+  op.abs_index = 0;
+  op.op.metadata.write_sector = 3;
+  op.op.metadata.size = num_sectors * sector_size;
+
+  vector<EpochOpSector> sectors = op.ToSectors(sector_size);
+
+  EXPECT_EQ(sectors.size(), num_sectors);
+  for (unsigned int i = 0; i < sectors.size(); ++i) {
+    EXPECT_EQ(sectors.at(i).parent, &op);
+    EXPECT_EQ(sectors.at(i).parent_sector_index, i);
+    EXPECT_EQ(sectors.at(i).max_sector_size, sector_size);
+    EXPECT_EQ(sectors.at(i).size, sector_size);
+  }
+  // To avoid writing the same code that is in Permuter.cpp already, manually
+  // check all the disk_offset fields. The offset should be (i + 3) * 512 where
+  // i is the index into the vector. Multiply by 512 because both the kernel
+  // sector size and EpochOpSector max_sector_size are set to 512.
+  EXPECT_EQ(sectors.at(0).disk_offset, 1536);
+  EXPECT_EQ(sectors.at(1).disk_offset, 2048);
+  EXPECT_EQ(sectors.at(2).disk_offset, 2560);
+}
+
+/*
+ * Test that ToSectors() generates the correct number of sectors at the right
+ * disk_offsets, even if the kernel sector size does not match the
+ * max_sector_size for the EpochOpSectors.
+ */
+TEST(EpochOp, ToSectorUnequalSectorSizes) {
+  const unsigned int sector_size = 256;
+  const unsigned int num_sectors = 3;
+
+  epoch_op op;
+  op.abs_index = 0;
+  op.op.metadata.write_sector = 3;
+  op.op.metadata.size = num_sectors * sector_size;
+
+  vector<EpochOpSector> sectors = op.ToSectors(sector_size);
+
+  EXPECT_EQ(sectors.size(), num_sectors);
+  for (unsigned int i = 0; i < sectors.size(); ++i) {
+    EXPECT_EQ(sectors.at(i).parent, &op);
+    EXPECT_EQ(sectors.at(i).parent_sector_index, i);
+    // The 3 is the offset the sector the bio "went" to times the sector size
+    // used in the kernel code.
+    EXPECT_EQ(sectors.at(i).max_sector_size, sector_size);
+    EXPECT_EQ(sectors.at(i).size, sector_size);
+  }
+  // To avoid writing the same code that is in Permuter.cpp already, manually
+  // check all the disk_offset fields. The offset should be
+  // (3 * 512) + (i * 256) where i is the index into the vector. Multiply by 512
+  // because the kernel sector size is set to 512.
+  EXPECT_EQ(sectors.at(0).disk_offset, 1536);
+  EXPECT_EQ(sectors.at(1).disk_offset, 1792);
+  EXPECT_EQ(sectors.at(2).disk_offset, 2048);
+}
+
+/*
+ * Test that even when someone is really annoying and uses a max_sector_size
+ * that isn't a factor of the bio size ToSectors() generates the correct number
+ * of sectors at the right disk_offsets and they have the proper sizes.
+ */
+TEST(EpochOp, ToSectorNonMultipleSize) {
+  const unsigned int data_size = 10;
+  const unsigned int sector_size = 3;
+
+  epoch_op op;
+  op.abs_index = 0;
+  op.op.metadata.write_sector = 0;
+  op.op.metadata.size = data_size;
+
+  vector<EpochOpSector> sectors = op.ToSectors(sector_size);
+
+  EXPECT_EQ(sectors.size(), 4);
+  for (unsigned int i = 0; i < sectors.size(); ++i) {
+    EXPECT_EQ(sectors.at(i).parent, &op);
+    EXPECT_EQ(sectors.at(i).parent_sector_index, i);
+    // The 3 is the offset the sector the bio "went" to times the sector size
+    // used in the kernel code.
+    EXPECT_EQ(sectors.at(i).max_sector_size, sector_size);
+  }
+  // To avoid writing the same code that is in Permuter.cpp already, manually
+  // check all the disk_offset fields. The offset should be i * 3 where i is the
+  // index into the vector.
+  EXPECT_EQ(sectors.at(0).disk_offset, 0);
+  EXPECT_EQ(sectors.at(0).size, 3);
+  EXPECT_EQ(sectors.at(1).disk_offset, 3);
+  EXPECT_EQ(sectors.at(1).size, 3);
+  EXPECT_EQ(sectors.at(2).disk_offset, 6);
+  EXPECT_EQ(sectors.at(2).size, 3);
+  EXPECT_EQ(sectors.at(3).disk_offset, 9);
+  EXPECT_EQ(sectors.at(3).size, 1);
 }
 
 }  // namespace test

@@ -1,7 +1,10 @@
-#include <list>
-#include <vector>
-
 #include <cassert>
+
+#include <algorithm>
+#include <list>
+#include <memory>
+#include <unordered_set>
+#include <vector>
 
 #include "Permuter.h"
 #include "../utils/utils.h"
@@ -11,15 +14,18 @@ namespace permuter {
 
 using std::list;
 using std::pair;
+using std::shared_ptr;
 using std::size_t;
 using std::vector;
 
 using fs_testing::utils::disk_write;
+using fs_testing::utils::DiskWriteData;
 
 namespace {
 
 static const unsigned int kRetryMultiplier = 2;
 static const unsigned int kMinRetries = 1000;
+static const unsigned int kKernelSectorSize = 512;
 
 }  // namespace
 
@@ -44,6 +50,78 @@ bool BioVectorEqual::operator() (const std::vector<unsigned int>& a,
     }
   }
   return true;
+}
+
+vector<EpochOpSector> epoch_op::ToSectors(unsigned int sector_size) {
+  const unsigned int num_sectors =
+    (op.metadata.size + (sector_size - 1)) / sector_size;
+  vector<EpochOpSector> res(num_sectors);
+
+  for (unsigned int i = 0; i < num_sectors; ++i) {
+    unsigned int size = sector_size;
+    if (i == num_sectors - 1) {
+      // Last sector may not be comepletely filled. This is really only a
+      // problem if someone was silly and picked a sector size that isn't a
+      // multiple of two smaller than the size of the bio data.
+      size = op.metadata.size - (i * sector_size);
+    }
+
+    res.at(i) =
+      EpochOpSector(this, i,
+          (kKernelSectorSize * op.metadata.write_sector) + (i * sector_size),
+          size, sector_size);
+  }
+
+  return res;
+}
+
+DiskWriteData epoch_op::ToWriteData() {
+  return DiskWriteData(true, abs_index, 0,
+      op.metadata.write_sector * kKernelSectorSize, op.metadata.size,
+      op.get_data(), 0);
+}
+
+EpochOpSector::EpochOpSector() :
+      parent(NULL), parent_sector_index(0), disk_offset(0), max_sector_size(0),
+      size(0){ }
+
+EpochOpSector::EpochOpSector(epoch_op *parent, unsigned int parent_sector_index,
+    unsigned int disk_offset, unsigned int size, unsigned int max_sector_size) :
+      parent(parent), parent_sector_index(parent_sector_index),
+      disk_offset(disk_offset), max_sector_size(max_sector_size), size(size) { }
+
+bool EpochOpSector::operator==(const EpochOpSector &other) const {
+  if (parent != other.parent) {
+    return false;
+  }
+  if (parent_sector_index != other.parent_sector_index) {
+    return false;
+  }
+  if (disk_offset != other.disk_offset) {
+    return false;
+  }
+  if (size != other.size) {
+    return false;
+  }
+  if (max_sector_size != other.max_sector_size) {
+    return false;
+  }
+
+  return true;
+}
+
+bool EpochOpSector::operator!=(const EpochOpSector &other) const {
+  return !(*this == other);
+}
+
+void * EpochOpSector::GetData() {
+  return parent->op.get_data().get() + (max_sector_size * parent_sector_index);
+}
+
+DiskWriteData EpochOpSector::ToWriteData() {
+  return DiskWriteData(false, parent->abs_index, parent_sector_index,
+      disk_offset, size, parent->op.get_data(),
+      (max_sector_size * parent_sector_index));
 }
 
 /*
@@ -94,7 +172,9 @@ bool Permuter::FindOverlapsAndInsert(disk_write &dw,
   return false;
 }
 
-void Permuter::InitDataVector(vector<disk_write> &data) {
+void Permuter::InitDataVector(unsigned int sector_size,
+    vector<disk_write> &data) {
+  sector_size_ = sector_size;
   epochs_.clear();
   list<pair<unsigned int, unsigned int>> epoch_overlaps;
   struct epoch *current_epoch = NULL;
@@ -230,7 +310,7 @@ vector<epoch>* Permuter::GetEpochs() {
 }
 
 
-bool Permuter::GenerateCrashState(vector<disk_write>& res,
+bool Permuter::GenerateCrashState(vector<DiskWriteData> &res,
     PermuteTestResult &log_data) {
   vector<epoch_op> crash_state;
   unsigned long retries = 0;
@@ -265,11 +345,13 @@ bool Permuter::GenerateCrashState(vector<disk_write>& res,
 
   // Move the permuted crash state data over into the returned crash state
   // vector.
-  res.clear();
   res.resize(crash_state.size());
   for (unsigned int i = 0; i < crash_state.size(); ++i) {
-    res.at(i) = crash_state.at(i).op;
+    res.at(i) = crash_state.at(i).ToWriteData();
   }
+
+  // Messy bit to add everything to the logging data struct.
+  log_data.crash_state = res;
 
   if (exists == 0) {
     completed_permutations_.insert(crash_state_hash);
@@ -280,6 +362,85 @@ bool Permuter::GenerateCrashState(vector<disk_write>& res,
   // We broke out of the above loop because we haven't found a new state in some
   // time.
   return false;
+}
+
+bool Permuter::GenerateSectorCrashState(std::vector<DiskWriteData> &res,
+    PermuteTestResult &log_data) {
+  unsigned long retries = 0;
+  unsigned int exists = 0;
+  bool new_state = true;
+  vector<unsigned int> crash_state_hash;
+
+  unsigned long max_retries =
+    ((kRetryMultiplier * completed_permutations_.size()) < kMinRetries)
+      ? kMinRetries
+      : kRetryMultiplier * completed_permutations_.size();
+  do {
+    new_state = gen_one_sector_state(res, log_data);
+
+    crash_state_hash.clear();
+    // We need both the sector index in the epoch and and which epoch_op that
+    // sector came from to ensure uniqueness (would also work to index all
+    // sectors across all epoch_ops, but we haven't done that).
+    crash_state_hash.resize(res.size() * 2);
+    for (unsigned int i = 0; i < res.size(); ++i) {
+      crash_state_hash.at((i << 1)) = res.at(i).bio_index;
+      crash_state_hash.at((i << 1) + 1) = res.at(i).bio_sector_index;
+    }
+
+    ++retries;
+    exists = completed_permutations_.count(crash_state_hash);
+    if (!new_state || retries >= max_retries) {
+      // We've likely found all possible crash states so just break. The
+      // constant in the multiplier was randomly chosen in the hopes that it
+      // would be a good hueristic. This is more to make sure that we don't spin
+      // endlessly than it is for it to be a good way to break out of trying to
+      // make unique permutations.
+      break;
+    }
+  } while (exists > 0);
+
+  // Move the permuted crash state data over into the returned crash state
+  // vector.
+  log_data.crash_state = res;
+
+  if (exists == 0) {
+    completed_permutations_.insert(crash_state_hash);
+    // We broke out of the above loop because this state is unique.
+    return new_state;
+  }
+
+  // We broke out of the above loop because we haven't found a new state in some
+  // time.
+  return false;
+}
+
+vector<EpochOpSector> Permuter::CoalesceSectors(
+    vector<EpochOpSector> &sector_list) {
+
+  // At most, the returned vector will have as many elements as the given
+  // vector.
+  vector<EpochOpSector> res(sector_list.size());
+  unsigned int num_unique_sectors = 0;
+  // Place to store previously seen sectors for latere comparison.
+  std::unordered_set<unsigned int> sector_offsets;
+
+  // Iterate through the list of sectors backwards, adding any new sectors
+  // encountered.
+  for (auto iter = sector_list.rbegin(); iter != sector_list.rend(); ++iter) {
+    if (sector_offsets.count(iter->disk_offset) == 0) {
+      res.at(num_unique_sectors) = *iter;
+      ++num_unique_sectors;
+      sector_offsets.insert(iter->disk_offset);
+    }
+  }
+
+  // Trim down to the actual number of unique sectors for this list.
+  res.resize(num_unique_sectors);
+  // Reverse the list of sectors that we generated.
+  std::reverse(res.begin(), res.end());
+
+  return res;
 }
 
 }  // namespace permuter
