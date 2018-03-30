@@ -95,6 +95,7 @@ class Tester {
 
   int mount_device_raw(const char* opts);
   int mount_wrapper_device(const char* opts);
+  int mount_snapshot(const char* opts);
   int mount_dev_mntpoint(const char* dev, const char* mnt_point, const char* opts);
   int umount_device();
   int umount_dev_mntpoint(const char* mnt_point);
