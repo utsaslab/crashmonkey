@@ -80,24 +80,17 @@ class CheckpointExample : public BaseTestCase {
   }
 
   virtual int run(int checkpoint) override {
-    int local_checkpoint = 0, res;
+    int local_checkpoint = 0;
     // For fsyncs later.
-    if (checkpoint == 0) {
-      const int root_dir = open(TEST_MNT, O_RDONLY);
-      if (root_dir < 0) {
-        std::cout << "Couldnt open root_dir 1" << endl;
-        return -1;
-      }
-      // Create test directory.
-      int res = mkdir(TEST_MNT "/" TEST_DIR, 0777);
-      if (res < 0) {
-        cout << "Couldnt make dir " << TEST_MNT << "/" << "TEST_DIR" << endl;
-        return -1;
-      }
-    }
     const int root_dir = open(TEST_MNT, O_RDONLY);
     if (root_dir < 0) {
-      std::cout << "Couldnt open root_dir 2" << endl;
+      std::cout << "Couldnt open root_dir 1" << endl;
+      return -1;
+    }
+    // Create test directory.
+    int res = mkdir(TEST_MNT "/" TEST_DIR, 0777);
+    if (res < 0) {
+      cout << "Couldnt make dir " << TEST_MNT << "/" << "TEST_DIR" << endl;
       return -1;
     }
 

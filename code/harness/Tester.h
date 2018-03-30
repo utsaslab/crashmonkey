@@ -93,6 +93,7 @@ class Tester {
 
   int mount_device_raw(const char* opts);
   int mount_wrapper_device(const char* opts);
+  int mount_snapshot(const char* opts);
   int umount_device();
 
   int insert_cow_brd();

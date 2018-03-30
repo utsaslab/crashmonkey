@@ -31,7 +31,8 @@
 #define TEST_DIRTY_EXPIRE_TIME_CENTISECS 3000
 #define TEST_DIRTY_EXPIRE_TIME_STRING \
   TO_STRING(TEST_DIRTY_EXPIRE_TIME_CENTISECS)
-#define WRITE_DELAY ((TEST_DIRTY_EXPIRE_TIME_CENTISECS / 100) * 4)
+// #define WRITE_DELAY ((TEST_DIRTY_EXPIRE_TIME_CENTISECS / 100) * 4)
+#define WRITE_DELAY ((TEST_DIRTY_EXPIRE_TIME_CENTISECS / 1000) * 1)
 #define MOUNT_DELAY 1
 
 #define DIRECTORY_PERMS \
@@ -697,7 +698,7 @@ int main(int argc, char** argv) {
           clear_log_enable_profiling(test_harness, logfile);
         }
 
-        if (mount_wrapper(test_harness, mount_opts) != SUCCESS) {
+        if (test_harness.mount_snapshot(NULL) != SUCCESS) {
           test_harness.cleanup_harness();
           return -1;
         }
@@ -792,8 +793,8 @@ int main(int argc, char** argv) {
             return -1;
           }
         }
-
-        if (unmount_wrapper_device(test_harness, logfile) != SUCCESS) {
+        system("umount /mnt/snapshot");
+        if (test_harness.umount_device() != SUCCESS) {
           test_harness.cleanup_harness();
           return -1;
         }
