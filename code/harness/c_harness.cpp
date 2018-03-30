@@ -615,17 +615,18 @@ int main(int argc, char** argv) {
       return -1;
     }
 
+    clear_log_enable_profiling(test_harness, logfile);
+    if (mount_wrapper(test_harness, mount_opts) != SUCCESS) {
+      cerr << "Error mounting wrapper file system" << endl;
+      test_harness.cleanup_harness();
+      return -1;
+    }
+
     /***************************************************************************
      * Run the actual workload that we will be testing.
      **************************************************************************/
     if (background) {
       // If background mode is on, clear logs, enable profiling and mount the wrapper device
-      clear_log_enable_profiling(test_harness, logfile);
-      if (mount_wrapper(test_harness, mount_opts) != SUCCESS) {
-        test_harness.cleanup_harness();
-        return -1;
-      }
-
       /************************************************************************
        * Background mode user workload. Tell the user we have finished workload
        * preparations and are ready for them to run the workload since we are
@@ -707,15 +708,6 @@ int main(int argc, char** argv) {
       // of workload. Subsequent iterations create snapshots after executing run till
       // a particular checkpoint.
       do {
-
-        if (checkpoint == 0) {
-          clear_log_enable_profiling(test_harness, logfile);
-        }
-
-        if (test_harness.mount_snapshot(NULL) != SUCCESS) {
-          test_harness.cleanup_harness();
-          return -1;
-        }
 
         cout << "Running test profile" << endl;
         logfile << "Running test profile" << endl;
@@ -806,19 +798,29 @@ int main(int argc, char** argv) {
             test_harness.cleanup_harness();
             return -1;
           }
-        }
-        // TODO(P.S.) umount_device though returned success, didnt unmount the device
-        // resulting in multiple devices getting mounted. Resolve it later. Using
-        // system(umount) for now.
-        system("umount /mnt/snapshot");
-        if (test_harness.umount_device() != SUCCESS) {
-          test_harness.cleanup_harness();
-          return -1;
+
+          cout << "Unmounting wrapper file system after test profiling" << endl;
+          logfile << "Unmounting wrapper file system after test profiling" << endl;
+          if (test_harness.umount_device() != SUCCESS) {
+            cerr << "Error unmounting wrapper file system" << endl;
+            test_harness.cleanup_harness();
+            return -1;
+          }
+
+          cout << "Close wrapper ioctl fd" << endl;
+          logfile << "Close wrapper ioctl fd" << endl;
+          test_harness.put_wrapper_ioctl();
+          cout << "Removing wrapper module from kernel" << endl;
+          logfile << "Removing wrapper module from kernel" << endl;
+          if (test_harness.remove_wrapper() != SUCCESS) {
+            cerr << "Error cleaning up: removing wrapper" << endl;
+            test_harness.cleanup_harness();
+            return -1;
+          }
         }
         test_harness.mapCheckpointToSnapshot(checkpoint);
         test_harness.getNewDiskClone(checkpoint);
         checkpoint += 1;
-
       } while (automate_check_test && !last_checkpoint);
     }
 
@@ -827,22 +829,32 @@ int main(int argc, char** argv) {
      **************************************************************************/
     if (background) {
       wait_for_write_delay(logfile);
-      disable_profiling_get_log(test_harness, logfile);
-      unmount_wrapper_device(test_harness, logfile);
+      if (disable_profiling_get_log(test_harness, logfile) != SUCCESS) {
+        test_harness.cleanup_harness();
+        return -1;
+      }
+
+      cout << "Unmounting wrapper file system after test profiling" << endl;
+      logfile << "Unmounting wrapper file system after test profiling" << endl;
+      if (test_harness.umount_device() != SUCCESS) {
+        cerr << "Error unmounting wrapper file system" << endl;
+        test_harness.cleanup_harness();
+        return -1;
+      }
+
+      cout << "Close wrapper ioctl fd" << endl;
+      logfile << "Close wrapper ioctl fd" << endl;
+      test_harness.put_wrapper_ioctl();
+      cout << "Removing wrapper module from kernel" << endl;
+      logfile << "Removing wrapper module from kernel" << endl;
+      if (test_harness.remove_wrapper() != SUCCESS) {
+        cerr << "Error cleaning up: removing wrapper" << endl;
+        test_harness.cleanup_harness();
+        return -1;
+      }
     }
 
     test_harness.getFullRunDiskClone();
-
-    cout << "Close wrapper ioctl fd" << endl;
-    logfile << "Close wrapper ioctl fd" << endl;
-    test_harness.put_wrapper_ioctl();
-    cout << "Removing wrapper module from kernel" << endl;
-    logfile << "Removing wrapper module from kernel" << endl;
-    if (test_harness.remove_wrapper() != SUCCESS) {
-      cerr << "Error cleaning up: remove wrapper module" << endl;
-      test_harness.cleanup_harness();
-      return -1;
-    }
 
     logfile << endl << endl << "Recorded workload:" << endl;
     test_harness.log_disk_write_data(logfile);

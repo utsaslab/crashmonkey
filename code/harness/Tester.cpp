@@ -211,15 +211,6 @@ int Tester::mount_device(const char* dev, const char* opts) {
   return SUCCESS;
 }
 
-int Tester::mount_snapshot(const char* opts) {
-  if (mount(SNAPSHOT_PATH, MNT_MNT_POINT, fs_type.c_str(), 0, (void*) opts) < 0) {
-    disk_mounted = true;
-    return MNT_MNT_ERR;
-  }
-  disk_mounted = false;
-  return SUCCESS;
-}
-
 int Tester::mount_dev_mntpoint(const char* dev, const char* mnt_point, const char* opts) {
   if (mount(dev, mnt_point, fs_type.c_str(), 0, (void*) opts) < 0) {
     return MNT_MNT_ERR;

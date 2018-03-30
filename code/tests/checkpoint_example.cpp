@@ -90,7 +90,7 @@ class CheckpointExample : public BaseTestCase {
     // Create test directory.
     int res = mkdir(TEST_MNT "/" TEST_DIR, 0777);
     if (res < 0) {
-      cout << "Couldnt make dir " << TEST_MNT << "/" << "TEST_DIR" << endl;
+      cout << "Couldnt make dir " << TEST_MNT << "/" << TEST_DIR << endl;
       return -1;
     }
 
