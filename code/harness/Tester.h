@@ -87,14 +87,16 @@ class Tester {
   int test_init_values(std::string mountDir, long filesysSize);
   int test_run(int checkpoint);
   int test_check_random_permutations(const int num_rounds, std::ofstream& log);
-  int test_check_log_replay(std::ofstream& log);
+  int test_check_log_replay(std::ofstream& log, bool automate_check_test);
   int test_restore_log();
   int test_check_current();
 
   int mount_device_raw(const char* opts);
   int mount_wrapper_device(const char* opts);
   int mount_snapshot(const char* opts);
+  int mount_dev_mntpoint(const char* dev, const char* mnt_point, const char* opts);
   int umount_device();
+  int umount_dev_mntpoint(const char* mnt_point);
 
   int insert_cow_brd();
   int remove_cow_brd();
@@ -129,6 +131,7 @@ class Tester {
   int mapCheckpointToSnapshot(int checkpoint);
   int getNewDiskClone(int checkpoint);
   void getFullRunDiskClone();
+  int check_disk_and_snapshot_contents(char* disk_path, int checkpoint);
 
   // TODO(ashmrtn): Figure out why making these private slows things down a lot.
  private:

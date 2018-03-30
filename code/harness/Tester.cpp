@@ -5,6 +5,7 @@
 #include <sys/stat.h>
 #include <sys/types.h>
 #include <unistd.h>
+#include <dirent.h>
 
 #include <cassert>
 #include <cerrno>
@@ -217,6 +218,13 @@ int Tester::mount_snapshot(const char* opts) {
   return SUCCESS;
 }
 
+int Tester::mount_dev_mntpoint(const char* dev, const char* mnt_point, const char* opts) {
+  if (mount(dev, mnt_point, fs_type.c_str(), 0, (void*) opts) < 0) {
+    return MNT_MNT_ERR;
+  }
+  return SUCCESS;
+}
+
 int Tester::umount_device() {
   if (disk_mounted) {
     if (umount(MNT_MNT_POINT) < 0) {
@@ -225,6 +233,13 @@ int Tester::umount_device() {
     }
   }
   disk_mounted = false;
+  return SUCCESS;
+}
+
+int Tester::umount_dev_mntpoint(const char* mnt_point) {
+  if (umount(mnt_point) < 0) {
+    return MNT_UMNT_ERR;
+  }
   return SUCCESS;
 }
 
@@ -742,6 +757,93 @@ int Tester::test_check_random_permutations(const int num_rounds,
   return SUCCESS;
 }
 
+struct fileAttr {
+  string name, type;
+  unsigned long long size;
+};
+
+void get_contents(const char* path, vector<fileAttr> &contents) {
+  DIR *dir;
+  struct dirent *dir_entry;
+  struct stat statbuf;
+  if (!(dir = opendir(path))) {
+    cout << "Couldn't open " << path << endl;
+    return;
+  }
+  if (!(dir_entry = readdir(dir))) {
+    cout << "Couldn't open the file/directory " << path << endl;
+    return;
+  }
+  do {
+    string parent(path);
+    string file(dir_entry->d_name);
+    string final = parent + "/" + file;
+    if (stat(final.c_str(), &statbuf) == -1) {
+      cout << "Couldn't stat the file/directory " << final << endl;
+    }
+    if (dir_entry->d_type == DT_DIR) {
+      if (strcmp(dir_entry->d_name, ".") == 0 || strcmp(dir_entry->d_name, "..") == 0) {
+        continue;
+      }
+      struct fileAttr entry;
+      entry.name = final;
+      entry.type = "DIR";
+      contents.push_back(entry);
+      get_contents(final.c_str(), contents);
+    } else {
+      struct fileAttr entry;
+      entry.name = final;
+      entry.type = "FILE";
+      contents.push_back(entry);
+    }
+  } while (dir_entry = readdir(dir));
+  closedir(dir);
+}
+
+int Tester::check_disk_and_snapshot_contents(char* disk_path, int checkpoint) {
+  // Construct the snapshot to compare the DISK with
+  char* snapshot_path;
+  snapshot_path = (char *) malloc(sizeof(char)*30);
+  string path = disk_path;
+  string device_number = path.substr(path.rfind('_'));
+  string snapshot_number = to_string(checkpoint+1);
+  strcpy(snapshot_path, "/dev/cow_ram_snapshot");
+  strcat(snapshot_path, snapshot_number.c_str());
+  strcat(snapshot_path, device_number.c_str());
+
+  // TODO(P.S.) :: Make all of this much cleaner.
+  // diskContents disk(disk_path), snapshot(snapshot_path);
+  // construct paths to mount devices
+  string mount_dir = "/mnt/", make_dir = "mkdir ", rmdir = "rmdir ";
+  string disk = mount_dir + (disk_path + 5);
+  string snapshot = mount_dir + (snapshot_path + 5);
+  // create mount points
+  system((make_dir + disk).c_str());
+  system((make_dir + snapshot).c_str());
+  // mount the devices
+  mount_dev_mntpoint(disk_path, disk.c_str(), NULL);
+  mount_dev_mntpoint(snapshot_path, snapshot.c_str(), NULL);
+  // compare the contents
+  vector<fileAttr> disk_contents, snapshot_contents;
+  get_contents(disk.c_str(), disk_contents);
+  get_contents(snapshot.c_str(), snapshot_contents);
+  for (auto i: disk_contents) {
+    cout << i.name << " ";
+  }
+  cout << endl;
+  for (auto i: snapshot_contents) {
+    cout << i.name << " ";
+  }
+  cout << endl;
+  // unmount the devices
+  umount_dev_mntpoint(disk.c_str());
+  umount_dev_mntpoint(snapshot.c_str());
+  // unlink the mount points using system rmdir for now
+  system((rmdir + disk).c_str());
+  system((rmdir + snapshot).c_str());
+  return SUCCESS;
+}
+
 /*
  * Replays the operations in the recorded workload, stopping at each Checkpoint
  * found in the workload. At each Checkpoint, the user test case is called so
@@ -750,7 +852,7 @@ int Tester::test_check_random_permutations(const int num_rounds,
  * TODO(ashmrtn): Should this call a separate method in the user test case or
  * should it still call the check_test() method?
  */
-int Tester::test_check_log_replay(std::ofstream& log) {
+int Tester::test_check_log_replay(std::ofstream& log, bool automate_check_test) {
   assert(current_test_suite_ != NULL);
 
   // A single entry in the log data would just be the leading Checkpoint in the
@@ -783,6 +885,8 @@ int Tester::test_check_log_replay(std::ofstream& log) {
     // 2. Write out the data in the log from the start until the checkpoint we
     //    found
     // 3. Test the resulting disk state with fsck and the user test case
+    // 4. If automated check_test is enabled, we should compare the disk clone
+    //    with the disk snapshots taken while profiling.
 
     // 0.
 
@@ -836,6 +940,13 @@ int Tester::test_check_log_replay(std::ofstream& log) {
 
     test_info.PrintResults(log);
     current_test_suite_->TallyTimingResult(test_info);
+
+    // 4. If automated check_test is enabled, compare the disk with the snapshot
+    if (automate_check_test) {
+      if (check_disk_and_snapshot_contents(SNAPSHOT_PATH, last_checkpoint) != 0) {
+        return -1;
+      }
+    }
 
     // Exit loop after doing final test.
     if (log_iter == log_data.end()) {

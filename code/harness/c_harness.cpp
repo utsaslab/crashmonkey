@@ -793,6 +793,9 @@ int main(int argc, char** argv) {
             return -1;
           }
         }
+        // TODO(P.S.) umount_device though returned success, didnt unmount the device
+        // resulting in multiple devices getting mounted. Resolve it later. Using
+        // system(umount) for now.
         system("umount /mnt/snapshot");
         if (test_harness.umount_device() != SUCCESS) {
           test_harness.cleanup_harness();
@@ -950,7 +953,7 @@ int main(int argc, char** argv) {
       "Writing data out to each Checkpoint and checking with fsck" << endl;
     logfile << endl << endl <<
       "Writing data out to each Checkpoint and checking with fsck" << endl;
-    test_harness.test_check_log_replay(logfile);
+    test_harness.test_check_log_replay(logfile, automate_check_test);
   }
 
   cout << endl;
