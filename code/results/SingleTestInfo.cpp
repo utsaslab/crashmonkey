@@ -40,7 +40,9 @@ void SingleTestInfo::PrintResults(ostream& os) const {
   } else {
     os << data_test.error_description << endl;
   }
-  os << "\tcrash state (" << permute_data.crash_state.size() << " bios): ";
+  os << "\tcrash state (";
+  permute_data.PrintCrashStateSize(os);
+  os << "): ";
   permute_data.PrintCrashState(os) << endl;
   os << "\tlast checkpoint: " << permute_data.last_checkpoint << endl;
   os << "\tfsck result: ";

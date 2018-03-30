@@ -293,5 +293,26 @@ void disk_write::clear_data() {
   data.reset();
 }
 
+
+DiskWriteData::DiskWriteData() :
+      full_bio(false), bio_index(0), bio_sector_index(0), disk_offset(0),
+      size(0), data_offset_(0) {
+  data_base_.reset();
+}
+
+DiskWriteData::DiskWriteData(bool full_bio, unsigned int bio_index,
+    unsigned int bio_sector_index ,unsigned int disk_offset,
+    unsigned int size, std::shared_ptr<char> data_base,
+    unsigned int data_offset) :
+      full_bio(full_bio), bio_index(bio_index),
+      bio_sector_index(bio_sector_index), disk_offset(disk_offset),
+      size(size), data_offset_(data_offset) {
+  data_base_ = data_base;
+}
+
+void * DiskWriteData::GetData() {
+  return (void*) (data_base_.get() + data_offset_);
+}
+
 }  // namespace utils
 }  // namespace fs_testing

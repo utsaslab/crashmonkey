@@ -333,7 +333,7 @@ static void copy_from_brd(void *dst, struct brd_device *brd, sector_t sector,
         (page = brd_lookup_page(brd->parent_brd, sector))) {
       // Present in the old radix tree so this page has not been modified.
       src = kmap_atomic(page);
-      memcpy(dst, src + offset, copy);
+      memcpy(dst, src, copy);
       kunmap_atomic(src);
     } else {
       // Page doesn't exist in either radix tree so it must never have been
@@ -388,23 +388,21 @@ static blk_qc_t brd_make_request(struct request_queue *q, struct bio *bio) {
     goto out_err;
   }
 
-  if ((bio->BI_RW & WRITE || bio->BI_RW & BIO_DISCARD_FLAG) &&
-      !brd->is_writable) {
+  rw = BIO_IS_WRITE(bio);
+
+  if ((rw || bio->BI_RW & BIO_DISCARD_FLAG) && !brd->is_writable) {
     goto out_err;
   }
 
-#if LINUX_VERSION_CODE >= KERNEL_VERSION(4, 15, 0) && \
-  LINUX_VERSION_CODE < KERNEL_VERSION(4, 16, 0)
-  if (unlikely(bio_op(bio) == BIO_DISCARD_FLAG)) {
-#else
+#if LINUX_VERSION_CODE < KERNEL_VERSION(4, 15, 0)
   if (unlikely(bio->BI_RW & BIO_DISCARD_FLAG)) {
+#else
+  if (unlikely(bio_op(bio) == BIO_DISCARD_FLAG)) {
 #endif
     err = 0;
     discard_from_brd(brd, sector, bio->BI_SIZE);
     goto out;
   }
-
-  rw = BIO_IS_WRITE(bio);
 
 #if LINUX_VERSION_CODE < KERNEL_VERSION(3, 14, 0)
   struct bio_vec *bvec;
@@ -665,7 +663,12 @@ static struct kobject *brd_probe(dev_t dev, int *part, void *data)
 
   mutex_lock(&brd_devices_mutex);
   brd = brd_init_one(MINOR(dev) >> part_shift);
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(4, 16, 0) && \
+  LINUX_VERSION_CODE < KERNEL_VERSION(4, 17, 0)
+  kobj = brd ? get_disk_and_module(brd->brd_disk) : NULL;
+#else
   kobj = brd ? get_disk(brd->brd_disk) : NULL;
+#endif
   mutex_unlock(&brd_devices_mutex);
 
   *part = 0;
