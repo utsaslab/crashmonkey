@@ -15,21 +15,22 @@
 #include <iostream>
 #include <string>
 #include <vector>
+#include <map>
 
 namespace fs_testing {
-namespace diskcontents {
 
-struct linux_dirent {
-  long d_ino;
-  off_t d_off;
-  unsigned short d_reclen;
-  char d_name[];
-  char d_type;
-};
+class fileAttributes {
+public:
+  struct dirent* dir_attr;
+  struct stat* stat_attr;
 
-struct fileAttributes {
-  struct linux_dirent dir_attr;
-  struct stat stat_attr;
+  fileAttributes();
+  ~fileAttributes();
+
+  void set_dir_attr(struct dirent* a);
+  void set_stat_attr(struct stat* a);
+  bool compare_dir_attr(struct dirent* a);
+  bool compare_stat_attr(struct stat *a);
 };
 
 class DiskContents {
@@ -39,19 +40,20 @@ public:
   ~DiskContents();
   
   int mount_disk();
+  const char* get_mount_point();
   int unmount_and_delete_mount_point();
-  void populate_contents();
   void compare_disk_contents(DiskContents &compare_disk, std::ofstream &diff_file);
 
 private:
+  bool device_mounted;
   char* disk_path;
   char* mount_point;
   char* fs_type;
-  std::vector<fileAttributes> contents;
-  void get_contents(const char* path, std::vector<fileAttributes> &contents);
+  std::map<std::string, fileAttributes> contents;
+  void compare_contents(DiskContents &compare_disk, std::ofstream &diff_file);
+  void get_contents(const char* path);
 };
 
-} //namespace diskcontents
 } // namespace fs_testing
 
 #endif // DISK_CONTENTS_H

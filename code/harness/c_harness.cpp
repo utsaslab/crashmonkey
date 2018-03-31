@@ -820,6 +820,9 @@ int main(int argc, char** argv) {
         }
         test_harness.mapCheckpointToSnapshot(checkpoint);
         test_harness.getNewDiskClone(checkpoint);
+        if (checkpoint != 0) {
+          test_harness.umount_device();
+        }
         test_harness.mount_snapshot(NULL);
         checkpoint += 1;
       } while (automate_check_test && !last_checkpoint);

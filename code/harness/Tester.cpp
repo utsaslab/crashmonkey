@@ -95,7 +95,7 @@ using fs_testing::permuter::permuter_create_t;
 using fs_testing::permuter::permuter_destroy_t;
 using fs_testing::utils::disk_write;
 using fs_testing::utils::DiskWriteData;
-using fs_testing::diskcontents::DiskContents;
+using fs_testing::DiskContents;
 
 Tester::Tester(const unsigned int dev_size, const unsigned int sector_size,
     const bool verbosity)
@@ -775,41 +775,15 @@ int Tester::check_disk_and_snapshot_contents(char* disk_path, int checkpoint) {
   strcpy(snapshot_path, "/dev/cow_ram_snapshot");
   strcat(snapshot_path, snapshot_number.c_str());
   strcat(snapshot_path, device_number.c_str());
+  std::cout << __func__ << snapshot_path << endl;
 
+  // Log to save the differences
+  ofstream diff_file;
+  diff_file.open("diff-at-chck" + to_string(checkpoint),
+    std::fstream::out | std::fstream::app);
   const char* type = fs_type.c_str();
-  fs_testing::DiskContents disk1(disk_path, type);
-  // , disk2(snapshot_path);
-
-  // // TODO(P.S.) :: Make all of this much cleaner.
-  // // diskContents disk(disk_path), snapshot(snapshot_path);
-  // // construct paths to mount devices
-  // string mount_dir = "/mnt/", make_dir = "mkdir ", rmdir = "rmdir ";
-  // string disk = mount_dir + (disk_path + 5);
-  // string snapshot = mount_dir + (snapshot_path + 5);
-  // // create mount points
-  // system((make_dir + disk).c_str());
-  // system((make_dir + snapshot).c_str());
-  // // mount the devices
-  // mount_dev_mntpoint(disk_path, disk.c_str(), NULL);
-  // mount_dev_mntpoint(snapshot_path, snapshot.c_str(), NULL);
-  // // compare the contents
-  // vector<fileAttr> disk_contents, snapshot_contents;
-  // get_contents(disk.c_str(), disk_contents);
-  // get_contents(snapshot.c_str(), snapshot_contents);
-  // for (auto i: disk_contents) {
-  //   cout << i.name << " ";
-  // }
-  // cout << endl;
-  // for (auto i: snapshot_contents) {
-  //   cout << i.name << " ";
-  // }
-  // cout << endl;
-  // // unmount the devices
-  // umount_dev_mntpoint(disk.c_str());
-  // umount_dev_mntpoint(snapshot.c_str());
-  // // unlink the mount points using system rmdir for now
-  // system((rmdir + disk).c_str());
-  // system((rmdir + snapshot).c_str());
+  fs_testing::DiskContents disk1(disk_path, type), disk2(snapshot_path, type);
+  disk1.compare_disk_contents(disk2, diff_file);
   return SUCCESS;
 }
 
