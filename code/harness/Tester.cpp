@@ -95,6 +95,7 @@ using fs_testing::permuter::permuter_create_t;
 using fs_testing::permuter::permuter_destroy_t;
 using fs_testing::utils::disk_write;
 using fs_testing::utils::DiskWriteData;
+using fs_testing::diskcontents::DiskContents;
 
 Tester::Tester(const unsigned int dev_size, const unsigned int sector_size,
     const bool verbosity)
@@ -764,49 +765,6 @@ int Tester::test_check_random_permutations(bool full_bio_replay,
   return SUCCESS;
 }
 
-struct fileAttr {
-  string name, type;
-  unsigned long long size;
-};
-
-void get_contents(const char* path, vector<fileAttr> &contents) {
-  DIR *dir;
-  struct dirent *dir_entry;
-  struct stat statbuf;
-  if (!(dir = opendir(path))) {
-    cout << "Couldn't open " << path << endl;
-    return;
-  }
-  if (!(dir_entry = readdir(dir))) {
-    cout << "Couldn't open the file/directory " << path << endl;
-    return;
-  }
-  do {
-    string parent(path);
-    string file(dir_entry->d_name);
-    string final = parent + "/" + file;
-    if (stat(final.c_str(), &statbuf) == -1) {
-      cout << "Couldn't stat the file/directory " << final << endl;
-    }
-    if (dir_entry->d_type == DT_DIR) {
-      if (strcmp(dir_entry->d_name, ".") == 0 || strcmp(dir_entry->d_name, "..") == 0) {
-        continue;
-      }
-      struct fileAttr entry;
-      entry.name = final;
-      entry.type = "DIR";
-      contents.push_back(entry);
-      get_contents(final.c_str(), contents);
-    } else {
-      struct fileAttr entry;
-      entry.name = final;
-      entry.type = "FILE";
-      contents.push_back(entry);
-    }
-  } while (dir_entry = readdir(dir));
-  closedir(dir);
-}
-
 int Tester::check_disk_and_snapshot_contents(char* disk_path, int checkpoint) {
   // Construct the snapshot to compare the DISK with
   char* snapshot_path;
@@ -818,36 +776,40 @@ int Tester::check_disk_and_snapshot_contents(char* disk_path, int checkpoint) {
   strcat(snapshot_path, snapshot_number.c_str());
   strcat(snapshot_path, device_number.c_str());
 
-  // TODO(P.S.) :: Make all of this much cleaner.
-  // diskContents disk(disk_path), snapshot(snapshot_path);
-  // construct paths to mount devices
-  string mount_dir = "/mnt/", make_dir = "mkdir ", rmdir = "rmdir ";
-  string disk = mount_dir + (disk_path + 5);
-  string snapshot = mount_dir + (snapshot_path + 5);
-  // create mount points
-  system((make_dir + disk).c_str());
-  system((make_dir + snapshot).c_str());
-  // mount the devices
-  mount_dev_mntpoint(disk_path, disk.c_str(), NULL);
-  mount_dev_mntpoint(snapshot_path, snapshot.c_str(), NULL);
-  // compare the contents
-  vector<fileAttr> disk_contents, snapshot_contents;
-  get_contents(disk.c_str(), disk_contents);
-  get_contents(snapshot.c_str(), snapshot_contents);
-  for (auto i: disk_contents) {
-    cout << i.name << " ";
-  }
-  cout << endl;
-  for (auto i: snapshot_contents) {
-    cout << i.name << " ";
-  }
-  cout << endl;
-  // unmount the devices
-  umount_dev_mntpoint(disk.c_str());
-  umount_dev_mntpoint(snapshot.c_str());
-  // unlink the mount points using system rmdir for now
-  system((rmdir + disk).c_str());
-  system((rmdir + snapshot).c_str());
+  const char* type = fs_type.c_str();
+  fs_testing::DiskContents disk1(disk_path, type);
+  // , disk2(snapshot_path);
+
+  // // TODO(P.S.) :: Make all of this much cleaner.
+  // // diskContents disk(disk_path), snapshot(snapshot_path);
+  // // construct paths to mount devices
+  // string mount_dir = "/mnt/", make_dir = "mkdir ", rmdir = "rmdir ";
+  // string disk = mount_dir + (disk_path + 5);
+  // string snapshot = mount_dir + (snapshot_path + 5);
+  // // create mount points
+  // system((make_dir + disk).c_str());
+  // system((make_dir + snapshot).c_str());
+  // // mount the devices
+  // mount_dev_mntpoint(disk_path, disk.c_str(), NULL);
+  // mount_dev_mntpoint(snapshot_path, snapshot.c_str(), NULL);
+  // // compare the contents
+  // vector<fileAttr> disk_contents, snapshot_contents;
+  // get_contents(disk.c_str(), disk_contents);
+  // get_contents(snapshot.c_str(), snapshot_contents);
+  // for (auto i: disk_contents) {
+  //   cout << i.name << " ";
+  // }
+  // cout << endl;
+  // for (auto i: snapshot_contents) {
+  //   cout << i.name << " ";
+  // }
+  // cout << endl;
+  // // unmount the devices
+  // umount_dev_mntpoint(disk.c_str());
+  // umount_dev_mntpoint(snapshot.c_str());
+  // // unlink the mount points using system rmdir for now
+  // system((rmdir + disk).c_str());
+  // system((rmdir + snapshot).c_str());
   return SUCCESS;
 }
 

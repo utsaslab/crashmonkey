@@ -15,6 +15,7 @@
 #include "../results/TestSuiteResult.h"
 #include "../tests/BaseTestCase.h"
 #include "../utils/utils.h"
+#include "DiskContents.h"
 
 #define SUCCESS                  0
 #define DRIVE_CLONE_ERR          -1
