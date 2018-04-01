@@ -775,7 +775,6 @@ int Tester::check_disk_and_snapshot_contents(char* disk_path, int checkpoint) {
   strcpy(snapshot_path, "/dev/cow_ram_snapshot");
   strcat(snapshot_path, snapshot_number.c_str());
   strcat(snapshot_path, device_number.c_str());
-  std::cout << __func__ << snapshot_path << endl;
 
   // Log to save the differences
   ofstream diff_file;

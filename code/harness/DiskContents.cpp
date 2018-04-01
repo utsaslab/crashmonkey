@@ -1,4 +1,5 @@
 #include "DiskContents.h"
+using std::endl;
 
 namespace fs_testing {
 
@@ -38,8 +39,21 @@ void fileAttributes::set_stat_attr(struct stat* a) {
   stat_attr->st_blocks = a->st_blocks;
 }
 
+void fileAttributes::set_md5sum(std::string file_path) {
+  FILE *fp;
+  std::string command = "md5sum " + file_path;
+  char md5[100];
+  fp = popen(command.c_str(), "r");
+  fscanf(fp, "%s", md5);
+  fclose(fp);
+  std::string md5_str(md5);
+  md5sum = md5_str;
+}
+
 bool fileAttributes::compare_dir_attr(struct dirent* a) {
-  if (a == NULL) {
+  if (a == NULL && dir_attr == NULL) {
+    return true;
+  } else if (a == NULL || dir_attr == NULL) {
     return false;
   }
   return ((dir_attr->d_ino == a->d_ino) &&
@@ -50,7 +64,9 @@ bool fileAttributes::compare_dir_attr(struct dirent* a) {
 }
 
 bool fileAttributes::compare_stat_attr(struct stat *a) {
-  if (a == NULL) {
+  if (a == NULL && stat_attr == NULL) {
+    return true;
+  } else if (a == NULL || stat_attr == NULL) {
     return false;
   }
   return ((stat_attr->st_dev == a->st_dev) &&
@@ -63,6 +79,29 @@ bool fileAttributes::compare_stat_attr(struct stat *a) {
     (stat_attr->st_size == a->st_size) &&
     (stat_attr->st_blksize == a->st_blksize) &&
     (stat_attr->st_blocks == a->st_blocks));
+}
+
+std::ofstream& operator<< (std::ofstream& os, fileAttributes& a) {
+  // print dir_attr
+  os << "---Directory Atrributes---" << std::endl;
+  os << "Name   : " << a.dir_attr->d_name << std::endl;
+  os << "Inode  : " << a.dir_attr->d_ino << std::endl;
+  os << "Offset : " << a.dir_attr->d_off << std::endl;
+  os << "Length : " << a.dir_attr->d_reclen << std::endl;
+  os << "Type   : " << a.dir_attr->d_type << std::endl;
+
+  // print stat_attr
+  os << "---File Stat Atrributes---" << std::endl;
+  os << "Inode     : " << a.stat_attr->st_ino << std::endl;
+  os << "TotalSize : " << a.stat_attr->st_size << std::endl;
+  os << "BlockSize : " << a.stat_attr->st_blksize << std::endl;
+  os << "#Blocks   : " << a.stat_attr->st_blocks << std::endl;
+  os << "#HardLinks: " << a.stat_attr->st_nlink << std::endl;
+  os << "Mode      : " << a.stat_attr->st_mode << std::endl;
+  os << "User ID   : " << a.stat_attr->st_uid << std::endl;
+  os << "Group ID  : " << a.stat_attr->st_gid << std::endl;
+  os << "Device ID : " << a.stat_attr->st_rdev << std::endl;
+  os << "RootDev ID: " << a.stat_attr->st_dev << std::endl;
 }
 
 DiskContents::DiskContents(char* path, const char* type) {
@@ -124,7 +163,6 @@ void DiskContents::get_contents(const char* path) {
     std::string parent_path(path);
     std::string filename(dir_entry->d_name);
     std::string current_path = parent_path + "/" + filename;
-    std::cout << filename << std::endl;
     struct stat statbuf;
     fileAttributes fa;
     if (stat(current_path.c_str(), &statbuf) == -1) {
@@ -146,6 +184,10 @@ void DiskContents::get_contents(const char* path) {
         return;
       }
       fa.set_stat_attr(&lstat_buf);
+      contents[filename] = fa;
+    } else if (dir_entry->d_type == DT_REG) {
+      fa.set_md5sum(current_path);
+      fa.set_stat_attr(&statbuf);
       contents[filename] = fa;
     } else {
       fa.set_stat_attr(&statbuf);
@@ -170,17 +212,39 @@ void DiskContents::compare_disk_contents(DiskContents &compare_disk, std::ofstre
   get_contents(mount_point);
   compare_disk.get_contents(compare_disk.get_mount_point());
 
-  // TODO(P.S.): Write to the diff_file afer properly iterating through the contents
-  // Clean this up.
-  std::cout << "ContentSizes:" << contents.size() << compare_disk.contents.size() << std::endl;
-  for (auto i : contents) {
-    for (auto j : compare_disk.contents) {
-      if ( i.first == j.first) {
-        std::cout << i.first << std::endl;
-        if (i.second.dir_attr != NULL && j.second.dir_attr != NULL)
-          std::cout << i.second.compare_dir_attr(j.second.dir_attr);
-        if (i.second.stat_attr != NULL && j.second.stat_attr != NULL)
-          std::cout << i.second.compare_stat_attr(j.second.stat_attr);
+  // Compare the size of contents
+  if (contents.size() != compare_disk.contents.size()) {
+    diff_file << "DIFF: Mismatch" << std::endl;
+    diff_file << "Unequal #entries in " << disk_path << ", " << compare_disk.disk_path;
+    diff_file << std::endl << std::endl;
+  }
+  // entry-wise comparision
+  for (const auto& i : contents) {
+    fileAttributes i_fa = i_fa;
+    if (compare_disk.contents.find((i.first)) == compare_disk.contents.end()) {
+      diff_file << "DIFF: Missing" << i.first << std::endl;
+      diff_file << "Found in " << disk_path << " only" << std::endl;
+      diff_file << i_fa << endl << endl;
+      continue;
+    }
+    fileAttributes& j_fa = compare_disk.contents[(i.first)];
+    if (!(i_fa.compare_dir_attr(j_fa.dir_attr)) ||
+          !(i_fa.compare_stat_attr(j_fa.stat_attr))) {
+        diff_file << "DIFF: Content Mismatch " << i.first;
+        diff_file << disk_path << ":" << std::endl;
+        diff_file << i_fa << endl << endl;
+        diff_file << compare_disk.disk_path << ":" << std::endl;
+        diff_file << j_fa << endl << endl;
+        continue;
+    }
+    // compare user data if the entry corresponds to a regular files
+    if (i_fa.dir_attr->d_type == DT_REG) {
+      // check md5sum of the file contents
+      if (i_fa.md5sum != j_fa.md5sum) {
+        diff_file << "DIFF : Data Mismatch of " << (i.first) << std::endl;
+        diff_file << disk_path << " has md5sum " << i_fa.md5sum << std::endl;
+        diff_file << compare_disk.disk_path << " has md5sum " << j_fa.md5sum;
+        diff_file << std::endl << std::endl;
       }
     }
   }
