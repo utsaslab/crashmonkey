@@ -81,7 +81,7 @@ class BtrfsFsyncFalloc: public BaseTestCase {
   }
 
   virtual int run(int checkpoint) override {
-
+    int local_checkpoint = 0;
 
     //Open file foo
     const int fd_foo = open(foo_path.c_str(), O_RDWR);
@@ -113,6 +113,10 @@ class BtrfsFsyncFalloc: public BaseTestCase {
       close(fd_foo);
       return -4;
     }
+    local_checkpoint += 1;
+    if (local_checkpoint == checkpoint) {
+      return 0;
+    }
 
     //Expected output if checkpoint = 1 : Size = 16K, blocks == 40  (32 + 8)
     // system("stat /mnt/snapshot/foo");
@@ -142,6 +146,10 @@ class BtrfsFsyncFalloc: public BaseTestCase {
     }
     //Expected output if checkpoint = 2: size = 16K, blocks == 48 (40 + 8)
     // system("stat /mnt/snapshot/foo");
+    local_checkpoint += 1;
+    if (local_checkpoint == checkpoint) {
+      return 0;
+    }
 
 
     /*-------------------Variant 3 ---------------------------*/
@@ -167,7 +175,10 @@ class BtrfsFsyncFalloc: public BaseTestCase {
     }
     //Expected output if checkpoint = 3: size = 16K, blocks == 64 (48 + 16)
     // system("stat /mnt/snapshot/foo");
-
+    local_checkpoint += 1;
+    if (local_checkpoint == checkpoint) {
+      return 0;
+    }
 
     /*-------------------Variant 4 ---------------------------*/
     //unaligned offset and size less than  a page
@@ -189,6 +200,10 @@ class BtrfsFsyncFalloc: public BaseTestCase {
     if (Checkpoint() < 0){
       close(fd_foo);
       return -4;
+    }
+    local_checkpoint += 1;
+    if (local_checkpoint == checkpoint) {
+      return 0;
     }
 
     //Expected output if checkpoint = 4 : Size = 16K, blocks == 72  (64 + 8)
@@ -217,6 +232,10 @@ class BtrfsFsyncFalloc: public BaseTestCase {
       close(fd_foo);
       return -4;
     }
+    local_checkpoint += 1;
+    if (local_checkpoint == checkpoint) {
+      return 0;
+    }
     //Expected output if checkpoint = 5: size = 16K, blocks == 80 (72 + 8)
     // system("stat /mnt/snapshot/foo");
 
@@ -241,6 +260,10 @@ class BtrfsFsyncFalloc: public BaseTestCase {
     if (Checkpoint() < 0){
       close(fd_foo);
       return -4;
+    }
+    local_checkpoint += 1;
+    if (local_checkpoint == checkpoint) {
+      return 1;
     }
     //Expected output if checkpoint = 6: size = 16K, blocks == 96 (80 + 16)
     // system("stat /mnt/snapshot/foo");
