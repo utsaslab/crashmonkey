@@ -24,3 +24,17 @@ xfstests - https://github.com/kdave/xfstests/blob/master/tests/generic/322
 
 This tests if renaming a file followed by fsync survives a crash. It creates a new file, writes some contents, renames it to a different file, and then does a fsync. After a crash, it checks if the new file is present and has the same contents as written to the original file.  
 generic 322_2 is another subtest of generic 322 where it writes new contents again and does a sync again before doing the rename.
+
+### generic 335
+xfstests - https://github.com/kdave/xfstests/blob/master/tests/generic/335  
+
+Test that if we move one file between directories, fsync the parent directory of the old directory, power fail and remount the filesystem, the file is not lost and it's located at the destination directory.  
+
+1. Create directories A/B and C under TEST_MNT  
+2. Create file foo in dir A/B, and sync  
+3. Move file foo to dir C  
+4. Create another file bar in dir A  
+5. fsync dir A  
+
+If a power fail occurs now, and remount the filesystem, file bar should be present under A and file foo should be present under directory C.  
+
