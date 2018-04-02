@@ -19,6 +19,16 @@ xfstests - https://github.com/kdave/xfstests/blob/master/tests/generic/107
 
 This tests if the file metadata is consistent after adding and removing a link to a file followed by crash, when the links are within a different directory. It creates a new file foo, adds links foo_link and foo_link2 to the file foo inside a sub-directory, and syncs. It then unlinks foo_link2, and fsyncs foo. After a crash, removing the link foo_link should enable removing its directory.  
 
+### generic 321
+xfstests - https://github.com/kdave/xfstests/blob/master/tests/generic/321  
+
+This tests if creating a directory, renaming a file into another directory, and renaming the file into another directory followed by replaying the log is consistent during a crash. This has three sub-tests - 321_1, 321_2 and 321_3.  
+
+1. generic 321_1 - tests if creating a directory and fsync it survives a crash.  
+2. generic 321_2 - creates a directory and a file, renames the file into the directory, then fsync. It tests if the file and directory are preserved properly after a crash.  
+3. generic 321_3 - similar to generic 321_2 except that it forces the replay of the log using setfattr command and then checks if the file and directory survive the crash.  
+
+
 ### generic 322
 xfstests - https://github.com/kdave/xfstests/blob/master/tests/generic/322  
 
