@@ -93,6 +93,7 @@ class Generic321_3: public BaseTestCase {
     }
     close(dir);
 
+    system("apt-get install attr");
     string setfattr_cmd = "setfattr -n user.foo -v blah " + foo_moved_path;
     system(setfattr_cmd.c_str());
 
