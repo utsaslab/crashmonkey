@@ -1,0 +1,134 @@
+#
+# Copyright (c) 1999, 2001-2003 Silicon Graphics, Inc.  All Rights Reserved.
+#
+ifndef _BUILDRULES_INCLUDED_
+_BUILDRULES_INCLUDED_ = 1
+
+include builddefs
+BUILD_DIR = $(CURDIR)/../../build
+
+depend: $(addsuffix -depend,$(SUBDIRS))
+
+%-depend:
+	$(Q)$(MAKE) $(MAKEOPTS) -q -C $* depend || \
+	    $(MAKE) $(MAKEOPTS) -C $* depend
+
+clean clobber : $(addsuffix -clean,$(SUBDIRS))
+	$(Q)rm -f $(DIRT)
+
+%-clean:
+	@echo "Cleaning $*"
+	#$(Q)$(MAKE) $(MAKEOPTS) -q -C $* clean || \
+	  #  $(MAKE) $(MAKEOPTS) -C $* clean
+
+# Never blow away subdirs
+ifdef SUBDIRS
+.PRECIOUS: $(SUBDIRS)
+.PHONY: $(SUBDIRS)
+
+$(SUBDIRS):
+	@echo "Building $@"
+	$(Q)$(MAKE) $(MAKEOPTS) -q -C $@ || $(MAKE) $(MAKEOPTS) -C $@
+endif
+
+#
+# Standard targets
+#
+	
+ifdef LTCOMMAND
+$(LTCOMMAND) : $(SUBDIRS) $(OBJECTS) $(LTDEPENDENCIES)
+	@echo "    [LD] $*"
+	$(Q)$(LTLINK) -o $@ $(LDFLAGS) $(OBJECTS) $(LDLIBS)
+endif
+
+ifdef LTLIBRARY
+$(LTLIBRARY) : $(SUBDIRS) $(LTOBJECTS)
+	@echo "    [LD] $*"
+	$(Q)$(LTLINK) $(LTLDFLAGS) -o $(LTLIBRARY) $(LTOBJECTS) $(LTLIBS)
+
+%.lo: %.c
+	@echo "    [CC] $@"
+	$(Q)$(LTCOMPILE) -c $<
+else
+%.o: %.c
+	@echo "    [CC] $@"
+	$(Q)$(CC) $(CFLAGS) -c -o $@ $<
+
+endif
+
+ifdef POTHEAD
+%.pot: $(XGETTEXTFILES)
+	$(XGETTEXT) --language=C --keyword=_ -o $@ $(XGETTEXTFILES)
+
+# Generate temp .po files, to check whether translations need updating.
+# Not by default, due to gettext output differences between versions.
+%.po: $(POTHEAD)
+#	$(MSGMERGE) -o $@.tmpo $@ $(POTHEAD)
+#	if ! diff $@.tmpo $@ >/dev/null; then echo "$@ dated, see $@.tmpo"; fi
+
+%.mo: %.po
+	$(MSGFMT) -o $@ $<
+endif
+
+source :
+	$(SOURCE_MAKERULE)
+
+endif # _BUILDRULES_INCLUDED_
+
+$(_FORCE):
+
+# dependency build is automatic, relies on gcc -MM to generate.
+.PHONY : depend
+
+MAKEDEP := $(MAKEDEPEND) $(CFLAGS)
+
+.ltdep: $(CFILES) $(HFILES)
+	@echo "    [LTDEP]"
+	$(Q)if [ -n "$$( echo $(CFILES))" ]; then \
+	    $(MAKEDEP) $(CFILES) | \
+	    $(SED) -e 's,^\([^:]*\)\.o,\1.lo,' > .ltdep; \
+	else \
+	    cp /dev/null .ltdep; \
+	fi
+
+.dep: $(CFILES) $(HFILES)
+	@echo "    [DEP]"
+	$(Q)if [ -n "$$( echo $(CFILES))" ]; then \
+	    $(MAKEDEP) $(CFILES) | \
+	    $(SED) -e 's,^\([^:]*\)\.o,\1,' > .dep; \
+	else \
+	    cp /dev/null .dep; \
+	fi
+
+# Gather files for installing into two lists:
+# TESTS with executable scripts and OUTFILES with all the test outputs.
+# Makefile has a very small matching, so we have to go this long way.
+
+# Start with all test related files:
+ALLFILES = $(wildcard [0-9]??*)
+
+# Now build a list of known output files.  Unfortunately, the
+# multiple output test files are poorly handled as makefiles don't
+# handle wildcarded multi-suffix matching. Hence we separate the
+# processing of these right now.
+EXTENDED_OUTFILES = $(wildcard [0-9]??*.out.*)
+EXTENDED_OUTFILE_CFGS = $(wildcard [0-9]??.cfg)
+BASIC_OUTFILES = $(wildcard [0-9]??*.out)
+OUTFILES = $(EXTENDED_OUTFILES) $(EXTENDED_OUTFILE_CFGS) $(BASIC_OUTFILES)
+
+# Strip suffix to get matching tests. We want to strip from the
+# first "." to the end, but makefiles don't have a built in
+# operative for that. So:
+#
+# Hack: strip the multiple segments after .out with repeated basename calls.
+EXTFILTER1 = $(basename $(EXTENDED_OUTFILES))
+EXTFILTER2 = $(basename $(EXTFILTER1))
+EXTFILTER3 = $(basename $(EXTFILTER2))
+EXTFILTER4 = $(basename $(EXTFILTER3))
+
+# final filter list
+FILTER = $(basename $(EXTFILTER4) $(BASIC_OUTFILES))
+
+# finally, select the test files by filtering against against the
+# stripped output files and sort them to remove duplicates.
+TESTS = $(sort $(filter $(ALLFILES), $(FILTER)))

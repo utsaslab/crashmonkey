@@ -5,7 +5,9 @@ namespace fs_testing {
 namespace user_tools {
 namespace api {
 
+extern "C" {
 int Checkpoint();
+}
 
 } // fs_testing
 } // user_tools

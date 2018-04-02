@@ -1,0 +1,96 @@
+#
+# Copyright (c) 2003 Silicon Graphics, Inc.  All Rights Reserved.
+#
+# include/builddefs.  Generated from builddefs.in by configure.
+#
+
+ifndef _BUILDDEFS_INCLUDED_
+_BUILDDEFS_INCLUDED_ = 1
+
+top_builddir=$(TOPDIR)
+
+DEBUG = -DDEBUG
+OPTIMIZER = 
+MALLOCLIB = 
+LOADERFLAGS = 
+CFLAGS = -Wno-unused-result
+CPPFLAGS =
+
+HAVE_LIBXFS = false
+HAVE_XLOG_ASSIGN_LSN = false
+LIBXFS = @libxfs@
+LIBACL = -lacl
+LIBATTR = -lattr
+LIBGDBM =  -lgdbm_compat -lgdbm
+LIBUUID = -luuid
+LIBHANDLE = /usr/lib/libhandle.la
+LIBDM = -ldm
+LIBTEST = $(TOPDIR)/lib/libtest.la
+prefix = /usr/local
+
+PKG_NAME        = xfstests
+PKG_USER        = root
+PKG_GROUP       = root
+PKG_RELEASE     = 1
+PKG_VERSION     = 1.1.1
+PKG_PLATFORM    = linux
+PKG_DISTRIBUTION= Linux
+PKG_LIB_DIR     = $(DESTDIR)/var/lib/xfstests
+
+
+CC              = gcc
+AWK             = gawk
+SED             = /bin/sed
+TAR             = /bin/tar
+ZIP             = /bin/gzip
+MAKE            = /usr/bin/make
+ECHO            = printf %s\n
+SORT            = /usr/bin/sort
+LN_S            = ln -s
+SHELL		= /bin/bash
+LIBTOOL         = $(SHELL) $(top_builddir)/libtool
+MAKEDEPEND      = gcc -MM
+
+MSGFMT          = 
+MSGMERGE        = 
+
+RPM             = 
+RPMBUILD        = 
+RPM_VERSION     = 0
+
+ENABLE_SHARED = @enable_shared@
+HAVE_DB = true
+HAVE_AIO = true
+HAVE_FALLOCATE = true
+HAVE_OPEN_BY_HANDLE_AT = true
+HAVE_DMAPI = false
+HAVE_ATTR_LIST = true
+HAVE_FIEMAP = true
+HAVE_FALLOCATE = true
+
+GCCFLAGS = -funsigned-char -fno-strict-aliasing -Wall
+
+ifeq ($(PKG_PLATFORM),linux)
+PCFLAGS = -D_GNU_SOURCE -D_FILE_OFFSET_BITS=64 $(GCCFLAGS)
+endif
+ifeq ($(PKG_PLATFORM),darwin)
+PCFLAGS = -traditional-cpp $(GCCFLAGS)
+endif
+ifeq ($(PKG_PLATFORM),freebsd)
+endif
+
+GCFLAGS = $(OPTIMIZER) $(DEBUG) $(CPPFLAGS) \
+	-I$(TOPDIR)/include -DVERSION=\"$(PKG_VERSION)\"
+
+# Global, Platform, Local CFLAGS
+CFLAGS += $(GCFLAGS) $(PCFLAGS) $(LCFLAGS)
+
+include buildmacros
+
+endif
+
+#
+# For targets that should always be rebuilt,
+# define a target that is never up-to-date.
+# Targets needing this should depend on $(_FORCE)
+_FORCE = __force_build
