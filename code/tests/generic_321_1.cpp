@@ -40,36 +40,32 @@ namespace tests {
 class Generic321_1: public BaseTestCase {
  public:
   virtual int setup() override {
-
-	init_paths();
-
-	// Create test directory A.
-	int res = mkdir(dir_path.c_str(), 0777);
-    if (res < 0) {
-      return -1;
-    }
-
-    // fsync the directory
-    int dir = open(dir_path.c_str(), O_RDONLY, O_DIRECTORY);
-    if (dir < 0) {
-    	return -4;
-    }
-
-    if (fsync(dir) < 0) {
-    	return -5;
-    }
-    close(dir);
-
     return 0;
   }
 
   virtual int run() override {
 
-	// nothing here since it's a simple test
+	// Create test directory A.
+	int res = mkdir(dir_path.c_str(), 0777);
+	if (res < 0) {
+	  return -1;
+	}
+
+	// fsync the directory
+	int dir = open(dir_path.c_str(), O_RDONLY, O_DIRECTORY);
+	if (dir < 0) {
+		return -4;
+	}
+
+	if (fsync(dir) < 0) {
+		return -5;
+	}
+
 	if (Checkpoint() < 0){
       return -5;
     }
 
+	close(dir);
     return 0;
   }
 
@@ -82,14 +78,14 @@ class Generic321_1: public BaseTestCase {
     const int stats_res = stat(dir_path.c_str(), &stats);
     const int errno_stats = errno;
 
-    if (stats_res < 0 && errno_stats == ENOENT) {
+    if (stats_res < 0 && errno_stats == ENOENT && last_checkpoint == 1) {
       test_result->SetError(DataTestResult::kFileMissing);
       test_result->error_description = " : " + dir_path + " is missing";
       return 0;
     }
 
     // If it is not a directory
-    if (!S_ISDIR(stats.st_mode)) {
+    if (!S_ISDIR(stats.st_mode) && last_checkpoint == 1) {
         test_result->SetError(DataTestResult::kFileMetadataCorrupted);
         test_result->error_description = " : " + dir_path + " is not a directory";
         return 0;
