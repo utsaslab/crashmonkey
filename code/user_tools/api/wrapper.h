@@ -44,10 +44,10 @@ struct FsFns {
   int (*cm_checkpoint)();
 };
 
-class CmFsOpts {
+class CmFsOps {
  public:
-  CmFsOpts();
-  CmFsOpts(FsFns &functions);
+  CmFsOps();
+  CmFsOps(FsFns &functions);
 
   int CmMknod(const std::string &pathname, const mode_t mode, const dev_t dev);
   int CmMkdir(const std::string &pathname, const mode_t mode);

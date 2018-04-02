@@ -21,7 +21,7 @@ using fs_testing::utils::DiskMod;
 using fs_testing::utils::FileDiskMod;
 
 
-CmFsOpts::CmFsOpts() {
+CmFsOps::CmFsOps() {
   FsFns f = {
     mknod,
     mkdir,
@@ -43,14 +43,14 @@ CmFsOpts::CmFsOpts() {
   fns_ = f;
 }
 
-CmFsOpts::CmFsOpts(FsFns &functions) : fns_(functions) { }
+CmFsOps::CmFsOps(FsFns &functions) : fns_(functions) { }
 
-int CmFsOpts::CmMknod(const string &pathname, const mode_t mode,
+int CmFsOps::CmMknod(const string &pathname, const mode_t mode,
     const dev_t dev) {
   return fns_.fn_mknod(pathname.c_str(), mode, dev);
 }
 
-int CmFsOpts::CmMkdir(const string &pathname, const mode_t mode) {
+int CmFsOps::CmMkdir(const string &pathname, const mode_t mode) {
   return fns_.fn_mkdir(pathname.c_str(), mode);
 }
 
@@ -58,7 +58,7 @@ int CmFsOpts::CmMkdir(const string &pathname, const mode_t mode) {
  * TODO(ashmrtn): Clean up the logic in this. It shouldn't be possible to make a
  * new file in this function because the mode isn't an argument.
  */
-int CmFsOpts::CmOpen(const string &pathname, const int flags) {
+int CmFsOps::CmOpen(const string &pathname, const int flags) {
   bool new_file = false;
   // Will this make a new file or is this path a directory?
   struct stat stat_buf;
@@ -107,43 +107,43 @@ int CmFsOpts::CmOpen(const string &pathname, const int flags) {
   return res;
 }
 
-int CmFsOpts::CmOpen(const string &pathname, const int flags,
+int CmFsOps::CmOpen(const string &pathname, const int flags,
     const mode_t mode) {
   return fns_.fn_open(pathname.c_str(), flags, mode);
 }
 
-off_t CmFsOpts::CmLseeks(const int fd, const off_t offset, const int whence) {
+off_t CmFsOps::CmLseeks(const int fd, const off_t offset, const int whence) {
   return fns_.fn_lseek(fd, offset, whence);
 }
 
-int CmFsOpts::CmWrite(const int fd, const void *buf, const size_t count) {
+int CmFsOps::CmWrite(const int fd, const void *buf, const size_t count) {
   return fns_.fn_write(fd, buf, count);
 }
 
-ssize_t CmFsOpts::CmPwrite(const int fd, const void *buf, const size_t count,
+ssize_t CmFsOps::CmPwrite(const int fd, const void *buf, const size_t count,
     const off_t offset) {
   return fns_.fn_pwrite(fd, buf, count, offset);
 }
 
-void * CmFsOpts::CmMmap(void *addr, const size_t length, const int prot,
+void * CmFsOps::CmMmap(void *addr, const size_t length, const int prot,
     const int flags, const int fd, const off_t offset) {
   return fns_.fn_mmap(addr, length, prot, flags, fd, offset);
 }
 
-int CmFsOpts::CmMsync(void *addr, const size_t length, const int flags) {
+int CmFsOps::CmMsync(void *addr, const size_t length, const int flags) {
   return fns_.fn_msync(addr, length, flags);
 }
 
-int CmFsOpts::CmMunmap(void *addr, const size_t length) {
+int CmFsOps::CmMunmap(void *addr, const size_t length) {
   return fns_.fn_munmap(addr, length);
 }
 
-int CmFsOpts::CmFallocate(const int fd, const int mode, const off_t offset,
+int CmFsOps::CmFallocate(const int fd, const int mode, const off_t offset,
     off_t len) {
   return fns_.fn_fallocate(fd, mode, offset, len);
 }
 
-int CmFsOpts::CmClose(const int fd) {
+int CmFsOps::CmClose(const int fd) {
   const int res = fns_.fn_close(fd);
 
   if (res < 0) {
@@ -155,16 +155,16 @@ int CmFsOpts::CmClose(const int fd) {
   return res;
 }
 
-int CmFsOpts::CmUnlink(const string &pathname) {
+int CmFsOps::CmUnlink(const string &pathname) {
   return fns_.fn_unlink(pathname.c_str());
 }
 
-int CmFsOpts::CmRemove(const string &pathname) {
+int CmFsOps::CmRemove(const string &pathname) {
   return fns_.fn_remove(pathname.c_str());
 }
 
 
-int CmFsOpts::CmCheckpoint() {
+int CmFsOps::CmCheckpoint() {
   return fns_.cm_checkpoint();
 }
 
