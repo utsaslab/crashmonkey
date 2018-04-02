@@ -12,6 +12,7 @@
 #include <dirent.h>
 #include <cstring>
 #include <errno.h>
+#include <stdlib.h>
 
 #include "BaseTestCase.h"
 #include "../user_tools/api/workload.h"
@@ -50,13 +51,13 @@ class BtrfsRenameFifo: public BaseTestCase {
     }
 
     //Create a file foo for direct write
-    const int fd_foo = open(foo_path.c_str(),  O_RDWR | O_DIRECT | O_SYNC, TEST_FILE_PERMS);
+    const int fd_foo = open(foo_path.c_str(),  O_RDWR| O_CREAT | O_DIRECT | O_SYNC, TEST_FILE_PERMS);
     if (fd_foo < 0) {
       return -1;
     }
 
         //Create file foo_compare
-    const int fd_foo_compare = open(dummy_path.c_str(),  O_RDWR | O_DIRECT | O_SYNC, TEST_FILE_PERMS);
+    const int fd_foo_compare = open(dummy_path.c_str(),  O_RDWR | O_CREAT | O_DIRECT | O_SYNC, TEST_FILE_PERMS);
     if (fd_foo_compare < 0) {
       return -1;
     }
@@ -69,29 +70,31 @@ class BtrfsRenameFifo: public BaseTestCase {
       return -2;
     }
     memset(data, 'a', 262144);
-
     for(int i=0; i<=831; i++){
         offset = i*2*256*1024;
 
     	if(pwrite(fd_foo, data, 262144, offset) < 0) {
+		std::cout << strerror(errno) << std::endl;
       		close(fd_foo);
       		return -3;
     	}
 
-    	if(pwrite(fd_foo_compare, data, 262144, offset) < 0) {
+    	/*if(pwrite(fd_foo_compare, data, 262144, offset) < 0) {
       		close(fd_foo_compare);
       		return -4;
-    	}
+    	}*/
     }
 
-
+/*	std::cout << "Write completed" << std::endl;
     res = fallocate(fd_foo_compare, FALLOC_FL_PUNCH_HOLE|FALLOC_FL_KEEP_SIZE, 216658016, 262144);
     if (res < 0)
       return -1;
-
+*/
     //Sync everything
     sync();
 
+	system("md5sum /mnt/snapshot/test_dir_a/foo");
+	system("btrfs-debug-tree /dev/cow_ram0 >> out.txt");
     //system("stat /mnt/snapshot/test_dir_a/dummy");
     close(fd_foo);
     close(fd_foo_compare);
@@ -111,7 +114,8 @@ class BtrfsRenameFifo: public BaseTestCase {
       return -1;
     }
 
-    int res = fallocate(fd_foo, FALLOC_FL_PUNCH_HOLE|FALLOC_FL_KEEP_SIZE, 216658016, 262144);
+    int off = 265814016 +128*1024 - 4000;	
+    int res = fallocate(fd_foo, FALLOC_FL_PUNCH_HOLE|FALLOC_FL_KEEP_SIZE, off, 262144);
     if (res < 0)
       return -2;
 
@@ -119,6 +123,8 @@ class BtrfsRenameFifo: public BaseTestCase {
     if (Checkpoint() < 0){
       return -4;
     }
+
+system("md5sum /mnt/snapshot/test_dir_a/foo");
 
     close(fd_foo);
 
@@ -132,7 +138,8 @@ class BtrfsRenameFifo: public BaseTestCase {
     dummy_path = mnt_dir_ +  "/" TEST_DIR_A + "/" + TEST_FILE_DUMMY;
     dira_path = mnt_dir_ + "/" + TEST_DIR_A;
  
-	string expected_md5sum = get_md5sum(dummy_path);
+	string expected_md5sum = "c5c0a13588a639529c979c57c336f441";
+	system("md5sum /mnt/snapshot/test_dir_a/foo");
 	string actual_md5sum = get_md5sum(foo_path);
 	if (expected_md5sum.compare(actual_md5sum) != 0) {
         test_result->SetError(DataTestResult::kFileDataCorrupted);
