@@ -156,6 +156,7 @@ $(BUILD_DIR)/tests/%.so: \
 		$(BUILD_DIR)/tests/BaseTestCase.o \
 		$(BUILD_DIR)/user_tools/src/actions.o \
 		$(BUILD_DIR)/user_tools/src/workload.o \
+		$(BUILD_DIR)/user_tools/src/wrapper.o \
 		$(BUILD_DIR)/utils/communication/BaseSocket.o \
 		$(BUILD_DIR)/utils/communication/ClientSocket.o \
 		$(BUILD_DIR)/utils/communication/ClientCommandSender.o \
@@ -187,8 +188,8 @@ $(BUILD_DIR)/permuter/%.so: \
 	$(GPP) $(GOPTS) $(GOTPSSO) -Wl,-soname,RandomPermuter.so \
 		-o $@ $^
 
-$(BUILD_DIR)/utils/utils.o: \
-		utils/utils.cpp
+$(BUILD_DIR)/utils/%.o: \
+		utils/%.cpp
 	mkdir -p $(@D)
 	$(GPP) $(GOPTS) -fPIC -c -o $@ $<
 
@@ -203,11 +204,6 @@ $(BUILD_DIR)/user_tools/%: \
 
 $(BUILD_DIR)/user_tools/src/%.o: \
 		user_tools/src/%.cpp
-	mkdir -p $(@D)
-	$(GPP) -c $(GOPTS) -fPIC -o $@ $<
-
-$(BUILD_DIR)/utils/communication/%.o: \
-		utils/communication/%.cpp
 	mkdir -p $(@D)
 	$(GPP) -c $(GOPTS) -fPIC -o $@ $<
 
