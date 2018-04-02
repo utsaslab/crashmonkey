@@ -25,6 +25,13 @@ https://github.com/kdave/xfstests/blob/master/tests/generic/321
 #include <cstring>
 #include <errno.h>
 
+// Header file was changed in 4.15 kernel.
+#ifdef NEW_XATTR_INC
+#include <sys/xattr.h>
+#else
+#include <attr/xattr.h>
+#endif
+
 #include "BaseTestCase.h"
 #include "../user_tools/api/workload.h"
 #include "../user_tools/api/actions.h"
@@ -94,16 +101,18 @@ class Generic321_3: public BaseTestCase {
     }
     close(dir);
 
-    system("apt-get install attr");
-    string setfattr_cmd = "setfattr -n user.foo -v blah " + foo_moved_path;
-    system(setfattr_cmd.c_str());
-
-	// fsync file foo
     const int fd_foo_moved = open(foo_moved_path.c_str(), O_RDONLY, TEST_FILE_PERMS);
     if (fd_foo_moved < 0) {
       return -1;
     }
 
+    // set attr to file foo
+    int res = fsetxattr(fd_foo_moved, "user.foo", "val1", 4, 0);
+    if (res < 0) {
+      return -1;
+    }
+
+    // fsync file foo
     if (fsync(fd_foo_moved) < 0) {
     	return -1;
     }
@@ -181,6 +190,14 @@ class Generic321_3: public BaseTestCase {
     		test_result->error_description = " : File foo still present in mnt_dir_ after checkpoint";
     		return 0;
     	}
+
+        char val[1024];
+        // If foo's attribute is missing or is not matching with "val1"
+        if(getxattr(foo_moved_path.c_str(), "user.foo", val, sizeof(val)) < 0 || strcmp(val, "val1") != 0){
+    		test_result->SetError(DataTestResult::kFileMetadataCorrupted);
+    		test_result->error_description = " : File foo's attribute missing or not matching with val1";
+    		return 0;
+        }
     }
     return 0;
   }
