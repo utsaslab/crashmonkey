@@ -45,6 +45,8 @@ class Generic321_1: public BaseTestCase {
 
   virtual int run() override {
 
+	init_paths();
+
 	// Create test directory A.
 	int res = mkdir(dir_path.c_str(), 0777);
 	if (res < 0) {
