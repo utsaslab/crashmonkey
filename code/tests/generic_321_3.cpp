@@ -192,8 +192,9 @@ class Generic321_3: public BaseTestCase {
     	}
 
         char val[1024];
+        int num_bytes = getxattr(foo_moved_path.c_str(), "user.foo", val, sizeof(val));
         // If foo's attribute is missing or is not matching with "val1"
-        if(getxattr(foo_moved_path.c_str(), "user.foo", val, sizeof(val)) < 0 || strcmp(val, "val1") != 0){
+        if(num_bytes < 0 || strncmp(val, "val1", num_bytes) != 0){
     		test_result->SetError(DataTestResult::kFileMetadataCorrupted);
     		test_result->error_description = " : File foo's attribute missing or not matching with val1";
     		return 0;
