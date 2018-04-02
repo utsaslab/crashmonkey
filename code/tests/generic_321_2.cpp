@@ -66,6 +66,7 @@ class Generic321_2: public BaseTestCase {
     }
 
     close(fd_foo);
+    sync();
 
     return 0;
   }
