@@ -12,6 +12,8 @@ import itertools
 import json
 import pprint
 import collections
+import threading
+
 from shutil import copyfile
 from string import maketrans
 
@@ -38,6 +40,7 @@ OperationSet = ['creat', 'mkdir', 'mknod', 'falloc', 'write', 'dwrite', 'link', 
 #We are skipping 041, 336, 342, 343
 #The sequences we want to reach to
 expected_sequence = []
+expected_sync_sequence = []
 
 
 #----------------------Bug summary-----------------------#
@@ -53,42 +56,55 @@ expected_sequence = []
 
 # 1. btrfs_link_unlink 3
 expected_sequence.append([('link', ('foo', 'bar')), ('unlink', ('bar')), ('creat', ('bar'))])
+expected_sync_sequence.append([('sync'), ('none'), ('fsync', 'bar')])
 
 # 2. btrfs_rename_special_file 3
 expected_sequence.append([('mknod', ('foo')), ('rename', ('foo', 'bar')), ('link', ('bar', 'foo'))])
+expected_sync_sequence.append([('fsync', 'bar'), ('none'), ('fsync', 'bar')])
 
 # 3. new_bug1_btrfs 2
 expected_sequence.append([('write', ('foo', 'start')), ('falloc', ('foo', 'FALLOC_FL_ZERO_RANGE | FALLOC_FL_KEEP_SIZE', 'append'))])
+expected_sync_sequence.append([('fsync', 'foo'), ('fsync', 'foo')])
 
 # 4. new_bug2_f2fs 3
 expected_sequence.append([('write', ('foo', 'start')), ('falloc', ('foo', 'FALLOC_FL_ZERO_RANGE | FALLOC_FL_KEEP_SIZE', 'append')), ('fdatasync', ('foo'))])
+expected_sync_sequence.append([('sync'), ('none'), ('none')])
 
 # 5. generic_034 2
 expected_sequence.append([('creat', ('A/foo')), ('creat', ('A/bar'))])
+expected_sync_sequence.append([('sync'), ('fsync', 'A')])
 
 # 6. generic_039 2
 expected_sequence.append([('link', ('foo', 'bar')), ('remove', ('bar'))])
+expected_sync_sequence.append([('sync'), ('fsync', 'foo')])
 
 # 7. generic_059 2
 expected_sequence.append([('write', ('foo', 'start')), ('falloc', ('foo', 'FALLOC_FL_PUNCH_HOLE | FALLOC_FL_KEEP_SIZE', 'overlap'))])
+expected_sync_sequence.append([('sync'), ('fsync', 'foo')])
 
 # 8. generic_066 2
 expected_sequence.append([('fsetxattr', ('foo')), ('removexattr', ('foo'))])
+expected_sync_sequence.append([('sync'), ('fsync', 'foo')])
 
 # 9. generic_341 3
 expected_sequence.append([('creat', ('A/foo')), ('rename', ('A', 'B')), ('mkdir', ('A'))])
+expected_sync_sequence.append([('sync'), ('none'), ('fsync', 'A')])
 
 # 10. generic_348 1
 expected_sequence.append([('symlink', ('foo', 'A/bar'))])
+expected_sync_sequence.append([('fsync', 'A')])
 
 # 11. generic_376 2
 expected_sequence.append([('rename', ('foo', 'bar')), ('creat', ('foo'))])
+expected_sync_sequence.append([('none'), ('fsync', 'bar')])
 
 # 12. generic_468 3
 expected_sequence.append([('write', ('foo', 'start')), ('falloc', ('foo', 'FALLOC_FL_KEEP_SIZE', 'append')), ('fdatasync', ('foo'))])
+expected_sync_sequence.append([('sync'), ('none'), ('none')])
 
 # 13. ext4_direct_write 2
 expected_sequence.append([('write', ('foo', 'start')), ('dwrite', ('foo', 'prepend'))])
+expected_sync_sequence.append([('none'), ('none')])
 
 
 def build_parser():
@@ -106,7 +122,7 @@ def print_setup(parsed_args):
     print '{0:20}  {1}'.format('Sequence length', parsed_args.sequence_len)
     print '\n', '='*48, '\n'
 
-
+min = 0
 
 def buildTuple(command):
     if command == 'creat':
@@ -163,13 +179,15 @@ def buildTuple(command):
         d = tuple(FileOptions + DirOptions)
     elif command == 'fdatasync' or command == 'fsetxattr' or command == 'removexattr':
         d = tuple(FileOptions)
+    elif command == 'fsync':
+        d = tuple(FileOptions + DirOptions)
     else:
         d=()
     return d
 
 
 
-def isBugWorkload(opList, paramList):
+def isBugWorkload(opList, paramList, syncList):
     for i in xrange(0,len(expected_sequence)):
         if len(opList) != len(expected_sequence[i]):
             continue
@@ -177,19 +195,21 @@ def isBugWorkload(opList, paramList):
         flag = 1
         
         for j in xrange(0, len(expected_sequence[i])):
-            if opList[j] == expected_sequence[i][j][0] and paramList[j] == expected_sequence[i][j][1]:
+            if opList[j] == expected_sequence[i][j][0] and paramList[j] == expected_sequence[i][j][1] and tuple(syncList[j]) == tuple(expected_sync_sequence[i][j]):
                 continue
             else:
                 flag = 0
                 break
     
         if flag == 1:
-            print 'found match : '
+            print 'Found match to Bug # ', i+1, ' : '
             print 'Length of seq : ',  len(expected_sequence[i])
             print 'Expected sequence = ' , expected_sequence[i]
+            print 'Expected sync sequence = ', expected_sync_sequence[i]
             print 'Auto generator found : '
             print opList
             print paramList
+            print syncList
             print '\n\n'
             return True
 
@@ -210,8 +230,9 @@ def main():
     num_ops = parsed_args.sequence_len
 
     for i in xrange(0,len(expected_sequence)):
-        print 'Bug #', i
+        print 'Bug #', i+1
         print expected_sequence[i]
+        print expected_sync_sequence[i]
         print '\n'
 
     global_count = 0
@@ -222,6 +243,28 @@ def main():
         log = `i` + ' : Options = ' + `len(parameterList[i])` + '\n' + log + '\n\n'
         log_file_handle.write(log)
 
+    d = buildTuple('fsync')
+    fsync = ('fsync',)
+    sync = ('sync')
+    none = ('none')
+    SyncSet = list()
+    for i in xrange(0, len(d)):
+        tup = list(fsync)
+        tup.append(d[i])
+        SyncSet.append(tup)
+    SyncSet.append(sync)
+    SyncSet.append(none)
+    SyncSet = tuple(SyncSet)
+#    print SyncSet
+
+    syncPermutations = []
+    for i in itertools.product(SyncSet, repeat=int(num_ops)):
+        syncPermutations.append(i)
+#        print i
+
+#    print 'num fsync combinations = ', len(syncPermutations)
+
+    start_time = time.time()
     count = 0
     permutations = []
 #    for i in itertools.permutations(OperationSet, int(num_ops)):
@@ -244,17 +287,20 @@ def main():
             count_param += 1
             global_count +=1
             log_file_handle.write(log)
-            isBugWorkload(permutations[count-1], j)
-#            print 'Testing is bug workload : '
-#            print permutations[count-1]
-#            print j
+
+#            #Let's insert fsync combinations here.
+            for insSync in range(0, len(syncPermutations)):
+                global_count +=1
+                isBugWorkload(permutations[count-1], j, syncPermutations[insSync])
 
 
 
+    end_time = time.time()
+    print 'Total permutations of input op set = ', count
 
-    print 'Total permutations = ', count
+    print 'Total workloads inspected = ' , global_count
 
-    print 'Total count = ' , global_count
+    print 'Time taken to match workloads = ', end_time-start_time, 'seconds\n\n'
 
     log_file_handle.close()
 
