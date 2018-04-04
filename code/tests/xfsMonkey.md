@@ -2,7 +2,12 @@
 ### generic 002
 xfstests - https://github.com/kdave/xfstests/blob/master/tests/generic/002  
 
-This tests if the link count of a file is tracked properly. It creates a set of new links and removes the set of links added one by one, forcing a fsync and checkpoint between each add or remove. check_test() function tests if the file has correct number of links  according to the last checkpoint noted.
+This tests if the link count of a file is tracked properly. It creates a set of new links and removes the set of links added one by one, forcing a fsync and checkpoint between each add or remove. check_test() function tests if the file has correct number of links  according to the last checkpoint noted.  
+
+### generic 035
+xfstests - https://github.com/kdave/xfstests/blob/master/tests/generic/035  
+
+This tests if rename overwrite (by renaming to something that is already present) is working correctly. 035_1 does the rename on files while 035_2 does the rename on directories. The files are created, before rename, a file descriptor is obtained for the file which will be overwritten. After rename, the file descriptor should have zero links. If the file which was renamed was removed, then the directory should be removeable.  
 
 ### generic 056
 xfstests - https://github.com/kdave/xfstests/blob/master/tests/generic/056  
