@@ -16,6 +16,7 @@ import threading
 
 from shutil import copyfile
 from string import maketrans
+from multiprocessing import Pool
 
 
 #All functions that has options go here
@@ -213,9 +214,65 @@ def isBugWorkload(opList, paramList, syncList):
             print '\n\n'
             return True
 
+def doPermutation(perm):
+    
+    global global_count
+    global parameterList
+    global num_ops
+    global syncPermutations
+    global count
+    global permutations
+    global SyncSet
+    global log_file_handle
+    global count_param
+    
+    permutations.append(perm)
+    log = ', '.join(perm);
+    log = `count` + ' : ' + log + '\n'
+    count +=1
+    global_count +=1
+    log_file_handle.write(log)
+        
+    #Now for each of this permutation, find all possible permutation of paramters
+    combination = list()
+    for length in xrange(0,len(permutations[count-1])):
+        combination.append(parameterList[permutations[count-1][length]])
+    count_param = 0
+    for j in itertools.product(*combination):
+        log = '{0}'.format(j);
+        log = `count_param` + ' : ' + log + '\n'
+        count_param += 1
+        global_count +=1
+        log_file_handle.write(log)
+            
+        #Let's insert fsync combinations here.
+        count_sync = 0
+        for insSync in range(0, len(syncPermutations)):
+            global_count +=1
+            count_sync+=1
+            isBugWorkload(permutations[count-1], j, syncPermutations[insSync])
 
+global_count = 0
+parameterList = {}
+SyncSet = list()
+num_ops = 0
+syncPermutations = []
+count = 0
+permutations = []
+log_file_handle = 0
+count_param = 0
 
 def main():
+    
+    global global_count
+    global parameterList
+    global num_ops
+    global syncPermutations
+    global count
+    global permutations
+    global SyncSet
+    global log_file_handle
+    global count_param
     
     #open log file
     log_file = time.strftime('%Y%m%d_%H%M%S') + '-bugWorkloadGen.log'
@@ -235,8 +292,7 @@ def main():
         print expected_sync_sequence[i]
         print '\n'
 
-    global_count = 0
-    parameterList = {}
+
     for i in OperationSet:
         parameterList[i] = buildTuple(i)
         log = '{0}'.format(parameterList[i]);
@@ -247,17 +303,18 @@ def main():
     fsync = ('fsync',)
     sync = ('sync')
     none = ('none')
-    SyncSet = list()
+
     for i in xrange(0, len(d)):
         tup = list(fsync)
         tup.append(d[i])
         SyncSet.append(tup)
+
     SyncSet.append(sync)
     SyncSet.append(none)
     SyncSet = tuple(SyncSet)
 #    print SyncSet
 
-    syncPermutations = []
+
     for i in itertools.product(SyncSet, repeat=int(num_ops)):
         syncPermutations.append(i)
 #        print i
@@ -265,40 +322,21 @@ def main():
 #    print 'num fsync combinations = ', len(syncPermutations)
 
     start_time = time.time()
-    count = 0
-    permutations = []
-#    for i in itertools.permutations(OperationSet, int(num_ops)):
-    for i in itertools.product(OperationSet, repeat=int(num_ops)):
-        permutations.append(i)
-        log = ', '.join(i);
-        log = `count` + ' : ' + log + '\n'
-        count +=1
-        global_count +=1
-        log_file_handle.write(log)
 
-        #Now for each of this permutation, find all possible permutation of paramters
-        combination = list()
-        for length in xrange(0,len(permutations[count-1])):
-            combination.append(parameterList[permutations[count-1][length]])
-        count_param = 0
-        for j in itertools.product(*combination):
-            log = '{0}'.format(j);
-            log = `count_param` + ' : ' + log + '\n'
-            count_param += 1
-            global_count +=1
-            log_file_handle.write(log)
-
-#            #Let's insert fsync combinations here.
-            for insSync in range(0, len(syncPermutations)):
-                global_count +=1
-                isBugWorkload(permutations[count-1], j, syncPermutations[insSync])
+    pool = Pool(processes = 16)
+    pool.map(doPermutation, itertools.product(OperationSet, repeat=int(num_ops)))
+    pool.close()
 
 
 
     end_time = time.time()
-    print 'Total permutations of input op set = ', count
-
-    print 'Total workloads inspected = ' , global_count
+#    print 'Total permutations of input op set = ', count
+#
+#    print 'Total parameter combinations = ', count_param
+#
+##    print 'Total sync combinations = ', count_sync
+#
+#    print 'Total workloads inspected = ' , global_count
 
     print 'Time taken to match workloads = ', end_time-start_time, 'seconds\n\n'
 
