@@ -24,30 +24,63 @@ namespace api {
  * So that things can be tested in a somewhat reasonable fashion by swapping out
  * the functions called.
  */
-struct FsFns {
-  int (*fn_mknod)(const char *pathname, mode_t mode, dev_t dev);
-  int (*fn_mkdir)(const char *pathname, mode_t mode);
-  // Interestingly, open() is a varargs function.
-  int (*fn_open)(const char *pathname, int flags, ...);
-  off_t (*fn_lseek)(int fd, off_t offset, int whence);
-  ssize_t (*fn_write)(int fd, const void *buf, size_t count);
-  ssize_t (*fn_pwrite)(int fd, const void *buf, size_t count, off_t offset);
-  void * (*fn_mmap)(void *addr, size_t length, int prot, int flags, int fd,
-      off_t offset);
-  int (*fn_msync)(void *addr, size_t length, int flags);
-  int (*fn_munmap)(void *addr, size_t length);
-  int (*fn_fallocate)(int fd, int mode, off_t offset, off_t len);
-  int (*fn_close)(int fd);
-  int (*fn_unlink)(const char *pathname);
-  int (*fn_remove)(const char *pathname);
+class FsFns {
+ public:
+  virtual ~FsFns() {};
+  virtual int FnMknod(const std::string &pathname, mode_t mode, dev_t dev) = 0;
+  virtual int FnMkdir(const std::string &pathname, mode_t mode) = 0;
+  virtual int FnOpen(const std::string &pathname, int flags) = 0;
+  virtual int FnOpen2(const std::string &pathname, int flags, mode_t mode) = 0;
+  virtual off_t FnLseek(int fd, off_t offset, int whence) = 0;
+  virtual ssize_t FnWrite(int fd, const void *buf, size_t count) = 0;
+  virtual ssize_t FnPwrite(int fd, const void *buf, size_t count,
+      off_t offset) = 0;
+  virtual void * FnMmap(void *addr, size_t length, int prot, int flags, int fd,
+      off_t offset) = 0;
+  virtual int FnMsync(void *addr, size_t length, int flags) = 0;
+  virtual int FnMunmap(void *addr, size_t length) = 0;
+  virtual int FnFallocate(int fd, int mode, off_t offset, off_t len) = 0;
+  virtual int FnClose(int fd) = 0;
+  virtual int FnUnlink(const std::string &pathname) = 0;
+  virtual int FnRemove(const std::string &pathname) = 0;
 
-  int (*cm_checkpoint)();
+  virtual int FnStat(const std::string &pathname, struct stat *buf) = 0;
+  virtual bool FnPathExists(const std::string &pathname) = 0;
+
+  virtual int CmCheckpoint() = 0;
+};
+
+class DefaultFsFns : public FsFns {
+ public:
+  virtual int FnMknod(const std::string &pathname, mode_t mode,
+      dev_t dev) override;
+  virtual int FnMkdir(const std::string &pathname, mode_t mode) override;
+  virtual int FnOpen(const std::string &pathname, int flags) override;
+  virtual int FnOpen2(const std::string &pathname, int flags,
+      mode_t mode) override;
+  virtual off_t FnLseek(int fd, off_t offset, int whence) override;
+  virtual ssize_t FnWrite(int fd, const void *buf, size_t count) override;
+  virtual ssize_t FnPwrite(int fd, const void *buf, size_t count,
+      off_t offset) override;
+  virtual void * FnMmap(void *addr, size_t length, int prot, int flags, int fd,
+      off_t offset) override;
+  virtual int FnMsync(void *addr, size_t length, int flags) override;
+  virtual int FnMunmap(void *addr, size_t length) override;
+  virtual int FnFallocate(int fd, int mode, off_t offset, off_t len) override;
+  virtual int FnClose(int fd) override;
+  virtual int FnUnlink(const std::string &pathname) override;
+  virtual int FnRemove(const std::string &pathname) override;
+
+  virtual int FnStat(const std::string &pathname, struct stat *buf) override;
+  virtual bool FnPathExists(const std::string &pathname) override;
+
+  virtual int CmCheckpoint() override;
 };
 
 class CmFsOps {
  public:
-  CmFsOps();
-  CmFsOps(FsFns &functions);
+  CmFsOps(FsFns *functions);
+  virtual ~CmFsOps() {};
 
   int CmMknod(const std::string &pathname, const mode_t mode, const dev_t dev);
   int CmMkdir(const std::string &pathname, const mode_t mode);
@@ -68,16 +101,21 @@ class CmFsOps {
 
   int CmCheckpoint();
 
-  std::vector<std::shared_ptr<fs_testing::utils::DiskMod>> mods;
 
- private:
+  // Protected for testing purposes.
+ protected:
   // So that things that require fd can be mapped to pathnames. Also holds the
   // offset into the file that the system is working with.
   std::unordered_map<int, std::pair<std::string, unsigned int>> fd_map_;
+
   // So that mmap pointers can be mapped to pathnames.
   std::unordered_map<int, std::string> mmap_map_;
+  std::vector<fs_testing::utils::DiskMod> mods_;
 
-  FsFns fns_;
+  // Set of functions to call for different file system operations. Tracked as a
+  // set of function pointers so that this class can be tested in a somewhat
+  // sane manner.
+  FsFns *fns_;
 };
 
 } // api

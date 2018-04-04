@@ -16,92 +16,140 @@ using std::string;
 using std::unordered_map;
 using std::vector;
 
-using fs_testing::utils::DirectoryDiskMod;
 using fs_testing::utils::DiskMod;
-using fs_testing::utils::FileDiskMod;
 
 
-CmFsOps::CmFsOps() {
-  FsFns f = {
-    mknod,
-    mkdir,
-    open,
-    lseek,
-    write,
-    pwrite,
-    mmap,
-    msync,
-    munmap,
-    fallocate,
-    close,
-    unlink,
-    remove,
-
-    Checkpoint
-  };
-
-  fns_ = f;
+int DefaultFsFns::FnMknod(const std::string &pathname, mode_t mode, dev_t dev) {
+  return mknod(pathname.c_str(), mode, dev);
 }
 
-CmFsOps::CmFsOps(FsFns &functions) : fns_(functions) { }
+int DefaultFsFns::FnMkdir(const std::string &pathname, mode_t mode) {
+  return mkdir(pathname.c_str(), mode);
+}
+
+int DefaultFsFns::FnOpen(const std::string &pathname, int flags) {
+  return open(pathname.c_str(), flags);
+}
+
+int DefaultFsFns::FnOpen2(const std::string &pathname, int flags, mode_t mode) {
+  return open(pathname.c_str(), flags, mode);
+}
+
+off_t DefaultFsFns::FnLseek(int fd, off_t offset, int whence) {
+  return lseek(fd, offset, whence);
+}
+
+ssize_t DefaultFsFns::FnWrite(int fd, const void *buf, size_t count) {
+  return write(fd, buf, count);
+}
+
+ssize_t DefaultFsFns::FnPwrite(int fd, const void *buf, size_t count,
+    off_t offset) {
+  return pwrite(fd, buf, count, offset);
+}
+
+void * DefaultFsFns::FnMmap(void *addr, size_t length, int prot, int flags,
+    int fd, off_t offset) {
+  return mmap(addr, length, prot, flags, fd, offset);
+}
+
+int DefaultFsFns::FnMsync(void *addr, size_t length, int flags) {
+  return msync(addr, length, flags);
+}
+
+int DefaultFsFns::FnMunmap(void *addr, size_t length) {
+  return munmap(addr, length);
+}
+
+int DefaultFsFns::FnFallocate(int fd, int mode, off_t offset, off_t len) {
+  return fallocate(fd, mode, offset, len);
+}
+
+int DefaultFsFns::FnClose(int fd) {
+  return close(fd);
+}
+
+int DefaultFsFns::FnUnlink(const std::string &pathname) {
+  return unlink(pathname.c_str());
+}
+
+int DefaultFsFns::FnRemove(const std::string &pathname) {
+  return remove(pathname.c_str());
+}
+
+
+int DefaultFsFns::FnStat(const std::string &pathname, struct stat *buf) {
+  return stat(pathname.c_str(), buf);
+}
+
+bool DefaultFsFns::FnPathExists(const std::string &pathname) {
+  const int res = access(pathname.c_str(), F_OK);
+  // TODO(ashmrtn): Should probably have some better way to handle errors.
+  if (res != 0) {
+    return false;
+  }
+
+  return true;
+}
+
+
+int DefaultFsFns::CmCheckpoint() {
+  return Checkpoint();
+}
+
+
+CmFsOps::CmFsOps(FsFns *functions) {
+  fns_ = functions;
+}
 
 int CmFsOps::CmMknod(const string &pathname, const mode_t mode,
     const dev_t dev) {
-  return fns_.fn_mknod(pathname.c_str(), mode, dev);
+  return fns_->FnMknod(pathname.c_str(), mode, dev);
 }
 
 int CmFsOps::CmMkdir(const string &pathname, const mode_t mode) {
-  return fns_.fn_mkdir(pathname.c_str(), mode);
+  return fns_->FnMkdir(pathname.c_str(), mode);
 }
 
-/*
- * TODO(ashmrtn): Clean up the logic in this. It shouldn't be possible to make a
- * new file in this function because the mode isn't an argument.
- */
 int CmFsOps::CmOpen(const string &pathname, const int flags) {
-  bool new_file = false;
   // Will this make a new file or is this path a directory?
-  struct stat stat_buf;
-  errno = 0;
-  const int stat_res = stat(pathname.c_str(), &stat_buf);
-  if (stat_res < 0 && errno == ENOENT) {
-    new_file = true;
-  }
+  const bool exists = fns_->FnPathExists(pathname.c_str());
 
-  const int res = fns_.fn_open(pathname.c_str(), flags);
+  const int res = fns_->FnOpen(pathname.c_str(), flags);
   if (res < 0) {
     return res;
   }
 
   fd_map_.insert({res, {pathname, 0}});
 
-  if (new_file || (flags & O_TRUNC)) {
+  if (!exists || (flags & O_TRUNC)) {
     // We only want to record this op if we changed something on the file
     // system.
 
-    DiskMod *mod = nullptr;
-    if (S_ISDIR(stat_buf.st_mode)) {
-      mod = new DirectoryDiskMod();
-    } else {
-      mod = new FileDiskMod();
-    }
+    DiskMod mod;
 
-    if (new_file) {
-      mod->mod_type = DiskMod::CREATE;
-      mod->mod_opts = DiskMod::NONE;
-    } else {
-      mod->mod_type = DiskMod::DATA_METADATA_MOD;
-      mod->mod_opts = DiskMod::TRUNCATE;
-    }
-
-    mod->path = pathname;
-    const int post_stat_res = stat(pathname.c_str(), &mod->post_mod_stats);
+    // Need something like stat() because umask could affect the file
+    // permissions.
+    const int post_stat_res = fns_->FnStat(pathname.c_str(),
+        &mod.post_mod_stats);
     if (post_stat_res < 0) {
       // TODO(ashmrtn): Some sort of warning here?
       return res;
     }
 
-    mods.push_back(shared_ptr<DiskMod>(mod));
+    mod.directory_mod = S_ISDIR(mod.post_mod_stats.st_mode);
+
+    if (!exists) {
+      mod.mod_type = DiskMod::CREATE;
+      mod.mod_opts = DiskMod::NONE;
+    } else {
+      mod.mod_type = DiskMod::DATA_METADATA_MOD;
+      mod.mod_opts = DiskMod::TRUNCATE;
+    }
+
+    mod.path = pathname;
+
+    mods_.push_back(mod);
   }
 
   return res;
@@ -109,42 +157,42 @@ int CmFsOps::CmOpen(const string &pathname, const int flags) {
 
 int CmFsOps::CmOpen(const string &pathname, const int flags,
     const mode_t mode) {
-  return fns_.fn_open(pathname.c_str(), flags, mode);
+  return fns_->FnOpen2(pathname.c_str(), flags, mode);
 }
 
 off_t CmFsOps::CmLseeks(const int fd, const off_t offset, const int whence) {
-  return fns_.fn_lseek(fd, offset, whence);
+  return fns_->FnLseek(fd, offset, whence);
 }
 
 int CmFsOps::CmWrite(const int fd, const void *buf, const size_t count) {
-  return fns_.fn_write(fd, buf, count);
+  return fns_->FnWrite(fd, buf, count);
 }
 
 ssize_t CmFsOps::CmPwrite(const int fd, const void *buf, const size_t count,
     const off_t offset) {
-  return fns_.fn_pwrite(fd, buf, count, offset);
+  return fns_->FnPwrite(fd, buf, count, offset);
 }
 
 void * CmFsOps::CmMmap(void *addr, const size_t length, const int prot,
     const int flags, const int fd, const off_t offset) {
-  return fns_.fn_mmap(addr, length, prot, flags, fd, offset);
+  return fns_->FnMmap(addr, length, prot, flags, fd, offset);
 }
 
 int CmFsOps::CmMsync(void *addr, const size_t length, const int flags) {
-  return fns_.fn_msync(addr, length, flags);
+  return fns_->FnMsync(addr, length, flags);
 }
 
 int CmFsOps::CmMunmap(void *addr, const size_t length) {
-  return fns_.fn_munmap(addr, length);
+  return fns_->FnMunmap(addr, length);
 }
 
 int CmFsOps::CmFallocate(const int fd, const int mode, const off_t offset,
     off_t len) {
-  return fns_.fn_fallocate(fd, mode, offset, len);
+  return fns_->FnFallocate(fd, mode, offset, len);
 }
 
 int CmFsOps::CmClose(const int fd) {
-  const int res = fns_.fn_close(fd);
+  const int res = fns_->FnClose(fd);
 
   if (res < 0) {
     return res;
@@ -156,16 +204,16 @@ int CmFsOps::CmClose(const int fd) {
 }
 
 int CmFsOps::CmUnlink(const string &pathname) {
-  return fns_.fn_unlink(pathname.c_str());
+  return fns_->FnUnlink(pathname.c_str());
 }
 
 int CmFsOps::CmRemove(const string &pathname) {
-  return fns_.fn_remove(pathname.c_str());
+  return fns_->FnRemove(pathname.c_str());
 }
 
 
 int CmFsOps::CmCheckpoint() {
-  return fns_.cm_checkpoint();
+  return fns_->CmCheckpoint();
 }
 
 

@@ -39,35 +39,12 @@ class DiskMod {
   ModType mod_type;
   ModOpts mod_opts;
   struct stat post_mod_stats;
-};
-
-
-/*
- * The below will need to be accessed via downcasting because it's not possible
- * to have different return values for override functions.
- */
-
-/*
- * DiskMod that pertains only to changes that happen to files.
- */
-class FileDiskMod : public DiskMod {
- public:
-  unsigned int len;
-
-  // Data passed to the write function.
-  std::shared_ptr<char> data;
-};
-
-/*
- * DiskMod that pertains only to changes that happen to directories.
- */
-class DirectoryDiskMod : public DiskMod {
- public:
-  // Reflects any changes that may happen to the directory entries. This really
-  // only needs to contain the diff of the checkpoint directory contents and the
-  // new directory contents, meaning it really only needs to hold one change at
-  // a time.
-  struct dirent data;
+  // This DiskMod represents a change to a directory. This field *could* be
+  // removed if we *always* filled out the post_mod_stats struct and users of
+  // the code just call IS_DIR on the stat struct.
+  bool directory_mod;
+  std::shared_ptr<char> file_data;
+  struct dirent directory_data;
 };
 
 }  // namespace utils
