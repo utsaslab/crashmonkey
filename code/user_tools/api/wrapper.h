@@ -116,6 +116,13 @@ class CmFsOps {
   // set of function pointers so that this class can be tested in a somewhat
   // sane manner.
   FsFns *fns_;
+
+ private:
+  /*
+   * Common code for open with 2 and 3 arguments.
+   */
+  void CmOpenCommon(const int fd, const std::string &pathname,
+      const bool exists, const int flags);
 };
 
 } // api

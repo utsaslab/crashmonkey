@@ -111,16 +111,9 @@ int CmFsOps::CmMkdir(const string &pathname, const mode_t mode) {
   return fns_->FnMkdir(pathname.c_str(), mode);
 }
 
-int CmFsOps::CmOpen(const string &pathname, const int flags) {
-  // Will this make a new file or is this path a directory?
-  const bool exists = fns_->FnPathExists(pathname.c_str());
-
-  const int res = fns_->FnOpen(pathname.c_str(), flags);
-  if (res < 0) {
-    return res;
-  }
-
-  fd_map_.insert({res, {pathname, 0}});
+void CmFsOps::CmOpenCommon(const int fd, const string &pathname,
+    const bool exists, const int flags) {
+  fd_map_.insert({fd, {pathname, 0}});
 
   if (!exists || (flags & O_TRUNC)) {
     // We only want to record this op if we changed something on the file
@@ -134,7 +127,7 @@ int CmFsOps::CmOpen(const string &pathname, const int flags) {
         &mod.post_mod_stats);
     if (post_stat_res < 0) {
       // TODO(ashmrtn): Some sort of warning here?
-      return res;
+      return;
     }
 
     mod.directory_mod = S_ISDIR(mod.post_mod_stats.st_mode);
@@ -151,13 +144,35 @@ int CmFsOps::CmOpen(const string &pathname, const int flags) {
 
     mods_.push_back(mod);
   }
+}
+
+int CmFsOps::CmOpen(const string &pathname, const int flags) {
+  // Will this make a new file or is this path a directory?
+  const bool exists = fns_->FnPathExists(pathname.c_str());
+
+  const int res = fns_->FnOpen(pathname.c_str(), flags);
+  if (res < 0) {
+    return res;
+  }
+
+  CmOpenCommon(res, pathname, exists, flags);
 
   return res;
 }
 
 int CmFsOps::CmOpen(const string &pathname, const int flags,
     const mode_t mode) {
-  return fns_->FnOpen2(pathname.c_str(), flags, mode);
+  // Will this make a new file or is this path a directory?
+  const bool exists = fns_->FnPathExists(pathname.c_str());
+
+  const int res = fns_->FnOpen2(pathname.c_str(), flags, mode);
+  if (res < 0) {
+    return res;
+  }
+
+  CmOpenCommon(res, pathname, exists, flags);
+
+  return res;
 }
 
 off_t CmFsOps::CmLseeks(const int fd, const off_t offset, const int whence) {
