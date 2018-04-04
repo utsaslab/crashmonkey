@@ -9,6 +9,11 @@ xfstests - https://github.com/kdave/xfstests/blob/master/tests/generic/035
 
 This tests if rename overwrite (by renaming to something that is already present) is working correctly. 035_1 does the rename on files while 035_2 does the rename on directories. The files are created, before rename, a file descriptor is obtained for the file which will be overwritten. After rename, the file descriptor should have zero links. If the file which was renamed was removed, then the directory should be removeable.  
 
+### generic 035
+xfstests - https://github.com/kdave/xfstests/blob/master/tests/generic/037  
+
+This tests if the setting of attr to a file is atomic. It sets the attribute to a file with alternating values in a loop and after a crash at a random point, checks if the attribute of the file is one among the two defined values.  
+
 ### generic 056
 xfstests - https://github.com/kdave/xfstests/blob/master/tests/generic/056  
 
