@@ -65,7 +65,7 @@ class TestCmFsOps : public CmFsOps {
     return &mods_;
   }
 
-  unordered_map<int, pair<string, unsigned int>> * GetFdMap() {
+  unordered_map<int, string> * GetFdMap() {
     return &fd_map_;
   }
 
@@ -90,17 +90,16 @@ TEST(CmFsOps, OpenTrunc) {
   MockFsFns mock;
   EXPECT_CALL(mock, FnPathExists(pathname.c_str())).WillOnce(Return(true));
   EXPECT_CALL(mock, FnOpen(pathname, flags)).WillOnce(Return(expected_fd));
-  EXPECT_CALL(mock, FnStat(pathname, ::testing::_));
+  EXPECT_CALL(mock, FnStat(pathname, NotNull()));
 
   TestCmFsOps ops(&mock);
 
   const int fd = ops.CmOpen(pathname, flags);
   EXPECT_EQ(fd, expected_fd);
 
-  unordered_map<int, pair<string, unsigned int>> *fd_map = ops.GetFdMap();
+  unordered_map<int, string> *fd_map = ops.GetFdMap();
   EXPECT_EQ(fd_map->size(), 1);
-  EXPECT_EQ(fd_map->at(fd).first, pathname);
-  EXPECT_EQ(fd_map->at(fd).second, 0);
+  EXPECT_EQ(fd_map->at(fd), pathname);
 
   vector<DiskMod> *mods = ops.GetMods();
   EXPECT_EQ(mods->size(), 1);
@@ -128,7 +127,7 @@ TEST(CmFsOps, OpenTruncNoFile) {
   const int fd = ops.CmOpen(pathname, flags);
   EXPECT_EQ(fd, -1);
 
-  unordered_map<int, pair<string, unsigned int>> *fd_map = ops.GetFdMap();
+  unordered_map<int, string> *fd_map = ops.GetFdMap();
   EXPECT_TRUE(fd_map->empty());
 
   vector<DiskMod> *mods = ops.GetMods();
@@ -155,10 +154,9 @@ TEST(CmFsOps, OpenCreatExists) {
 
   const int fd = ops.CmOpen(pathname, flags);
   EXPECT_EQ(fd, expected_fd);
-  unordered_map<int, pair<string, unsigned int>> *fd_map = ops.GetFdMap();
+  unordered_map<int, string> *fd_map = ops.GetFdMap();
   EXPECT_EQ(fd_map->size(), 1);
-  EXPECT_EQ(fd_map->at(fd).first, pathname);
-  EXPECT_EQ(fd_map->at(fd).second, 0);
+  EXPECT_EQ(fd_map->at(fd), pathname);
 
   vector<DiskMod> *mods = ops.GetMods();
   EXPECT_TRUE(mods->empty());
@@ -178,17 +176,16 @@ TEST(CmFsOps, OpenCreatNew) {
   MockFsFns mock;
   EXPECT_CALL(mock, FnPathExists(pathname.c_str())).WillOnce(Return(false));
   EXPECT_CALL(mock, FnOpen(pathname, flags)).WillOnce(Return(expected_fd));
-  EXPECT_CALL(mock, FnStat(pathname, ::testing::_));
+  EXPECT_CALL(mock, FnStat(pathname, NotNull()));
 
   TestCmFsOps ops(&mock);
 
   const int fd = ops.CmOpen(pathname, flags);
   EXPECT_EQ(fd, expected_fd);
 
-  unordered_map<int, pair<string, unsigned int>> *fd_map = ops.GetFdMap();
+  unordered_map<int, string> *fd_map = ops.GetFdMap();
   EXPECT_EQ(fd_map->size(), 1);
-  EXPECT_EQ(fd_map->at(fd).first, pathname);
-  EXPECT_EQ(fd_map->at(fd).second, 0);
+  EXPECT_EQ(fd_map->at(fd), pathname);
 
   vector<DiskMod> *mods = ops.GetMods();
   EXPECT_EQ(mods->size(), 1);
@@ -211,17 +208,16 @@ TEST(CmFsOps, OpenCreatTruncNew) {
   MockFsFns mock;
   EXPECT_CALL(mock, FnPathExists(pathname.c_str())).WillOnce(Return(false));
   EXPECT_CALL(mock, FnOpen(pathname, flags)).WillOnce(Return(expected_fd));
-  EXPECT_CALL(mock, FnStat(pathname, ::testing::_));
+  EXPECT_CALL(mock, FnStat(pathname, NotNull()));
 
   TestCmFsOps ops(&mock);
 
   const int fd = ops.CmOpen(pathname, flags);
   EXPECT_EQ(fd, expected_fd);
 
-  unordered_map<int, pair<string, unsigned int>> *fd_map = ops.GetFdMap();
+  unordered_map<int, string> *fd_map = ops.GetFdMap();
   EXPECT_EQ(fd_map->size(), 1);
-  EXPECT_EQ(fd_map->at(fd).first, pathname);
-  EXPECT_EQ(fd_map->at(fd).second, 0);
+  EXPECT_EQ(fd_map->at(fd), pathname);
 
   vector<DiskMod> *mods = ops.GetMods();
   EXPECT_EQ(mods->size(), 1);
@@ -244,17 +240,16 @@ TEST(CmFsOps, OpenCreatTrunc) {
   MockFsFns mock;
   EXPECT_CALL(mock, FnPathExists(pathname.c_str())).WillOnce(Return(true));
   EXPECT_CALL(mock, FnOpen(pathname, flags)).WillOnce(Return(expected_fd));
-  EXPECT_CALL(mock, FnStat(pathname, ::testing::_));
+  EXPECT_CALL(mock, FnStat(pathname, NotNull()));
 
   TestCmFsOps ops(&mock);
 
   const int fd = ops.CmOpen(pathname, flags);
   EXPECT_EQ(fd, expected_fd);
 
-  unordered_map<int, pair<string, unsigned int>> *fd_map = ops.GetFdMap();
+  unordered_map<int, string> *fd_map = ops.GetFdMap();
   EXPECT_EQ(fd_map->size(), 1);
-  EXPECT_EQ(fd_map->at(fd).first, pathname);
-  EXPECT_EQ(fd_map->at(fd).second, 0);
+  EXPECT_EQ(fd_map->at(fd), pathname);
 
   vector<DiskMod> *mods = ops.GetMods();
   EXPECT_EQ(mods->size(), 1);

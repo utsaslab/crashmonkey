@@ -113,7 +113,7 @@ int CmFsOps::CmMkdir(const string &pathname, const mode_t mode) {
 
 void CmFsOps::CmOpenCommon(const int fd, const string &pathname,
     const bool exists, const int flags) {
-  fd_map_.insert({fd, {pathname, 0}});
+  fd_map_.insert({fd, pathname});
 
   if (!exists || (flags & O_TRUNC)) {
     // We only want to record this op if we changed something on the file

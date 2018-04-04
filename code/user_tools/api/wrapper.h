@@ -11,7 +11,6 @@
 #include <memory>
 #include <string>
 #include <unordered_map>
-#include <utility>
 #include <vector>
 
 #include "../../utils/DiskMod.h"
@@ -104,9 +103,8 @@ class CmFsOps {
 
   // Protected for testing purposes.
  protected:
-  // So that things that require fd can be mapped to pathnames. Also holds the
-  // offset into the file that the system is working with.
-  std::unordered_map<int, std::pair<std::string, unsigned int>> fd_map_;
+  // So that things that require fd can be mapped to pathnames.
+  std::unordered_map<int, std::string> fd_map_;
 
   // So that mmap pointers can be mapped to pathnames.
   std::unordered_map<int, std::string> mmap_map_;
