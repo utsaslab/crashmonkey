@@ -44,7 +44,7 @@ https://github.com/kdave/xfstests/blob/master/tests/generic/037
 #include "../user_tools/api/actions.h"
 
 #define TEST_FILE_FOO "foo"
-#define ATTR_KEY "random.attr"
+#define ATTR_KEY "user.foo"
 #define ATTR_VALUE1 "val1"
 #define ATTR_VALUE2 "value2"
 
@@ -72,6 +72,14 @@ class Generic037: public BaseTestCase {
       return -1;
     }
     close(fd_foo);
+
+    // Set the attribute at least once so that if it crashes at the beginning of run()
+    // method, the check_test should pass
+    string val = string(ATTR_VALUE1);
+    int res = setxattr(foo_path.c_str(), ATTR_KEY, val.c_str(), val.size(), 0);
+    if (res < 0) {
+      return -1;
+    }
 
     sync();
 
