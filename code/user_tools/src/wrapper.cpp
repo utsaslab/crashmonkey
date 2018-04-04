@@ -1,6 +1,7 @@
 #include "../api/wrapper.h"
 
 #include <errno.h>
+#include <string.h>
 #include <sys/stat.h>
 #include <sys/types.h>
 #include <unistd.h>
@@ -180,7 +181,57 @@ off_t CmFsOps::CmLseeks(const int fd, const off_t offset, const int whence) {
 }
 
 int CmFsOps::CmWrite(const int fd, const void *buf, const size_t count) {
-  return fns_->FnWrite(fd, buf, count);
+  DiskMod mod;
+  mod.mod_opts = DiskMod::NONE;
+  // Get current file position and size. If stat fails, then assume lseek will
+  // fail too and just bail out.
+  struct stat pre_stat_buf;
+  // This could be an fstat(), but I don't see a reason to add another call that
+  // does only reads to the already large interface of FsFns.
+  int res = fns_->FnStat(fd_map_.at(fd), &pre_stat_buf);
+  if (res < 0) {
+    return res;
+  }
+
+  mod.file_mod_location = fns_->FnLseek(fd, 0, SEEK_CUR);
+  if (mod.file_mod_location < 0) {
+    return mod.file_mod_location;
+  }
+
+  const int write_res = fns_->FnWrite(fd, buf, count);
+  if (write_res < 0) {
+    return write_res;
+  }
+
+  mod.directory_mod = S_ISDIR(pre_stat_buf.st_mode);
+
+  // TODO(ashmrtn): Support calling write directly on a directory.
+  if (!mod.directory_mod) {
+    // Copy over as much data as was written and see what the new file size is.
+    // This will determine how we set the type of the DiskMod.
+    mod.file_mod_len = write_res;
+    mod.path = fd_map_.at(fd);
+
+    res = fns_->FnStat(fd_map_.at(fd), &mod.post_mod_stats);
+    if (res < 0) {
+      return write_res;
+    }
+
+    if (pre_stat_buf.st_size != mod.post_mod_stats.st_size) {
+      mod.mod_type = DiskMod::DATA_METADATA_MOD;
+    } else {
+      mod.mod_type = DiskMod::DATA_MOD;
+    }
+
+    if (write_res > 0) {
+      mod.file_mod_data.reset(new char[write_res], [](char* c) {delete[] c;});
+      memcpy(mod.file_mod_data.get(), buf, write_res);
+    }
+  }
+
+  mods_.push_back(mod);
+
+  return write_res;
 }
 
 ssize_t CmFsOps::CmPwrite(const int fd, const void *buf, const size_t count,
