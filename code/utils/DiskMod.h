@@ -16,6 +16,13 @@ namespace utils {
 class DiskMod {
  public:
   enum ModType {
+    // Changes to directories are implicitly tracked by noting which mods are
+    // CREATE mods. Since CREATE means a new file or directory was made, it also
+    // implies that the parent directory of the newly created item was modified.
+    // Therefore, the change to the directory itself is not represented by a mod
+    // since it would just be repeating information already available (the
+    // parent directory can be deduced by examining the path in the mod of type
+    // CREATE).
     CREATE,             // File or directory created.
     DATA_METADATA_MOD,  // Both data and metadata changed (ex. extending file).
     METADATA_MOD,       // Only file metadata changed.
@@ -43,8 +50,10 @@ class DiskMod {
   // removed if we *always* filled out the post_mod_stats struct and users of
   // the code just call IS_DIR on the stat struct.
   bool directory_mod;
-  std::shared_ptr<char> file_data;
-  struct dirent directory_data;
+  std::shared_ptr<char> file_mod_data;
+  off_t file_mod_location;
+  unsigned int file_mod_len;
+  struct dirent directory_mod_data;
 };
 
 }  // namespace utils
