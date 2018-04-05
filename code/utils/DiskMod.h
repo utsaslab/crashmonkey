@@ -15,6 +15,21 @@ namespace utils {
 
 class DiskMod {
  public:
+  /*
+   * Serialize a single DiskMod. Returns a shared_ptr to a non-NULL value on
+   * success, else a NULL shared_ptr.
+   */
+  static std::shared_ptr<char> Serialize(DiskMod &dm);
+
+  /*
+   * Deserializes all the DiskMods in the file referenced by fd, assuming that
+   * fd *only* contains DiskMods produced by the Serialize() function.
+   *
+   * Returns 0 on success and a value < 0 on failure. On success, res is filled
+   * with the deserialized DiskMods from the file referenced by fd.
+   */
+  static int Deserialize(const int fd, std::vector<DiskMod> &res);
+
   enum ModType {
     // Changes to directories are implicitly tracked by noting which mods are
     // kCreateMod mods. Since kCreateMod means a new file or directory was made,
@@ -52,9 +67,39 @@ class DiskMod {
   // the code just call IS_DIR on the stat struct.
   bool directory_mod;
   std::shared_ptr<char> file_mod_data;
-  off_t file_mod_location;
-  unsigned int file_mod_len;
-  struct dirent directory_mod_data;
+  uint64_t file_mod_location;
+  uint64_t file_mod_len;
+  std::string directory_added_entry;
+
+ private:
+  /*
+   * Returns the number of bytes in the DiskMod in serialized form.
+   */
+  unsigned long long int GetSerializeSize();
+
+  /*
+   * Serialize various parts of a DiskMod. The SerializeHeader method only
+   * serializes the mod_type and mod_opts fields as that is the only thing
+   * common to all types (ex. kCheckpointMod type doesn't need anything but
+   * that).
+   */
+  static int SerializeHeader(char *buf, const unsigned int buf_offset,
+      DiskMod &dm);
+  /*
+   * Serializes stuff that is presesnt in file and directory operations.
+   */
+  static int SerializeChangeHeader(char *buf,
+      const unsigned int buf_offset, DiskMod &dm);
+  static int SerializeFileMod(char *buf, const unsigned int buf_offset,
+      DiskMod &dm);
+  static int SerializeDirectoryMod(char *buf, const unsigned int len,
+      DiskMod &dm);
+
+  /*
+   * Deserialize a single DiskMod. Returns 0 on success, a value < 0 on failure.
+   * On success, the DiskMod res is also populated with the deserialized values.
+   */
+  static int Deserialize(const int fd, DiskMod &res);
 };
 
 }  // namespace utils
