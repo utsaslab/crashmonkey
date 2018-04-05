@@ -26,6 +26,10 @@ The easiest (and recommended) way to start working on (or using) CrashMonkey is 
 * libattr1-dev
 * linux kernel headers
      * install with `sudo apt-get install linux-headers-$(uname -r)`
+* packages for file systems that aren't included on the VM by default, for example:
+     * `btrfs-tools` for btrfs
+     * `xfsprogs` for xfs
+     * `f2fs-tools` for f2fs
 
 Furthermore, the VM should have enough disk space to build and compile CrashMonkey as well as enough RAM to run any tests you want. I mention RAM because CrashMonkey uses a RAM block device during its tests, so you will need to give it at least as much RAM as the largest test you plan on running. For small tests, a 20 GB hard drive for the Ubuntu install and also all other files (I'm lazy and don't feel like trimming it down more than that) and 2-4 GB of RAM should be more than enough.
 
