@@ -214,8 +214,8 @@ TEST(CmFsOps, OpenTrunc) {
 
   vector<DiskMod> *mods = ops.GetMods();
   EXPECT_EQ(mods->size(), 1);
-  EXPECT_EQ(mods->at(0).mod_type, DiskMod::DATA_METADATA_MOD);
-  EXPECT_EQ(mods->at(0).mod_opts, DiskMod::TRUNCATE);
+  EXPECT_EQ(mods->at(0).mod_type, DiskMod::kDataMetadataMod);
+  EXPECT_EQ(mods->at(0).mod_opts, DiskMod::kTruncateOpt);
   EXPECT_EQ(mods->at(0).path, pathname);
 }
 
@@ -300,8 +300,8 @@ TEST(CmFsOps, OpenCreatNew) {
 
   vector<DiskMod> *mods = ops.GetMods();
   EXPECT_EQ(mods->size(), 1);
-  EXPECT_EQ(mods->at(0).mod_type, DiskMod::CREATE);
-  EXPECT_EQ(mods->at(0).mod_opts, DiskMod::NONE);
+  EXPECT_EQ(mods->at(0).mod_type, DiskMod::kCreateMod);
+  EXPECT_EQ(mods->at(0).mod_opts, DiskMod::kNoneOpt);
   EXPECT_EQ(mods->at(0).path, pathname);
 }
 
@@ -309,7 +309,7 @@ TEST(CmFsOps, OpenCreatNew) {
  * Test that opening a file that does not exist with the O_CREAT and O_TRUNC
  * flags does result in
  *    - the file path and returned descriptor to be added to the map
- *    - a DiskMod of type CREATE to be placed in the list of mods.
+ *    - a DiskMod of type kCreateMod to be placed in the list of mods.
  */
 TEST(CmFsOps, OpenCreatTruncNew) {
   const string pathname = "/mnt/snapshot/bleh";
@@ -332,8 +332,8 @@ TEST(CmFsOps, OpenCreatTruncNew) {
 
   vector<DiskMod> *mods = ops.GetMods();
   EXPECT_EQ(mods->size(), 1);
-  EXPECT_EQ(mods->at(0).mod_type, DiskMod::CREATE);
-  EXPECT_EQ(mods->at(0).mod_opts, DiskMod::NONE);
+  EXPECT_EQ(mods->at(0).mod_type, DiskMod::kCreateMod);
+  EXPECT_EQ(mods->at(0).mod_opts, DiskMod::kNoneOpt);
   EXPECT_EQ(mods->at(0).path, pathname);
 }
 
@@ -341,7 +341,7 @@ TEST(CmFsOps, OpenCreatTruncNew) {
  * Test that opening a file that exists with the O_CREAT and O_TRUNC flags does
  * result in
  *    - the file path and returned descriptor to be added to the map
- *    - a DiskMod of type DATA_METADATA_MOD to be placed in the list of mods.
+ *    - a DiskMod of type kDataMetadataMod to be placed in the list of mods.
  */
 TEST(CmFsOps, OpenCreatTrunc) {
   const string pathname = "/mnt/snapshot/bleh";
@@ -364,8 +364,8 @@ TEST(CmFsOps, OpenCreatTrunc) {
 
   vector<DiskMod> *mods = ops.GetMods();
   EXPECT_EQ(mods->size(), 1);
-  EXPECT_EQ(mods->at(0).mod_type, DiskMod::DATA_METADATA_MOD);
-  EXPECT_EQ(mods->at(0).mod_opts, DiskMod::TRUNCATE);
+  EXPECT_EQ(mods->at(0).mod_type, DiskMod::kDataMetadataMod);
+  EXPECT_EQ(mods->at(0).mod_opts, DiskMod::kTruncateOpt);
   EXPECT_EQ(mods->at(0).path, pathname);
 }
 
@@ -417,7 +417,7 @@ TEST(CmFsOps, CloseBadFd) {
 
 /*
  * Test that running a checkpoint that succeeds results in
- *    - a DiskMod of type CHECKPOINT to be placed in the list of mods
+ *    - a DiskMod of type kCheckpointMod to be placed in the list of mods
  */
 TEST(CmFsOps, CheckpointGood) {
   MockFsFns mock;
@@ -433,13 +433,13 @@ TEST(CmFsOps, CheckpointGood) {
 
   vector<DiskMod> *mods = ops.GetMods();
   EXPECT_EQ(mods->size(), 1);
-  EXPECT_EQ(mods->at(0).mod_type, DiskMod::CHECKPOINT);
-  EXPECT_EQ(mods->at(0).mod_opts, DiskMod::NONE);
+  EXPECT_EQ(mods->at(0).mod_type, DiskMod::kCheckpointMod);
+  EXPECT_EQ(mods->at(0).mod_opts, DiskMod::kNoneOpt);
 }
 
 /*
  * Test that writing to a file where the write extends the file size results in
- *    - a DiskMod of type DATA_METADATA_MOD to be placed in the list of mods
+ *    - a DiskMod of type kDataMetadataMod to be placed in the list of mods
  *    - the right offset and length in the DiskMod
  *    - the right data in the disk mod
  */
@@ -466,8 +466,8 @@ TEST_P(TestCmFsOpsParameterized, WriteFileExtendZeroOffset) {
 
   vector<DiskMod> *mods = ops.GetMods();
   EXPECT_EQ(mods->size(), 1);
-  EXPECT_EQ(mods->at(0).mod_type, DiskMod::DATA_METADATA_MOD);
-  EXPECT_EQ(mods->at(0).mod_opts, DiskMod::NONE);
+  EXPECT_EQ(mods->at(0).mod_type, DiskMod::kDataMetadataMod);
+  EXPECT_EQ(mods->at(0).mod_opts, DiskMod::kNoneOpt);
   EXPECT_EQ(mods->at(0).path, pathname);
   EXPECT_FALSE(mods->at(0).directory_mod);
   EXPECT_EQ(mods->at(0).file_mod_location, 0);
@@ -477,7 +477,7 @@ TEST_P(TestCmFsOpsParameterized, WriteFileExtendZeroOffset) {
 
 /*
  * Test that writing to a file where the write extends the file size results in
- *    - a DiskMod of type DATA_MOD to be placed in the list of mods
+ *    - a DiskMod of type kDataMod to be placed in the list of mods
  *    - the right offset and length in the DiskMod
  *    - the right data in the disk mod
  */
@@ -504,8 +504,8 @@ TEST_P(TestCmFsOpsParameterized, WriteFileNoExtendZeroOffset) {
 
   vector<DiskMod> *mods = ops.GetMods();
   EXPECT_EQ(mods->size(), 1);
-  EXPECT_EQ(mods->at(0).mod_type, DiskMod::DATA_MOD);
-  EXPECT_EQ(mods->at(0).mod_opts, DiskMod::NONE);
+  EXPECT_EQ(mods->at(0).mod_type, DiskMod::kDataMod);
+  EXPECT_EQ(mods->at(0).mod_opts, DiskMod::kNoneOpt);
   EXPECT_EQ(mods->at(0).path, pathname);
   EXPECT_FALSE(mods->at(0).directory_mod);
   EXPECT_EQ(mods->at(0).file_mod_location, 0);
@@ -515,7 +515,7 @@ TEST_P(TestCmFsOpsParameterized, WriteFileNoExtendZeroOffset) {
 
 /*
  * Test that writing to a file where the write extends the file size results in
- *    - a DiskMod of type DATA_METADATA_MOD to be placed in the list of mods
+ *    - a DiskMod of type kDataMetadataMod to be placed in the list of mods
  *    - the right offset and length in the DiskMod
  *    - the right data in the disk mod
  */
@@ -544,8 +544,8 @@ TEST_P(TestCmFsOpsParameterized, WriteFileExtendNonZeroOffset) {
 
   vector<DiskMod> *mods = ops.GetMods();
   EXPECT_EQ(mods->size(), 1);
-  EXPECT_EQ(mods->at(0).mod_type, DiskMod::DATA_METADATA_MOD);
-  EXPECT_EQ(mods->at(0).mod_opts, DiskMod::NONE);
+  EXPECT_EQ(mods->at(0).mod_type, DiskMod::kDataMetadataMod);
+  EXPECT_EQ(mods->at(0).mod_opts, DiskMod::kNoneOpt);
   EXPECT_EQ(mods->at(0).path, pathname);
   EXPECT_FALSE(mods->at(0).directory_mod);
   EXPECT_EQ(mods->at(0).file_mod_location, start_offset);
@@ -555,7 +555,7 @@ TEST_P(TestCmFsOpsParameterized, WriteFileExtendNonZeroOffset) {
 
 /*
  * Test that writing to a file where the write extends the file size results in
- *    - a DiskMod of type DATA_MOD to be placed in the list of mods
+ *    - a DiskMod of type kDataMod to be placed in the list of mods
  *    - the right offset and length in the DiskMod
  *    - the right data in the disk mod
  */
@@ -584,8 +584,8 @@ TEST_P(TestCmFsOpsParameterized, WriteFileNoExtendNonZeroOffset) {
 
   vector<DiskMod> *mods = ops.GetMods();
   EXPECT_EQ(mods->size(), 1);
-  EXPECT_EQ(mods->at(0).mod_type, DiskMod::DATA_MOD);
-  EXPECT_EQ(mods->at(0).mod_opts, DiskMod::NONE);
+  EXPECT_EQ(mods->at(0).mod_type, DiskMod::kDataMod);
+  EXPECT_EQ(mods->at(0).mod_opts, DiskMod::kNoneOpt);
   EXPECT_EQ(mods->at(0).path, pathname);
   EXPECT_FALSE(mods->at(0).directory_mod);
   EXPECT_EQ(mods->at(0).file_mod_location, start_offset);

@@ -134,11 +134,11 @@ void CmFsOps::CmOpenCommon(const int fd, const string &pathname,
     mod.directory_mod = S_ISDIR(mod.post_mod_stats.st_mode);
 
     if (!exists) {
-      mod.mod_type = DiskMod::CREATE;
-      mod.mod_opts = DiskMod::NONE;
+      mod.mod_type = DiskMod::kCreateMod;
+      mod.mod_opts = DiskMod::kNoneOpt;
     } else {
-      mod.mod_type = DiskMod::DATA_METADATA_MOD;
-      mod.mod_opts = DiskMod::TRUNCATE;
+      mod.mod_type = DiskMod::kDataMetadataMod;
+      mod.mod_opts = DiskMod::kTruncateOpt;
     }
 
     mod.path = pathname;
@@ -182,7 +182,7 @@ off_t CmFsOps::CmLseeks(const int fd, const off_t offset, const int whence) {
 
 int CmFsOps::CmWrite(const int fd, const void *buf, const size_t count) {
   DiskMod mod;
-  mod.mod_opts = DiskMod::NONE;
+  mod.mod_opts = DiskMod::kNoneOpt;
   // Get current file position and size. If stat fails, then assume lseek will
   // fail too and just bail out.
   struct stat pre_stat_buf;
@@ -218,9 +218,9 @@ int CmFsOps::CmWrite(const int fd, const void *buf, const size_t count) {
     }
 
     if (pre_stat_buf.st_size != mod.post_mod_stats.st_size) {
-      mod.mod_type = DiskMod::DATA_METADATA_MOD;
+      mod.mod_type = DiskMod::kDataMetadataMod;
     } else {
-      mod.mod_type = DiskMod::DATA_MOD;
+      mod.mod_type = DiskMod::kDataMod;
     }
 
     if (write_res > 0) {
@@ -285,8 +285,8 @@ int CmFsOps::CmCheckpoint() {
   }
 
   DiskMod mod;
-  mod.mod_type = DiskMod::CHECKPOINT;
-  mod.mod_opts = DiskMod::NONE;
+  mod.mod_type = DiskMod::kCheckpointMod;
+  mod.mod_opts = DiskMod::kNoneOpt;
   mods_.push_back(mod);
 
   return res;
