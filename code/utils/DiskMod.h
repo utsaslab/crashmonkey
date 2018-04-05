@@ -29,6 +29,7 @@ class DiskMod {
     DATA_MOD,           // Only file data changed.
     DATA_MOD_MMAP,      // Only file data changed via mmap.
     REMOVE,             // File or directory removed.
+    CHECKPOINT,         // CrashMonkey Checkpoint() marker.
   };
 
   // TODO(ashmrtn): Figure out how to handle permissions.

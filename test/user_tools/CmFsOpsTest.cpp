@@ -416,6 +416,28 @@ TEST(CmFsOps, CloseBadFd) {
 }
 
 /*
+ * Test that running a checkpoint that succeeds results in
+ *    - a DiskMod of type CHECKPOINT to be placed in the list of mods
+ */
+TEST(CmFsOps, CheckpointGood) {
+  MockFsFns mock;
+  TestCmFsOps ops(&mock);
+
+  EXPECT_CALL(mock, CmCheckpoint()).WillOnce(Return(0));
+
+  const int checkpoint_res = ops.CmCheckpoint();
+  EXPECT_EQ(checkpoint_res, 0);
+
+  unordered_map<int, string> *fd_map = ops.GetFdMap();
+  EXPECT_TRUE(fd_map->empty());
+
+  vector<DiskMod> *mods = ops.GetMods();
+  EXPECT_EQ(mods->size(), 1);
+  EXPECT_EQ(mods->at(0).mod_type, DiskMod::CHECKPOINT);
+  EXPECT_EQ(mods->at(0).mod_opts, DiskMod::NONE);
+}
+
+/*
  * Test that writing to a file where the write extends the file size results in
  *    - a DiskMod of type DATA_METADATA_MOD to be placed in the list of mods
  *    - the right offset and length in the DiskMod

@@ -279,7 +279,17 @@ int CmFsOps::CmRemove(const string &pathname) {
 
 
 int CmFsOps::CmCheckpoint() {
-  return fns_->CmCheckpoint();
+  const int res = fns_->CmCheckpoint();
+  if (res < 0) {
+    return res;
+  }
+
+  DiskMod mod;
+  mod.mod_type = DiskMod::CHECKPOINT;
+  mod.mod_opts = DiskMod::NONE;
+  mods_.push_back(mod);
+
+  return res;
 }
 
 
