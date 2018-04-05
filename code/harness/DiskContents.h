@@ -33,6 +33,8 @@ public:
   void set_md5sum(std::string filepath);
   bool compare_dir_attr(struct dirent* a);
   bool compare_stat_attr(struct stat *a);
+  bool compare_md5sum(std::string a);
+  bool is_regular_file();
 };
 
 class DiskContents {

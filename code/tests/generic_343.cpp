@@ -98,6 +98,7 @@ class Generic343: public BaseTestCase {
   }
 
   virtual int run(int checkpoint) override {
+    int local_checkpoint = 0;
 
   	//X has foo, Y has foo_2 and Z
 
@@ -137,6 +138,10 @@ class Generic343: public BaseTestCase {
     //and that z and foo_2 are only located at directory x.
     if (Checkpoint() < 0){
       return -5;
+    }
+    local_checkpoint += 1;
+    if (local_checkpoint == checkpoint) {
+      return 1;
     }
 
     //Close open files  

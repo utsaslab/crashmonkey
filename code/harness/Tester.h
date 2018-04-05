@@ -176,7 +176,7 @@ class Tester {
 
   std::vector<std::chrono::milliseconds> test_fsck_and_user_test(
       const std::string device_path, const unsigned int last_checkpoint,
-      SingleTestInfo &test_info);
+      SingleTestInfo &test_info, bool automate_check_test);
 
   std::vector<TestSuiteResult> test_results_;
   std::chrono::milliseconds timing_stats[NUM_TIME] =

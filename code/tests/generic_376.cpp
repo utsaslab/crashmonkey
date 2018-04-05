@@ -89,6 +89,7 @@ class Generic376: public BaseTestCase {
   }
 
   virtual int run(int checkpoint) override {
+    int local_checkpoint = 0;
 
     //Rename foo to bar in TEST_DIR
     if (rename(foo_path.c_str(), bar_path.c_str()) < 0) {
@@ -116,6 +117,10 @@ class Generic376: public BaseTestCase {
     //Make a user checkpoint here. Checkpoint must be 1 beyond this point
     if (Checkpoint() < 0){
       return -5;
+    }
+    local_checkpoint += 1;
+    if (local_checkpoint == checkpoint) {
+      return 1;
     }
 
     //Close open files  

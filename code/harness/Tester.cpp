@@ -554,7 +554,7 @@ int Tester::test_run(int checkpoint) {
  */
 vector<milliseconds> Tester::test_fsck_and_user_test(
     const string device_path, const unsigned int last_checkpoint,
-    SingleTestInfo &test_info) {
+    SingleTestInfo &test_info, bool automate_check_test) {
   vector<milliseconds> res(3, duration<int, std::milli>(-1));
   // Try mounting the file system so that the kernel can clean up orphan lists
   // and anything else it may need to so that fsck does a better job later if
@@ -609,7 +609,6 @@ vector<milliseconds> Tester::test_fsck_and_user_test(
         to_string(WEXITSTATUS(test_info.fs_test.fs_check_return));
       return res;
     }
-
     // Fsck (or equivalent) finished without anything major going wrong. Record
     // this and remount the file system so that we're ready to run the user test
     // case.
@@ -626,12 +625,17 @@ vector<milliseconds> Tester::test_fsck_and_user_test(
     mount_end_time = steady_clock::now();
     res.at(2) += duration_cast<milliseconds>(mount_end_time - mount_start_time);
   }
-
   // Begin test case timing.
   time_point<steady_clock> test_case_start_time = steady_clock::now();
   const int test_check_res =
       test_loader.get_instance()->check_test(last_checkpoint,
                                              &test_info.data_test);
+  if (automate_check_test) {
+    if (check_disk_and_snapshot_contents(SNAPSHOT_PATH, last_checkpoint) != 0) {
+      std::cout << "checking disk and snapshot contents failed" << std::endl;
+    }
+  }
+
   time_point<steady_clock> test_case_end_time = steady_clock::now();
   res.at(1) = duration_cast<milliseconds>(
       test_case_end_time - test_case_start_time);
@@ -735,7 +739,7 @@ int Tester::test_check_random_permutations(bool full_bio_replay,
 
     // Test the crash state that was just written out.
     vector<milliseconds> check_res = test_fsck_and_user_test(SNAPSHOT_PATH,
-        test_info.permute_data.last_checkpoint, test_info);
+        test_info.permute_data.last_checkpoint, test_info, false);
     test_info.PrintResults(log);
     current_test_suite_->TallyReorderingResult(test_info);
 
@@ -886,17 +890,10 @@ int Tester::test_check_log_replay(std::ofstream& log, bool automate_check_test) 
     // 3. Check the resulting disk image with fsck and the user test. For now,
     // just ignore the timing data that we can get from this function.
     test_fsck_and_user_test(SNAPSHOT_PATH,
-        test_info.permute_data.last_checkpoint, test_info);
+        test_info.permute_data.last_checkpoint, test_info, automate_check_test);
 
     test_info.PrintResults(log);
     current_test_suite_->TallyTimingResult(test_info);
-
-    // 4. If automated check_test is enabled, compare the disk with the snapshot
-    if (automate_check_test) {
-      if (check_disk_and_snapshot_contents(SNAPSHOT_PATH, last_checkpoint) != 0) {
-        return -1;
-      }
-    }
 
     // Exit loop after doing final test.
     if (log_iter == log_data.end()) {

@@ -66,6 +66,7 @@ class Generic348: public BaseTestCase {
   }
 
   virtual int run(int checkpoint) override {
+    int local_checkpoint = 0;
 
     // Create a symlink for foo1 in TEST_DIR_A/bar1 
     // Case 1 : Parent directory is durably persisted
@@ -108,6 +109,10 @@ class Generic348: public BaseTestCase {
     // If we readlink now, we should see foo1 and foo2 path in bar1 and bar2 respectively
     if (Checkpoint() < 0){
       return -8;
+    }
+    local_checkpoint += 1;
+    if (local_checkpoint == checkpoint) {
+      return 1;
     }
 
     //close
