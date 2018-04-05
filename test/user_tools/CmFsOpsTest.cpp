@@ -370,6 +370,52 @@ TEST(CmFsOps, OpenCreatTrunc) {
 }
 
 /*
+ * Test that closing a valid file that was previously opened results in
+ *    - the file path and returned descriptor being removed from the map
+ */
+TEST(CmFsOps, CloseGoodFd) {
+  const string pathname = "/mnt/snapshot/bleh";
+  const unsigned int expected_fd = 1;
+
+  MockFsFns mock;
+  TestCmFsOps ops(&mock);
+  ops.AddFdMapping(expected_fd, pathname);
+
+  EXPECT_CALL(mock, FnClose(expected_fd)).WillOnce(Return(0));
+
+  const int close_res = ops.CmClose(expected_fd);
+  EXPECT_EQ(close_res, 0);
+
+  unordered_map<int, string> *fd_map = ops.GetFdMap();
+  EXPECT_TRUE(fd_map->empty());
+
+  vector<DiskMod> *mods = ops.GetMods();
+  EXPECT_TRUE(mods->empty());
+}
+
+/*
+ * Test that closing an invalid file does not result in
+ *    - a segfault or other crash
+ */
+TEST(CmFsOps, CloseBadFd) {
+  const unsigned int expected_fd = 1;
+
+  MockFsFns mock;
+  TestCmFsOps ops(&mock);
+
+  EXPECT_CALL(mock, FnClose(expected_fd)).WillOnce(Return(-1));
+
+  const int close_res = ops.CmClose(expected_fd);
+  EXPECT_EQ(close_res, -1);
+
+  unordered_map<int, string> *fd_map = ops.GetFdMap();
+  EXPECT_TRUE(fd_map->empty());
+
+  vector<DiskMod> *mods = ops.GetMods();
+  EXPECT_TRUE(mods->empty());
+}
+
+/*
  * Test that writing to a file where the write extends the file size results in
  *    - a DiskMod of type DATA_METADATA_MOD to be placed in the list of mods
  *    - the right offset and length in the DiskMod
