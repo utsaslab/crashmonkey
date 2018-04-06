@@ -271,7 +271,7 @@ def isBugWorkload(opList, paramList, syncList):
                 break
     
         if flag == 1:
-            print 'Found match to Bug # ', i+1, ' : '
+            print 'Found match to Bug # ', i+1, ' : in file # ' , global_count
             print 'Length of seq : ',  len(expected_sequence[i])
             print 'Expected sequence = ' , expected_sequence[i]
             print 'Expected sync sequence = ', expected_sync_sequence[i]
@@ -301,6 +301,11 @@ def insertOpen(file_name, open_dir_map, open_file_map, file_length_map, modified
     elif file_name in DirOptions or file_name in SecondDirOptions:
         open_dir_map[file_name] = 1
     return ('open', file_name)
+
+def insertMkdir(file_name, open_dir_map, open_file_map, file_length_map, modified_pos):
+    if file_name in DirOptions or file_name in SecondDirOptions:
+        open_dir_map[file_name] = 0
+    return ('mkdir', file_name)
 
 def insertClose(file_name, open_dir_map, open_file_map, file_length_map, modified_pos):
     if file_name in FileOptions or file_name in SecondFileOptions:
@@ -336,11 +341,37 @@ def checkDirDep(current_sequence, pos, modified_sequence, modified_pos, open_dir
         print 'Invalid param list for mkdir'
     
     #Either open or closed doesn't matter. File should not exist at all
-    if file_name in open_dir_map:
+    if file_name in open_dir_map and file_name != 'test':
         #Insert dependency before the creat command
         modified_sequence.insert(modified_pos, insertRmdir(file_name, open_dir_map, open_file_map, file_length_map, modified_pos))
         modified_pos += 1
             
+    return modified_pos
+
+
+def checkParentExistsDep(current_sequence, pos, modified_sequence, modified_pos, open_dir_map, open_file_map, file_length_map):
+    file_names = current_sequence[pos][1]
+    if isinstance(file_names, basestring):
+        file_name = file_names
+        #Parent dir doesn't exist
+        if Parent(file_name) == 'A' and Parent(file_name) not in open_dir_map:
+            modified_sequence.insert(modified_pos, insertMkdir('A', open_dir_map, open_file_map, file_length_map, modified_pos))
+            modified_pos += 1
+
+    else:
+        file_name = file_names[0]
+        file_name2 = file_names[1]
+        
+        #Parent dir doesn't exist
+        if Parent(file_name) == 'A' and Parent(file_name) not in open_dir_map:
+            modified_sequence.insert(modified_pos, insertMkdir('A', open_dir_map, open_file_map, file_length_map, modified_pos))
+            modified_pos += 1
+
+        #Parent dir doesn't exist
+        if Parent(file_name2) == 'A' and Parent(file_name2) not in open_dir_map:
+            modified_sequence.insert(modified_pos, insertMkdir('A', open_dir_map, open_file_map, file_length_map, modified_pos))
+            modified_pos += 1
+                
     return modified_pos
 
 
@@ -352,7 +383,13 @@ def checkExistsDep(current_sequence, pos, modified_sequence, modified_pos, open_
     else:
         file_name = file_names[0]
     
-    # Because rename, link all require only the old path to exist
+    # If we are trying to fsync a dir, ensure it exists
+    if file_name in DirOptions or file_name in SecondDirOptions:
+        if file_name not in open_dir_map:
+            modified_sequence.insert(modified_pos, insertMkdir(file_name, open_dir_map, open_file_map, file_length_map, modified_pos))
+            modified_pos += 1
+    
+
 
     if file_name not in open_file_map or open_file_map[file_name] == 0:
         #Insert dependency - open before the command
@@ -406,7 +443,11 @@ def satisfyDep(current_sequence, pos, modified_sequence, modified_pos, open_dir_
     #    print 'Command = ', command
     
     if command == 'creat' or command == 'mknod':
+        
+        modified_pos = checkParentExistsDep(current_sequence, pos, modified_sequence, modified_pos, open_dir_map, open_file_map, file_length_map)
+        
         modified_pos = checkCreatDep(current_sequence, pos, modified_sequence, modified_pos, open_dir_map, open_file_map, file_length_map)
+        
         file = current_sequence[pos][1]
         open_file_map[file] = 1
     
@@ -418,6 +459,8 @@ def satisfyDep(current_sequence, pos, modified_sequence, modified_pos, open_dir_
     elif command == 'falloc':
         file = current_sequence[pos][1][0]
         
+        modified_pos = checkParentExistsDep(current_sequence, pos, modified_sequence, modified_pos, open_dir_map, open_file_map, file_length_map)
+        
         #if file doesn't exist, has to be created and opened
         modified_pos = checkExistsDep(current_sequence, pos, modified_sequence, modified_pos, open_dir_map, open_file_map, file_length_map)
         #Whatever the op is, let's ensure file size is non zero
@@ -427,6 +470,8 @@ def satisfyDep(current_sequence, pos, modified_sequence, modified_pos, open_dir_
     elif command == 'write' or command == 'dwrite':
         file = current_sequence[pos][1][0]
         option = current_sequence[pos][1][1]
+        
+        modified_pos = checkParentExistsDep(current_sequence, pos, modified_sequence, modified_pos, open_dir_map, open_file_map, file_length_map)
         
         #if file doesn't exist, has to be created and opened
         modified_pos = checkExistsDep(current_sequence, pos, modified_sequence, modified_pos, open_dir_map, open_file_map, file_length_map)
@@ -442,6 +487,9 @@ def satisfyDep(current_sequence, pos, modified_sequence, modified_pos, open_dir_
 
     elif command == 'link':
         second_file = current_sequence[pos][1][1]
+        
+        modified_pos = checkParentExistsDep(current_sequence, pos, modified_sequence, modified_pos, open_dir_map, open_file_map, file_length_map)
+        
         modified_pos = checkExistsDep(current_sequence, pos, modified_sequence, modified_pos, open_dir_map, open_file_map, file_length_map)
         #We have created a new file, but it isn't open yet
         open_file_map[second_file] = 0
@@ -450,18 +498,27 @@ def satisfyDep(current_sequence, pos, modified_sequence, modified_pos, open_dir_
         #If the file was open during rename, does the handle now point to new file?
         first_file = current_sequence[pos][1][0]
         second_file = current_sequence[pos][1][1]
+        
+        modified_pos = checkParentExistsDep(current_sequence, pos, modified_sequence, modified_pos, open_dir_map, open_file_map, file_length_map)
+        
         modified_pos = checkExistsDep(current_sequence, pos, modified_sequence, modified_pos, open_dir_map, open_file_map, file_length_map)
         #We have removed the first file, and created a second file
         open_file_map.pop(first_file, None)
         open_file_map[second_file] = 0
 
     elif command == 'symlink':
+        
+        modified_pos = checkParentExistsDep(current_sequence, pos, modified_sequence, modified_pos, open_dir_map, open_file_map, file_length_map)
+        
         #No dependency checks
         pass
     
     elif command == 'remove' or command == 'unlink':
         #Close any open file handle and then unlink
         file = current_sequence[pos][1][0]
+        
+        modified_pos = checkParentExistsDep(current_sequence, pos, modified_sequence, modified_pos, open_dir_map, open_file_map, file_length_map)
+        
         modified_pos = checkExistsDep(current_sequence, pos, modified_sequence, modified_pos,open_dir_map, open_file_map, file_length_map)
         modified_pos = checkClosed(current_sequence, pos, modified_sequence, modified_pos, open_dir_map, open_file_map, file_length_map)
         
@@ -471,11 +528,15 @@ def satisfyDep(current_sequence, pos, modified_sequence, modified_pos, open_dir_
 
     elif command == 'removexattr':
         #Check that file exists
+        modified_pos = checkParentExistsDep(current_sequence, pos, modified_sequence, modified_pos, open_dir_map, open_file_map, file_length_map)
+        
         modified_pos = checkExistsDep(current_sequence, pos, modified_sequence, modified_pos, open_dir_map, open_file_map, file_length_map)
         #setxattr
         modified_pos = checkXattr(current_sequence, pos, modified_sequence, modified_pos, open_dir_map, open_file_map, file_length_map)
     
     elif command == 'fsync' or command == 'fdatasync' or command == 'fsetxattr':
+        modified_pos = checkParentExistsDep(current_sequence, pos, modified_sequence, modified_pos, open_dir_map, open_file_map, file_length_map)
+        
         modified_pos = checkExistsDep(current_sequence, pos, modified_sequence, modified_pos, open_dir_map, open_file_map, file_length_map)
 
     elif command == 'none' or command == 'sync':
@@ -599,7 +660,7 @@ def buildJlang(op_list, length_map):
         command_str = command_str + command + '\ncheckpoint'
 
     if command == 'none':
-        pass
+        command_str = command_str + command
 
     return command_str
 
@@ -621,7 +682,7 @@ def doPermutation(perm):
     log = ', '.join(perm);
     log = `count` + ' : ' + log + '\n'
     count +=1
-    global_count +=1
+#    global_count +=1
     log_file_handle.write(log)
         
     #Now for each of this permutation, find all possible permutation of paramters
@@ -633,7 +694,7 @@ def doPermutation(perm):
         log = '{0}'.format(j);
         log = '\t' + `count_param` + ' : ' + log + '\n'
         count_param += 1
-        global_count +=1
+#        global_count +=1
         log_file_handle.write(log)
             
         #Let's insert fsync combinations here.
@@ -649,7 +710,7 @@ def doPermutation(perm):
         for insSync in range(0, len(syncPermutationsCustom)):
             if int(num_ops) == 1 or int(num_ops) == 2:
                 log = '{0}'.format(syncPermutationsCustom[insSync]);
-                log = '\t\t' + `count_sync` + ' : ' + log + '\n'
+                log = '\t\t File # ' + `global_count` + ' : ' + `count_sync` + ' : ' + log + '\n'
                 log_file_handle.write(log)
             global_count +=1
             count_sync+=1
@@ -666,6 +727,8 @@ def doPermutation(perm):
             open_file_map = {}
             file_length_map = {}
             open_dir_map = {}
+            #test dir exists
+            open_dir_map['test'] = 0
             
             for i in xrange(0, len(seq)):
                 modified_pos = satisfyDep(seq, i, modified_sequence, modified_pos, open_dir_map, open_file_map, file_length_map)
@@ -688,7 +751,7 @@ def doPermutation(perm):
             j_lang_file = 'j-lang' + str(global_count)
             copyfile('code/tests/seq1/j-lang', j_lang_file)
             length_map = {}
-            print j_lang_file
+#            print j_lang_file
             with open(j_lang_file, 'a') as f:
                 run_line = '\n\n# run\n'
                 f.write(run_line)
@@ -739,7 +802,7 @@ def main():
     
     #Print the test setup - just for sanity
     print_setup(parsed_args)
-    
+
     num_ops = parsed_args.sequence_len
 
     for i in xrange(0,len(expected_sequence)):
@@ -802,6 +865,8 @@ def main():
     log_file_handle.write(log)
 
     log_file_handle.close()
+
+    subprocess.call('mv j-lang* code/tests/seq1/j-lang-files/', shell = True)
 
 
 if __name__ == '__main__':

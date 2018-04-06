@@ -81,6 +81,22 @@ def updateDefineMap(index_map, num):
     index_map['define'] += num
 
 
+
+def insertDeclare(line, file, index_map):
+    
+    with open(file, 'r+') as declare:
+        contents = declare.readlines()
+
+        updateRunMap(index_map, 1)
+        
+        to_insert = '\t\t\t\tint ' + line + ' = 0 ;\n'
+        contents.insert(index_map['run'], to_insert)
+
+        declare.seek(0)
+        declare.writelines(contents)
+        declare.close()
+
+
 # Add the 'line' which declares a file/dir used in the workload into the 'file'
 # at position specified in the 'index_map'
 def insertDefine(line, file, index_map):
@@ -97,7 +113,11 @@ def insertDefine(line, file, index_map):
         else:
             file_str = line.split('/')[-1]
         
-        to_insert = '\t\t\t\t' + file_str + '_path = mnt_dir_' + ' + "/' + line + '";\n'
+        if file_str == 'test':
+            to_insert = '\t\t\t\t' + file_str + '_path = mnt_dir_ ;\n'
+        else:
+            to_insert = '\t\t\t\t' + file_str + '_path = mnt_dir_' + ' + "/' + line + '";\n'
+        
         contents.insert(index_map['setup'], to_insert)
         
         #Initialize paths in run phase
@@ -109,7 +129,10 @@ def insertDefine(line, file, index_map):
         else:
             file_str = line.split('/')[-1]
 
-        to_insert = '\t\t\t\t' + file_str + '_path =  mnt_dir_' + ' + "/' + line + '";\n'
+        if file_str == 'test':
+            to_insert = '\t\t\t\t' + file_str + '_path = mnt_dir_ ;\n'
+        else:
+            to_insert = '\t\t\t\t' + file_str + '_path =  mnt_dir_' + ' + "/' + line + '";\n'
         contents.insert(index_map['run'], to_insert)
         
         #Initialize paths in check phase
@@ -121,7 +144,10 @@ def insertDefine(line, file, index_map):
         else:
             file_str = line.split('/')[-1]
 
-        to_insert = '\t\t\t\t' + file_str + '_path =  mnt_dir_' + ' + "/' + line + '";\n'
+        if file_str == 'test':
+            to_insert = '\t\t\t\t' + file_str + '_path = mnt_dir_ ;\n'
+        else:
+            to_insert = '\t\t\t\t' + file_str + '_path =  mnt_dir_' + ' + "/' + line + '";\n'
         contents.insert(index_map['check'], to_insert)
         
         #Update defines portion
@@ -256,9 +282,20 @@ def insertLink(contents, option, line, index_map, method):
         updateRunMap(index_map, 4)
 
 
+#def insertCheckpoint(contents, line, index_map, method):
+#    
+#    to_insert = '\n\t\t\t\tif ( Checkpoint() < 0){ \n\t\t\t\t\treturn -1;\n\t\t\t\t}\n\t\t\t\tlocal_checkpoint += 1; \n\t\t\t\tif (local_checkpoint == checkpoint) { \n\t\t\t\t\treturn 1;\n\t\t\t\t}\n\n'
+#    
+#    if method == 'setup':
+#        contents.insert(index_map['setup'], to_insert)
+#        updateSetupMap(index_map, 8)
+#    else:
+#        contents.insert(index_map['run'], to_insert)
+#        updateRunMap(index_map, 8)
+
 def insertCheckpoint(contents, line, index_map, method):
     
-    to_insert = '\n\t\t\t\tif ( Checkpoint() < 0){ \n\t\t\t\t\treturn -1;\n\t\t\t\t}\n\n'
+    to_insert = '\n\t\t\t\tif ( Checkpoint() < 0){ \n\t\t\t\t\treturn -1;\n\t\t\t\t}\n\t\t\t\tlocal_checkpoint += 1; \n\t\t\t\tif (local_checkpoint == checkpoint) { \n\t\t\t\t\treturn 1;\n\t\t\t\t}\n\n'
     
     if method == 'setup':
         contents.insert(index_map['setup'], to_insert)
@@ -453,6 +490,15 @@ def insertFunctions(line, file, index_map, method):
             option = line.split(' ')[0]
             insertWrite(contents, option, line, index_map, method)
 
+        elif line.split(' ')[0] == 'none':
+            if method == 'setup':
+                updateSetupMap(index_map, 1)
+            else:
+                updateRunMap(index_map, 1)
+            #we know this can be only in run
+            contents.insert(index_map['run'], '\t\t\t\t return 1;\n')
+            updateRunMap(index_map, -1)
+
         insert.seek(0)
         insert.writelines(contents)
         insert.close()
@@ -484,16 +530,16 @@ def insertFunctions(line, file, index_map, method):
 def main():
     
     #open log file
-    log_file = time.strftime('%Y%m%d_%H%M%S') + '-workloadGen.log'
-    log_file_handle = open(log_file, 'w')
+#    log_file = time.strftime('%Y%m%d_%H%M%S') + '-workloadGen.log'
+#    log_file_handle = open(log_file, 'w')
 
     #Parse input args
     parsed_args = build_parser().parse_args()
 
     #Print the test setup - just for sanity
     # base_test = 'code/tests/base_test.cpp'
-    print_setup(parsed_args)
-    
+#    print_setup(parsed_args)
+
     
     #check if test file exists
     if not os.path.exists(parsed_args.test_file) or not os.path.isfile(parsed_args.test_file):
@@ -525,7 +571,7 @@ def main():
                 if line.split(' ')[2] == 'setup()':
                     index_map['setup'] = index
             elif line.find('run') != -1:
-                if line.split(' ')[2] == 'run()':
+                if line.split(' ')[2] == 'run(':
                     index_map['run'] = index
             elif line.find('check_test') != -1:
                 if line.split(' ')[2] == 'check_test(':
@@ -575,7 +621,9 @@ def main():
 
     val = 0
     new_file = test_file + "_" + parsed_args.output_name + ".cpp"
+    new_file = parsed_args.target_path + new_file
     copyfile(base_file, new_file)
+
     new_index_map = index_map.copy()
 #        log = ' ,'.join(permutation);
 #        log = `val` + ' : ' + log + '\n'
@@ -599,6 +647,9 @@ def main():
             
             if method == 'define':
                 insertDefine(line, new_file, new_index_map)
+            
+            elif method == 'declare':
+                insertDeclare(line, new_file, new_index_map)
 
             elif (method == 'setup' or method == 'run'):
                 op_map={}
@@ -608,7 +659,7 @@ def main():
     val += 1
 
 
-    log_file_handle.close()
+#    log_file_handle.close()
 
 
 if __name__ == '__main__':
