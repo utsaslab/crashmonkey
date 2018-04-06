@@ -776,24 +776,26 @@ int main(int argc, char** argv) {
             return -1;
           }
         }
-        // Map snapshot of the disk to the current checkpoint and unmount the clone
-        test_harness.mapCheckpointToSnapshot(checkpoint);
-        if (checkpoint != 0) {
-          if (test_harness.umount_snapshot() != SUCCESS) {
-            test_harness.cleanup_harness();
-            return -1;
+        if (automate_check_test) {
+          // Map snapshot of the disk to the current checkpoint and unmount the clone
+          test_harness.mapCheckpointToSnapshot(checkpoint);
+          if (checkpoint != 0) {
+            if (test_harness.umount_snapshot() != SUCCESS) {
+              test_harness.cleanup_harness();
+              return -1;
+            }
           }
-        }
-        // get a new diskclone and mount it for next the checkpoint
-        test_harness.getNewDiskClone(checkpoint);
-        if (!last_checkpoint) {
-          if (test_harness.mount_snapshot() != SUCCESS) {
-            test_harness.cleanup_harness();
-            return -1;
+          // get a new diskclone and mount it for next the checkpoint
+          test_harness.getNewDiskClone(checkpoint);
+          if (!last_checkpoint) {
+            if (test_harness.mount_snapshot() != SUCCESS) {
+              test_harness.cleanup_harness();
+              return -1;
+            }
           }
         }
         // reset the snapshot path if we completed all the executions
-        if (last_checkpoint) {
+        if (automate_check_test && last_checkpoint) {
           test_harness.getCompleteRunDiskClone();
         }
         // Increment the checkpoint at which run exits
