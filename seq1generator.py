@@ -487,7 +487,121 @@ def satisfyDep(current_sequence, pos, modified_sequence, modified_pos, open_dir_
     return modified_pos
 
 
+def buildJlang(op_list, length_map):
+    flat_list = list()
+    if not isinstance(op_list, basestring):
+        for sublist in op_list:
+            if not isinstance(sublist, basestring):
+                for item in sublist:
+                    flat_list.append(item)
+            else:
+                flat_list.append(sublist)
+    else:
+        flat_list.append(op_list)
 
+    command_str = ''
+    command = flat_list[0]
+    if command == 'open':
+        file = flat_list[1]
+        if file in DirOptions or file in SecondDirOptions:
+            command_str = command_str + 'opendir ' + file.replace('/','') + ' 0777'
+        else:
+            command_str = command_str + 'open ' + file.replace('/','') + ' O_RDWR|O_CREAT 0777'
+
+    if command == 'creat':
+        file = flat_list[1]
+        command_str = command_str + 'open ' + file.replace('/','') + ' O_RDWR|O_CREAT 0777'
+
+    if command == 'mkdir':
+        file = flat_list[1]
+        command_str = command_str + 'mkdir ' + file.replace('/','') + ' 0777'
+
+    if command == 'mknod':
+        file = flat_list[1]
+        command_str = command_str + 'mknod ' + file.replace('/','') + ' TEST_FILE_PERMS|S_IFCHR|S_IFBLK' + ' 0'
+
+    if command == 'falloc':
+        file = flat_list[1]
+        option = flat_list[2]
+        write_op = flat_list[3]
+        command_str = command_str + 'fallocate ' + file.replace('/','') + ' ' + str(option) + ' '
+        if write_op == 'append':
+            off = str(length_map[file])
+            len = '4096'
+            length_map[file] += 4096
+        elif write_op == 'overlap_aligned':
+            off = '0'
+            len = '4096'
+        else:
+            off = '1000'
+            len = '3000'
+
+        command_str = command_str + off + ' ' + len
+
+    if command == 'write':
+        file = flat_list[1]
+        write_op = flat_list[2]
+        command_str = command_str + 'write ' + file.replace('/','') + ' '
+        if write_op == 'append':
+            len = '4096'
+            if file not in length_map:
+                length_map[file] = 0
+                off = '0'
+            else:
+                off = str(length_map[file])
+            
+            length_map[file] += 4096
+
+        elif write_op == 'overlap_aligned':
+            off = '0'
+            len = '4096'
+
+        else:
+            off = '1000'
+            len = '3000'
+
+        command_str = command_str + off + ' ' + len
+
+    if command == 'dwrite':
+        file = flat_list[1]
+        write_op = flat_list[2]
+        command_str = command_str + 'dwrite ' + file.replace('/','') + ' '
+        
+        if write_op == 'append':
+            len = '4096'
+            if file not in length_map:
+                length_map[file] = 0
+                off = '0'
+            else:
+                off = str(length_map[file])
+            length_map[file] += 4096
+    
+        elif write_op == 'overlap':
+            off = '0'
+            len = '4096'
+
+        command_str = command_str + off + ' ' + len
+
+    if command == 'link' or command =='rename' or command == 'symlink':
+        file1 = flat_list[1]
+        file2 = flat_list[2]
+        command_str = command_str + command + ' ' + file1.replace('/','') + ' ' + file2.replace('/','')
+
+    if command == 'unlink'or command == 'remove' or command == 'rmdir' or command == 'close' or command == 'fsetxattr' or command == 'removexattr':
+        file = flat_list[1]
+        command_str = command_str + command + ' ' + file.replace('/','')
+
+    if command == 'fsync' or command =='fdatasync':
+        file = flat_list[1]
+        command_str = command_str + command + ' ' + file.replace('/','') + '\ncheckpoint'
+
+    if command == 'sync':
+        command_str = command_str + command + '\ncheckpoint'
+
+    if command == 'none':
+        pass
+
+    return command_str
 
 
 
@@ -543,9 +657,10 @@ def doPermutation(perm):
             #merge the lists here :
             seq.append(perm + j )
             seq.append(syncPermutationsCustom[insSync][0])
-#            print '\nCurrent Sequence = ' , seq
-            log = '\t\t\tCurrent Sequence = {0}'.format(seq);
-            log_file_handle.write(log)
+            
+#            log = '\t\t\tCurrent Sequence = {0}'.format(seq);
+#            log_file_handle.write(log)
+
             modified_pos = 0
             modified_sequence = list(seq)
             open_file_map = {}
@@ -566,11 +681,31 @@ def doPermutation(perm):
                 if open_dir_map[file_name] == 1:
                     modified_sequence.insert(modified_pos, insertClose(file_name, open_dir_map, open_file_map, file_length_map, modified_pos))
                     modified_pos += 1
+             
+             
+             
+             #Now build the j-lang file
+            j_lang_file = 'j-lang' + str(global_count)
+            copyfile('code/tests/seq1/j-lang', j_lang_file)
+            length_map = {}
+            print j_lang_file
+            with open(j_lang_file, 'a') as f:
+                run_line = '\n\n# run\n'
+                f.write(run_line)
 
-#            print 'Modified sequence = ' , modified_sequence
-            log = '\t\t\tModified sequence = {0}\n'.format(modified_sequence);
-            log_file_handle.write(log)
+                for insert in xrange(0, len(modified_sequence)):
+                    cur_line = buildJlang(modified_sequence[insert], length_map)
+                    cur_line_log = '{0}'.format(cur_line) + '\n'
+                    f.write(cur_line_log)
+
+            f.close()
             
+            exec_command = 'python workload_seq1.py -b code/tests/seq1/base.cpp -t ' + j_lang_file + ' -p code/tests/seq1/ -o ' + str(global_count)
+            subprocess.call(exec_command, shell=True)
+             
+#            log = '\t\t\tModified sequence = {0}\n'.format(modified_sequence);
+#            log_file_handle.write(log)
+
             isBugWorkload(permutations[count-1], j, syncPermutationsCustom[insSync])
 
 global_count = 0
