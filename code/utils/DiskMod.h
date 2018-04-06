@@ -71,6 +71,11 @@ class DiskMod {
   uint64_t file_mod_len;
   std::string directory_added_entry;
 
+  /*
+   * Zeros out all fields in the DiskMod.
+   */
+  void Reset();
+
  private:
   /*
    * Returns the number of bytes in the DiskMod in serialized form.
@@ -99,7 +104,7 @@ class DiskMod {
    * Deserialize a single DiskMod. Returns 0 on success, a value < 0 on failure.
    * On success, the DiskMod res is also populated with the deserialized values.
    */
-  static int Deserialize(const int fd, DiskMod &res);
+  static int Deserialize(std::shared_ptr<char> data, DiskMod &res);
 };
 
 }  // namespace utils

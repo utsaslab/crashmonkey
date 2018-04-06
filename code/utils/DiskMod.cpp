@@ -157,8 +157,95 @@ int DiskMod::SerializeDirectoryMod(char *buf, const unsigned int buf_offset,
   assert(0 && "Not implemented");
 }
 
-int DiskMod::Deserialize(const int fd, DiskMod &res) {
+int DiskMod::Deserialize(shared_ptr<char> data, DiskMod &res) {
+  res.Reset();
+
+  // Skip the first uint64 which is the size of this region. This is a blind
+  // deserialization of the object!
+  char *data_ptr = data.get();
+  data_ptr += sizeof(uint64_t);
+
+  uint16_t mod_type;
+  uint16_t mod_opts;
+  memcpy(&mod_type, data_ptr, sizeof(uint16_t));
+  data_ptr += sizeof(uint16_t);
+  mod_type = be64toh(mod_type);
+  res.mod_type = (DiskMod::ModType) mod_type;
+
+  memcpy(&mod_opts, data_ptr, sizeof(uint16_t));
+  data_ptr += sizeof(uint16_t);
+  mod_opts = be64toh(mod_opts);
+  res.mod_opts = (DiskMod::ModOpts) mod_opts;
+
+  if (res.mod_type == DiskMod::kCheckpointMod) {
+    // No more left to do here.
+    return 0;
+  }
+
+  // Small buffer to read characters into so we aren't adding to a string one
+  // character at a time until the end of the string.
+  const unsigned int tmp_size = 128;
+  char tmp[tmp_size];
+  memset(tmp, 0, tmp_size);
+  unsigned int chars_read = 0;
+  while (data_ptr[0] != '\0') {
+    // We still haven't seen a null terminator, so read another character.
+    tmp[chars_read] = data_ptr[0];
+    ++chars_read;
+    if (chars_read == tmp_size - 1) {
+      // Fall into this at one character short so that we have an automatic null
+      // terminator
+      res.path += tmp;
+      chars_read = 0;
+      // Required because we just add the char[] to the string and we don't want
+      // extra junk. An alternative would be to make sure you always had a null
+      // terminator the character after the one that was just assigned.
+      memset(tmp, 0, tmp_size);
+    }
+    ++data_ptr;
+  }
+  // Move past the null terminating character.
+  ++data_ptr;
+
+  uint8_t dir_mod = data_ptr[0];
+  ++data_ptr;
+  res.directory_mod = (bool) dir_mod;
+
+  uint64_t file_mod_location;
+  uint64_t file_mod_len;
+  memcpy(&file_mod_location, data_ptr, sizeof(uint64_t));
+  data_ptr += sizeof(uint64_t);
+  file_mod_location = be64toh(file_mod_location);
+  res.file_mod_location = file_mod_location;
+
+  memcpy(&file_mod_len, data_ptr, sizeof(uint64_t));
+  data_ptr += sizeof(uint64_t);
+  file_mod_len = be64toh(file_mod_len);
+  res.file_mod_len = file_mod_len;
+
+  if (res.file_mod_len > 0) {
+    // Read the data for this mod.
+    res.file_mod_data.reset(new (std::nothrow) char[res.file_mod_len],
+        [](char *c) {delete[] c;});
+    if (res.file_mod_data.get() == nullptr) {
+      return -1;
+    }
+    memcpy(res.file_mod_data.get(), data_ptr, res.file_mod_len);
+  }
+
   return 0;
+}
+
+void DiskMod::Reset() {
+  path.clear();
+  mod_type = kCreateMod;
+  mod_opts = kNoneOpt;
+  memset(&post_mod_stats, 0, sizeof(struct stat));
+  directory_mod = false;
+  file_mod_data.reset();
+  file_mod_location = 0;
+  file_mod_len = 0;
+  directory_added_entry.clear();
 }
 
 }  // namespace utils
