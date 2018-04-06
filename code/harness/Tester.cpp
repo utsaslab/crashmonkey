@@ -163,6 +163,7 @@ int Tester::clone_device_restore(int snapshot_fd, bool reread) {
 }
 
 int Tester::mount_device_raw(const char* opts) {
+  std::cout << __func__ << " " << device_mount << std::endl;
   if (device_mount.empty()) {
     return MNT_BAD_DEV_ERR;
   }
@@ -170,6 +171,7 @@ int Tester::mount_device_raw(const char* opts) {
 }
 
 int Tester::mount_wrapper_device(const char* opts) {
+  std::cout << __func__ << " " << MNT_WRAPPER_DEV_PATH << std::endl;
   // TODO(ashmrtn): Make some sort of boolean that tracks if we should use the
   // first parition or not?
   string dev(MNT_WRAPPER_DEV_PATH);
@@ -178,6 +180,7 @@ int Tester::mount_wrapper_device(const char* opts) {
 }
 
 int Tester::mount_device(const char* dev, const char* opts) {
+  std::cout << __func__ << " " << dev << " " << MNT_MNT_POINT << std::endl;
   if (mount(dev, MNT_MNT_POINT, fs_type.c_str(), 0, (void*) opts) < 0) {
     disk_mounted = false;
     return MNT_MNT_ERR;
@@ -187,6 +190,7 @@ int Tester::mount_device(const char* dev, const char* opts) {
 }
 
 int Tester::umount_device() {
+  std::cout << __func__ << " " << MNT_MNT_POINT << std::endl;
   if (disk_mounted) {
     if (umount(MNT_MNT_POINT) < 0) {
       disk_mounted = true;
@@ -198,6 +202,7 @@ int Tester::umount_device() {
 }
 
 int Tester::mount_snapshot() {
+  std::cout << __func__ << " " << SNAPSHOT_PATH << " " << MNT_MNT_POINT << std::endl;
   if (mount(SNAPSHOT_PATH, MNT_MNT_POINT, fs_type.c_str(), 0, NULL) < 0) {
     return MNT_MNT_ERR;
   }
@@ -205,6 +210,7 @@ int Tester::mount_snapshot() {
 }
 
 int Tester::umount_snapshot() {
+  std::cout << __func__ << MNT_MNT_POINT << std::endl;
   if (umount(MNT_MNT_POINT) < 0) {
     return MNT_UMNT_ERR;
   }

@@ -143,7 +143,7 @@ int DiskContents::mount_disk() {
     return -1;
   }
   // Mount the disk
-  if (mount(disk_path, mount_point, fs_type, 0, NULL) < 0) {
+  if (mount(disk_path, mount_point, fs_type, MS_RDONLY, NULL) < 0) {
     return -1;
   }
   // sleep after mount
@@ -182,6 +182,7 @@ int DiskContents::unmount_and_delete_mount_point() {
 void DiskContents::get_contents(const char* path) {
   DIR *directory;
   struct dirent *dir_entry;
+  system("hexdump -C /dev/cow_ram_snapshot2_0 >> hexdump_out");
   // open both the directories
   if (!(directory = opendir(path))) {
     return;
@@ -246,6 +247,10 @@ void DiskContents::compare_disk_contents(DiskContents &compare_disk, std::ofstre
   if (compare_disk.mount_disk() != 0) {
     std::cout << "Mounting " << compare_disk.disk_path << " failed" << std::endl;
   }
+
+  system("cat /etc/mtab >> bleh");
+  system("echo \"\n\" >> bleh");
+
   compare_disk.get_contents(compare_disk.get_mount_point());
   for (auto i : compare_disk.contents) {
     std::cout << i.first << std::endl;

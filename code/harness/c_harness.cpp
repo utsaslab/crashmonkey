@@ -807,6 +807,8 @@ int main(int argc, char** argv) {
       } while (!last_checkpoint && automate_check_test);
     }
 
+    system("cat /etc/mtab >> bleh");
+    system("echo \"c_harness\n\" >> bleh");
 
     /***************************************************************************
      * Worload complete, Clean up things and end logging.
