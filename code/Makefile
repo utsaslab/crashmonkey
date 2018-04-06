@@ -116,6 +116,7 @@ $(BUILD_DIR)/harness/%.o: \
 	$(GPP) -std=c++11 $^ -c -o $@
 
 $(BUILD_DIR)/c_harness: \
+	    harness/DiskContents.cpp \
 		harness/c_harness.cpp \
 		harness/Tester.cpp \
 		$(BUILD_DIR)/harness/FsSpecific.o \

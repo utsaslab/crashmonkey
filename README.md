@@ -5,7 +5,7 @@ CrashMonkey is a file-system agnostic testing framework for file-system consiste
 
 1. file-system agnostic kernel module for bio logging and disk snapshotting
 1. user space test harness which coordinates everything
-1. user space, user defined test cases which specify the workload to be tested and, optionally, data consistency tests to run on each generated crash state.
+1. user space, user defined, test cases which specify the workload to be tested and, optionally, data consistency tests to run on each generated crash state.
 
 The HotStorage'17 paper *CrashMonkey: A Framework to Automatically Test File-System Crash Consistency* has a more detailed explanation of the internals of CrashMonkey. [Paper PDF]( http://www.cs.utexas.edu/~vijay/papers/hotstorage17-crashmonkey.pdf), [Slides](http://www.cs.utexas.edu/~vijay/papers/hotstorage17-crashmonkey-slides.pdf), [Bibtex](http://www.cs.utexas.edu/~vijay/bibtex/hotstorage17-crashmonkey.bib)  
 
@@ -17,7 +17,7 @@ CrashMonkey also makes use of common Linux file system checker and repair progra
 ### Getting Setup ###
 
 #### Setting Up a VM ####
-The easiest (and recommended) way to start working on (or using) CrashMonkey is to setup a virtual machine and run everything in the VM. This is partly so that any bugs in the kernel module don't bring down your whole system and partly because I just find it easier. In the future I may try to get a Docker running with all the needed packages and files so that things are easy to setup and get running. In the meantime, you should spin up an Ubuntu 14.04 LTS or Ubuntu 16.04.2 LTS VM and work on there. **CrashMonkey is known to work on kernel versions 3.13.0-121-generic and 4.4.0-62-generic.** The Ubuntu VM that you create will also need the following packages to properly build and run CrashMonkey:
+The easiest (and recommended) way to start working on (or using) CrashMonkey is to setup a virtual machine and run everything in the VM. This is partly so that any bugs in the kernel module don't bring down your whole system and partly because I just find it easier. In the future I may try to get a Docker running with all the needed packages and files so that things are easy to setup and get running. In the meantime, you should spin up an Ubuntu 14.04 LTS or Ubuntu 16.04.2 LTS VM and work on there. **CrashMonkey is known to work on kernel versions 3.13.0-121-generic, 4.4.0-62-generic, 4.15.0-041500-generic, and 4.16.0-041600rc7-generic.** The Ubuntu VM that you create will also need the following packages to properly build and run CrashMonkey:
 
 * make
 * git
@@ -26,12 +26,14 @@ The easiest (and recommended) way to start working on (or using) CrashMonkey is 
 * libattr1-dev
 * linux kernel headers
      * install with `sudo apt-get install linux-headers-$(uname -r)`
+* packages for file systems that aren't included on the VM by default, for example:
+     * `btrfs-tools` for btrfs
+     * `xfsprogs` for xfs
+     * `f2fs-tools` for f2fs
 
 Furthermore, the VM should have enough disk space to build and compile CrashMonkey as well as enough RAM to run any tests you want. I mention RAM because CrashMonkey uses a RAM block device during its tests, so you will need to give it at least as much RAM as the largest test you plan on running. For small tests, a 20 GB hard drive for the Ubuntu install and also all other files (I'm lazy and don't feel like trimming it down more than that) and 2-4 GB of RAM should be more than enough.
 
-For instructions on setting up a VM for CrashMonkey using `vmbuilder`, see [here](https://github.com/utsaslab/crashmonkey/blob/master/vmsetup.md).
-
-To set CrashMonkey source files into your VM, run`git clone --recursive` CrashMonkey repo into a directory of your choosing.
+To get CrashMonkey source files into your VM, run`git clone --recursive` CrashMonkey repo into a directory of your choosing.
 
 ### Compiling CrashMonkey ###
 CrashMonkey can be built simply by running `make` in the root directory of the
@@ -51,7 +53,7 @@ CrashMonkey has some strange flag values that need cleaned up in future version.
 Until that happens, **don't be worried by the fact that you need the
 `-d /dev/cow_ram0` flag even though that device doesn't exist.** It is a device
 presented by CrashMonkey's cow_brd kernel module and I never got around to
-removing it.
+removing the flag.
 
 #### Running as a Standalone Program ####
 Before running any tests with CrashMonkey, you will have to create a directory
@@ -147,8 +149,6 @@ If you run into system crashes etc. from a buggy CrashMonkey kernel module you m
 
 ### Future Improvements ###
 
-* Rework scripts to setup the VM, install packages, etc
-* Switch to `CMake` or `Bazel` instead of plain, poorly written `Makefiles`
 * Use `gflags` to parse command line flags
     * I need to test if `gflags` can properly pickup and parse flags from dynamically loaded static objects
 * Rework the following portions of the test harness

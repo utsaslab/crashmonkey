@@ -13,7 +13,7 @@ namespace tests {
 class Generic042Base: public BaseTestCase {
  public:
   virtual int setup() override;
-  virtual int run() override;
+  virtual int run(int checkpoint) override;
   virtual int check_test(unsigned int last_checkpoint,
       DataTestResult *test_result) = 0;
 

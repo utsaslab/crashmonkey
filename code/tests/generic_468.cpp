@@ -46,7 +46,8 @@ class EOFBlocksLoss: public BaseTestCase {
     return 0;
   }
 
-  virtual int run() override {
+  virtual int run(int checkpoint) override {
+    int local_checkpoint = 0;
     const int fd_reg = open(kTestFile, O_RDWR);
     if (fd_reg < 0) {
       return -1;
@@ -73,9 +74,13 @@ class EOFBlocksLoss: public BaseTestCase {
 
     if (Checkpoint() < 0){
       return -5;
+    }   
+    close(fd_reg);
+    local_checkpoint += 1;
+    if (local_checkpoint == checkpoint) {
+      return 1;
     }
     
-    close(fd_reg);
     return 0;
   }
 

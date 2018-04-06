@@ -36,7 +36,7 @@
 #define DIRECTORY_PERMS \
   (S_IRUSR | S_IWUSR | S_IRGRP | S_IWGRP | S_IROTH | S_IWOTH)
 
-#define OPTS_STRING "bd:f:e:l:m:np:r:s:t:vFIPS:"
+#define OPTS_STRING "bd:cf:e:l:m:np:r:s:t:vFIPS:"
 
 namespace {
   unsigned int kSocketQueueDepth;
@@ -56,6 +56,7 @@ using fs_testing::utils::communication::SocketMessage;
 
 static const option long_options[] = {
   {"background", no_argument, NULL, 'b'},
+  {"automate_check_test", no_argument, NULL, 'c'},
   {"test-dev", required_argument, NULL, 'd'},
   {"disk_size", required_argument, NULL, 'e'},
   {"flag-device", required_argument, NULL, 'f'},
@@ -87,6 +88,7 @@ int main(int argc, char** argv) {
   string log_file_load("");
   string permuter(PERMUTER_SO_PATH "RandomPermuter.so");
   bool background = false;
+  bool automate_check_test = false;
   bool dry_run = false;
   bool no_lvm = false;
   bool verbose = false;
@@ -106,6 +108,9 @@ int main(int argc, char** argv) {
     switch (c) {
       case 'b':
         background = true;
+        break;
+      case 'c':
+        automate_check_test = true;
         break;
       case 'f':
         flags_dev = string(optarg);
@@ -651,75 +656,159 @@ int main(int argc, char** argv) {
        ************************************************************************/
       cout << "Running test profile" << endl;
       logfile << "Running test profile" << endl;
-      {
-        const pid_t child = fork();
-        if (child < 0) {
-          cerr << "Error spinning off test process" << endl;
-          test_harness.cleanup_harness();
-          return -1;
-        } else if (child != 0) {
-          pid_t status = -1;
-          pid_t wait_res = 0;
-          do {
-            SocketMessage m;
-            SocketError se;
+      bool last_checkpoint = false;
+      int checkpoint = 0;
+      /*************************************************************************
+       * If automated_check_test is enabled, a snapshot is taken at every checkpoint
+       * in the run() workload. The first iteration is the complete execution of run()
+       * and is profiled. Subsequent iterations save snapshots at every checkpoint()
+       * present in the run() workload.
+       ************************************************************************/
+      do {
+        {
+          const pid_t child = fork();
+          if (child < 0) {
+            cerr << "Error spinning off test process" << endl;
+            test_harness.cleanup_harness();
+            return -1;
+          } else if (child != 0) {
+            pid_t status = -1;
+            pid_t wait_res = 0;
+            do {
+              SocketMessage m;
+              SocketError se;
 
-            se = background_com->TryForMessage(&m);
+              se = background_com->TryForMessage(&m);
 
-            if (se == SocketError::kNone) {
-              if (m.type == SocketMessage::kCheckpoint) {
-                if (test_harness.CreateCheckpoint() == SUCCESS) {
-                  if (background_com->SendCommand(
-                          SocketMessage::kCheckpointDone)
+              if (se == SocketError::kNone) {
+                if (m.type == SocketMessage::kCheckpoint) {
+                  if (test_harness.CreateCheckpoint() == SUCCESS) {
+                    if (background_com->SendCommand(
+                            SocketMessage::kCheckpointDone)
+                          != SocketError::kNone) {
+                        // TODO(ashmrtn): Handle better.
+                        cerr << "Error telling user done with checkpoint" << endl;
+                        delete background_com;
+                        test_harness.cleanup_harness();
+                        return -1;
+                    }
+                  } else {
+                    if (background_com->SendCommand(
+                          SocketMessage::kCheckpointFailed)
                         != SocketError::kNone) {
                       // TODO(ashmrtn): Handle better.
-                      cerr << "Error telling user done with checkpoint" << endl;
+                      cerr << "Error telling user checkpoint failed" << endl;
                       delete background_com;
                       test_harness.cleanup_harness();
                       return -1;
+                    }
                   }
                 } else {
                   if (background_com->SendCommand(
-                        SocketMessage::kCheckpointFailed)
+                        SocketMessage::kInvalidCommand)
                       != SocketError::kNone) {
-                    // TODO(ashmrtn): Handle better.
-                    cerr << "Error telling user checkpoint failed" << endl;
+                    cerr << "Error sending response to client" << endl;
                     delete background_com;
                     test_harness.cleanup_harness();
                     return -1;
                   }
                 }
-              } else {
-                if (background_com->SendCommand(
-                      SocketMessage::kInvalidCommand)
-                    != SocketError::kNone) {
-                  cerr << "Error sending response to client" << endl;
-                  delete background_com;
-                  test_harness.cleanup_harness();
-                  return -1;
-                }
+                background_com->CloseClient();
               }
-              background_com->CloseClient();
-            }
-            wait_res = waitpid(child, &status, WNOHANG);
-          } while (wait_res == 0);
-          if (status != 0) {
-            if (WIFEXITED(status) && WEXITSTATUS(status) != 0) {
-              cerr << "Error in test process, exited with status "
-                << WEXITSTATUS(status) << endl;
+              wait_res = waitpid(child, &status, WNOHANG);
+            } while (wait_res == 0);
+            if (WIFEXITED(status) == 0) {
+              cerr << "Error terminating test_run process, status: " << status << endl;
+              test_harness.cleanup_harness();
+              return -1;
             } else {
-              cerr << "Error in test process" << endl;
+              if (WEXITSTATUS(status) == 1) {
+                last_checkpoint = true;
+              } else if (WEXITSTATUS(status) == 0) {
+                if (checkpoint == 0) {
+                  std::cout << "Completely executed run process" << std::endl;
+                } else {
+                  std::cout << "Run process hit checkpoint " << checkpoint << std::endl;
+                }
+              } else {
+                cerr << "Error in test run, exits with status: " << status << std::endl;
+                test_harness.cleanup_harness();
+                return -1;
+              }
             }
+          } else {
+            // Forked process' stuff.
+            return test_harness.test_run(checkpoint);
+          }
+        }
+        system("findmnt /mnt/snapshot");
+        system("tree /mnt/snapshot");
+        // End wrapper logging for profiling the complete execution of run process
+        if (checkpoint == 0) {
+          cout << "Waiting for writeback delay" << endl;
+          logfile << "Waiting for writeback delay" << endl;
+          sleep(WRITE_DELAY);
+
+          cout << "Disabling wrapper device logging" << endl;
+          logfile << "Disabling wrapper device logging" << endl;
+          test_harness.end_wrapper_logging();
+          cout << "Getting wrapper data" << endl;
+          logfile << "Getting wrapper data" << endl;
+          if (test_harness.get_wrapper_log() != SUCCESS) {
             test_harness.cleanup_harness();
             return -1;
           }
-        } else {
-          // Forked process' stuff.
-          return test_harness.test_run();
+
+          cout << "Unmounting wrapper file system after test profiling" << endl;
+          logfile << "Unmounting wrapper file system after test profiling" << endl;
+          if (test_harness.umount_device() != SUCCESS) {
+            cerr << "Error unmounting wrapper file system" << endl;
+            test_harness.cleanup_harness();
+            return -1;
+          }
+
+          cout << "Close wrapper ioctl fd" << endl;
+          logfile << "Close wrapper ioctl fd" << endl;
+          test_harness.put_wrapper_ioctl();
+          cout << "Removing wrapper module from kernel" << endl;
+          logfile << "Removing wrapper module from kernel" << endl;
+          if (test_harness.remove_wrapper() != SUCCESS) {
+            cerr << "Error cleaning up: remove wrapper module" << endl;
+            test_harness.cleanup_harness();
+            return -1;
+          }
         }
-      }
+        if (automate_check_test) {
+          // Map snapshot of the disk to the current checkpoint and unmount the clone
+          test_harness.mapCheckpointToSnapshot(checkpoint);
+          if (checkpoint != 0) {
+            if (test_harness.umount_snapshot() != SUCCESS) {
+              test_harness.cleanup_harness();
+              return -1;
+            }
+          }
+          // get a new diskclone and mount it for next the checkpoint
+          test_harness.getNewDiskClone(checkpoint);
+          if (!last_checkpoint) {
+            if (test_harness.mount_snapshot() != SUCCESS) {
+              test_harness.cleanup_harness();
+              return -1;
+            }
+            system("findmnt /mnt/snapshot");
+            system("tree /mnt/snapshot");
+          }
+        }
+        // reset the snapshot path if we completed all the executions
+        if (automate_check_test && last_checkpoint) {
+          test_harness.getCompleteRunDiskClone();
+        }
+        // Increment the checkpoint at which run exits
+        checkpoint += 1;
+      } while (!last_checkpoint && automate_check_test);
     }
 
+    system("cat /etc/mtab >> bleh");
+    system("echo \"c_harness\n\" >> bleh");
 
     /***************************************************************************
      * Worload complete, Clean up things and end logging.
@@ -727,37 +816,39 @@ int main(int argc, char** argv) {
 
     // Wait a small amount of time for writes to propogate to the block
     // layer and then stop logging writes.
-    cout << "Waiting for writeback delay" << endl;
-    logfile << "Waiting for writeback delay" << endl;
-    sleep(WRITE_DELAY);
+    if (background) {
+      cout << "Waiting for writeback delay" << endl;
+      logfile << "Waiting for writeback delay" << endl;
+      sleep(WRITE_DELAY);
 
-    cout << "Disabling wrapper device logging" << endl;
-    logfile << "Disabling wrapper device logging" << endl;
-    test_harness.end_wrapper_logging();
-    cout << "Getting wrapper data" << endl;
-    logfile << "Getting wrapper data" << endl;
-    if (test_harness.get_wrapper_log() != SUCCESS) {
-      test_harness.cleanup_harness();
-      return -1;
-    }
+      cout << "Disabling wrapper device logging" << endl;
+      logfile << "Disabling wrapper device logging" << endl;
+      test_harness.end_wrapper_logging();
+      cout << "Getting wrapper data" << endl;
+      logfile << "Getting wrapper data" << endl;
+      if (test_harness.get_wrapper_log() != SUCCESS) {
+        test_harness.cleanup_harness();
+        return -1;
+      }
 
-    cout << "Unmounting wrapper file system after test profiling" << endl;
-    logfile << "Unmounting wrapper file system after test profiling" << endl;
-    if (test_harness.umount_device() != SUCCESS) {
-      cerr << "Error unmounting wrapper file system" << endl;
-      test_harness.cleanup_harness();
-      return -1;
-    }
+      cout << "Unmounting wrapper file system after test profiling" << endl;
+      logfile << "Unmounting wrapper file system after test profiling" << endl;
+      if (test_harness.umount_device() != SUCCESS) {
+        cerr << "Error unmounting wrapper file system" << endl;
+        test_harness.cleanup_harness();
+        return -1;
+      }
 
-    cout << "Close wrapper ioctl fd" << endl;
-    logfile << "Close wrapper ioctl fd" << endl;
-    test_harness.put_wrapper_ioctl();
-    cout << "Removing wrapper module from kernel" << endl;
-    logfile << "Removing wrapper module from kernel" << endl;
-    if (test_harness.remove_wrapper() != SUCCESS) {
-      cerr << "Error cleaning up: remove wrapper module" << endl;
-      test_harness.cleanup_harness();
-      return -1;
+      cout << "Close wrapper ioctl fd" << endl;
+      logfile << "Close wrapper ioctl fd" << endl;
+      test_harness.put_wrapper_ioctl();
+      cout << "Removing wrapper module from kernel" << endl;
+      logfile << "Removing wrapper module from kernel" << endl;
+      if (test_harness.remove_wrapper() != SUCCESS) {
+        cerr << "Error cleaning up: remove wrapper module" << endl;
+        test_harness.cleanup_harness();
+        return -1;
+      }
     }
 
     logfile << endl << endl << "Recorded workload:" << endl;
@@ -884,7 +975,7 @@ int main(int argc, char** argv) {
       "Writing data out to each Checkpoint and checking with fsck" << endl;
     logfile << endl << endl <<
       "Writing data out to each Checkpoint and checking with fsck" << endl;
-    test_harness.test_check_log_replay(logfile);
+    test_harness.test_check_log_replay(logfile, automate_check_test);
   }
 
   cout << endl;

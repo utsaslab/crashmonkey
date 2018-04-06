@@ -78,8 +78,8 @@ class Generic034: public BaseTestCase {
     return 0;
   }
 
-  virtual int run() override {
-
+  virtual int run(int checkpoint) override {
+    int local_checkpoint = 0;
 
     //touch TEST_DIR_A/bar 
     const int fd_bar = open(bar_path.c_str(), O_RDWR | O_CREAT, TEST_FILE_PERMS);
@@ -107,6 +107,10 @@ class Generic034: public BaseTestCase {
     //Make a user checkpoint here. Checkpoint must be 1 beyond this point
     if (Checkpoint() < 0){
       return -5;
+    }
+    local_checkpoint += 1;
+    if (local_checkpoint == checkpoint) {
+      return 1;
     }
 
     //Close open files  

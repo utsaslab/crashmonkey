@@ -9,9 +9,9 @@ namespace {
 constexpr char kMkfsStart[] = "mkfs -t ";
 constexpr char kFsckCommand[] = "fsck -T -t ";
 
-constexpr char kExt4RemountOpts[] = "errors=remount-ro";
+constexpr char kExtRemountOpts[] = "errors=remount-ro";
 // Disable lazy init for now.
-constexpr char kExt4MkfsOpts[] =
+constexpr char kExtMkfsOpts[] =
   "-E lazy_itable_init=0,lazy_journal_init=0";
 
 // TODO(ashmrtn): See if we actually want the repair flag or not. The man page
@@ -28,6 +28,10 @@ FsSpecific* GetFsSpecific(std::string &fs_type) {
   // TODO(ashmrtn): Find an elegant way to handle errors.
   if (fs_type.compare(Ext4FsSpecific::kFsType) == 0) {
     return new Ext4FsSpecific();
+  } else if (fs_type.compare(Ext3FsSpecific::kFsType) == 0) {
+    return new Ext3FsSpecific();
+  } else if (fs_type.compare(Ext2FsSpecific::kFsType) == 0) {
+    return new Ext2FsSpecific();
   } else if (fs_type.compare(BtrfsFsSpecific::kFsType) == 0) {
     return new BtrfsFsSpecific();
   } else if (fs_type.compare(F2fsFsSpecific::kFsType) == 0) {
@@ -38,24 +42,32 @@ FsSpecific* GetFsSpecific(std::string &fs_type) {
   return NULL;
 }
 
-/******************************* Ext4 *****************************************/
-// Weird C++11 rule about static constexpr that aren't "simple".
+/******************************* Ext File Systems *****************************/
+constexpr char Ext2FsSpecific::kFsType[];
+Ext2FsSpecific::Ext2FsSpecific() : ExtFsSpecific(Ext2FsSpecific::kFsType) { }
+
+constexpr char Ext3FsSpecific::kFsType[];
+Ext3FsSpecific::Ext3FsSpecific() : ExtFsSpecific(Ext3FsSpecific::kFsType) { }
+
 constexpr char Ext4FsSpecific::kFsType[];
+Ext4FsSpecific::Ext4FsSpecific() : ExtFsSpecific(Ext4FsSpecific::kFsType) { }
 
-string Ext4FsSpecific::GetMkfsCommand(string &device_path) {
-  return string(kMkfsStart) + Ext4FsSpecific::kFsType + " " +
-    kExt4MkfsOpts + " " + device_path;
+ExtFsSpecific::ExtFsSpecific(std::string type) : fs_type_(type) { }
+
+string ExtFsSpecific::GetMkfsCommand(string &device_path) {
+  return string(kMkfsStart) + fs_type_ + " " +
+    kExtMkfsOpts + " " + device_path;
 }
 
-string Ext4FsSpecific::GetPostReplayMntOpts() {
-  return string(kExt4RemountOpts);
+string ExtFsSpecific::GetPostReplayMntOpts() {
+  return string(kExtRemountOpts);
 }
 
-string Ext4FsSpecific::GetFsckCommand(const string &fs_path) {
-  return string(kFsckCommand) + kFsType + " " + fs_path + " -- -y";
+string ExtFsSpecific::GetFsckCommand(const string &fs_path) {
+  return string(kFsckCommand) + fs_type_ + " " + fs_path + " -- -y";
 }
 
-FileSystemTestResult::ErrorType Ext4FsSpecific::GetFsckReturn(
+FileSystemTestResult::ErrorType ExtFsSpecific::GetFsckReturn(
     int return_code) {
   // The following is taken from the specification in man(8) fsck.ext4.
   if ((return_code & 0x8) || (return_code & 0x10) || (return_code & 0x20) ||
@@ -80,7 +92,7 @@ FileSystemTestResult::ErrorType Ext4FsSpecific::GetFsckReturn(
   return FileSystemTestResult::kOther;
 }
 
-string Ext4FsSpecific::GetFsTypeString() {
+string ExtFsSpecific::GetFsTypeString() {
   return string(Ext4FsSpecific::kFsType);
 }
 
