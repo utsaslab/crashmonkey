@@ -652,9 +652,14 @@ def buildJlang(op_list, length_map):
         file = flat_list[1]
         command_str = command_str + command + ' ' + file.replace('/','')
 
-    if command == 'fsync' or command =='fdatasync':
+    if command == 'fsync':
         file = flat_list[1]
         command_str = command_str + command + ' ' + file.replace('/','') + '\ncheckpoint'
+
+    if command =='fdatasync':
+        file = flat_list[1]
+        command_str = command_str + command + ' ' + file.replace('/','')
+
 
     if command == 'sync':
         command_str = command_str + command + '\ncheckpoint'
