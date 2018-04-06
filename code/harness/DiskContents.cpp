@@ -240,6 +240,8 @@ void DiskContents::compare_disk_contents(DiskContents &compare_disk, std::ofstre
     std::cout << i.first << std::endl;
   }
   std::cout << std::endl;
+  system("findmnt /mnt/snapshot");
+  system("tree /mnt/snapshot");
 
   if (compare_disk.mount_disk() != 0) {
     std::cout << "Mounting " << compare_disk.disk_path << " failed" << std::endl;
@@ -249,6 +251,9 @@ void DiskContents::compare_disk_contents(DiskContents &compare_disk, std::ofstre
     std::cout << i.first << std::endl;
   }
   std::cout << std::endl;
+  system("findmnt /mnt/cow_ram_snapshot2_0");
+  system("tree /mnt/cow_ram_snapshot2_0");
+  std::cout << compare_disk.disk_path << std::endl;
 
   // Compare the size of contents
   if (contents.size() != compare_disk.contents.size()) {

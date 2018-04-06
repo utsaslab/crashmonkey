@@ -228,7 +228,7 @@ int Tester::mapCheckpointToSnapshot(int checkpoint) {
 
 int Tester::getNewDiskClone(int checkpoint) {
   string new_snapshot_path;
-  string path = SNAPSHOT_PATH;
+  string path(SNAPSHOT_PATH);
   string device_number = path.substr(path.rfind('_'));
   string snapshot_number = to_string(checkpoint+2);
   new_snapshot_path = "/dev/cow_ram_snapshot";
@@ -658,13 +658,13 @@ vector<milliseconds> Tester::test_fsck_and_user_test(
 }
 
 void Tester::check_disk_and_snapshot_contents(char* disk_path, int last_checkpoint) {
-  std::cout << __func__ << disk_path << std::endl;
   char* snapshot_path = (char *) malloc(sizeof(char)*30);
   strcpy(snapshot_path, checkpointToSnapshot_[last_checkpoint]);
   ofstream diff_file;
   diff_file.open("diff-at-check" + to_string(last_checkpoint),
     std::fstream::out | std::fstream::app);
   const char* type = fs_type.c_str();
+  std::cout << __func__ << disk_path << snapshot_path << std::endl;
   DiskContents disk1(disk_path, type), disk2(snapshot_path, type);
   disk1.compare_disk_contents(disk2, diff_file);
   return;
