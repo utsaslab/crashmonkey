@@ -242,6 +242,10 @@ int Tester::getNewDiskClone(int checkpoint) {
   new_snapshot_path += device_number;
   // Finally set SNAPSHOT_PATH to the new snapshot path
   strcpy(SNAPSHOT_PATH, new_snapshot_path.c_str());
+  // TODO (P.S.) Make it a fs specific command and get it here
+  string command = "yes | btrfstune -u ";
+  command += new_snapshot_path;
+  system(command.c_str());
   return 0;
 }
 
