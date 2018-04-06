@@ -416,6 +416,43 @@ TEST(CmFsOps, CloseBadFd) {
 }
 
 /*
+ * Test that calling write with a returned write(2) value of 0 results in:
+ *    - a DiskMod of type kDataMod placed in the list of mods
+ *    - the resulting DiskMod has no pointer to file data changed
+ */
+TEST(CmFsOps, WriteNoData) {
+  const string pathname = "/mnt/snapshot/bleh";
+  const unsigned int expected_fd = 1;
+  const unsigned int write_size = 512;
+
+  MockFsFns mock;
+  mock.DelegateToFake();
+
+  mock.fake.file_sizes.emplace_back(write_size >> 1);
+  mock.fake.file_sizes.emplace_back(write_size >> 1);
+
+  EXPECT_CALL(mock, FnLseek(expected_fd, 0, SEEK_CUR)).WillOnce(Return(0));
+  EXPECT_CALL(mock, FnWrite(expected_fd, kTestData, kTestDataSize))
+    .WillOnce(Return(0));
+  EXPECT_CALL(mock, FnStat(pathname, NotNull())).Times(2);
+
+  TestCmFsOps ops(&mock);
+  ops.AddFdMapping(expected_fd, pathname);
+
+  ops.CmWrite(expected_fd, kTestData, kTestDataSize);
+
+  vector<DiskMod> *mods = ops.GetMods();
+  EXPECT_EQ(mods->size(), 1);
+  EXPECT_EQ(mods->at(0).mod_type, DiskMod::kDataMod);
+  EXPECT_EQ(mods->at(0).mod_opts, DiskMod::kNoneOpt);
+  EXPECT_EQ(mods->at(0).path, pathname);
+  EXPECT_FALSE(mods->at(0).directory_mod);
+  EXPECT_EQ(mods->at(0).file_mod_location, 0);
+  EXPECT_EQ(mods->at(0).file_mod_len, 0);
+  EXPECT_EQ(mods->at(0).file_mod_data.get(), nullptr);
+}
+
+/*
  * Test that running a checkpoint that succeeds results in
  *    - a DiskMod of type kCheckpointMod to be placed in the list of mods
  */
