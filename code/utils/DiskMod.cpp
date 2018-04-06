@@ -31,33 +31,24 @@ unsigned long long int DiskMod::GetSerializeSize() {
 }
 
 /*
-int DiskMod::Serialize(const int fd,
-    const vector<DiskMod> &to_serialize) {
-  // Move back to the start of the file.
-  int res = lseek(fd, 0, SEEK_SET);
-  if (res < 0) {
-    return res;
-  }
-
-  for (const auto &dm : to_serialize) {
-    const int res = DiskMod::Serialize(fd, dm);
-    if (res < 0) {
-      return res;
-    }
-  }
-
-  return 0;
-}
-
-int DiskMod::Deserialize(const int fd, vector<DiskMod> &res) {
-  res.clear();
-  // Move back to the start of the file.
-  int res = lseek(fd, 0, SEEK_SET);
-  if (res < 0) {
-    return res;
-  }
-}
-*/
+ * The basic serialized format is as follows:
+ *    * uint64_t size of following region in bytes
+ *    * uint16_t mod_type
+ *    * uint16_t mod_opts
+ *    ~~~~~~~~~~~~~~~~~~~~    <-- End of entry if kCheckpointMod.
+ *    * null-terminated string for path the mod refers to (ex. file path)
+ *    * 1-byte directory_mod boolean
+ *    ~~~~~~~~~~~~~~~~~~~~    <-- End of ChangeHeader function data.
+ *    * uint64_t file_mod_location
+ *    * uint64_t file_mod_len
+ *    * <file_mod_len>-bytes of file mod data
+ *
+ * The final three lines of this layout are specific only to modifications on
+ * files. Modifications to directories are not yet supported, though there are
+ * some structures that may be used to help track them.
+ *
+ * All multi-byte data fields in the serialized format use big endian encoding.
+ */
 
 /*
  * Make things miserable on myself, and only store either the directory or the
@@ -70,6 +61,7 @@ shared_ptr<char> DiskMod::Serialize(DiskMod &dm) {
   // Standard code to serialize the front part of the DiskMod.
   // Get a block large enough for this DiskMod.
   const unsigned long long int mod_size = dm.GetSerializeSize();
+  // TODO(ashmrtn): May want to split this if it is very large.
   shared_ptr<char> res_ptr(new (std::nothrow) char[mod_size],
       [](char *c) {delete[] c;});
   char *buf = res_ptr.get();
