@@ -37,7 +37,7 @@ CXXFLAGS += --std=c++11 -g -Wall -Wextra -pthread
 
 # All tests produced by this Makefile.  Remember to add new tests you
 # created to the list.
-TESTS = RandomPermuterTest DiskWriteTest TesterTest CmFsOpsTest
+TESTS = RandomPermuterTest DiskWriteTest DiskModTest TesterTest CmFsOpsTest
 
 # All Google Test headers.  Usually you shouldn't change this
 # definition.
@@ -141,6 +141,19 @@ DiskWriteTest : \
 			gtest_main.a \
 			gmock_main.a \
 			$(CODE_DIR)/utils/utils.cpp
+	$(CXX) $(CPPFLAGS) $(CXXFLAGS) $(GOPTS) $(SYS_HEADERS) -lpthread $^ -o $@
+
+DiskModTest.o : \
+			$(USER_DIR)/utils/DiskModTest.cpp \
+			$(GTEST_HEADERS)
+	$(CXX) $(CPPFLAGS) $(CXXFLAGS) $(GOPTS) $(SYS_HEADERS) \
+		-c $(USER_DIR)/utils/DiskModTest.cpp
+
+DiskModTest : \
+			DiskModTest.o \
+			gtest_main.a \
+			gmock_main.a \
+			$(CODE_DIR)/utils/DiskMod.cpp
 	$(CXX) $(CPPFLAGS) $(CXXFLAGS) $(GOPTS) $(SYS_HEADERS) -lpthread $^ -o $@
 
 CmFsOpsTest.o : $(USER_DIR)/user_tools/CmFsOpsTest.cpp \

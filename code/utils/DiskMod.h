@@ -22,13 +22,10 @@ class DiskMod {
   static std::shared_ptr<char> Serialize(DiskMod &dm);
 
   /*
-   * Deserializes all the DiskMods in the file referenced by fd, assuming that
-   * fd *only* contains DiskMods produced by the Serialize() function.
-   *
-   * Returns 0 on success and a value < 0 on failure. On success, res is filled
-   * with the deserialized DiskMods from the file referenced by fd.
+   * Deserialize a single DiskMod. Returns 0 on success, a value < 0 on failure.
+   * On success, the DiskMod res is also populated with the deserialized values.
    */
-  static int Deserialize(const int fd, std::vector<DiskMod> &res);
+  static int Deserialize(std::shared_ptr<char> data, DiskMod &res);
 
   enum ModType {
     // Changes to directories are implicitly tracked by noting which mods are
@@ -38,7 +35,7 @@ class DiskMod {
     // represented by a mod since it would just be repeating information already
     // available (the parent directory can be deduced by examining the path in
     // the mod of type kCreateMod).
-    kCreateMod,         // File or directory created.
+    kCreateMod = 0,     // File or directory created.
     kDataMetadataMod,   // Both data and metadata changed (ex. extending file).
     kMetadataMod,       // Only file metadata changed.
     kDataMod,           // Only file data changed.
@@ -49,7 +46,7 @@ class DiskMod {
 
   // TODO(ashmrtn): Figure out how to handle permissions.
   enum ModOpts {
-    kNoneOpt,           // No special flags given.
+    kNoneOpt = 0,       // No special flags given.
     kTruncateOpt,       // ex. truncate on open.
     // Below flags are fallocate specific.
     kPunchHoleOpt,
@@ -71,6 +68,8 @@ class DiskMod {
   uint64_t file_mod_len;
   std::string directory_added_entry;
 
+  DiskMod();
+
   /*
    * Zeros out all fields in the DiskMod.
    */
@@ -80,7 +79,7 @@ class DiskMod {
   /*
    * Returns the number of bytes in the DiskMod in serialized form.
    */
-  unsigned long long int GetSerializeSize();
+  uint64_t GetSerializeSize();
 
   /*
    * Serialize various parts of a DiskMod. The SerializeHeader method only
@@ -99,12 +98,6 @@ class DiskMod {
       DiskMod &dm);
   static int SerializeDirectoryMod(char *buf, const unsigned int len,
       DiskMod &dm);
-
-  /*
-   * Deserialize a single DiskMod. Returns 0 on success, a value < 0 on failure.
-   * On success, the DiskMod res is also populated with the deserialized values.
-   */
-  static int Deserialize(std::shared_ptr<char> data, DiskMod &res);
 };
 
 }  // namespace utils

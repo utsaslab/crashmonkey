@@ -10,9 +10,9 @@ namespace utils {
 using std::shared_ptr;
 using std::vector;
 
-unsigned long long int DiskMod::GetSerializeSize() {
+uint64_t DiskMod::GetSerializeSize() {
   // mod_type, mod_opts, and a uint64_t for the size of the serialized mod.
-  unsigned long long int res = 2 * sizeof(uint16_t) + sizeof(uint64_t);
+  uint64_t res = (2 * sizeof(uint16_t)) + sizeof(uint64_t);
 
   if (mod_type == DiskMod::kCheckpointMod) {
     return res;
@@ -60,7 +60,7 @@ unsigned long long int DiskMod::GetSerializeSize() {
 shared_ptr<char> DiskMod::Serialize(DiskMod &dm) {
   // Standard code to serialize the front part of the DiskMod.
   // Get a block large enough for this DiskMod.
-  const unsigned long long int mod_size = dm.GetSerializeSize();
+  const uint64_t mod_size = dm.GetSerializeSize();
   // TODO(ashmrtn): May want to split this if it is very large.
   shared_ptr<char> res_ptr(new (std::nothrow) char[mod_size],
       [](char *c) {delete[] c;});
@@ -109,17 +109,19 @@ shared_ptr<char> DiskMod::Serialize(DiskMod &dm) {
 
 int DiskMod::SerializeHeader(char *buf, const unsigned int buf_offset,
     DiskMod &dm) {
+  buf = buf + buf_offset;
   uint16_t mod_type = htobe16((uint16_t) dm.mod_type);
-  uint16_t mod_opts = htobe16((uint16_t) dm.mod_type);
+  uint16_t mod_opts = htobe16((uint16_t) dm.mod_opts);
   memcpy(buf, &mod_type, sizeof(uint16_t));
   buf += sizeof(uint16_t);
-  memcpy(buf, &mod_type, sizeof(uint16_t));
+  memcpy(buf, &mod_opts, sizeof(uint16_t));
 
   return 2 * sizeof(uint16_t);
 }
 
 int DiskMod::SerializeChangeHeader(char *buf,
     const unsigned int buf_offset, DiskMod &dm) {
+  buf += buf_offset;
   unsigned int size = dm.path.size() + 1;
   // Add the path that was changed to the buffer.
   // size() doesn't include null-terminator.
@@ -136,6 +138,7 @@ int DiskMod::SerializeChangeHeader(char *buf,
 
 int DiskMod::SerializeFileMod(char *buf, const unsigned int buf_offset,
     DiskMod &dm) {
+  buf += buf_offset;
   // Add file_mod_location.
   uint64_t file_mod_location = htobe64(dm.file_mod_location);
   memcpy(buf, &file_mod_location, sizeof(uint64_t));
@@ -169,13 +172,11 @@ int DiskMod::Deserialize(shared_ptr<char> data, DiskMod &res) {
   uint16_t mod_opts;
   memcpy(&mod_type, data_ptr, sizeof(uint16_t));
   data_ptr += sizeof(uint16_t);
-  mod_type = be64toh(mod_type);
-  res.mod_type = (DiskMod::ModType) mod_type;
+  res.mod_type = (DiskMod::ModType) be16toh(mod_type);
 
   memcpy(&mod_opts, data_ptr, sizeof(uint16_t));
   data_ptr += sizeof(uint16_t);
-  mod_opts = be64toh(mod_opts);
-  res.mod_opts = (DiskMod::ModOpts) mod_opts;
+  res.mod_opts = (DiskMod::ModOpts) be16toh(mod_opts);
 
   if (res.mod_type == DiskMod::kCheckpointMod) {
     // No more left to do here.
@@ -204,6 +205,8 @@ int DiskMod::Deserialize(shared_ptr<char> data, DiskMod &res) {
     }
     ++data_ptr;
   }
+  // Add the remaining data that is in tmp.
+  res.path += tmp;
   // Move past the null terminating character.
   ++data_ptr;
 
@@ -234,6 +237,10 @@ int DiskMod::Deserialize(shared_ptr<char> data, DiskMod &res) {
   }
 
   return 0;
+}
+
+DiskMod::DiskMod() {
+  Reset();
 }
 
 void DiskMod::Reset() {
