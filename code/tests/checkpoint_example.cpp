@@ -77,7 +77,8 @@ class CheckpointExample : public BaseTestCase {
     return 0;
   }
 
-  virtual int run() override {
+  virtual int run(int checkpoint) override {
+    int local_checkpoint = 0;
     // For fsyncs later.
     const int root_dir = open(TEST_MNT, O_RDONLY);
     if (root_dir < 0) {
@@ -106,6 +107,10 @@ class CheckpointExample : public BaseTestCase {
       return -1;
     }
     close(dir);
+    local_checkpoint += 1;
+    if (local_checkpoint == checkpoint) {
+      return 0;
+    }
 
     // Create original file with permission etc.
     const int old_umask = umask(0000);
@@ -133,6 +138,10 @@ class CheckpointExample : public BaseTestCase {
       return -1;
     }
     close(fd);
+    local_checkpoint += 1;
+    if (local_checkpoint == checkpoint) {
+      return 1;
+    }
 
     if (rename(old_path.c_str(), new_path.c_str()) < 0) {
       return -1;

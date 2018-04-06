@@ -82,7 +82,9 @@ class create_delete : public BaseTestCase {
     return 0;
   }
 
-  virtual int run() override {
+  virtual int run(int checkpoint) override {
+    int local_checkpoint = 0;
+
     for (unsigned int i = 0; i < NUM_TEST_FILES; ++i) {
       const int old_umask = umask(0000);
       string file_name = string(TEST_MNT "/" TEST_DIR "/" TEST_FILE
@@ -108,6 +110,10 @@ class create_delete : public BaseTestCase {
       } while (written != TEST_TEXT_SIZE);
       fsync(fd);
       Checkpoint();
+      local_checkpoint += 1;
+      if (local_checkpoint == checkpoint) {
+        return 0;
+      }
       close(fd);
     }
 
@@ -121,6 +127,10 @@ class create_delete : public BaseTestCase {
       //Ensure that changes due to remove() are persisted before calling Checkpoint
       sync();
       Checkpoint();
+      local_checkpoint += 1;
+      if (local_checkpoint == checkpoint) {
+        return 1;
+      }
       sleep(6);
     }
 
