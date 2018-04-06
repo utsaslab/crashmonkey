@@ -85,7 +85,8 @@ int Generic042Base::setup() {
   return 0;
 }
 
-int Generic042Base::run() {
+int Generic042Base::run(int checkpoint) {
+  int local_checkpoint = 0;
   // Write 64k of data to test file.
   const string file_path(mnt_dir_ + "/" + kTestFileName);
 
@@ -121,8 +122,11 @@ int Generic042Base::run() {
 
   //Any crash beyond this point should have persisted both the write and the appropriate fallocate
   Checkpoint();
-
   close(fd_file);
+  local_checkpoint += 1;
+  if (local_checkpoint == checkpoint) {
+    return 1;
+  }
 
   return 0;
 }

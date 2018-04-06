@@ -68,10 +68,11 @@ class Generic002: public BaseTestCase {
     return 0;
   }
 
-  virtual int run() override {
+  virtual int run(int checkpoint) override {
 
 	init_paths();
   
+    int local_checkpoint = 0;
     const int fd_foo = open(foo_path.c_str(), O_RDWR | O_CREAT, TEST_FILE_PERMS);
     if (fd_foo < 0) {
       return -1;
@@ -94,6 +95,10 @@ class Generic002: public BaseTestCase {
       if (Checkpoint() < 0){
         return -4;
       }
+      local_checkpoint += 1;
+      if (local_checkpoint == checkpoint) {
+        return 0;
+      }
     }
 
     // Remove the set of added links
@@ -112,6 +117,13 @@ class Generic002: public BaseTestCase {
       // Make a user checkpoint here
       if (Checkpoint() < 0){
         return -7;
+      }
+      local_checkpoint += 1;
+      if (local_checkpoint == checkpoint) {
+        if (i == (NUM_LINKS - 1)) {
+          return 1;
+        }
+        return 0;
       }
     }
 

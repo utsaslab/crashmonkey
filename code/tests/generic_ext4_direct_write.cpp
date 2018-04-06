@@ -60,8 +60,9 @@ class genericDirectWrite: public BaseTestCase {
     return 0;
   }
 
-  virtual int run() override {
+  virtual int run(int checkpoint) override {
 
+    int local_checkpoint = 0;
     //Open the file
     int fd_reg = open(kTestFile, O_RDWR);
     if (fd_reg < 0) {
@@ -106,9 +107,14 @@ class genericDirectWrite: public BaseTestCase {
     // write as well and the bug would disappear.
     if (Checkpoint() < 0){
       return -5;
-    }
-    
+    } 
     close(fd_reg);
+
+    local_checkpoint += 1;
+    if (local_checkpoint == checkpoint) {
+      return 1;
+    }
+
     return 0;
   }
 
