@@ -69,7 +69,8 @@ def main():
 
 	#Assign a test num
 	test_num = 0
-
+	
+	subprocess.call('mkdir diff_results', shell=True)
 	#Get the relative path to test directory
 	xfsMonkeyTestPath = './' + parsed_args.test_path
 
@@ -128,6 +129,12 @@ def main():
 					error = re.sub(r'(?s).*error', '\nError', output, flags=re.I)
 					print error
 					print 'Retry running ' ,filename.replace('.so', ''), '\nRunning... '	 
+			file = filename.replace('.so', '')			
+			#diff_command = 'tail -vn +1 build/diff* >> diff_results/' + file  + '; rm build/diff*' 
+			subprocess.call('cat build/diff* > out', shell=True)
+			diff_command = './copy_diff.sh out ' + file
+			subprocess.call('tail -vn +1 build/diff*', shell=True)
+			subprocess.call(diff_command, shell=True)
 			
 	#Stop logging
 	sys.stdout = original
