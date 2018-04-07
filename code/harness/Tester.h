@@ -7,6 +7,7 @@
 #include <string>
 #include <utility>
 #include <vector>
+#include <map>
 
 #include "FsSpecific.h"
 #include "../utils/ClassLoader.h"
@@ -85,16 +86,23 @@ class Tester {
   void test_unload_class();
   int test_setup();
   int test_init_values(std::string mountDir, long filesysSize);
-  int test_run();
+  int test_run(int checkpoint);
   int test_check_random_permutations(const bool full_bio_replay,
       const int num_rounds, std::ofstream& log);
-  int test_check_log_replay(std::ofstream& log);
+  int test_check_log_replay(std::ofstream& log, bool automate_check_test);
   int test_restore_log();
   int test_check_current();
 
   int mount_device_raw(const char* opts);
   int mount_wrapper_device(const char* opts);
   int umount_device();
+
+  int mount_snapshot();
+  int umount_snapshot();
+
+  int mapCheckpointToSnapshot(int checkpoint);
+  int getNewDiskClone(int checkpoint);
+  void getCompleteRunDiskClone();
 
   int insert_cow_brd();
   int remove_cow_brd();
@@ -166,11 +174,16 @@ class Tester {
 
   std::vector<std::chrono::milliseconds> test_fsck_and_user_test(
       const std::string device_path, const unsigned int last_checkpoint,
-      SingleTestInfo &test_info);
+      SingleTestInfo &test_info, bool automate_check_test);
+
+  void check_disk_and_snapshot_contents(char* disk_path, int last_checkpoint);
 
   std::vector<TestSuiteResult> test_results_;
   std::chrono::milliseconds timing_stats[NUM_TIME] =
       {std::chrono::milliseconds(0)};
+
+  std::map<int, char*> checkpointToSnapshot_;
+  char* SNAPSHOT_PATH;
 
 };
 

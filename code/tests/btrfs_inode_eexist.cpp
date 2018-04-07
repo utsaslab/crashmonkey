@@ -68,7 +68,8 @@ class BtrfsInodeEEXIST: public BaseTestCase {
     return 0;
   }
 
-  virtual int run() override {
+  virtual int run(int checkpoint) override {
+    int local_checkpoint = 0;
 
     //initialize paths
     foo_path = mnt_dir_ + "/"+ TEST_DIR_A + "/" + TEST_FILE_FOO;    
@@ -91,6 +92,10 @@ class BtrfsInodeEEXIST: public BaseTestCase {
     //Make a user checkpoint here. Checkpoint must be 1 beyond this point
     if (Checkpoint() < 0){
       return -3;
+    }
+    local_checkpoint += 1;
+    if (local_checkpoint == checkpoint) {
+      return 1;
     }
 
     close(fd_foo);
