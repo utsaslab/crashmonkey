@@ -46,6 +46,12 @@ class FsSpecific {
    */
   virtual fs_testing::FileSystemTestResult::ErrorType
     GetFsckReturn(int return_code) = 0;
+
+  /*
+   * Return the number of seconds to wait after a test case's run() method so
+   * that all relevant disk I/O will be properly recorded.
+   */
+  virtual unsigned int GetPostRunDelaySeconds() = 0;
 };
 
 class ExtFsSpecific : public FsSpecific {
@@ -56,30 +62,35 @@ class ExtFsSpecific : public FsSpecific {
   virtual std::string GetFsckCommand(const std::string &fs_path);
   virtual fs_testing::FileSystemTestResult::ErrorType GetFsckReturn(
       int return_code);
+  virtual unsigned int GetPostRunDelaySeconds() override;
 
  protected:
-  ExtFsSpecific(std::string type);
+  ExtFsSpecific(std::string type, unsigned int delay_seconds);
 
  private:
   const std::string fs_type_;
+  const unsigned int delay_seconds_;
 };
 
 class Ext2FsSpecific : public ExtFsSpecific {
  public:
   Ext2FsSpecific();
   static constexpr char kFsType[] = "ext2";
+  static const unsigned int kDelaySeconds = 120;
 };
 
 class Ext3FsSpecific : public ExtFsSpecific {
  public:
   Ext3FsSpecific();
   static constexpr char kFsType[] = "ext3";
+  static const unsigned int kDelaySeconds = 120;
 };
 
 class Ext4FsSpecific : public ExtFsSpecific {
  public:
   Ext4FsSpecific();
   static constexpr char kFsType[] = "ext4";
+  static const unsigned int kDelaySeconds = 36;
 };
 
 class BtrfsFsSpecific : public FsSpecific {
@@ -90,8 +101,10 @@ class BtrfsFsSpecific : public FsSpecific {
   virtual std::string GetFsckCommand(const std::string &fs_path);
   virtual fs_testing::FileSystemTestResult::ErrorType GetFsckReturn(
       int return_code);
+  virtual unsigned int GetPostRunDelaySeconds() override;
 
   static constexpr char kFsType[] = "btrfs";
+  static const unsigned int kDelaySeconds = 34;
 };
 
 class F2fsFsSpecific : public FsSpecific {
@@ -102,8 +115,10 @@ class F2fsFsSpecific : public FsSpecific {
   virtual std::string GetFsckCommand(const std::string &fs_path);
   virtual fs_testing::FileSystemTestResult::ErrorType GetFsckReturn(
       int return_code);
+  virtual unsigned int GetPostRunDelaySeconds() override;
 
   static constexpr char kFsType[] = "f2fs";
+  static const unsigned int kDelaySeconds = 71;
 };
 
 class XfsFsSpecific : public FsSpecific {
@@ -114,8 +129,10 @@ class XfsFsSpecific : public FsSpecific {
   virtual std::string GetFsckCommand(const std::string &fs_path);
   virtual fs_testing::FileSystemTestResult::ErrorType GetFsckReturn(
       int return_code);
+  virtual unsigned int GetPostRunDelaySeconds() override;
 
   static constexpr char kFsType[] = "xfs";
+  static const unsigned int kDelaySeconds = 120;
 };
 
 /*
