@@ -58,7 +58,7 @@ namespace fs_testing {
 				}
 
 
-				if ( write( fd_foo, 0, 4096) < 0){ 
+				if ( WriteData ( fd_foo, 0, 4096) < 0){ 
 					close( fd_foo); 
 					return errno;
 				}
