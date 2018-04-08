@@ -163,7 +163,6 @@ int Tester::clone_device_restore(int snapshot_fd, bool reread) {
 }
 
 int Tester::mount_device_raw(const char* opts) {
-  std::cout << __func__ << " " << device_mount << std::endl;
   if (device_mount.empty()) {
     return MNT_BAD_DEV_ERR;
   }
@@ -171,7 +170,6 @@ int Tester::mount_device_raw(const char* opts) {
 }
 
 int Tester::mount_wrapper_device(const char* opts) {
-  std::cout << __func__ << " " << MNT_WRAPPER_DEV_PATH << std::endl;
   // TODO(ashmrtn): Make some sort of boolean that tracks if we should use the
   // first parition or not?
   string dev(MNT_WRAPPER_DEV_PATH);
@@ -180,7 +178,6 @@ int Tester::mount_wrapper_device(const char* opts) {
 }
 
 int Tester::mount_device(const char* dev, const char* opts) {
-  std::cout << __func__ << " " << dev << " " << MNT_MNT_POINT << std::endl;
   if (mount(dev, MNT_MNT_POINT, fs_type.c_str(), 0, (void*) opts) < 0) {
     disk_mounted = false;
     return MNT_MNT_ERR;
@@ -190,7 +187,6 @@ int Tester::mount_device(const char* dev, const char* opts) {
 }
 
 int Tester::umount_device() {
-  std::cout << __func__ << " " << MNT_MNT_POINT << std::endl;
   if (disk_mounted) {
     if (umount(MNT_MNT_POINT) < 0) {
       disk_mounted = true;
@@ -202,7 +198,6 @@ int Tester::umount_device() {
 }
 
 int Tester::mount_snapshot() {
-  std::cout << __func__ << " " << SNAPSHOT_PATH << " " << MNT_MNT_POINT << std::endl;
   if (mount(SNAPSHOT_PATH, MNT_MNT_POINT, fs_type.c_str(), 0, NULL) < 0) {
     return MNT_MNT_ERR;
   }
@@ -210,7 +205,6 @@ int Tester::mount_snapshot() {
 }
 
 int Tester::umount_snapshot() {
-  std::cout << __func__ << MNT_MNT_POINT << std::endl;
   if (umount(MNT_MNT_POINT) < 0) {
     return MNT_UMNT_ERR;
   }
@@ -225,10 +219,6 @@ int Tester::mapCheckpointToSnapshot(int checkpoint) {
   checkpointToSnapshot_[checkpoint] = (char *) malloc(sizeof(char)*30);
   strcpy(checkpointToSnapshot_[checkpoint], snapshot.c_str());
   std::cout << "Mapping " << SNAPSHOT_PATH << " to checkpoint " << checkpoint << std::endl;
-
-  for (auto i : checkpointToSnapshot_) {
-    std::cout << i.first << " " << i.second << std::endl;
-  }
   return 0;
 }
 
@@ -674,7 +664,7 @@ void Tester::check_disk_and_snapshot_contents(char* disk_path, int last_checkpoi
   diff_file.open("diff-at-check" + to_string(last_checkpoint),
     std::fstream::out | std::fstream::app);
   const char* type = fs_type.c_str();
-  std::cout << __func__ << disk_path << snapshot_path << std::endl;
+
   DiskContents disk1(disk_path, type), disk2(snapshot_path, type);
   disk1.compare_disk_contents(disk2, diff_file);
   return;

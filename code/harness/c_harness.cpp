@@ -741,8 +741,6 @@ int main(int argc, char** argv) {
             return test_harness.test_run(checkpoint);
           }
         }
-        system("findmnt /mnt/snapshot");
-        system("tree /mnt/snapshot");
         // End wrapper logging for profiling the complete execution of run process
         if (checkpoint == 0) {
           cout << "Waiting for writeback delay" << endl;
@@ -794,8 +792,6 @@ int main(int argc, char** argv) {
               test_harness.cleanup_harness();
               return -1;
             }
-            system("findmnt /mnt/snapshot");
-            system("tree /mnt/snapshot");
           }
         }
         // reset the snapshot path if we completed all the executions
@@ -806,9 +802,6 @@ int main(int argc, char** argv) {
         checkpoint += 1;
       } while (!last_checkpoint && automate_check_test);
     }
-
-    system("cat /etc/mtab >> bleh");
-    system("echo \"c_harness\n\" >> bleh");
 
     /***************************************************************************
      * Worload complete, Clean up things and end logging.

@@ -182,7 +182,6 @@ int DiskContents::unmount_and_delete_mount_point() {
 void DiskContents::get_contents(const char* path) {
   DIR *directory;
   struct dirent *dir_entry;
-  system("hexdump -C /dev/cow_ram_snapshot2_0 >> hexdump_out");
   // open both the directories
   if (!(directory = opendir(path))) {
     return;
@@ -237,28 +236,12 @@ const char* DiskContents::get_mount_point() {
 void DiskContents::compare_disk_contents(DiskContents &compare_disk, std::ofstream &diff_file) {
   std::string base_path = "/mnt/snapshot";
   get_contents(base_path.c_str());
-  for (auto i : contents) {
-    std::cout << i.first << std::endl;
-  }
-  std::cout << std::endl;
-  system("findmnt /mnt/snapshot");
-  system("tree /mnt/snapshot");
 
   if (compare_disk.mount_disk() != 0) {
     std::cout << "Mounting " << compare_disk.disk_path << " failed" << std::endl;
   }
 
-  system("cat /etc/mtab >> bleh");
-  system("echo \"\n\" >> bleh");
-
   compare_disk.get_contents(compare_disk.get_mount_point());
-  for (auto i : compare_disk.contents) {
-    std::cout << i.first << std::endl;
-  }
-  std::cout << std::endl;
-  system("findmnt /mnt/cow_ram_snapshot2_0");
-  system("tree /mnt/cow_ram_snapshot2_0");
-  std::cout << compare_disk.disk_path << std::endl;
 
   // Compare the size of contents
   if (contents.size() != compare_disk.contents.size()) {
@@ -268,7 +251,6 @@ void DiskContents::compare_disk_contents(DiskContents &compare_disk, std::ofstre
   }
   // entry-wise comparision
   for (auto i : contents) {
-    std::cout << "Entry wise comparison" << std::endl;
     fileAttributes i_fa = i.second;
     if (compare_disk.contents.find((i.first)) == compare_disk.contents.end()) {
       diff_file << "DIFF: Missing " << i.first << std::endl;
@@ -276,7 +258,6 @@ void DiskContents::compare_disk_contents(DiskContents &compare_disk, std::ofstre
       diff_file << i_fa << endl << endl;
       continue;
     }
-    std::cout << "Found entry in both" << std::endl;
     fileAttributes j_fa = compare_disk.contents[(i.first)];
     if (!(i_fa.compare_dir_attr(j_fa.dir_attr)) ||
           !(i_fa.compare_stat_attr(j_fa.stat_attr))) {
@@ -289,19 +270,14 @@ void DiskContents::compare_disk_contents(DiskContents &compare_disk, std::ofstre
     }
     // compare user data if the entry corresponds to a regular files
     if (i_fa.is_regular_file()) {
-      std::cout << "Finding checksums" << std::endl;
-      std::cout << i_fa.md5sum << std::endl;
-      std::cout << j_fa.md5sum << std::endl;
       // check md5sum of the file contents
       if (i_fa.compare_md5sum(j_fa.md5sum) != 0) {
         diff_file << "DIFF : Data Mismatch of " << (i.first) << std::endl;
         diff_file << disk_path << " has md5sum " << i_fa.md5sum << std::endl;
         diff_file << compare_disk.disk_path << " has md5sum " << j_fa.md5sum;
         diff_file << std::endl << std::endl;
-        std::cout << "md5sum Mismatch" << std::endl;
       }
     }
-    std::cout << "Ended" << std::endl;
   }
   // TODO(P.S.) Fix the unmount issue and uncomment the function below.
   compare_disk.unmount_and_delete_mount_point();
