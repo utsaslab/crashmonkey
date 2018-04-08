@@ -248,6 +248,17 @@ void DiskContents::compare_disk_contents(DiskContents &compare_disk, std::ofstre
     diff_file << "DIFF: Mismatch" << std::endl;
     diff_file << "Unequal #entries in " << disk_path << ", " << compare_disk.disk_path;
     diff_file << std::endl << std::endl;
+    diff_file << disk_path << " contains:" << std::endl;
+    for (auto i : contents) {
+      diff_file << i.first << std::endl;
+    }
+    diff_file << std::endl;
+
+    diff_file << compare_disk.disk_path << " contains:" << std::endl;
+    for (auto i : compare_disk.contents) {
+      diff_file << i.first << std::endl;
+    }
+    diff_file << std::endl;
   }
   // entry-wise comparision
   for (auto i : contents) {
