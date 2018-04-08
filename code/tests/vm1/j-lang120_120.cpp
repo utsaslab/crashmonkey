@@ -7,6 +7,7 @@
 #include <dirent.h>
 #include <cstring>
 #include <errno.h>
+#include <attr/xattr.h>
 
 #include "BaseTestCase.h"
 #include "../user_tools/api/workload.h"
@@ -66,6 +67,12 @@ namespace fs_testing {
 				if ( WriteData ( fd_Afoo, 0, 4096) < 0){ 
 					close( fd_Afoo); 
 					return errno;
+				}
+
+
+				if ( fallocate( fd_Afoo , FALLOC_FL_ZERO_RANGE , | , FALLOC_FL_KEEP_SIZE) < 0){ 
+					 close( fd_Afoo);
+					 return errno;
 				}
 
 
