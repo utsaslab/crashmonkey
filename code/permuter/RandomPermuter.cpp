@@ -176,7 +176,7 @@ bool RandomPermuter::gen_one_sector_state(vector<DiskWriteData> &res,
   if (final_epoch.empty()) {
     // No sectors to drop in the final epoch.
     res.resize(total_elements);
-    auto epoch_end_iterator = epochs->begin() + num_epochs;
+    auto epoch_end_iterator = epochs->begin() + num_epochs - 1;
     AddEpochs(res.begin(), res.end(), epochs->begin(), epoch_end_iterator);
     return true;
   } else if (num_requests == epochs->at(num_epochs - 1).ops.size() &&
