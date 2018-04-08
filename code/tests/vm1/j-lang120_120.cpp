@@ -70,7 +70,7 @@ namespace fs_testing {
 				}
 
 
-				if ( fallocate( fd_Afoo , FALLOC_FL_ZERO_RANGE , | , FALLOC_FL_KEEP_SIZE) < 0){ 
+				if ( fallocate( fd_Afoo , FALLOC_FL_ZERO_RANGE|FALLOC_FL_KEEP_SIZE , 4096 , 4096) < 0){ 
 					 close( fd_Afoo);
 					 return errno;
 				}
