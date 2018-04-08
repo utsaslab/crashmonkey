@@ -72,9 +72,11 @@ class Generic321_1: public BaseTestCase {
     return 0;
   }
 
-  virtual int run() override {
+  virtual int run(int checkpoint) override {
 
 	init_paths();
+
+	int local_checkpoint = 0;
 
 	int fd2 = open(file2_path.c_str(), O_RDONLY, TEST_FILE_PERMS);
 	if (fd2 < 0) {
@@ -108,8 +110,12 @@ class Generic321_1: public BaseTestCase {
 	if (Checkpoint() < 0){
       return -8;
     }
-
 	close(fd2);
+
+	local_checkpoint += 1;
+	if (local_checkpoint == checkpoint) {
+		return 1;
+	}
     return 0;
   }
 

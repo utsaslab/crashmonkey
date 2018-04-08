@@ -86,9 +86,11 @@ class Generic037: public BaseTestCase {
     return 0;
   }
 
-  virtual int run() override {
+  virtual int run(int checkpoint) override {
 
 	init_paths();
+
+	int local_checkpoint = 0;
 
     // set attr value to file foo in a loop
 	int num_iterations = 10000;
@@ -110,6 +112,14 @@ class Generic037: public BaseTestCase {
 	    if (i % (num_iterations/num_checkpoints) == 0) {
 	        if (Checkpoint() < 0){
 	          return -3;
+	        }
+	        local_checkpoint += 1;
+	        if (local_checkpoint == checkpoint) {
+	            if ( i == (num_iterations - 1)) {
+	                return 1;
+	            } else {
+	                return 0;
+	            }
 	        }
 	    }
 	}
