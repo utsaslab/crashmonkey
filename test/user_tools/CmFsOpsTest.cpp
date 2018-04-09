@@ -23,7 +23,7 @@ using std::string;
 using std::unordered_map;
 using std::vector;
 
-using fs_testing::user_tools::api::CmFsOps;
+using fs_testing::user_tools::api::RecordCmFsOps;
 using fs_testing::user_tools::api::FsFns;
 using fs_testing::utils::DiskMod;
 
@@ -161,9 +161,9 @@ class MockFsFns : public FsFns {
   FakeFsFns fake;
 };
 
-class TestCmFsOps : public CmFsOps {
+class TestCmFsOps : public RecordCmFsOps {
  public:
-  TestCmFsOps(FsFns *functions) : CmFsOps(functions) { }
+  TestCmFsOps(FsFns *functions) : RecordCmFsOps(functions) { }
 
   vector<DiskMod> * GetMods() {
     return &mods_;

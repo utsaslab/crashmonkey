@@ -82,8 +82,41 @@ class DefaultFsFns : public FsFns {
 
 class CmFsOps {
  public:
-  CmFsOps(FsFns *functions);
   virtual ~CmFsOps() {};
+
+  virtual int CmMknod(const std::string &pathname, const mode_t mode,
+      const dev_t dev) = 0;
+  virtual int CmMkdir(const std::string &pathname, const mode_t mode) = 0;
+  virtual int CmOpen(const std::string &pathname, const int flags) = 0;
+  virtual int CmOpen(const std::string &pathname, const int flags,
+      const mode_t mode) = 0;
+  virtual off_t CmLseek(const int fd, const off_t offset, const int whence) = 0;
+  virtual int CmWrite(const int fd, const void *buf, const size_t count) = 0;
+  virtual ssize_t CmPwrite(const int fd, const void *buf, const size_t count,
+      const off_t offset) = 0;
+  virtual void * CmMmap(void *addr, const size_t length, const int prot,
+      const int flags, const int fd, const off_t offset) = 0;
+  virtual int CmMsync(void *addr, const size_t length, const int flags) = 0;
+  virtual int CmMunmap(void *addr, const size_t length) = 0;
+  virtual int CmFallocate(const int fd, const int mode, const off_t offset,
+      off_t len) = 0;
+  virtual int CmClose(const int fd) = 0;
+  virtual int CmRename(const std::string &old_path,
+      const std::string &new_path) = 0;
+  virtual int CmUnlink(const std::string &pathname) = 0;
+  virtual int CmRemove(const std::string &pathname) = 0;
+
+  virtual int CmCheckpoint() = 0;
+};
+
+/*
+ * Provides an interface that will record all the changes the user makes to the
+ * file system.
+ */
+class RecordCmFsOps : public CmFsOps {
+ public:
+  RecordCmFsOps(FsFns *functions);
+  virtual ~RecordCmFsOps() {};
 
   int CmMknod(const std::string &pathname, const mode_t mode, const dev_t dev);
   int CmMkdir(const std::string &pathname, const mode_t mode);
@@ -135,6 +168,47 @@ class CmFsOps {
    */
   int WriteWhole(const int fd, const unsigned long long size,
       std::shared_ptr<char> data);
+};
+
+/*
+ * Provides just a passthrough to the actual system calls. This is good for
+ * situations where we don't want to record the individual changes a user makes
+ * to the file system.
+ */
+class PassthroughCmFsOps : public CmFsOps {
+ public:
+  PassthroughCmFsOps(FsFns *functions);
+  virtual ~PassthroughCmFsOps() {};
+
+  virtual int CmMknod(const std::string &pathname, const mode_t mode,
+      const dev_t dev);
+  virtual int CmMkdir(const std::string &pathname, const mode_t mode);
+  virtual int CmOpen(const std::string &pathname, const int flags);
+  virtual int CmOpen(const std::string &pathname, const int flags,
+      const mode_t mode);
+  virtual off_t CmLseek(const int fd, const off_t offset, const int whence);
+  virtual int CmWrite(const int fd, const void *buf, const size_t count);
+  virtual ssize_t CmPwrite(const int fd, const void *buf, const size_t count,
+      const off_t offset);
+  virtual void * CmMmap(void *addr, const size_t length, const int prot,
+      const int flags, const int fd, const off_t offset);
+  virtual int CmMsync(void *addr, const size_t length, const int flags);
+  virtual int CmMunmap(void *addr, const size_t length);
+  virtual int CmFallocate(const int fd, const int mode, const off_t offset,
+      off_t len);
+  virtual int CmClose(const int fd);
+  virtual int CmRename(const std::string &old_path,
+      const std::string &new_path);
+  virtual int CmUnlink(const std::string &pathname);
+  virtual int CmRemove(const std::string &pathname);
+
+  virtual int CmCheckpoint();
+
+ protected:
+  // Set of functions to call for different file system operations. Tracked as a
+  // set of function pointers so that this class can be tested in a somewhat
+  // sane manner.
+  FsFns *fns_;
 };
 
 } // api

@@ -404,13 +404,6 @@ int Tester::GetChangeData(const int fd) {
     }
   }
 
-  cout << __func__ << " read in changes: ";
-  for (auto &set : mods_) {
-    cout << set.size() << " ";
-  }
-  cout << endl;
-
-
   return SUCCESS;
 }
 
