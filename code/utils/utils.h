@@ -60,6 +60,44 @@ bool operator==(const disk_write& a, const disk_write& b);
 bool operator!=(const disk_write& a, const disk_write& b);
 std::ostream& operator<<(std::ostream& os, const disk_write& dw);
 
+
+/*
+ * Describes data to be written out to the crash state. Can contain data from
+ * either a bio or a sector of a bio. This used instead of returning a
+ * vector of strictly one or the other structs because some workloads have large
+ * bios that cause considerable slowdowns when written back out to disk if
+ * described solely with sectors.
+ */
+struct DiskWriteData {
+ public:
+  DiskWriteData();
+  DiskWriteData(bool full_bio, unsigned int bio_index,
+      unsigned int bio_sector_index ,unsigned int disk_offset,
+      unsigned int size, std::shared_ptr<char> data_base,
+      unsigned int data_offset);
+
+  void * GetData();
+  // Denotes whether or not this represents the entire epoch_op and not just one
+  // sector in it.
+  bool full_bio;
+  unsigned int bio_index;
+  // If this is a single sector in the epoch_op, which sector in that epoch_op
+  // is it?
+  unsigned int bio_sector_index;
+  unsigned int disk_offset;
+  unsigned int size;
+
+ private:
+  // Pointer to the start of the data region for this data. There could still be
+  // an offset added to this to get to the actual data that this struct
+  // describes. However, to reduces copies and simplify pointer management, a
+  // single shared_ptr describes all the data in a bio, meaning that if we want
+  // to ensure our pointer is valid at all times we also need a shared_ptr to
+  // all the data in the bio.
+  std::shared_ptr<char> data_base_;
+  unsigned int data_offset_;
+};
+
 }  // namespace utils
 }  // namespace fs_testing
 #endif

@@ -48,7 +48,7 @@ class FsSpecific {
     GetFsckReturn(int return_code) = 0;
 };
 
-class Ext4FsSpecific : public FsSpecific {
+class ExtFsSpecific : public FsSpecific {
  public:
   virtual std::string GetFsTypeString();
   virtual std::string GetMkfsCommand(std::string &device_path);
@@ -57,6 +57,28 @@ class Ext4FsSpecific : public FsSpecific {
   virtual fs_testing::FileSystemTestResult::ErrorType GetFsckReturn(
       int return_code);
 
+ protected:
+  ExtFsSpecific(std::string type);
+
+ private:
+  const std::string fs_type_;
+};
+
+class Ext2FsSpecific : public ExtFsSpecific {
+ public:
+  Ext2FsSpecific();
+  static constexpr char kFsType[] = "ext2";
+};
+
+class Ext3FsSpecific : public ExtFsSpecific {
+ public:
+  Ext3FsSpecific();
+  static constexpr char kFsType[] = "ext3";
+};
+
+class Ext4FsSpecific : public ExtFsSpecific {
+ public:
+  Ext4FsSpecific();
   static constexpr char kFsType[] = "ext4";
 };
 

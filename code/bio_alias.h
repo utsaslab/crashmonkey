@@ -32,7 +32,7 @@
 #define BIO_IS_WRITE(bio)       (!!(bio_rw(bio) & REQ_WRITE))
 
 #elif LINUX_VERSION_CODE >= KERNEL_VERSION(4, 15, 0) \
-  && LINUX_VERSION_CODE < KERNEL_VERSION(4, 16, 0)
+  && LINUX_VERSION_CODE < KERNEL_VERSION(4, 17, 0)
 
 #define BI_RW                   bi_opf
 #define BI_DISK                 bi_disk

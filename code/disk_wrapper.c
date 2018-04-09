@@ -54,7 +54,7 @@ static struct hwm_device {
    LINUX_VERSION_CODE < KERNEL_VERSION(4, 5, 0))
   struct block_device* target_dev;
 #elif LINUX_VERSION_CODE >= KERNEL_VERSION(4, 15, 0) && \
-   LINUX_VERSION_CODE < KERNEL_VERSION(4, 16, 0)
+   LINUX_VERSION_CODE < KERNEL_VERSION(4, 17, 0)
   struct gendisk* target_dev;
   u8 target_partno;
   struct block_device* target_bd;
@@ -334,7 +334,7 @@ static unsigned long long convert_flags(unsigned long long flags) {
   }
 #endif
 #elif LINUX_VERSION_CODE >= KERNEL_VERSION(4, 15, 0) \
-    && LINUX_VERSION_CODE < KERNEL_VERSION(4, 16, 0)
+    && LINUX_VERSION_CODE < KERNEL_VERSION(4, 17, 0)
 
   if ((flags & REQ_OP_MASK) == REQ_OP_WRITE) {
     res |= HWM_WRITE_FLAG;
@@ -403,7 +403,7 @@ static bool should_log(struct bio *bio) {
      bio->BI_RW & REQ_FLUSH_SEQ || bio->BI_RW & REQ_WRITE ||
      bio->BI_RW & REQ_DISCARD);
 #elif LINUX_VERSION_CODE >= KERNEL_VERSION(4, 15, 0) \
-    && LINUX_VERSION_CODE < KERNEL_VERSION(4, 16, 0)
+    && LINUX_VERSION_CODE < KERNEL_VERSION(4, 17, 0)
   // Other REQ_OP_xx functions are odd numbers, meaning they set the
   // REQ_OP_WRITE bit which we already check for (ex. REQ_OP_WRITE_SAME = 7).
   return
@@ -447,7 +447,7 @@ static void print_rw_flags(unsigned long rw, unsigned long flags) {
      LINUX_VERSION_CODE < KERNEL_VERSION(4, 5, 0))
 static void disk_wrapper_bio(struct request_queue* q, struct bio* bio) {
 #elif LINUX_VERSION_CODE >= KERNEL_VERSION(4, 15, 0) && \
-    LINUX_VERSION_CODE < KERNEL_VERSION(4, 16, 0)
+    LINUX_VERSION_CODE < KERNEL_VERSION(4, 17, 0)
 static blk_qc_t disk_wrapper_bio(struct request_queue* q, struct bio* bio) {
 #else
 #error "Unsupported kernel version: CrashMonkey has not been tested with " \
@@ -556,7 +556,7 @@ static blk_qc_t disk_wrapper_bio(struct request_queue* q, struct bio* bio) {
   bio->bi_bdev = hwm->target_dev;
   submit_bio(bio->BI_RW, bio);
 #elif LINUX_VERSION_CODE >= KERNEL_VERSION(4, 15, 0) && \
-    LINUX_VERSION_CODE < KERNEL_VERSION(4, 16, 0)
+    LINUX_VERSION_CODE < KERNEL_VERSION(4, 17, 0)
   bio->bi_disk = hwm->target_dev;
   bio->bi_partno = hwm->target_partno;
   submit_bio(bio);
@@ -633,7 +633,7 @@ static int __init disk_wrapper_init(void) {
    LINUX_VERSION_CODE < KERNEL_VERSION(4, 5, 0))
   Device.target_dev = target_device;
 #elif LINUX_VERSION_CODE >= KERNEL_VERSION(4, 15, 0) && \
-    LINUX_VERSION_CODE < KERNEL_VERSION(4, 16, 0)
+    LINUX_VERSION_CODE < KERNEL_VERSION(4, 17, 0)
   Device.target_dev = target_device->bd_disk;
   Device.target_partno = target_device->bd_partno;
   Device.target_bd = target_device;
@@ -722,7 +722,7 @@ static void __exit hello_cleanup(void) {
    LINUX_VERSION_CODE < KERNEL_VERSION(4, 5, 0))
   blkdev_put(Device.target_dev, FMODE_READ);
 #elif LINUX_VERSION_CODE >= KERNEL_VERSION(4, 15, 0) && \
-  LINUX_VERSION_CODE < KERNEL_VERSION(4, 16, 0)
+  LINUX_VERSION_CODE < KERNEL_VERSION(4, 17, 0)
   blkdev_put(Device.target_bd, FMODE_READ);
 #else
 #error "Unsupported kernel version: CrashMonkey has not been tested with " \
