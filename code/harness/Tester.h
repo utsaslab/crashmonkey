@@ -9,10 +9,11 @@
 #include <vector>
 
 #include "FsSpecific.h"
-#include "../utils/ClassLoader.h"
 #include "../permuter/Permuter.h"
 #include "../results/TestSuiteResult.h"
 #include "../tests/BaseTestCase.h"
+#include "../utils/ClassLoader.h"
+#include "../utils/DiskMod.h"
 #include "../utils/utils.h"
 
 #define SUCCESS                  0
@@ -85,7 +86,7 @@ class Tester {
   void test_unload_class();
   int test_setup();
   int test_init_values(std::string mountDir, long filesysSize);
-  int test_run();
+  int test_run(const int change_fd);
   int test_check_random_permutations(const bool full_bio_replay,
       const int num_rounds, std::ofstream& log);
   int test_check_log_replay(std::ofstream& log);
@@ -107,6 +108,7 @@ class Tester {
   void end_wrapper_logging();
   int get_wrapper_log();
   void clear_wrapper_log();
+  int GetChangeData(const int fd);
 
   int CreateCheckpoint();
 
@@ -151,6 +153,7 @@ class Tester {
   int ioctl_fd = -1;
   const unsigned int sector_size_;
   std::vector<fs_testing::utils::disk_write> log_data;
+  std::vector<std::vector<fs_testing::utils::DiskMod>> mods_;
 
   int mount_device(const char* dev, const char* opts);
 

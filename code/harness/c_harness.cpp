@@ -39,7 +39,10 @@
 #define OPTS_STRING "bd:f:e:l:m:np:r:s:t:vFIPS:"
 
 namespace {
-  unsigned int kSocketQueueDepth;
+
+static const unsigned int kSocketQueueDepth = 2;
+static constexpr char kChangePath[] = "run_changes";
+
 }  // namespace
 
 using std::cerr;
@@ -715,7 +718,14 @@ int main(int argc, char** argv) {
           }
         } else {
           // Forked process' stuff.
-          return test_harness.test_run();
+          const int change_fd = open(kChangePath, O_CREAT | O_WRONLY | O_TRUNC,
+              S_IRUSR | S_IWUSR);
+          if (change_fd < 0) {
+            return change_fd;
+          }
+          const int res = test_harness.test_run(change_fd);
+          close(change_fd);
+          return res;
         }
       }
     }
@@ -756,6 +766,24 @@ int main(int argc, char** argv) {
     logfile << "Removing wrapper module from kernel" << endl;
     if (test_harness.remove_wrapper() != SUCCESS) {
       cerr << "Error cleaning up: remove wrapper module" << endl;
+      test_harness.cleanup_harness();
+      return -1;
+    }
+
+    cout << "Getting change data" << endl;
+    logfile << "Getting change data" << endl;
+    const int change_fd = open(kChangePath, O_RDONLY);
+    if (change_fd < 0) {
+      cerr << "Error reading change data" << endl;
+      test_harness.cleanup_harness();
+      return -1;
+    }
+    if (lseek(change_fd, 0, SEEK_SET) < 0) {
+      cerr << "Error reading change data" << endl;
+      test_harness.cleanup_harness();
+      return -1;
+    }
+    if (test_harness.GetChangeData(change_fd) != SUCCESS) {
       test_harness.cleanup_harness();
       return -1;
     }

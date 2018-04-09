@@ -1,3 +1,4 @@
+#include <endian.h>
 #include <errno.h>
 #include <fcntl.h>
 #include <string.h>
@@ -94,6 +95,7 @@ using fs_testing::permuter::Permuter;
 using fs_testing::permuter::permuter_create_t;
 using fs_testing::permuter::permuter_destroy_t;
 using fs_testing::utils::disk_write;
+using fs_testing::utils::DiskMod;
 using fs_testing::utils::DiskWriteData;
 
 Tester::Tester(const unsigned int dev_size, const unsigned int sector_size,
@@ -352,6 +354,66 @@ void Tester::clear_wrapper_log() {
   }
 }
 
+int Tester::GetChangeData(const int fd) {
+  // Need to read a 64-bit value, switch it to big endian to figure out how much
+  // we need to read, read that new data amount, and add it all to a buffer.
+  while (true) {
+    // Get the next DiskMod size.
+    uint64_t buf;
+    const int read_res = read(fd, (void *) &buf, sizeof(uint64_t));
+    if (read_res < 0) {
+      return read_res;
+    } else if (read_res == 0) {
+      // No more data to read.
+      break;
+    }
+
+    uint64_t next_chunk_size = be64toh(buf);
+
+    // Read the next DiskMod.
+    shared_ptr<char> data(new char[next_chunk_size], [](char *c) {delete[] c;});
+    memcpy(data.get(), (void *) &buf, sizeof(uint64_t));
+    unsigned long long int read_data = sizeof(uint64_t);
+    while (read_data < next_chunk_size) {
+      const int res = read(fd, data.get() + read_data,
+          next_chunk_size - read_data);
+      if (res <= 0) {
+        // We shouldn't find a size for a DiskMod without the rest of the
+        // DiskMod.
+        return -1;
+      }
+      read_data += res;
+    }
+
+    DiskMod mod;
+    const int res = DiskMod::Deserialize(data, mod);
+    if (res < 0) {
+      return res;
+    }
+
+    if (mod.mod_type == DiskMod::kCheckpointMod) {
+      // We found a checkpoint, so switch to a new set of DiskMods.
+      mods_.push_back(vector<DiskMod>());
+    } else {
+      if (mods_.empty()) {
+        // We're just starting, so give us a place to put the mods.
+        mods_.push_back(vector<DiskMod>());
+      }
+      // Just append this DiskMod to the end of the last set of DiskMods.
+      mods_.back().push_back(mod);
+    }
+  }
+
+  cout << __func__ << " read in changes: ";
+  for (auto &set : mods_) {
+    cout << set.size() << " ";
+  }
+  cout << endl;
+
+
+  return SUCCESS;
+}
+
 int Tester::CreateCheckpoint() {
   if (ioctl_fd == -1) {
     return WRAPPER_DATA_ERR;
@@ -481,8 +543,8 @@ int Tester::test_init_values(string mount_dir, long filesys_size) {
   return test_loader.get_instance()->init_values(mount_dir, filesys_size);
 }
 
-int Tester::test_run() {
-  return test_loader.get_instance()->run();
+int Tester::test_run(const int change_fd) {
+  return test_loader.get_instance()->Run(change_fd);
 }
 
 /*
