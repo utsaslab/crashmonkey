@@ -70,6 +70,10 @@ int DefaultFsFns::FnClose(int fd) {
   return close(fd);
 }
 
+int DefaultFsFns::FnRename(const string &old_path, const string &new_path) {
+  return rename(old_path.c_str(), new_path.c_str());
+}
+
 int DefaultFsFns::FnUnlink(const std::string &pathname) {
   return unlink(pathname.c_str());
 }
@@ -267,6 +271,10 @@ int CmFsOps::CmClose(const int fd) {
   fd_map_.erase(fd);
 
   return res;
+}
+
+int CmFsOps::CmRename(const string &old_path, const string &new_path) {
+  return fns_->FnRename(old_path, new_path);
 }
 
 int CmFsOps::CmUnlink(const string &pathname) {

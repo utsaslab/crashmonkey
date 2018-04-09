@@ -40,6 +40,8 @@ class FsFns {
   virtual int FnMunmap(void *addr, size_t length) = 0;
   virtual int FnFallocate(int fd, int mode, off_t offset, off_t len) = 0;
   virtual int FnClose(int fd) = 0;
+  virtual int FnRename(const std::string &old_path,
+      const std::string &new_path) = 0;
   virtual int FnUnlink(const std::string &pathname) = 0;
   virtual int FnRemove(const std::string &pathname) = 0;
 
@@ -67,6 +69,8 @@ class DefaultFsFns : public FsFns {
   virtual int FnMunmap(void *addr, size_t length) override;
   virtual int FnFallocate(int fd, int mode, off_t offset, off_t len) override;
   virtual int FnClose(int fd) override;
+  virtual int FnRename(const std::string &old_path,
+      const std::string &new_path);
   virtual int FnUnlink(const std::string &pathname) override;
   virtual int FnRemove(const std::string &pathname) override;
 
@@ -95,6 +99,7 @@ class CmFsOps {
   int CmMunmap(void *addr, const size_t length);
   int CmFallocate(const int fd, const int mode, const off_t offset, off_t len);
   int CmClose(const int fd);
+  int CmRename(const std::string &old_path, const std::string &new_path);
   int CmUnlink(const std::string &pathname);
   int CmRemove(const std::string &pathname);
 

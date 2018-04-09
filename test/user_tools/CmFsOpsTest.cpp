@@ -84,6 +84,10 @@ class FakeFsFns : public FsFns {
   virtual int FnClose(int fd) override {
     return 0;
 	}
+  virtual int FnRename(const std::string &old_path,
+      const std::string &new_path) override {
+    return 0;
+	}
   virtual int FnUnlink(const std::string &pathname) override {
     return 0;
 	}
@@ -139,6 +143,8 @@ class MockFsFns : public FsFns {
   MOCK_METHOD2(FnMunmap, int(void *addr, size_t length));
   MOCK_METHOD4(FnFallocate, int(int fd, int mode, off_t offset, off_t len));
   MOCK_METHOD1(FnClose, int(int fd));
+  MOCK_METHOD2(FnRename, int(const std::string &old_path,
+        const std::string &new_path));
   MOCK_METHOD1(FnUnlink, int(const std::string &pathname));
   MOCK_METHOD1(FnRemove, int(const std::string &pathname));
 
