@@ -19,7 +19,7 @@ class DiskMod {
    * Serialize a single DiskMod. Returns a shared_ptr to a non-NULL value on
    * success, else a NULL shared_ptr.
    */
-  static std::shared_ptr<char> Serialize(DiskMod &dm);
+  static std::shared_ptr<char> Serialize(DiskMod &dm, unsigned long long *size);
 
   /*
    * Deserialize a single DiskMod. Returns 0 on success, a value < 0 on failure.

@@ -47,7 +47,7 @@ TEST(DiskMod, SerializeDeserializeCheckpoint) {
 
   start.mod_type = DiskMod::kCheckpointMod;
 
-  shared_ptr<char> serialized = DiskMod::Serialize(start);
+  shared_ptr<char> serialized = DiskMod::Serialize(start, nullptr);
   char *buf = serialized.get();
 
   uint64_t size;
@@ -98,7 +98,7 @@ TEST_P(TestDiskModParameterized, SerializeDeserializeFileDataMod) {
   start.file_mod_data.reset(new char[kTestDataSize], [](char *c) {delete[] c;});
   memcpy(start.file_mod_data.get(), kTestData, kTestDataSize);
 
-  shared_ptr<char> serialized = DiskMod::Serialize(start);
+  shared_ptr<char> serialized = DiskMod::Serialize(start, nullptr);
   char *buf = serialized.get();
 
   uint64_t size;
@@ -150,7 +150,7 @@ TEST_P(TestDiskModParameterized, SerializeDeserializeFileDataModNoData) {
   start.file_mod_location = 0;
   start.file_mod_data.reset();
 
-  shared_ptr<char> serialized = DiskMod::Serialize(start);
+  shared_ptr<char> serialized = DiskMod::Serialize(start, nullptr);
   char *buf = serialized.get();
 
   uint64_t size;
@@ -205,7 +205,7 @@ TEST_P(TestDiskModParameterizedOpts,
   start.file_mod_location = 0;
   start.file_mod_data.reset();
 
-  shared_ptr<char> serialized = DiskMod::Serialize(start);
+  shared_ptr<char> serialized = DiskMod::Serialize(start, nullptr);
   char *buf = serialized.get();
 
   uint64_t size;

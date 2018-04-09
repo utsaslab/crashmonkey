@@ -57,10 +57,13 @@ uint64_t DiskMod::GetSerializeSize() {
  * Convert everything to big endian for the sake of reading dumps in a
  * consistent manner if need be.
  */
-shared_ptr<char> DiskMod::Serialize(DiskMod &dm) {
+shared_ptr<char> DiskMod::Serialize(DiskMod &dm, unsigned long long *size) {
   // Standard code to serialize the front part of the DiskMod.
   // Get a block large enough for this DiskMod.
   const uint64_t mod_size = dm.GetSerializeSize();
+  if (size != nullptr) {
+    *size = mod_size;
+  }
   // TODO(ashmrtn): May want to split this if it is very large.
   shared_ptr<char> res_ptr(new (std::nothrow) char[mod_size],
       [](char *c) {delete[] c;});
