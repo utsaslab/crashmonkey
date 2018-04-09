@@ -176,7 +176,7 @@ int CmFsOps::CmOpen(const string &pathname, const int flags,
   return res;
 }
 
-off_t CmFsOps::CmLseeks(const int fd, const off_t offset, const int whence) {
+off_t CmFsOps::CmLseek(const int fd, const off_t offset, const int whence) {
   return fns_->FnLseek(fd, offset, whence);
 }
 

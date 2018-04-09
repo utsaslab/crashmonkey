@@ -85,7 +85,7 @@ class CmFsOps {
   int CmMkdir(const std::string &pathname, const mode_t mode);
   int CmOpen(const std::string &pathname, const int flags);
   int CmOpen(const std::string &pathname, const int flags, const mode_t mode);
-  off_t CmLseeks(const int fd, const off_t offset, const int whence);
+  off_t CmLseek(const int fd, const off_t offset, const int whence);
   int CmWrite(const int fd, const void *buf, const size_t count);
   ssize_t CmPwrite(const int fd, const void *buf, const size_t count,
       const off_t offset);
