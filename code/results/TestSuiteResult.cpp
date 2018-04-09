@@ -46,6 +46,9 @@ void TestSuiteResult::TallyResult(SingleTestInfo &done, ResultSet &set) {
         case DataTestResult::kOther:
           ++set.other;
           break;
+        case DataTestResult::kAutoCheckFailed:
+          ++set.auto_check_failed;
+          break;
       }
       break;
   }
@@ -99,7 +102,9 @@ void TestSuiteResult::PrintResults(ostream& os) const {
       timing_results_.file_metadata_corrupted <<
     "\n\t\tincorrect block count: " <<
       timing_results_.incorrect_block_count <<
-    "\n\t\tother: " << timing_results_.other << endl << endl;
+    "\n\t\tother: " << timing_results_.other <<
+    "\n\n\tautomated check_test:" <<
+    "\n\t\tfailed: " << timing_results_.auto_check_failed << endl << endl;
 }
 
 }  // namespace fs_testing

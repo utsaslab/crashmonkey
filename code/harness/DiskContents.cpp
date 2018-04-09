@@ -233,7 +233,13 @@ const char* DiskContents::get_mount_point() {
   return mount_point;
 }
 
-void DiskContents::compare_disk_contents(DiskContents &compare_disk, std::ofstream &diff_file) {
+bool DiskContents::compare_disk_contents(DiskContents &compare_disk, std::ofstream &diff_file) {
+  bool retValue = true;
+
+  if (disk_path == compare_disk.disk_path) {
+    return retValue;
+  }
+
   std::string base_path = "/mnt/snapshot";
   get_contents(base_path.c_str());
 
@@ -259,6 +265,7 @@ void DiskContents::compare_disk_contents(DiskContents &compare_disk, std::ofstre
       diff_file << i.first << std::endl;
     }
     diff_file << std::endl;
+    retValue = false;
   }
   // entry-wise comparision
   for (auto i : contents) {
@@ -267,6 +274,7 @@ void DiskContents::compare_disk_contents(DiskContents &compare_disk, std::ofstre
       diff_file << "DIFF: Missing " << i.first << std::endl;
       diff_file << "Found in " << disk_path << " only" << std::endl;
       diff_file << i_fa << endl << endl;
+      retValue = false;
       continue;
     }
     fileAttributes j_fa = compare_disk.contents[(i.first)];
@@ -277,6 +285,7 @@ void DiskContents::compare_disk_contents(DiskContents &compare_disk, std::ofstre
         diff_file << i_fa << endl << endl;
         diff_file << compare_disk.disk_path << ":" << std::endl;
         diff_file << j_fa << endl << endl;
+        retValue = false;
         continue;
     }
     // compare user data if the entry corresponds to a regular files
@@ -287,12 +296,13 @@ void DiskContents::compare_disk_contents(DiskContents &compare_disk, std::ofstre
         diff_file << disk_path << " has md5sum " << i_fa.md5sum << std::endl;
         diff_file << compare_disk.disk_path << " has md5sum " << j_fa.md5sum;
         diff_file << std::endl << std::endl;
+        retValue = false;
       }
     }
   }
   // TODO(P.S.) Fix the unmount issue and uncomment the function below.
   compare_disk.unmount_and_delete_mount_point();
-  return;
+  return retValue;
 }
 
 } // namespace fs_testing

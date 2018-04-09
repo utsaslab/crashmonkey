@@ -176,7 +176,7 @@ class Tester {
       const std::string device_path, const unsigned int last_checkpoint,
       SingleTestInfo &test_info, bool automate_check_test);
 
-  void check_disk_and_snapshot_contents(char* disk_path, int last_checkpoint);
+  bool check_disk_and_snapshot_contents(char* disk_path, int last_checkpoint);
 
   std::vector<TestSuiteResult> test_results_;
   std::chrono::milliseconds timing_stats[NUM_TIME] =

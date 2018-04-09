@@ -46,7 +46,7 @@ public:
   int mount_disk();
   const char* get_mount_point();
   int unmount_and_delete_mount_point();
-  void compare_disk_contents(DiskContents &compare_disk, std::ofstream &diff_file);
+  bool compare_disk_contents(DiskContents &compare_disk, std::ofstream &diff_file);
 
 private:
   bool device_mounted;

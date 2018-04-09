@@ -232,10 +232,7 @@ int Tester::getNewDiskClone(int checkpoint) {
   new_snapshot_path += device_number;
   // Finally set SNAPSHOT_PATH to the new snapshot path
   strcpy(SNAPSHOT_PATH, new_snapshot_path.c_str());
-  // TODO (P.S.) Make it a fs specific command and get it here
   string command = fs_specific_ops_->GetNewUUIDCommand(new_snapshot_path);
-  // string command = "yes | btrfstune -u ";
-  // command += new_snapshot_path;
   system(command.c_str());
   return 0;
 }
@@ -631,7 +628,11 @@ vector<milliseconds> Tester::test_fsck_and_user_test(
       test_loader.get_instance()->check_test(last_checkpoint,
                                              &test_info.data_test);
   if (automate_check_test) {
-    check_disk_and_snapshot_contents(SNAPSHOT_PATH, last_checkpoint);
+    bool retVal = check_disk_and_snapshot_contents(SNAPSHOT_PATH, last_checkpoint);
+    if (!retVal) {
+      test_info.data_test.SetError(
+        fs_testing::tests::DataTestResult::kAutoCheckFailed);
+    }
   }
   time_point<steady_clock> test_case_end_time = steady_clock::now();
   res.at(1) = duration_cast<milliseconds>(
@@ -658,7 +659,7 @@ vector<milliseconds> Tester::test_fsck_and_user_test(
   return res;
 }
 
-void Tester::check_disk_and_snapshot_contents(char* disk_path, int last_checkpoint) {
+bool Tester::check_disk_and_snapshot_contents(char* disk_path, int last_checkpoint) {
   char* snapshot_path = (char *) malloc(sizeof(char)*30);
   strcpy(snapshot_path, checkpointToSnapshot_[last_checkpoint]);
   ofstream diff_file;
@@ -667,8 +668,8 @@ void Tester::check_disk_and_snapshot_contents(char* disk_path, int last_checkpoi
   const char* type = fs_type.c_str();
 
   DiskContents disk1(disk_path, type), disk2(snapshot_path, type);
-  disk1.compare_disk_contents(disk2, diff_file);
-  return;
+  bool retVal = disk1.compare_disk_contents(disk2, diff_file);
+  return retVal;
 }
 
 int Tester::test_check_random_permutations(bool full_bio_replay,

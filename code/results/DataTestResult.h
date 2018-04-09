@@ -16,6 +16,10 @@ namespace {
   static const unsigned int kOther_ = 5;
 }  // namespace
 
+namespace {
+  static const unsigned int kAutoCheckFailed_ = 6;
+}
+
 class DataTestResult {
  public:
   enum ErrorType {
@@ -26,6 +30,7 @@ class DataTestResult {
     kFileMetadataCorrupted = (1 << kFileMetadataCorrupted_),
     kIncorrectBlockCount = (1 << kIncorrectBlockCount_),    
     kOther = (1 << kOther_),
+    kAutoCheckFailed = (1 << kAutoCheckFailed_)
   };
 
   DataTestResult();
