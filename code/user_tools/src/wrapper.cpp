@@ -300,6 +300,37 @@ int CmFsOps::CmCheckpoint() {
   return res;
 }
 
+int CmFsOps::WriteWhole(const int fd, const unsigned long long size,
+    shared_ptr<char> data) {
+  unsigned long long written = 0;
+  while (written < size) {
+    const int res = write(fd, data.get() + written, size - written);
+    if (res < 0) {
+      return res;
+    }
+    written += res;
+  }
+
+  return 0;
+}
+
+int CmFsOps::Serialize(const int fd) {
+  for (auto &mod : mods_) {
+    unsigned long long size;
+    shared_ptr<char> serial_mod = DiskMod::Serialize(mod, &size);
+    if (serial_mod == nullptr) {
+      return -1;
+    }
+
+    const int res = WriteWhole(fd, size, serial_mod);
+    if (res < 0) {
+      return -1;
+    }
+  }
+
+  return 0;
+}
+
 
 } // api
 } // user_tools

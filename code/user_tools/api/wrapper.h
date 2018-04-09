@@ -105,6 +105,8 @@ class CmFsOps {
 
   int CmCheckpoint();
 
+  int Serialize(const int fd);
+
 
   // Protected for testing purposes.
  protected:
@@ -126,6 +128,13 @@ class CmFsOps {
    */
   void CmOpenCommon(const int fd, const std::string &pathname,
       const bool exists, const int flags);
+
+  /*
+   * Write data out to the given file descriptor. Automatically retires until
+   * all the requested data is written.
+   */
+  int WriteWhole(const int fd, const unsigned long long size,
+      std::shared_ptr<char> data);
 };
 
 } // api
