@@ -76,14 +76,14 @@ class Ext2FsSpecific : public ExtFsSpecific {
  public:
   Ext2FsSpecific();
   static constexpr char kFsType[] = "ext2";
-  static const unsigned int kDelaySeconds = 120;
+  static const unsigned int kDelaySeconds = 15;
 };
 
 class Ext3FsSpecific : public ExtFsSpecific {
  public:
   Ext3FsSpecific();
   static constexpr char kFsType[] = "ext3";
-  static const unsigned int kDelaySeconds = 120;
+  static const unsigned int kDelaySeconds = 36;
 };
 
 class Ext4FsSpecific : public ExtFsSpecific {
