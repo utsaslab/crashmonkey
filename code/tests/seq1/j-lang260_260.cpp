@@ -7,6 +7,7 @@
 #include <dirent.h>
 #include <cstring>
 #include <errno.h>
+#include <attr/xattr.h>
 
 #include "BaseTestCase.h"
 #include "../user_tools/api/workload.h"
@@ -56,23 +57,6 @@ namespace fs_testing {
 				}
 
 
-				int fd_Afoo = open(Afoo_path.c_str() , O_RDWR|O_CREAT , 0777); 
-				if ( fd_Afoo < 0 ) { 
-					close( fd_Afoo); 
-					return errno;
-				}
-
-
-				if ( close( fd_Afoo) < 0){ 
-					return errno;
-				}
-
-
-				if ( unlink(Afoo_path.c_str() ) < 0){ 
-					return errno;
-				}
-
-
 				int fd_A = open(A_path.c_str() , O_DIRECTORY , 0777); 
 				if ( fd_A < 0 ) { 
 					close( fd_A); 
@@ -80,7 +64,19 @@ namespace fs_testing {
 				}
 
 
-				if ( fsync( fd_A) < 0){ 
+				if ( rename(A_path.c_str() , B_path.c_str() ) < 0){ 
+					return errno;
+				}
+
+
+				int fd_test = open(test_path.c_str() , O_DIRECTORY , 0777); 
+				if ( fd_test < 0 ) { 
+					close( fd_test); 
+					return errno;
+				}
+
+
+				if ( fsync( fd_test) < 0){ 
 					return errno;
 				}
 
@@ -89,6 +85,11 @@ namespace fs_testing {
 					return -1;
 				}
 				local_checkpoint += 1; 
+
+				if ( close( fd_test) < 0){ 
+					return errno;
+				}
+
 
 				if ( close( fd_A) < 0){ 
 					return errno;

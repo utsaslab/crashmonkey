@@ -7,6 +7,7 @@
 #include <dirent.h>
 #include <cstring>
 #include <errno.h>
+#include <attr/xattr.h>
 
 #include "BaseTestCase.h"
 #include "../user_tools/api/workload.h"
@@ -69,14 +70,20 @@ namespace fs_testing {
 				}
 
 
-				int fd_A = open(A_path.c_str() , O_DIRECTORY , 0777); 
-				if ( fd_A < 0 ) { 
-					close( fd_A); 
+				if ( fallocate( fd_Afoo , FALLOC_FL_KEEP_SIZE , 1000 , 3000) < 0){ 
+					 close( fd_Afoo);
+					 return errno;
+				}
+
+
+				int fd_Abar = open(Abar_path.c_str() , O_RDWR|O_CREAT , 0777); 
+				if ( fd_Abar < 0 ) { 
+					close( fd_Abar); 
 					return errno;
 				}
 
 
-				if ( fsync( fd_A) < 0){ 
+				if ( fsync( fd_Abar) < 0){ 
 					return errno;
 				}
 
@@ -91,7 +98,7 @@ namespace fs_testing {
 				}
 
 
-				if ( close( fd_A) < 0){ 
+				if ( close( fd_Abar) < 0){ 
 					return errno;
 				}
 

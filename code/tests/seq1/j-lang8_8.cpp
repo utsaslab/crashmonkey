@@ -7,6 +7,7 @@
 #include <dirent.h>
 #include <cstring>
 #include <errno.h>
+#include <attr/xattr.h>
 
 #include "BaseTestCase.h"
 #include "../user_tools/api/workload.h"
@@ -63,16 +64,7 @@ namespace fs_testing {
 				}
 
 
-				int fd_Abar = open(Abar_path.c_str() , O_RDWR|O_CREAT , 0777); 
-				if ( fd_Abar < 0 ) { 
-					close( fd_Abar); 
-					return errno;
-				}
-
-
-				if ( fsync( fd_Abar) < 0){ 
-					return errno;
-				}
+				sync(); 
 
 
 				if ( Checkpoint() < 0){ 
@@ -81,11 +73,6 @@ namespace fs_testing {
 				local_checkpoint += 1; 
 
 				if ( close( fd_Afoo) < 0){ 
-					return errno;
-				}
-
-
-				if ( close( fd_Abar) < 0){ 
 					return errno;
 				}
 

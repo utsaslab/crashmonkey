@@ -7,6 +7,7 @@
 #include <dirent.h>
 #include <cstring>
 #include <errno.h>
+#include <attr/xattr.h>
 
 #include "BaseTestCase.h"
 #include "../user_tools/api/workload.h"
@@ -51,7 +52,7 @@ namespace fs_testing {
 				bar_path =  mnt_dir_ + "/bar";
 				int local_checkpoint = 0 ;
 
-				if ( mkdir(A_path.c_str() , 0777) < 0){ 
+				if ( mkdir(test_path.c_str() , 0777) < 0){ 
 					return errno;
 				}
 

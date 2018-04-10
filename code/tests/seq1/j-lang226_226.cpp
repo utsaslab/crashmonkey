@@ -7,6 +7,7 @@
 #include <dirent.h>
 #include <cstring>
 #include <errno.h>
+#include <attr/xattr.h>
 
 #include "BaseTestCase.h"
 #include "../user_tools/api/workload.h"
@@ -63,52 +64,24 @@ namespace fs_testing {
 				}
 
 
-				if ( WriteData ( fd_Afoo, 0, 4096) < 0){ 
-					close( fd_Afoo); 
+				if ( close( fd_Afoo) < 0){ 
 					return errno;
 				}
 
 
-				close(fd_Afoo); 
-				fd_Afoo = open(Afoo_path.c_str() , O_RDWR|O_DIRECT|O_SYNC , 0777); 
+				if ( remove(Afoo_path.c_str() ) < 0){ 
+					return errno;
+				}
+
+
+				 fd_Afoo = open(Afoo_path.c_str() , O_RDWR|O_CREAT , 0777); 
 				if ( fd_Afoo < 0 ) { 
 					close( fd_Afoo); 
 					return errno;
 				}
 
-				void* data_Afoo;
-				if (posix_memalign(&data_Afoo , 4096, 4096 ) < 0) {
-					return errno;
-				}
 
-				 
-				int offset_Afoo = 0;
-				int to_write_Afoo = 4096 ;
-				const char *text_Afoo  = "abcdefghijklmnopqrstuvwxyz123456";
-				while (offset_Afoo < 4096){
-					if (to_write_Afoo < 32){
-						memcpy((char *)data_Afoo+ offset_Afoo, text_Afoo, to_write_Afoo);
-						offset_Afoo += to_write_Afoo;
-					}
-					else {
-						memcpy((char *)data_Afoo+ offset_Afoo,text_Afoo, 32);
-						offset_Afoo += 32; 
-					} 
-				} 
-
-				if ( pwrite ( fd_Afoo, data_Afoo, 4096, 0) < 0){
-					close( fd_Afoo); 
-					return errno;
-				}
-
-				int fd_Abar = open(Abar_path.c_str() , O_RDWR|O_CREAT , 0777); 
-				if ( fd_Abar < 0 ) { 
-					close( fd_Abar); 
-					return errno;
-				}
-
-
-				if ( fsync( fd_Abar) < 0){ 
+				if ( fsync( fd_Afoo) < 0){ 
 					return errno;
 				}
 
@@ -122,15 +95,9 @@ namespace fs_testing {
 					return errno;
 				}
 
-
-				if ( close( fd_Abar) < 0){ 
-					return errno;
-				}
-
 				if (local_checkpoint == checkpoint) { 
 					return 1;
 				}
-
 
                 return 0;
             }

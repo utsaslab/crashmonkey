@@ -7,6 +7,7 @@
 #include <dirent.h>
 #include <cstring>
 #include <errno.h>
+#include <attr/xattr.h>
 
 #include "BaseTestCase.h"
 #include "../user_tools/api/workload.h"
@@ -69,11 +70,30 @@ namespace fs_testing {
 				}
 
 
+				if ( fallocate( fd_Afoo , FALLOC_FL_KEEP_SIZE , 1000 , 3000) < 0){ 
+					 close( fd_Afoo);
+					 return errno;
+				}
+
+
+				if ( fsync( fd_Afoo) < 0){ 
+					return errno;
+				}
+
+
+				if ( Checkpoint() < 0){ 
+					return -1;
+				}
+				local_checkpoint += 1; 
+
 				if ( close( fd_Afoo) < 0){ 
 					return errno;
 				}
 
-				 return 1;
+				if (local_checkpoint == checkpoint) { 
+					return 1;
+				}
+
                 return 0;
             }
             

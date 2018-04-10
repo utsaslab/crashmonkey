@@ -7,6 +7,7 @@
 #include <dirent.h>
 #include <cstring>
 #include <errno.h>
+#include <attr/xattr.h>
 
 #include "BaseTestCase.h"
 #include "../user_tools/api/workload.h"
@@ -51,23 +52,43 @@ namespace fs_testing {
 				bar_path =  mnt_dir_ + "/bar";
 				int local_checkpoint = 0 ;
 
-				if ( mkdir(A_path.c_str() , 0777) < 0){ 
+				int fd_foo = open(foo_path.c_str() , O_RDWR|O_CREAT , 0777); 
+				if ( fd_foo < 0 ) { 
+					close( fd_foo); 
 					return errno;
 				}
 
 
-				int fd_Afoo = mknod(Afoo_path.c_str() , TEST_FILE_PERMS|S_IFCHR|S_IFBLK , 0); 
-				if ( fd_Afoo < 0 ) { 
-					close( fd_Afoo); 
+				if ( WriteData ( fd_foo, 0, 4096) < 0){ 
+					close( fd_foo); 
 					return errno;
 				}
 
 
-				if ( close( fd_Afoo) < 0){ 
+				if ( fallocate( fd_foo , FALLOC_FL_ZERO_RANGE , 0 , 4096) < 0){ 
+					 close( fd_foo);
+					 return errno;
+				}
+
+
+				if ( fsync( fd_foo) < 0){ 
 					return errno;
 				}
 
-				 return 1;
+
+				if ( Checkpoint() < 0){ 
+					return -1;
+				}
+				local_checkpoint += 1; 
+
+				if ( close( fd_foo) < 0){ 
+					return errno;
+				}
+
+				if (local_checkpoint == checkpoint) { 
+					return 1;
+				}
+
                 return 0;
             }
             

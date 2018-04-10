@@ -7,6 +7,7 @@
 #include <dirent.h>
 #include <cstring>
 #include <errno.h>
+#include <attr/xattr.h>
 
 #include "BaseTestCase.h"
 #include "../user_tools/api/workload.h"
@@ -56,19 +57,7 @@ namespace fs_testing {
 				}
 
 
-				int fd_Afoo = open(Afoo_path.c_str() , O_RDWR|O_CREAT , 0777); 
-				if ( fd_Afoo < 0 ) { 
-					close( fd_Afoo); 
-					return errno;
-				}
-
-
-				if ( close( fd_Afoo) < 0){ 
-					return errno;
-				}
-
-
-				if ( remove(Afoo_path.c_str() ) < 0){ 
+				if ( symlink(Afoo_path.c_str() , bar_path.c_str() ) < 0){ 
 					return errno;
 				}
 

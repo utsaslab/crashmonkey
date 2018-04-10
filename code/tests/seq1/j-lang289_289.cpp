@@ -7,6 +7,7 @@
 #include <dirent.h>
 #include <cstring>
 #include <errno.h>
+#include <attr/xattr.h>
 
 #include "BaseTestCase.h"
 #include "../user_tools/api/workload.h"
@@ -51,23 +52,53 @@ namespace fs_testing {
 				bar_path =  mnt_dir_ + "/bar";
 				int local_checkpoint = 0 ;
 
-				int fd_bar = open(bar_path.c_str() , O_RDWR|O_CREAT , 0777); 
-				if ( fd_bar < 0 ) { 
-					close( fd_bar); 
+				int fd_foo = open(foo_path.c_str() , O_RDWR|O_CREAT , 0777); 
+				if ( fd_foo < 0 ) { 
+					close( fd_foo); 
 					return errno;
 				}
 
 
-				if ( close( fd_bar) < 0){ 
+				if ( fsetxattr( fd_foo, "user.xattr1", "val1 ", 4, 0 ) < 0){ 
 					return errno;
 				}
 
 
-				if ( remove(bar_path.c_str() ) < 0){ 
+				if ( removexattr(foo_path.c_str() , "user.xattr1") < 0){ 
 					return errno;
 				}
 
-				 return 1;
+
+				int fd_test = open(test_path.c_str() , O_DIRECTORY , 0777); 
+				if ( fd_test < 0 ) { 
+					close( fd_test); 
+					return errno;
+				}
+
+
+				if ( fsync( fd_test) < 0){ 
+					return errno;
+				}
+
+
+				if ( Checkpoint() < 0){ 
+					return -1;
+				}
+				local_checkpoint += 1; 
+
+				if ( close( fd_foo) < 0){ 
+					return errno;
+				}
+
+
+				if ( close( fd_test) < 0){ 
+					return errno;
+				}
+
+				if (local_checkpoint == checkpoint) { 
+					return 1;
+				}
+
                 return 0;
             }
             

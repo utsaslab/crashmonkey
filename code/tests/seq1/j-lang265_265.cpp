@@ -7,6 +7,7 @@
 #include <dirent.h>
 #include <cstring>
 #include <errno.h>
+#include <attr/xattr.h>
 
 #include "BaseTestCase.h"
 #include "../user_tools/api/workload.h"
@@ -51,23 +52,6 @@ namespace fs_testing {
 				bar_path =  mnt_dir_ + "/bar";
 				int local_checkpoint = 0 ;
 
-				int fd_bar = open(bar_path.c_str() , O_RDWR|O_CREAT , 0777); 
-				if ( fd_bar < 0 ) { 
-					close( fd_bar); 
-					return errno;
-				}
-
-
-				if ( close( fd_bar) < 0){ 
-					return errno;
-				}
-
-
-				if ( unlink(bar_path.c_str() ) < 0){ 
-					return errno;
-				}
-
-
 				int fd_test = open(test_path.c_str() , O_DIRECTORY , 0777); 
 				if ( fd_test < 0 ) { 
 					close( fd_test); 
@@ -75,7 +59,24 @@ namespace fs_testing {
 				}
 
 
-				if ( fsync( fd_test) < 0){ 
+				if ( rename(test_path.c_str() , B_path.c_str() ) < 0){ 
+					return errno;
+				}
+
+
+				if ( mkdir(B_path.c_str() , 0777) < 0){ 
+					return errno;
+				}
+
+
+				int fd_B = open(B_path.c_str() , O_DIRECTORY , 0777); 
+				if ( fd_B < 0 ) { 
+					close( fd_B); 
+					return errno;
+				}
+
+
+				if ( fsync( fd_B) < 0){ 
 					return errno;
 				}
 
@@ -86,6 +87,11 @@ namespace fs_testing {
 				local_checkpoint += 1; 
 
 				if ( close( fd_test) < 0){ 
+					return errno;
+				}
+
+
+				if ( close( fd_B) < 0){ 
 					return errno;
 				}
 
