@@ -121,6 +121,9 @@ $(BUILD_DIR)/c_harness: \
 		harness/Tester.cpp \
 		$(BUILD_DIR)/harness/FsSpecific.o \
 		$(BUILD_DIR)/utils/utils.o \
+		$(BUILD_DIR)/utils/DiskMod.o \
+		$(BUILD_DIR)/utils/communication/ClientCommandSender.o \
+		$(BUILD_DIR)/utils/communication/ClientSocket.o \
 		$(BUILD_DIR)/utils/communication/ServerSocket.o \
 		$(BUILD_DIR)/utils/communication/BaseSocket.o \
 		$(BUILD_DIR)/permuter/Permuter.o \
@@ -128,7 +131,10 @@ $(BUILD_DIR)/c_harness: \
 		$(BUILD_DIR)/results/SingleTestInfo.o \
 		$(BUILD_DIR)/results/FileSystemTestResult.o \
 		$(BUILD_DIR)/results/DataTestResult.o \
-		$(BUILD_DIR)/results/PermuteTestResult.o
+		$(BUILD_DIR)/results/PermuteTestResult.o \
+		$(BUILD_DIR)/tests/BaseTestCase.o \
+		$(BUILD_DIR)/user_tools/src/actions.o \
+		$(BUILD_DIR)/user_tools/src/wrapper.o
 	mkdir -p $(@D)
 	$(GPP) $(GOPTS) $^ -ldl -o $@
 
@@ -143,7 +149,9 @@ $(CM_GEN_042_OUT): $(BUILD_DIR)/tests/generic_042/%.so : \
 		$(BUILD_DIR)/tests/BaseTestCase.o \
 		$(BUILD_DIR)/tests/generic_042/generic_042_base.o \
 		$(BUILD_DIR)/user_tools/src/actions.o \
+		$(BUILD_DIR)/user_tools/src/wrapper.o \
 		$(BUILD_DIR)/user_tools/src/workload.o \
+		$(BUILD_DIR)/utils/DiskMod.o \
 		$(BUILD_DIR)/utils/communication/BaseSocket.o \
 		$(BUILD_DIR)/utils/communication/ClientSocket.o \
 		$(BUILD_DIR)/utils/communication/ClientCommandSender.o \
@@ -157,6 +165,8 @@ $(BUILD_DIR)/tests/%.so: \
 		$(BUILD_DIR)/tests/BaseTestCase.o \
 		$(BUILD_DIR)/user_tools/src/actions.o \
 		$(BUILD_DIR)/user_tools/src/workload.o \
+		$(BUILD_DIR)/user_tools/src/wrapper.o \
+		$(BUILD_DIR)/utils/DiskMod.o \
 		$(BUILD_DIR)/utils/communication/BaseSocket.o \
 		$(BUILD_DIR)/utils/communication/ClientSocket.o \
 		$(BUILD_DIR)/utils/communication/ClientCommandSender.o \
@@ -188,8 +198,8 @@ $(BUILD_DIR)/permuter/%.so: \
 	$(GPP) $(GOPTS) $(GOTPSSO) -Wl,-soname,RandomPermuter.so \
 		-o $@ $^
 
-$(BUILD_DIR)/utils/utils.o: \
-		utils/utils.cpp
+$(BUILD_DIR)/utils/%.o: \
+		utils/%.cpp
 	mkdir -p $(@D)
 	$(GPP) $(GOPTS) -fPIC -c -o $@ $<
 
@@ -204,11 +214,6 @@ $(BUILD_DIR)/user_tools/%: \
 
 $(BUILD_DIR)/user_tools/src/%.o: \
 		user_tools/src/%.cpp
-	mkdir -p $(@D)
-	$(GPP) -c $(GOPTS) -fPIC -o $@ $<
-
-$(BUILD_DIR)/utils/communication/%.o: \
-		utils/communication/%.cpp
 	mkdir -p $(@D)
 	$(GPP) -c $(GOPTS) -fPIC -o $@ $<
 
