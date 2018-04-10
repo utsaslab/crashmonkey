@@ -23,7 +23,7 @@ from multiprocessing import Pool
 #All functions that has options go here
 #FallocOptions = ['FALLOC_FL_ZERO_RANGE','FALLOC_FL_ZERO_RANGE | FALLOC_FL_KEEP_SIZE','FALLOC_FL_PUNCH_HOLE | FALLOC_FL_KEEP_SIZE', '0',  'FALLOC_FL_KEEP_SIZE']
 
-FallocOptions = ['FALLOC_FL_ZERO_RANGE', 'FALLOC_FL_ZERO_RANGE | FALLOC_FL_KEEP_SIZE','FALLOC_FL_PUNCH_HOLE | FALLOC_FL_KEEP_SIZE','FALLOC_FL_KEEP_SIZE', 0]
+FallocOptions = ['FALLOC_FL_ZERO_RANGE', 'FALLOC_FL_ZERO_RANGE|FALLOC_FL_KEEP_SIZE','FALLOC_FL_PUNCH_HOLE|FALLOC_FL_KEEP_SIZE','FALLOC_FL_KEEP_SIZE', 0]
 
 FsyncOptions = ['fsync','fdatasync']
 
@@ -238,7 +238,7 @@ def buildCustomTuple(file_list):
     d = list(file_list)
     fsync = ('fsync',)
     sync = ('sync')
-    none = ('none')
+#    none = ('none')
     SyncSetCustom = list()
     for i in xrange(0, len(d)):
         tup = list(fsync)
@@ -246,7 +246,7 @@ def buildCustomTuple(file_list):
         SyncSetCustom.append(tuple(tup))
     
     SyncSetCustom.append(sync)
-    SyncSetCustom.append(none)
+#    SyncSetCustom.append(none)
     SyncSetCustom = tuple(SyncSetCustom)
     syncPermutationsCustom = list()
     for i in itertools.product(SyncSetCustom, repeat=int(num_ops)):
@@ -585,7 +585,7 @@ def buildJlang(op_list, length_map):
         file = flat_list[1]
         option = flat_list[2]
         write_op = flat_list[3]
-        command_str = command_str + 'fallocate ' + file.replace('/','') + ' ' + str(option) + ' '
+        command_str = command_str + 'falloc ' + file.replace('/','') + ' ' + str(option) + ' '
         if write_op == 'append':
             off = str(length_map[file])
             len = '4096'
