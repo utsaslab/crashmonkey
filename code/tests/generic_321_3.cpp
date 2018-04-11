@@ -80,7 +80,7 @@ class Generic321_3: public BaseTestCase {
     return 0;
   }
 
-  virtual int run(nt checkpoint) override {
+  virtual int run(int checkpoint) override {
 
 	init_paths();
 
