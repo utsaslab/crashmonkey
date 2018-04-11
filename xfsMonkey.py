@@ -26,8 +26,8 @@ def build_parser():
     parser.add_argument('--fs_type', '-t', default='ext4', help='Filesystem on which you wish to run XFSMonkey test suite. Default = ext4')
 
     # crash monkey args
-    parser.add_argument('--disk_size', '-e', default=204800, type=int, help='Size of disk in KB. Default = 200MB')
-    parser.add_argument('--iterations', '-s', default=1000, type=int, help='Number of random crash states to test on. Default = 1000')
+    parser.add_argument('--disk_size', '-e', default=102400, type=int, help='Size of disk in KB. Default = 200MB')
+    parser.add_argument('--iterations', '-s', default=10000, type=int, help='Number of random crash states to test on. Default = 1000')
     parser.add_argument('--test_dev', '-d', default='/dev/cow_ram0', help='Test device. Default = /dev/cow_ram0')
     parser.add_argument('--flag_dev', '-f', default='/dev/sda', help='Flag device. Default = /dev/sda')
     
@@ -69,7 +69,8 @@ def main():
 
 	#Assign a test num
 	test_num = 0
-
+	
+	subprocess.call('mkdir diff_results', shell=True)
 	#Get the relative path to test directory
 	xfsMonkeyTestPath = './' + parsed_args.test_path
 
@@ -85,9 +86,9 @@ def main():
 			test_file = xfsMonkeyTestPath.replace('./build/', '') + filename
 
 			#Build command to run c_harness 
-			command = ('cd build; ./c_harness -f '+ parsed_args.flag_dev +' -d '+ 
+			command = ('cd build; ./c_harness -v -c -P -f '+ parsed_args.flag_dev +' -d '+
 			parsed_args.test_dev +' -t ' + parsed_args.fs_type + ' -e ' + 
-			str(parsed_args.disk_size) + ' -s ' + str(parsed_args.iterations) +' -v ' + test_file + ' 2>&1')
+			str(parsed_args.disk_size) + ' ' + test_file + ' 2>&1')
 	
 			#Cleanup errors due to prev runs if any
 			cleanup()
@@ -128,6 +129,12 @@ def main():
 					error = re.sub(r'(?s).*error', '\nError', output, flags=re.I)
 					print error
 					print 'Retry running ' ,filename.replace('.so', ''), '\nRunning... '	 
+			file = filename.replace('.so', '')			
+			#diff_command = 'tail -vn +1 build/diff* >> diff_results/' + file  + '; rm build/diff*' 
+			subprocess.call('cat build/diff* > out', shell=True)
+			diff_command = './copy_diff.sh out ' + file
+			subprocess.call('tail -vn +1 build/diff*', shell=True)
+			subprocess.call(diff_command, shell=True)
 			
 	#Stop logging
 	sys.stdout = original
