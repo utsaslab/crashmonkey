@@ -6,11 +6,10 @@ _target="$2"
  
 if [ -s "$_file" ] 
 then
-	echo "$_file : Non empty diff"
+	echo "$_file : Failed test : Non empty diff"
 	tail -vn +1 build/diff* >> diff_results/$_target
 	rm build/diff*
-        # do something as file has data
 else
+    rm build/diff*
 	echo "$_file : Passed test"
-        # do something as file is empty 
 fi
