@@ -52,41 +52,46 @@ namespace fs_testing {
 				bar_path =  mnt_dir_ + "/bar";
 				int local_checkpoint = 0 ;
 
-				int fd_bar = open(bar_path.c_str() , O_RDWR|O_CREAT , 0777); 
-				if ( fd_bar < 0 ) { 
-					close( fd_bar); 
+				if ( mkdir(A_path.c_str() , 0777) < 0){ 
 					return errno;
 				}
 
 
-				if ( close( fd_bar) < 0){ 
+				int fd_Abar = cm_->CmOpen(Abar_path.c_str() , O_RDWR|O_CREAT , 0777); 
+				if ( fd_Abar < 0 ) { 
+					close( fd_Abar); 
 					return errno;
 				}
 
 
-				if ( unlink(bar_path.c_str() ) < 0){ 
+				if ( close( fd_Abar) < 0){ 
 					return errno;
 				}
 
 
-				 fd_bar = open(bar_path.c_str() , O_RDWR|O_CREAT , 0777); 
-				if ( fd_bar < 0 ) { 
-					close( fd_bar); 
+				if ( unlink(Abar_path.c_str() ) < 0){ 
 					return errno;
 				}
 
 
-				if ( fsync( fd_bar) < 0){ 
+				int fd_A = cm_->CmOpen(A_path.c_str() , O_DIRECTORY , 0777); 
+				if ( fd_A < 0 ) { 
+					close( fd_A); 
 					return errno;
 				}
 
 
-				if ( Checkpoint() < 0){ 
+				if ( cm_->CmFsync( fd_A) < 0){ 
+					return errno;
+				}
+
+
+				if ( cm_->CmCheckpoint() < 0){ 
 					return -1;
 				}
 				local_checkpoint += 1; 
 
-				if ( close( fd_bar) < 0){ 
+				if ( close( fd_A) < 0){ 
 					return errno;
 				}
 

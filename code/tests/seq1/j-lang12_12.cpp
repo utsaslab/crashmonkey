@@ -57,10 +57,10 @@ namespace fs_testing {
 				}
 
 
-				sync(); 
+				cm_->CmSync(); 
 
 
-				if ( Checkpoint() < 0){ 
+				if ( cm_->CmCheckpoint() < 0){ 
 					return -1;
 				}
 				local_checkpoint += 1; 

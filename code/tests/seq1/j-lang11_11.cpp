@@ -62,19 +62,19 @@ namespace fs_testing {
 				}
 
 
-				int fd_B = open(B_path.c_str() , O_DIRECTORY , 0777); 
+				int fd_B = cm_->CmOpen(B_path.c_str() , O_DIRECTORY , 0777); 
 				if ( fd_B < 0 ) { 
 					close( fd_B); 
 					return errno;
 				}
 
 
-				if ( fsync( fd_B) < 0){ 
+				if ( cm_->CmFsync( fd_B) < 0){ 
 					return errno;
 				}
 
 
-				if ( Checkpoint() < 0){ 
+				if ( cm_->CmCheckpoint() < 0){ 
 					return -1;
 				}
 				local_checkpoint += 1; 

@@ -57,8 +57,14 @@ namespace fs_testing {
 				}
 
 
-				int fd_Afoo = open(Afoo_path.c_str() , O_RDWR|O_CREAT , 0777); 
+				int fd_Afoo = cm_->CmOpen(Afoo_path.c_str() , O_RDWR|O_CREAT , 0777); 
 				if ( fd_Afoo < 0 ) { 
+					close( fd_Afoo); 
+					return errno;
+				}
+
+
+				if ( WriteData ( fd_Afoo, 0, 4096) < 0){ 
 					close( fd_Afoo); 
 					return errno;
 				}
@@ -96,19 +102,19 @@ namespace fs_testing {
 					return errno;
 				}
 
-				int fd_Abar = open(Abar_path.c_str() , O_RDWR|O_CREAT , 0777); 
-				if ( fd_Abar < 0 ) { 
-					close( fd_Abar); 
+				int fd_A = cm_->CmOpen(A_path.c_str() , O_DIRECTORY , 0777); 
+				if ( fd_A < 0 ) { 
+					close( fd_A); 
 					return errno;
 				}
 
 
-				if ( fsync( fd_Abar) < 0){ 
+				if ( cm_->CmFsync( fd_A) < 0){ 
 					return errno;
 				}
 
 
-				if ( Checkpoint() < 0){ 
+				if ( cm_->CmCheckpoint() < 0){ 
 					return -1;
 				}
 				local_checkpoint += 1; 
@@ -118,7 +124,7 @@ namespace fs_testing {
 				}
 
 
-				if ( close( fd_Abar) < 0){ 
+				if ( close( fd_A) < 0){ 
 					return errno;
 				}
 

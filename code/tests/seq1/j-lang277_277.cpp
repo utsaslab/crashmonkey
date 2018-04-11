@@ -57,18 +57,32 @@ namespace fs_testing {
 				}
 
 
-				if ( symlink(foo_path.c_str() , Abar_path.c_str() ) < 0){ 
+				if ( symlink(Afoo_path.c_str() , bar_path.c_str() ) < 0){ 
 					return errno;
 				}
 
 
-				sync(); 
+				int fd_foo = cm_->CmOpen(foo_path.c_str() , O_RDWR|O_CREAT , 0777); 
+				if ( fd_foo < 0 ) { 
+					close( fd_foo); 
+					return errno;
+				}
 
 
-				if ( Checkpoint() < 0){ 
+				if ( cm_->CmFsync( fd_foo) < 0){ 
+					return errno;
+				}
+
+
+				if ( cm_->CmCheckpoint() < 0){ 
 					return -1;
 				}
 				local_checkpoint += 1; 
+
+				if ( close( fd_foo) < 0){ 
+					return errno;
+				}
+
 				if (local_checkpoint == checkpoint) { 
 					return 1;
 				}

@@ -57,29 +57,46 @@ namespace fs_testing {
 				}
 
 
-				if ( symlink(Afoo_path.c_str() , Abar_path.c_str() ) < 0){ 
+				int fd_Afoo = cm_->CmOpen(Afoo_path.c_str() , O_RDWR|O_CREAT , 0777); 
+				if ( fd_Afoo < 0 ) { 
+					close( fd_Afoo); 
 					return errno;
 				}
 
 
-				int fd_Abar = open(Abar_path.c_str() , O_RDWR|O_CREAT , 0777); 
-				if ( fd_Abar < 0 ) { 
-					close( fd_Abar); 
+				if ( fsetxattr( fd_Afoo, "user.xattr1", "val1 ", 4, 0 ) < 0){ 
 					return errno;
 				}
 
 
-				if ( fsync( fd_Abar) < 0){ 
+				if ( removexattr(Afoo_path.c_str() , "user.xattr1") < 0){ 
 					return errno;
 				}
 
 
-				if ( Checkpoint() < 0){ 
+				int fd_A = cm_->CmOpen(A_path.c_str() , O_DIRECTORY , 0777); 
+				if ( fd_A < 0 ) { 
+					close( fd_A); 
+					return errno;
+				}
+
+
+				if ( cm_->CmFsync( fd_A) < 0){ 
+					return errno;
+				}
+
+
+				if ( cm_->CmCheckpoint() < 0){ 
 					return -1;
 				}
 				local_checkpoint += 1; 
 
-				if ( close( fd_Abar) < 0){ 
+				if ( close( fd_Afoo) < 0){ 
+					return errno;
+				}
+
+
+				if ( close( fd_A) < 0){ 
 					return errno;
 				}
 

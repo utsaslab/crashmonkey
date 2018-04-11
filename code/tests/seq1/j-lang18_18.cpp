@@ -52,22 +52,29 @@ namespace fs_testing {
 				bar_path =  mnt_dir_ + "/bar";
 				int local_checkpoint = 0 ;
 
-				int fd_foo = mknod(foo_path.c_str() , TEST_FILE_PERMS|S_IFCHR|S_IFBLK , 0); 
-				if ( fd_foo < 0 ) { 
-					close( fd_foo); 
+				if ( mkdir(A_path.c_str() , 0777) < 0){ 
 					return errno;
 				}
 
 
-				sync(); 
+				int fd_Afoo = mknod(Afoo_path.c_str() , TEST_FILE_PERMS|S_IFCHR|S_IFBLK , 0); 
+				if ( fd_Afoo < 0 ) { 
+					close( fd_Afoo); 
+					return errno;
+				}
 
 
-				if ( Checkpoint() < 0){ 
+				if ( cm_->CmFsync( fd_Afoo) < 0){ 
+					return errno;
+				}
+
+
+				if ( cm_->CmCheckpoint() < 0){ 
 					return -1;
 				}
 				local_checkpoint += 1; 
 
-				if ( close( fd_foo) < 0){ 
+				if ( close( fd_Afoo) < 0){ 
 					return errno;
 				}
 

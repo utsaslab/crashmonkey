@@ -33,7 +33,8 @@ FileOptions = ['foo', 'A/foo']
 SecondFileOptions = ['bar', 'A/bar']
 
 #A, B are  subdir under test
-DirOptions = ['A', 'test']
+DirOptions = ['A']
+TestDirOptions = ['test']
 SecondDirOptions = ['B']
 
 #this will take care of offset + length combo
@@ -226,7 +227,7 @@ def buildTuple(command):
     elif command == 'fdatasync' or command == 'fsetxattr' or command == 'removexattr':
         d = tuple(FileOptions)
     elif command == 'fsync':
-        d = tuple(FileOptions + DirOptions + SecondFileOptions + SecondDirOptions)
+        d = tuple(FileOptions + DirOptions + TestDirOptions +  SecondFileOptions + SecondDirOptions)
     else:
         d=()
     return d
@@ -298,19 +299,19 @@ def insertXattr(file_name, open_dir_map, open_file_map, file_length_map, modifie
 def insertOpen(file_name, open_dir_map, open_file_map, file_length_map, modified_pos):
     if file_name in FileOptions or file_name in SecondFileOptions:
         open_file_map[file_name] = 1
-    elif file_name in DirOptions or file_name in SecondDirOptions:
+    elif file_name in DirOptions or file_name in SecondDirOptions or file_name in TestDirOptions:
         open_dir_map[file_name] = 1
     return ('open', file_name)
 
 def insertMkdir(file_name, open_dir_map, open_file_map, file_length_map, modified_pos):
-    if file_name in DirOptions or file_name in SecondDirOptions:
+    if file_name in DirOptions or file_name in SecondDirOptions or file_name in TestDirOptions:
         open_dir_map[file_name] = 0
     return ('mkdir', file_name)
 
 def insertClose(file_name, open_dir_map, open_file_map, file_length_map, modified_pos):
     if file_name in FileOptions or file_name in SecondFileOptions:
         open_file_map[file_name] = 0
-    elif file_name in DirOptions or file_name in SecondDirOptions:
+    elif file_name in DirOptions or file_name in SecondDirOptions or file_name in TestDirOptions:
         open_dir_map[file_name] = 0
     return ('close', file_name)
 
@@ -384,7 +385,7 @@ def checkExistsDep(current_sequence, pos, modified_sequence, modified_pos, open_
         file_name = file_names[0]
     
     # If we are trying to fsync a dir, ensure it exists
-    if file_name in DirOptions or file_name in SecondDirOptions:
+    if file_name in DirOptions or file_name in SecondDirOptions or file_name in TestDirOptions:
         if file_name not in open_dir_map:
             modified_sequence.insert(modified_pos, insertMkdir(file_name, open_dir_map, open_file_map, file_length_map, modified_pos))
             modified_pos += 1
@@ -502,9 +503,15 @@ def satisfyDep(current_sequence, pos, modified_sequence, modified_pos, open_dir_
         modified_pos = checkParentExistsDep(current_sequence, pos, modified_sequence, modified_pos, open_dir_map, open_file_map, file_length_map)
         
         modified_pos = checkExistsDep(current_sequence, pos, modified_sequence, modified_pos, open_dir_map, open_file_map, file_length_map)
+        
         #We have removed the first file, and created a second file
-        open_file_map.pop(first_file, None)
-        open_file_map[second_file] = 0
+        if first_file in FileOptions:
+            open_file_map.pop(first_file, None)
+            open_file_map[second_file] = 0
+        elif first_file in DirOptions:
+            open_dir_map.pop(first_file, None)
+            open_dir_map[second_file] = 0
+        
 
     elif command == 'symlink':
         
@@ -543,6 +550,7 @@ def satisfyDep(current_sequence, pos, modified_sequence, modified_pos, open_dir_
         pass
     
     else:
+        print command
         print 'Invalid command'
 
     return modified_pos
@@ -564,7 +572,7 @@ def buildJlang(op_list, length_map):
     command = flat_list[0]
     if command == 'open':
         file = flat_list[1]
-        if file in DirOptions or file in SecondDirOptions:
+        if file in DirOptions or file in SecondDirOptions or file in TestDirOptions:
             command_str = command_str + 'opendir ' + file.replace('/','') + ' 0777'
         else:
             command_str = command_str + 'open ' + file.replace('/','') + ' O_RDWR|O_CREAT 0777'
@@ -658,7 +666,7 @@ def buildJlang(op_list, length_map):
 
     if command =='fdatasync':
         file = flat_list[1]
-        command_str = command_str + command + ' ' + file.replace('/','')
+        command_str = command_str + command + ' ' + file.replace('/','') + '\ncheckpoint'
 
 
     if command == 'sync':
@@ -685,7 +693,7 @@ def doPermutation(perm):
     
     permutations.append(perm)
     log = ', '.join(perm);
-    log = `count` + ' : ' + log + '\n'
+    log = '\n' + `count` + ' : ' + log + '\n'
     count +=1
 #    global_count +=1
     log_file_handle.write(log)
@@ -705,22 +713,29 @@ def doPermutation(perm):
         #Let's insert fsync combinations here.
         count_sync = 0
         if isinstance(j[0], basestring):
-            usedFiles = list(set(j) & set(FileOptions + SecondFileOptions + DirOptions + SecondDirOptions))
+            orig_file = j[0]
+            usedFiles = list(set(j) & set(FileOptions + SecondFileOptions + DirOptions + SecondDirOptions + TestDirOptions))
         else:
-            usedFiles = [filter(lambda x: x in list(FileOptions + SecondFileOptions + DirOptions + SecondDirOptions), sublist) for sublist in j]
+            usedFiles = [filter(lambda x: x in list(FileOptions + SecondFileOptions + DirOptions + SecondDirOptions + TestDirOptions), sublist) for sublist in j]
             usedFiles = list(itertools.chain.from_iterable(usedFiles))
         
+
         syncPermutationsCustom = buildCustomTuple(file_range(usedFiles))
+
+        if perm[0] == 'fdatasync':
+            syncPermutationsCustom = [['none' ,]]
+        
 
         for insSync in range(0, len(syncPermutationsCustom)):
             if int(num_ops) == 1 or int(num_ops) == 2:
                 log = '{0}'.format(syncPermutationsCustom[insSync]);
-                log = '\t\t File # ' + `global_count` + ' : ' + `count_sync` + ' : ' + log + '\n'
+                log = '\n\t\tFile # ' + `global_count` + ' : ' + `count_sync` + ' : ' + log + '\n'
                 log_file_handle.write(log)
             global_count +=1
             count_sync+=1
             seq = []
-            #merge the lists here :
+            
+            #merge the lists here . Just check if perm has fdatasync. If so skip adding any sync:
             seq.append(perm + j )
             seq.append(syncPermutationsCustom[insSync][0])
             
@@ -752,11 +767,11 @@ def doPermutation(perm):
              
              
              
-             #Now build the j-lang file
+             #Now build the j-lang file------------------------------------
             j_lang_file = 'j-lang' + str(global_count)
             copyfile('code/tests/seq1/j-lang', j_lang_file)
             length_map = {}
-#            print j_lang_file
+
             with open(j_lang_file, 'a') as f:
                 run_line = '\n\n# run\n'
                 f.write(run_line)
@@ -770,6 +785,8 @@ def doPermutation(perm):
             
             exec_command = 'python workload_seq1.py -b code/tests/seq1/base.cpp -t ' + j_lang_file + ' -p code/tests/seq1/ -o ' + str(global_count)
             subprocess.call(exec_command, shell=True)
+            #Now build the j-lang file------------------------------------
+
              
 #            log = '\t\t\tModified sequence = {0}\n'.format(modified_sequence);
 #            log_file_handle.write(log)

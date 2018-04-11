@@ -52,46 +52,24 @@ namespace fs_testing {
 				bar_path =  mnt_dir_ + "/bar";
 				int local_checkpoint = 0 ;
 
-				int fd_foo = open(foo_path.c_str() , O_RDWR|O_CREAT , 0777); 
+				int fd_foo = cm_->CmOpen(foo_path.c_str() , O_RDWR|O_CREAT , 0777); 
 				if ( fd_foo < 0 ) { 
 					close( fd_foo); 
 					return errno;
 				}
 
 
-				if ( fsetxattr( fd_foo, "user.xattr1", "val1 ", 4, 0 ) < 0){ 
+				if ( cm_->CmFdatasync( fd_foo) < 0){ 
 					return errno;
 				}
 
 
-				if ( removexattr(foo_path.c_str() , "user.xattr1") < 0){ 
-					return errno;
-				}
-
-
-				int fd_bar = open(bar_path.c_str() , O_RDWR|O_CREAT , 0777); 
-				if ( fd_bar < 0 ) { 
-					close( fd_bar); 
-					return errno;
-				}
-
-
-				if ( fsync( fd_bar) < 0){ 
-					return errno;
-				}
-
-
-				if ( Checkpoint() < 0){ 
+				if ( cm_->CmCheckpoint() < 0){ 
 					return -1;
 				}
 				local_checkpoint += 1; 
 
 				if ( close( fd_foo) < 0){ 
-					return errno;
-				}
-
-
-				if ( close( fd_bar) < 0){ 
 					return errno;
 				}
 

@@ -52,48 +52,53 @@ namespace fs_testing {
 				bar_path =  mnt_dir_ + "/bar";
 				int local_checkpoint = 0 ;
 
-				int fd_foo = open(foo_path.c_str() , O_RDWR|O_CREAT , 0777); 
-				if ( fd_foo < 0 ) { 
-					close( fd_foo); 
+				if ( mkdir(A_path.c_str() , 0777) < 0){ 
 					return errno;
 				}
 
 
-				if ( WriteData ( fd_foo, 0, 4096) < 0){ 
-					close( fd_foo); 
+				int fd_Afoo = cm_->CmOpen(Afoo_path.c_str() , O_RDWR|O_CREAT , 0777); 
+				if ( fd_Afoo < 0 ) { 
+					close( fd_Afoo); 
 					return errno;
 				}
 
 
-				if ( fallocate( fd_foo , 0 , 1000 , 3000) < 0){ 
-					 close( fd_foo);
+				if ( WriteData ( fd_Afoo, 0, 4096) < 0){ 
+					close( fd_Afoo); 
+					return errno;
+				}
+
+
+				if ( fallocate( fd_Afoo , FALLOC_FL_ZERO_RANGE , 4096 , 4096) < 0){ 
+					 close( fd_Afoo);
 					 return errno;
 				}
 
 
-				int fd_bar = open(bar_path.c_str() , O_RDWR|O_CREAT , 0777); 
-				if ( fd_bar < 0 ) { 
-					close( fd_bar); 
+				int fd_A = cm_->CmOpen(A_path.c_str() , O_DIRECTORY , 0777); 
+				if ( fd_A < 0 ) { 
+					close( fd_A); 
 					return errno;
 				}
 
 
-				if ( fsync( fd_bar) < 0){ 
+				if ( cm_->CmFsync( fd_A) < 0){ 
 					return errno;
 				}
 
 
-				if ( Checkpoint() < 0){ 
+				if ( cm_->CmCheckpoint() < 0){ 
 					return -1;
 				}
 				local_checkpoint += 1; 
 
-				if ( close( fd_foo) < 0){ 
+				if ( close( fd_Afoo) < 0){ 
 					return errno;
 				}
 
 
-				if ( close( fd_bar) < 0){ 
+				if ( close( fd_A) < 0){ 
 					return errno;
 				}
 

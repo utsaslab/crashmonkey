@@ -52,74 +52,73 @@ namespace fs_testing {
 				bar_path =  mnt_dir_ + "/bar";
 				int local_checkpoint = 0 ;
 
-				int fd_foo = open(foo_path.c_str() , O_RDWR|O_CREAT , 0777); 
-				if ( fd_foo < 0 ) { 
-					close( fd_foo); 
+				if ( mkdir(A_path.c_str() , 0777) < 0){ 
 					return errno;
 				}
 
 
-				if ( WriteData ( fd_foo, 0, 4096) < 0){ 
-					close( fd_foo); 
+				int fd_Afoo = cm_->CmOpen(Afoo_path.c_str() , O_RDWR|O_CREAT , 0777); 
+				if ( fd_Afoo < 0 ) { 
+					close( fd_Afoo); 
 					return errno;
 				}
 
 
-				close(fd_foo); 
-				fd_foo = open(foo_path.c_str() , O_RDWR|O_DIRECT|O_SYNC , 0777); 
-				if ( fd_foo < 0 ) { 
-					close( fd_foo); 
+				close(fd_Afoo); 
+				fd_Afoo = open(Afoo_path.c_str() , O_RDWR|O_DIRECT|O_SYNC , 0777); 
+				if ( fd_Afoo < 0 ) { 
+					close( fd_Afoo); 
 					return errno;
 				}
 
-				void* data_foo;
-				if (posix_memalign(&data_foo , 4096, 4096 ) < 0) {
+				void* data_Afoo;
+				if (posix_memalign(&data_Afoo , 4096, 4096 ) < 0) {
 					return errno;
 				}
 
 				 
-				int offset_foo = 0;
-				int to_write_foo = 4096 ;
-				const char *text_foo  = "abcdefghijklmnopqrstuvwxyz123456";
-				while (offset_foo < 4096){
-					if (to_write_foo < 32){
-						memcpy((char *)data_foo+ offset_foo, text_foo, to_write_foo);
-						offset_foo += to_write_foo;
+				int offset_Afoo = 0;
+				int to_write_Afoo = 4096 ;
+				const char *text_Afoo  = "abcdefghijklmnopqrstuvwxyz123456";
+				while (offset_Afoo < 4096){
+					if (to_write_Afoo < 32){
+						memcpy((char *)data_Afoo+ offset_Afoo, text_Afoo, to_write_Afoo);
+						offset_Afoo += to_write_Afoo;
 					}
 					else {
-						memcpy((char *)data_foo+ offset_foo,text_foo, 32);
-						offset_foo += 32; 
+						memcpy((char *)data_Afoo+ offset_Afoo,text_Afoo, 32);
+						offset_Afoo += 32; 
 					} 
 				} 
 
-				if ( pwrite ( fd_foo, data_foo, 4096, 0) < 0){
-					close( fd_foo); 
+				if ( pwrite ( fd_Afoo, data_Afoo, 4096, 0) < 0){
+					close( fd_Afoo); 
 					return errno;
 				}
 
-				int fd_bar = open(bar_path.c_str() , O_RDWR|O_CREAT , 0777); 
-				if ( fd_bar < 0 ) { 
-					close( fd_bar); 
-					return errno;
-				}
-
-
-				if ( fsync( fd_bar) < 0){ 
+				int fd_A = cm_->CmOpen(A_path.c_str() , O_DIRECTORY , 0777); 
+				if ( fd_A < 0 ) { 
+					close( fd_A); 
 					return errno;
 				}
 
 
-				if ( Checkpoint() < 0){ 
+				if ( cm_->CmFsync( fd_A) < 0){ 
+					return errno;
+				}
+
+
+				if ( cm_->CmCheckpoint() < 0){ 
 					return -1;
 				}
 				local_checkpoint += 1; 
 
-				if ( close( fd_foo) < 0){ 
+				if ( close( fd_Afoo) < 0){ 
 					return errno;
 				}
 
 
-				if ( close( fd_bar) < 0){ 
+				if ( close( fd_A) < 0){ 
 					return errno;
 				}
 

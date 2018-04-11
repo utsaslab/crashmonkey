@@ -59,12 +59,10 @@ namespace fs_testing {
 				}
 
 
-				if ( fsync( fd_foo) < 0){ 
-					return errno;
-				}
+				cm_->CmSync(); 
 
 
-				if ( Checkpoint() < 0){ 
+				if ( cm_->CmCheckpoint() < 0){ 
 					return -1;
 				}
 				local_checkpoint += 1; 

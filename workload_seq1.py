@@ -202,7 +202,7 @@ def insertOpenFile(contents, line, index_map, method):
         redeclare_map[name] = 1
     
     # TODO: prevent redeclations here
-    to_insert = '\n\t\t\t\t' + decl + 'fd_' + line.split(' ')[1] + ' = open(' + line.split(' ')[1] + '_path.c_str() , ' + line.split(' ')[2] + ' , ' + line.split(' ')[3] + '); \n\t\t\t\tif ( fd_' + line.split(' ')[1] + ' < 0 ) { \n\t\t\t\t\tclose( fd_' + line.split(' ')[1] + '); \n\t\t\t\t\treturn errno;\n\t\t\t\t}\n\n'
+    to_insert = '\n\t\t\t\t' + decl + 'fd_' + line.split(' ')[1] + ' = cm_->CmOpen(' + line.split(' ')[1] + '_path.c_str() , ' + line.split(' ')[2] + ' , ' + line.split(' ')[3] + '); \n\t\t\t\tif ( fd_' + line.split(' ')[1] + ' < 0 ) { \n\t\t\t\t\tclose( fd_' + line.split(' ')[1] + '); \n\t\t\t\t\treturn errno;\n\t\t\t\t}\n\n'
     
     if method == 'setup':
         contents.insert(index_map['setup'], to_insert)
@@ -238,7 +238,7 @@ def insertOpenDir(contents, line, index_map, method):
         redeclare_map[name] = 1
     
     # TODO: prevent redeclations here
-    to_insert = '\n\t\t\t\t' + decl + 'fd_' + line.split(' ')[1] + ' = open(' + line.split(' ')[1] + '_path.c_str() , O_DIRECTORY , ' + line.split(' ')[2] + '); \n\t\t\t\tif ( fd_' + line.split(' ')[1] + ' < 0 ) { \n\t\t\t\t\tclose( fd_' + line.split(' ')[1] + '); \n\t\t\t\t\treturn errno;\n\t\t\t\t}\n\n'
+    to_insert = '\n\t\t\t\t' + decl + 'fd_' + line.split(' ')[1] + ' = cm_->CmOpen(' + line.split(' ')[1] + '_path.c_str() , O_DIRECTORY , ' + line.split(' ')[2] + '); \n\t\t\t\tif ( fd_' + line.split(' ')[1] + ' < 0 ) { \n\t\t\t\t\tclose( fd_' + line.split(' ')[1] + '); \n\t\t\t\t\treturn errno;\n\t\t\t\t}\n\n'
     
     if method == 'setup':
         contents.insert(index_map['setup'], to_insert)
@@ -272,7 +272,12 @@ def insertClose(contents, line, index_map, method):
 
 
 def insertFsync(contents, option,  line, index_map, method):
-    to_insert = '\n\t\t\t\tif ( ' + option + '( fd_' + line.split(' ')[1] + ') < 0){ \n\t\t\t\t\treturn errno;\n\t\t\t\t}\n\n'
+    if option == 'fsync':
+        ins = 'cm_->CmFsync'
+    elif option == 'fdatasync':
+        ins = 'cm_->CmFdatasync'
+
+    to_insert = '\n\t\t\t\tif ( ' + ins + '( fd_' + line.split(' ')[1] + ') < 0){ \n\t\t\t\t\treturn errno;\n\t\t\t\t}\n\n'
     
     if method == 'setup':
         contents.insert(index_map['setup'], to_insert)
@@ -283,7 +288,7 @@ def insertFsync(contents, option,  line, index_map, method):
 
 
 def insertSync(contents, line, index_map, method):
-    to_insert = '\n\t\t\t\t' + line.split(' ')[0] + '(); \n\n'
+    to_insert = '\n\t\t\t\tcm_->CmSync(); \n\n'
     
     if method == 'setup':
         contents.insert(index_map['setup'], to_insert)
@@ -317,7 +322,7 @@ def insertLink(contents, option, line, index_map, method):
 
 def insertCheckpoint(contents, line, index_map, method):
     
-    to_insert = '\n\t\t\t\tif ( Checkpoint() < 0){ \n\t\t\t\t\treturn -1;\n\t\t\t\t}\n\t\t\t\tlocal_checkpoint += 1; \n\t\t\t\tif (local_checkpoint == checkpoint) { \n\t\t\t\t\treturn 1;\n\t\t\t\t}\n\n'
+    to_insert = '\n\t\t\t\tif ( cm_->CmCheckpoint() < 0){ \n\t\t\t\t\treturn -1;\n\t\t\t\t}\n\t\t\t\tlocal_checkpoint += 1; \n\t\t\t\tif (local_checkpoint == checkpoint) { \n\t\t\t\t\treturn 1;\n\t\t\t\t}\n\n'
     
     if method == 'setup':
         contents.insert(index_map['setup'], to_insert)
@@ -526,13 +531,14 @@ def insertFunctions(line, file, index_map, method):
             insertWrite(contents, option, line, index_map, method)
 
         elif line.split(' ')[0] == 'none':
-            if method == 'setup':
-                updateSetupMap(index_map, 1)
-            else:
-                updateRunMap(index_map, 1)
-            #we know this can be only in run
-            contents.insert(index_map['run'], '\t\t\t\t return 1;\n')
-            updateRunMap(index_map, -1)
+            pass
+#            if method == 'setup':
+#                updateSetupMap(index_map, 1)
+#            else:
+#                updateRunMap(index_map, 1)
+#            #we know this can be only in run
+#            contents.insert(index_map['run'], '\t\t\t\t return 1;\n')
+#            updateRunMap(index_map, -1)
 
         insert.seek(0)
         insert.writelines(contents)

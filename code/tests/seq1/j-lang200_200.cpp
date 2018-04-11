@@ -57,22 +57,24 @@ namespace fs_testing {
 				}
 
 
-				int fd_Afoo = open(Afoo_path.c_str() , O_RDWR|O_CREAT , 0777); 
+				int fd_Afoo = cm_->CmOpen(Afoo_path.c_str() , O_RDWR|O_CREAT , 0777); 
 				if ( fd_Afoo < 0 ) { 
 					close( fd_Afoo); 
 					return errno;
 				}
 
 
-				if ( link(Afoo_path.c_str() , bar_path.c_str() ) < 0){ 
+				if ( link(Afoo_path.c_str() , Abar_path.c_str() ) < 0){ 
 					return errno;
 				}
 
 
-				sync(); 
+				if ( cm_->CmFsync( fd_Afoo) < 0){ 
+					return errno;
+				}
 
 
-				if ( Checkpoint() < 0){ 
+				if ( cm_->CmCheckpoint() < 0){ 
 					return -1;
 				}
 				local_checkpoint += 1; 
