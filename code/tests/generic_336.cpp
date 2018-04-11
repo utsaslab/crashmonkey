@@ -115,19 +115,19 @@ class Generic336: public BaseTestCase {
     }
 
     //Open TEST_DIR_A/foo whose link count was decremented
-    const int fd_foo = open(foo_path.c_str(), O_RDWR);
+    const int fd_foo = cm_->CmOpen(foo_path.c_str(), O_RDWR);
     if (fd_foo < 0) {
       return -3;
     }
 
     //fsync only file_foo
-    int res = fsync(fd_foo);
+    int res = cm_->CmFsync(fd_foo);
     if (res < 0){
       return -4;
     }
 
     //Make a user checkpoint here. Checkpoint must be 1 beyond this point
-    if (Checkpoint() < 0){
+    if (cm_->CmCheckpoint() < 0){
       return -5;
     }
     local_checkpoint += 1;

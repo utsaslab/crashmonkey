@@ -63,8 +63,9 @@ class genericDirectWrite: public BaseTestCase {
   virtual int run(int checkpoint) override {
 
     int local_checkpoint = 0;
-    //Open the file
-    int fd_reg = open(kTestFile, O_RDWR);
+
+   //Open the file
+    int fd_reg = cm_->CmOpen(kTestFile, O_RDWR);
     if (fd_reg < 0) {
       return -1;
     }
@@ -79,7 +80,7 @@ class genericDirectWrite: public BaseTestCase {
     close(fd_reg);
 
     //Open the same file for direct write
-    fd_reg = open(kTestFile, O_RDWR | O_DIRECT | O_SYNC, TEST_FILE_PERMS);
+    fd_reg = cm_->CmOpen(kTestFile, O_RDWR | O_DIRECT | O_SYNC, TEST_FILE_PERMS);
     if (fd_reg < 0) {
       return -3;
     }
@@ -101,11 +102,12 @@ class genericDirectWrite: public BaseTestCase {
 
     //Let's ensure journal entries for direct write went through
     sleep(5);
+    // cm_->CmFsync(fd_reg);
 
     // We don't really use this checkpoint for any checks in this test case
     // We can't sync data before this checkpoint, as it would resolve the delayed 
     // write as well and the bug would disappear.
-    if (Checkpoint() < 0){
+    if (cm_->CmCheckpoint() < 0){
       return -5;
     } 
     close(fd_reg);

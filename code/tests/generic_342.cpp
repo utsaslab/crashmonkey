@@ -90,7 +90,7 @@ class Generic342: public BaseTestCase {
     }
 
     // Open file foo
-    const int fd_foo = open(foo_path.c_str(), O_RDWR | O_CREAT, TEST_FILE_PERMS);
+    const int fd_foo = cm_->CmOpen(foo_path.c_str(), O_RDWR | O_CREAT, TEST_FILE_PERMS);
     if (fd_foo < 0) {
       return -2;
     }
@@ -102,13 +102,13 @@ class Generic342: public BaseTestCase {
     }
 
     //fsync file foo
-    int res = fsync(fd_foo);
+    int res = cm_->CmFsync(fd_foo);
     if (res < 0){
       return -4;
     }
 
     //Make a user checkpoint here. Checkpoint must be 1 beyond this point
-    if (Checkpoint() < 0){
+    if (cm_->CmCheckpoint() < 0){
       return -5;
     }
     local_checkpoint += 1;

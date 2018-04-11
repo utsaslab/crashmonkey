@@ -42,6 +42,8 @@ class DiskMod {
     kDataMmapMod,       // Only file data changed via mmap.
     kRemoveMod,         // File or directory removed.
     kCheckpointMod,     // CrashMonkey Checkpoint() marker.
+    kFsyncMod,          // For fsync/fdatasync that take an argument
+    kSyncMod,           // sync, flushes all the contents
   };
 
   // TODO(ashmrtn): Figure out how to handle permissions.

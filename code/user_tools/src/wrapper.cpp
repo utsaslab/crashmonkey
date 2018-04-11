@@ -5,6 +5,7 @@
 #include <sys/stat.h>
 #include <sys/types.h>
 #include <unistd.h>
+#include <iostream>
 
 #include "../api/actions.h"
 
@@ -97,6 +98,21 @@ bool DefaultFsFns::FnPathExists(const std::string &pathname) {
   return true;
 }
 
+int DefaultFsFns::FnFsync(const int fd) {
+  return fsync(fd);
+}
+
+int DefaultFsFns::FnFdatasync(const int fd) {
+  return fdatasync(fd);
+}
+
+void DefaultFsFns::FnSync() {
+  sync();
+}
+
+// int DefaultFsFns::FnSyncfs(const int fd) {
+//   return syncfs(fd);
+// }
 
 int DefaultFsFns::CmCheckpoint() {
   return Checkpoint();
@@ -286,6 +302,61 @@ int RecordCmFsOps::CmRemove(const string &pathname) {
   return fns_->FnRemove(pathname.c_str());
 }
 
+int RecordCmFsOps::CmFsync(const int fd) {
+  std::cout << __func__ << std::endl;
+  const int res = fns_->FnFsync(fd);
+  if (res < 0) {
+    return res;
+  }
+
+  DiskMod mod;
+  mod.mod_type = DiskMod::kFsyncMod;
+  mod.mod_opts = DiskMod::kNoneOpt;
+  mod.path = fd_map_.at(fd);
+  mods_.push_back(mod);
+
+  return res;
+}
+
+int RecordCmFsOps::CmFdatasync(const int fd) {
+  const int res = fns_->FnFdatasync(fd);
+  if (res < 0) {
+    return res;
+  }
+
+  DiskMod mod;
+  mod.mod_type = DiskMod::kFsyncMod;
+  mod.mod_opts = DiskMod::kNoneOpt;
+  mod.path = fd_map_.at(fd);
+  mods_.push_back(mod);
+
+  return res;
+}
+
+void RecordCmFsOps::CmSync() {
+  fns_->FnSync();
+  
+  DiskMod mod;
+  mod.mod_type = DiskMod::kSyncMod;
+  mod.mod_opts = DiskMod::kNoneOpt;
+  mods_.push_back(mod);
+}
+
+// int RecordCmFsOps::CmSyncfs(const int fd) {
+//   const int res = fns_->FnSyncfs(fd);
+//   if (res < 0) {
+//     return res;
+//   }
+
+//   DiskMod mod;
+//   // Or should probably have a kSyncMod type with filepath (?)
+//   mod.mod_type = DiskMod::kFsyncMod;
+//   mod.mod_opts = DiskMod::kNoneOpt;
+//   mod.path = fd_map_.at(fd);
+//   mods_.push_back(mod);
+
+//   return res;
+// }
 
 int RecordCmFsOps::CmCheckpoint() {
   const int res = fns_->CmCheckpoint();
@@ -316,6 +387,7 @@ int RecordCmFsOps::WriteWhole(const int fd, const unsigned long long size,
 }
 
 int RecordCmFsOps::Serialize(const int fd) {
+  std::cout << __func__ << std::endl;
   for (auto &mod : mods_) {
     unsigned long long size;
     shared_ptr<char> serial_mod = DiskMod::Serialize(mod, &size);
@@ -406,6 +478,22 @@ int PassthroughCmFsOps::CmUnlink(const string &pathname) {
 int PassthroughCmFsOps::CmRemove(const string &pathname) {
   return fns_->FnRemove(pathname.c_str());
 }
+
+int PassthroughCmFsOps::CmFsync(const int fd) {
+  return fns_->FnFsync(fd);
+}
+
+int PassthroughCmFsOps::CmFdatasync(const int fd) {
+  return fns_->FnFdatasync(fd);
+}
+
+void PassthroughCmFsOps::CmSync() {
+  fns_->FnSync();
+}
+
+// int PassthroughCmFsOps::CmSyncfs(const int fd) {
+//   return fns_->FnSyncfs(fd);
+// }
 
 int PassthroughCmFsOps::CmCheckpoint() {
   return fns_->CmCheckpoint();

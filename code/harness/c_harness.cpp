@@ -741,13 +741,19 @@ int main(int argc, char** argv) {
             }
           } else {
             // Forked process' stuff.
-            const int change_fd = open(kChangePath, O_CREAT | O_WRONLY | O_TRUNC,
-              S_IRUSR | S_IWUSR);
-            if (change_fd < 0) {
-              return change_fd;
+            int change_fd;
+            if (checkpoint == 0) {
+              change_fd = open(kChangePath, O_CREAT | O_WRONLY | O_TRUNC,
+                S_IRUSR | S_IWUSR);
+              if (change_fd < 0) {
+                return change_fd;
+              }
             }
             const int res = test_harness.test_run(change_fd, checkpoint);
-            close(change_fd);
+
+            if (checkpoint == 0) {
+              close(change_fd);
+            }
             return res;
           }
         }

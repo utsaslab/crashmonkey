@@ -451,6 +451,16 @@ int Tester::GetChangeData(const int fd) {
     }
   }
 
+  int checkpoint = 0;
+  for (auto i : mods_) {
+    checkpoint += 1;
+    std::cout << "At checkpoint " << checkpoint << std::endl;
+    for (auto j : i) {
+      std::cout << j.path << " " << j.mod_type << std::endl;
+    }
+    cout << std::endl << endl;
+  }
+
   return SUCCESS;
 }
 
@@ -679,15 +689,16 @@ vector<milliseconds> Tester::test_fsck_and_user_test(
 
   // Begin test case timing.
   time_point<steady_clock> test_case_start_time = steady_clock::now();
-  const int test_check_res =
-      test_loader.get_instance()->check_test(last_checkpoint,
-                                             &test_info.data_test);
   if (automate_check_test) {
     bool retVal = check_disk_and_snapshot_contents(SNAPSHOT_PATH, last_checkpoint);
     if (!retVal) {
       test_info.data_test.SetError(
         fs_testing::tests::DataTestResult::kAutoCheckFailed);
     }
+  } else {
+    const int test_check_res =
+    test_loader.get_instance()->check_test(last_checkpoint,
+                                            &test_info.data_test);
   }
   time_point<steady_clock> test_case_end_time = steady_clock::now();
   res.at(1) = duration_cast<milliseconds>(
@@ -715,6 +726,12 @@ vector<milliseconds> Tester::test_fsck_and_user_test(
 }
 
 bool Tester::check_disk_and_snapshot_contents(char* disk_path, int last_checkpoint) {
+
+  if (checkpointToSnapshot_.find(last_checkpoint) == checkpointToSnapshot_.end()) {
+    std::cout << "ERROR: no saved snapshot at checkpoint " << last_checkpoint << endl;
+    return false;
+  }
+
   char* snapshot_path = (char *) malloc(sizeof(char)*30);
   strcpy(snapshot_path, checkpointToSnapshot_[last_checkpoint]);
   ofstream diff_file;
@@ -723,8 +740,25 @@ bool Tester::check_disk_and_snapshot_contents(char* disk_path, int last_checkpoi
   const char* type = fs_type.c_str();
 
   DiskContents disk1(disk_path, type), disk2(snapshot_path, type);
-  bool retVal = disk1.compare_disk_contents(disk2, diff_file);
-  return retVal;
+
+  assert(last_checkpoint < mods_.size());
+  std::cout <<  "LAST_CHECKPOINT: " << last_checkpoint << std::endl;
+  for (auto i : mods_.at(last_checkpoint-1)) {
+    std::cout << i.mod_type << std::endl;
+    if (i.mod_type == DiskMod::kFsyncMod) {
+      string path(i.path);
+      path.erase(0, 13);
+      std::cout << path << std::endl;
+      bool ret = disk1.compare_entries_at_path(disk2, path, diff_file);
+      return ret;
+    } else if (i.mod_type == DiskMod::kSyncMod) {
+      bool retVal = disk1.compare_disk_contents(disk2, diff_file);
+      return retVal;
+    }
+  }
+
+  std::cout << "ERROR" << std::endl;
+  return false;
 }
 
 int Tester::test_check_random_permutations(bool full_bio_replay,
@@ -932,11 +966,13 @@ int Tester::test_check_log_replay(std::ofstream& log, bool automate_check_test) 
 
     // 3. Check the resulting disk image with fsck and the user test. For now,
     // just ignore the timing data that we can get from this function.
-    test_fsck_and_user_test(SNAPSHOT_PATH,
-        test_info.permute_data.last_checkpoint, test_info, automate_check_test);
+    if (log_iter->is_checkpoint()) {
+      test_fsck_and_user_test(SNAPSHOT_PATH,
+          test_info.permute_data.last_checkpoint, test_info, automate_check_test);
 
-    test_info.PrintResults(log);
-    current_test_suite_->TallyTimingResult(test_info);
+      test_info.PrintResults(log);
+      current_test_suite_->TallyTimingResult(test_info);
+    }
 
     // Exit loop after doing final test.
     if (log_iter == log_data.end()) {

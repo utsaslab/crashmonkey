@@ -57,6 +57,10 @@ class EOFBlocksLoss: public BaseTestCase {
     if (Checkpoint() < 0){
       return -2;
     }
+    local_checkpoint += 1;
+    if (local_checkpoint == checkpoint) {
+      return 0;
+    }
 
     //To ensure checkpoint 1 is in a seperate epoch, force a flush
     syncfs(fd_reg);

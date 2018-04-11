@@ -14,11 +14,16 @@ uint64_t DiskMod::GetSerializeSize() {
   // mod_type, mod_opts, and a uint64_t for the size of the serialized mod.
   uint64_t res = (2 * sizeof(uint16_t)) + sizeof(uint64_t);
 
-  if (mod_type == DiskMod::kCheckpointMod) {
+  if (mod_type == DiskMod::kCheckpointMod || mod_type == DiskMod::kSyncMod) {
     return res;
   }
 
   res += path.size() + 1;  // size() doesn't include null terminator.
+
+  if (mod_type == DiskMod::kFsyncMod) {
+    return res;
+  }
+  
   res += sizeof(bool);  // directory_mod.
   if (directory_mod) {
     res += directory_added_entry.size() + 1;  // Path changed in directory.
@@ -83,10 +88,15 @@ shared_ptr<char> DiskMod::Serialize(DiskMod &dm, unsigned long long *size) {
   buf_offset += res;
 
   // kCheckpointMod doesn't need anything done after the type.
-  if (dm.mod_type != DiskMod::kCheckpointMod) {
+  if (!(dm.mod_type == DiskMod::kCheckpointMod ||
+      dm.mod_type == DiskMod::kSyncMod)) {
     res = SerializeChangeHeader(buf, buf_offset, dm);
     if (res < 0) {
       return shared_ptr<char>(nullptr);
+    }
+
+    if (dm.mod_type == DiskMod::kFsyncMod) {
+      return res_ptr;
     }
 
     buf_offset += res;
@@ -181,7 +191,8 @@ int DiskMod::Deserialize(shared_ptr<char> data, DiskMod &res) {
   data_ptr += sizeof(uint16_t);
   res.mod_opts = (DiskMod::ModOpts) be16toh(mod_opts);
 
-  if (res.mod_type == DiskMod::kCheckpointMod) {
+  if (res.mod_type == DiskMod::kCheckpointMod ||
+    res.mod_type == DiskMod::kSyncMod) {
     // No more left to do here.
     return 0;
   }
@@ -216,6 +227,10 @@ int DiskMod::Deserialize(shared_ptr<char> data, DiskMod &res) {
   uint8_t dir_mod = data_ptr[0];
   ++data_ptr;
   res.directory_mod = (bool) dir_mod;
+
+  if (res.mod_type == DiskMod::kFsyncMod) {
+    return 0;
+  }
 
   uint64_t file_mod_location;
   uint64_t file_mod_len;

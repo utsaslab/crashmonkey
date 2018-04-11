@@ -70,6 +70,7 @@ bool fileAttributes::compare_stat_attr(struct stat *a) {
   } else if (a == NULL || stat_attr == NULL) {
     return false;
   }
+
   return ((stat_attr->st_ino == a->st_ino) &&
     (stat_attr->st_mode == a->st_mode) &&
     (stat_attr->st_nlink == a->st_nlink) &&
@@ -234,9 +235,10 @@ const char* DiskContents::get_mount_point() {
 }
 
 bool DiskContents::compare_disk_contents(DiskContents &compare_disk, std::ofstream &diff_file) {
+  std::cout << __func__ << std::endl;
   bool retValue = true;
 
-  if (disk_path == compare_disk.disk_path) {
+  if (strcmp(disk_path, compare_disk.disk_path) == 0) {
     return retValue;
   }
 
@@ -267,6 +269,7 @@ bool DiskContents::compare_disk_contents(DiskContents &compare_disk, std::ofstre
     diff_file << std::endl;
     retValue = false;
   }
+
   // entry-wise comparision
   for (auto i : contents) {
     fileAttributes i_fa = i.second;
@@ -280,7 +283,7 @@ bool DiskContents::compare_disk_contents(DiskContents &compare_disk, std::ofstre
     fileAttributes j_fa = compare_disk.contents[(i.first)];
     if (!(i_fa.compare_dir_attr(j_fa.dir_attr)) ||
           !(i_fa.compare_stat_attr(j_fa.stat_attr))) {
-        diff_file << "DIFF: Content Mismatch " << i.first;
+        diff_file << "DIFF: Content Mismatch " << i.first << std::endl << std::endl;
         diff_file << disk_path << ":" << std::endl;
         diff_file << i_fa << endl << endl;
         diff_file << compare_disk.disk_path << ":" << std::endl;
@@ -300,6 +303,89 @@ bool DiskContents::compare_disk_contents(DiskContents &compare_disk, std::ofstre
       }
     }
   }
+  // TODO(P.S.) Fix the unmount issue and uncomment the function below.
+  compare_disk.unmount_and_delete_mount_point();
+  return retValue;
+}
+
+// TODO(P.S.) Cleanup the code and pull out redundant code into separate functions
+bool DiskContents::compare_entries_at_path(DiskContents &compare_disk,
+  std::string path, std::ofstream &diff_file) {
+  std::cout << __func__ << std::endl;
+  bool retValue = true;
+
+  if (strcmp(disk_path, compare_disk.disk_path) == 0) {
+    return retValue;
+  }
+
+  std::string base_path = "/mnt/snapshot" + path;
+  get_contents(base_path.c_str());
+
+  if (compare_disk.mount_disk() != 0) {
+    std::cout << "Mounting " << compare_disk.disk_path << " failed" << std::endl;
+  }
+
+  std::string compare_disk_mount_point(compare_disk.get_mount_point());
+  std::string compare_path = compare_disk_mount_point + path;
+  compare_disk.get_contents(compare_path.c_str());
+
+  // Compare the size of contents
+  if (contents.size() != compare_disk.contents.size()) {
+    diff_file << "DIFF: Mismatch" << std::endl;
+    diff_file << "Unequal #entries in " << disk_path << ", " << compare_disk.disk_path;
+    diff_file << std::endl << std::endl;
+    diff_file << disk_path << " contains:" << std::endl;
+    for (auto i : contents) {
+      diff_file << i.first << std::endl;
+    }
+    diff_file << std::endl;
+
+    diff_file << compare_disk.disk_path << " contains:" << std::endl;
+    for (auto i : compare_disk.contents) {
+      diff_file << i.first << std::endl;
+    }
+    diff_file << std::endl;
+    compare_disk.unmount_and_delete_mount_point();
+    return false;
+  }
+
+  fileAttributes base_fa, compare_fa;
+  struct stat base_statbuf, compare_statbuf;
+  if (stat(base_path.c_str(), &base_statbuf) == -1) {
+    std::cout << "Failed stating the file " << base_path << std::endl;
+    compare_disk.unmount_and_delete_mount_point();
+    return false;
+  }
+  if (stat(compare_path.c_str(), &compare_statbuf) == -1) {
+    std::cout << "Failed stating the file " << compare_path << std::endl;
+    compare_disk.unmount_and_delete_mount_point();
+    return false;
+  }
+  base_fa.set_stat_attr(&base_statbuf);
+  compare_fa.set_stat_attr(&compare_statbuf);
+  if (base_fa.compare_stat_attr(compare_fa.stat_attr)) {
+    diff_file << "DIFF: Content Mismatch " << path << std::endl << std::endl;
+    diff_file << base_path << ":" << std::endl;
+    diff_file << base_fa << endl << endl;
+    diff_file << compare_path << ":" << std::endl;
+    diff_file << compare_fa << endl << endl;
+    compare_disk.unmount_and_delete_mount_point();
+    return false;
+  }
+
+  if (base_fa.is_regular_file()) {
+    base_fa.set_md5sum(base_path);
+    compare_fa.set_md5sum(compare_path);
+    if (base_fa.compare_md5sum(compare_fa.md5sum) != 0) {
+      diff_file << "DIFF : Data Mismatch of " << path << std::endl;
+      diff_file << base_path << " has md5sum " << base_fa.md5sum << std::endl;
+      diff_file << compare_path << " has md5sum " << compare_fa.md5sum;
+      diff_file << std::endl << std::endl;
+      compare_disk.unmount_and_delete_mount_point();
+      return false;
+    }
+  }
+
   // TODO(P.S.) Fix the unmount issue and uncomment the function below.
   compare_disk.unmount_and_delete_mount_point();
   return retValue;

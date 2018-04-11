@@ -48,6 +48,12 @@ class FsFns {
   virtual int FnStat(const std::string &pathname, struct stat *buf) = 0;
   virtual bool FnPathExists(const std::string &pathname) = 0;
 
+  virtual int FnFsync(const int fd) = 0;
+  virtual int FnFdatasync(const int fd) = 0;
+  virtual void FnSync() = 0;
+  // TODO(P.S.) check if we want to have syncfs
+  // virtual int FnSyncfs(const int fd) = 0;
+
   virtual int CmCheckpoint() = 0;
 };
 
@@ -76,6 +82,12 @@ class DefaultFsFns : public FsFns {
 
   virtual int FnStat(const std::string &pathname, struct stat *buf) override;
   virtual bool FnPathExists(const std::string &pathname) override;
+
+  virtual int FnFsync(const int fd) override;
+  virtual int FnFdatasync(const int fd) override;
+  virtual void FnSync() override;
+  // TODO(P.S.) check if we want to have syncfs
+  // virtual int FnSyncfs(const int fd) override;
 
   virtual int CmCheckpoint() override;
 };
@@ -106,6 +118,12 @@ class CmFsOps {
   virtual int CmUnlink(const std::string &pathname) = 0;
   virtual int CmRemove(const std::string &pathname) = 0;
 
+  virtual int CmFsync(const int fd) = 0;
+  virtual int CmFdatasync(const int fd) = 0;
+  virtual void CmSync() = 0;
+  // TODO(P.S.) check if we want to have syncfs
+  // virtual int CmSyncfs(const int fd) = 0;
+
   virtual int CmCheckpoint() = 0;
 };
 
@@ -135,6 +153,12 @@ class RecordCmFsOps : public CmFsOps {
   int CmRename(const std::string &old_path, const std::string &new_path);
   int CmUnlink(const std::string &pathname);
   int CmRemove(const std::string &pathname);
+
+  int CmFsync(const int fd);
+  int CmFdatasync(const int fd);
+  void CmSync();
+  // TODO(P.S.) check if we want to have syncfs
+  // int CmSyncfs(const int fd);
 
   int CmCheckpoint();
 
@@ -201,6 +225,12 @@ class PassthroughCmFsOps : public CmFsOps {
       const std::string &new_path);
   virtual int CmUnlink(const std::string &pathname);
   virtual int CmRemove(const std::string &pathname);
+
+  virtual int CmFsync(const int fd);
+  virtual int CmFdatasync(const int fd);
+  virtual void CmSync();
+  // TODO(P.S.) check if we want to have syncfs
+  // virtual int CmSyncfs(const int fd);
 
   virtual int CmCheckpoint();
 
