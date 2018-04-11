@@ -363,7 +363,7 @@ bool DiskContents::compare_entries_at_path(DiskContents &compare_disk,
   }
   base_fa.set_stat_attr(&base_statbuf);
   compare_fa.set_stat_attr(&compare_statbuf);
-  if (base_fa.compare_stat_attr(compare_fa.stat_attr)) {
+  if (!(base_fa.compare_stat_attr(compare_fa.stat_attr))) {
     diff_file << "DIFF: Content Mismatch " << path << std::endl << std::endl;
     diff_file << base_path << ":" << std::endl;
     diff_file << base_fa << endl << endl;
