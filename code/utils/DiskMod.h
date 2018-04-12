@@ -48,13 +48,16 @@ class DiskMod {
 
   // TODO(ashmrtn): Figure out how to handle permissions.
   enum ModOpts {
-    kNoneOpt = 0,       // No special flags given.
-    kTruncateOpt,       // ex. truncate on open.
+    kNoneOpt = 0,           // No special flags given.
+    kTruncateOpt,           // ex. truncate on open.
     // Below flags are fallocate specific.
-    kPunchHoleOpt,
-    kCollapseRangeOpt,
-    kZeroRangeOpt,
-    kInsertRangeOpt,
+    kFallocateOpt,          // For regular fallocate.
+    kFallocateKeepSizeOpt,  // For regular fallocate with keep size.
+    kPunchHoleKeepSizeOpt,  // Implies keep_size.
+    kCollapseRangeOpt,      // Cannot have keep_size.
+    kZeroRangeOpt,          // Does not have keep_size.
+    kZeroRangeKeepSizeOpt,  // Does have keep_size.
+    kInsertRangeOpt,        // Cannot have keep_size.
   };
 
   std::string path;

@@ -129,7 +129,20 @@ int RecordCmFsOps::CmMknod(const string &pathname, const mode_t mode,
 }
 
 int RecordCmFsOps::CmMkdir(const string &pathname, const mode_t mode) {
-  return fns_->FnMkdir(pathname.c_str(), mode);
+  const int res = fns_->FnMkdir(pathname.c_str(), mode);
+  if (res < 0) {
+    return res;
+  }
+
+  DiskMod mod;
+  mod.directory_mod = true;
+  mod.path = pathname;
+  mod.mod_type = DiskMod::kCreateMod;
+  mod.mod_type = DiskMod::kNoneOpts;
+
+  mods_.push_back(mod);
+
+  return res;
 }
 
 void RecordCmFsOps::CmOpenCommon(const int fd, const string &pathname,
@@ -257,6 +270,53 @@ int RecordCmFsOps::CmWrite(const int fd, const void *buf, const size_t count) {
 
 ssize_t RecordCmFsOps::CmPwrite(const int fd, const void *buf,
     const size_t count, const off_t offset) {
+  DiskMod mod;
+  mod.mod_opts = DiskMod::kNoneOpt;
+  // Get current file position and size. If stat fails, then assume lseek will
+  // fail too and just bail out.
+  struct stat pre_stat_buf;
+  // This could be an fstat(), but I don't see a reason to add another call that
+  // does only reads to the already large interface of FsFns.
+  int res = fns_->FnStat(fd_map_.at(fd), &pre_stat_buf);
+  if (res < 0) {
+    return res;
+  }
+
+  const int write_res = fns_->FnPwrite(fd, buf, count, offset);
+  if (write_res < 0) {
+    return write_res;
+  }
+
+  mod.directory_mod = S_ISDIR(pre_stat_buf.st_mode);
+
+  // TODO(ashmrtn): Support calling write directly on a directory.
+  if (!mod.directory_mod) {
+    // Copy over as much data as was written and see what the new file size is.
+    // This will determine how we set the type of the DiskMod.
+    mod.file_mod_location = offset;
+    mod.file_mod_len = write_res;
+    mod.path = fd_map_.at(fd);
+
+    res = fns_->FnStat(fd_map_.at(fd), &mod.post_mod_stats);
+    if (res < 0) {
+      return write_res;
+    }
+
+    if (pre_stat_buf.st_size != mod.post_mod_stats.st_size) {
+      mod.mod_type = DiskMod::kDataMetadataMod;
+    } else {
+      mod.mod_type = DiskMod::kDataMod;
+    }
+
+    if (write_res > 0) {
+      mod.file_mod_data.reset(new char[write_res], [](char* c) {delete[] c;});
+      memcpy(mod.file_mod_data.get(), buf, write_res);
+    }
+  }
+
+  mods_.push_back(mod);
+
+  return write_res;
   return fns_->FnPwrite(fd, buf, count, offset);
 }
 
@@ -275,7 +335,58 @@ int RecordCmFsOps::CmMunmap(void *addr, const size_t length) {
 
 int RecordCmFsOps::CmFallocate(const int fd, const int mode, const off_t offset,
     off_t len) {
-  return fns_->FnFallocate(fd, mode, offset, len);
+  struct stat pre_stat;
+  const int pre_stat_res = fns_->FnStat(fd_map_[fd].c_str(), &pre_stat);
+  if (pre_stat_res < 0) {
+    return pre_stat_res;
+  }
+
+  const int res = fns_->FnFallocate(fd, mode, offset, len);
+  if (res < 0) {
+    return res;
+  }
+
+  struct stat post_stat;
+  const int post_stat_res = fns_->FnStat(fd_map_[fd].c_str(), &post_stat);
+  if (post_stat_res < 0) {
+    return post_stat_res;
+  }
+
+  DiskMod mod;
+
+  if (pre_stat.st_size != post_stat.st_size ||
+      pre_stat.st_blocks != post_stat.st_blocks) {
+    mod.mod_type = DiskMod::kDataMetadataMod;
+  } else {
+    mod.mod_type = DiskMod::kDataMod;
+  }
+
+  mod.path = fd_map_[fd];
+  mod.file_mod_location = offset;
+  mod.file_mod_len = len;
+
+  if (mode & FALLOC_FL_PUNCH_HOLE) {
+    assert(mode & FALLOC_FL_KEEP_SIZE);
+    mod.mod_opts = DiskMod::kPunchHoleKeepSizeOpt;
+  } else if (mode & FALLOC_FL_COLLAPSE_RANGE) {
+    mod.mod_opts = DiskMod::kCollapseRangeOpt;
+  } else if (mode & FALLOC_FL_ZERO_RANGE) {
+    if (mode & FALLOC_FL_KEEP_SIZE) {
+      mod.mod_opts = DiskMod::kZeroRangeKeepSizeOpt;
+    } else {
+      mod.mod_opts = DiskMod::kZeroRangeOpt;
+    }
+  } else if (mode & FALLOC_FL_INSERT_RANGE) {
+    mod.mod_opts = DiskMod::kInsertRangeOpt;
+  } else if (mode & FALLOC_FL_KEEP_SIZE) {
+    mod.mod_opts = DiskMod::kFallocateKeepSizeOpt;
+  } else {
+    mod.mod_opts = DiskMod::kFallocateOpt;
+  }
+
+  mods_.push_back(mod);
+
+  return res;
 }
 
 int RecordCmFsOps::CmClose(const int fd) {
@@ -295,11 +406,33 @@ int RecordCmFsOps::CmRename(const string &old_path, const string &new_path) {
 }
 
 int RecordCmFsOps::CmUnlink(const string &pathname) {
-  return fns_->FnUnlink(pathname.c_str());
+  const int res = fns_->FnUnlink(pathname.c_str());
+  if (res < 0) {
+    return res;
+  }
+
+  DiskMod mod;
+  mod.mod_type = DiskMod::kRemoveMod;
+  mod.mod_opts = DiskMod::kNoneOpts;
+  mod.path = pathname;
+  mods_.push_back(mod);
+
+  return res;
 }
 
 int RecordCmFsOps::CmRemove(const string &pathname) {
-  return fns_->FnRemove(pathname.c_str());
+  const int res = fns_->FnRemove(pathname.c_str());
+  if (res < 0) {
+    return res;
+  }
+
+  DiskMod mod;
+  mod.mod_type = DiskMod::kRemoveMod;
+  mod.mod_opts = DiskMod::kNoneOpts;
+  mod.path = pathname;
+  mods_.push_back(mod);
+
+  return res;
 }
 
 int RecordCmFsOps::CmFsync(const int fd) {
