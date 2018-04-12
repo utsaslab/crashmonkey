@@ -198,7 +198,7 @@ string XfsFsSpecific::GetFsckCommand(const string &fs_path) {
 }
 
 string XfsFsSpecific::GetNewUUIDCommand(const string &disk_path) {
-  return string(kXfsFsckCommand) + disk_path;
+  return string(kXfsNewUUIDCommand) + disk_path;
 }
 
 FileSystemTestResult::ErrorType XfsFsSpecific::GetFsckReturn(
