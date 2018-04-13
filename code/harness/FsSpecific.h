@@ -40,6 +40,12 @@ class FsSpecific {
   virtual std::string GetFsckCommand(const std::string &fs_path) = 0;
 
   /*
+   * Returns command to change the uuid of a disk-clone, taking the disk_path
+   * as an argument.
+   */
+  virtual std::string GetNewUUIDCommand(const std::string &disk_path) = 0;
+
+  /*
    * Returns an enum representing the exit status of the file system specific
    * file system checker used. Takes as an argument the return value that was
    * retrieved from the file system checker subprocess.
@@ -54,6 +60,7 @@ class ExtFsSpecific : public FsSpecific {
   virtual std::string GetMkfsCommand(std::string &device_path);
   virtual std::string GetPostReplayMntOpts();
   virtual std::string GetFsckCommand(const std::string &fs_path);
+  virtual std::string GetNewUUIDCommand(const std::string &disk_path);
   virtual fs_testing::FileSystemTestResult::ErrorType GetFsckReturn(
       int return_code);
 
@@ -88,6 +95,7 @@ class BtrfsFsSpecific : public FsSpecific {
   virtual std::string GetMkfsCommand(std::string &device_path);
   virtual std::string GetPostReplayMntOpts();
   virtual std::string GetFsckCommand(const std::string &fs_path);
+  virtual std::string GetNewUUIDCommand(const std::string &disk_path);
   virtual fs_testing::FileSystemTestResult::ErrorType GetFsckReturn(
       int return_code);
 
@@ -100,6 +108,7 @@ class F2fsFsSpecific : public FsSpecific {
   virtual std::string GetMkfsCommand(std::string &device_path);
   virtual std::string GetPostReplayMntOpts();
   virtual std::string GetFsckCommand(const std::string &fs_path);
+  virtual std::string GetNewUUIDCommand(const std::string &disk_path);
   virtual fs_testing::FileSystemTestResult::ErrorType GetFsckReturn(
       int return_code);
 
@@ -112,6 +121,7 @@ class XfsFsSpecific : public FsSpecific {
   virtual std::string GetMkfsCommand(std::string &device_path);
   virtual std::string GetPostReplayMntOpts();
   virtual std::string GetFsckCommand(const std::string &fs_path);
+  virtual std::string GetNewUUIDCommand(const std::string &disk_path);
   virtual fs_testing::FileSystemTestResult::ErrorType GetFsckReturn(
       int return_code);
 

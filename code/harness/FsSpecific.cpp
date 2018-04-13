@@ -21,6 +21,11 @@ constexpr char kExtMkfsOpts[] =
 constexpr char kBtrfsFsckCommand[] = "yes | btrfs check ";
 
 constexpr char kXfsFsckCommand[] = "xfs_repair ";
+
+constexpr char kExtNewUUIDCommand[] = "tune2fs -U random ";
+constexpr char kBtrfsNewUUIDCommand[] = "yes | btrfstune -u ";
+constexpr char kXfsNewUUIDCommand[] = "xfs_admin -U generate ";
+constexpr char kF2fsNewUUIDCommand[] = ":";
 }
 
 
@@ -67,6 +72,10 @@ string ExtFsSpecific::GetFsckCommand(const string &fs_path) {
   return string(kFsckCommand) + fs_type_ + " " + fs_path + " -- -y";
 }
 
+string ExtFsSpecific::GetNewUUIDCommand(const std::string &disk_path){
+  return string(kExtNewUUIDCommand) + disk_path;
+}
+
 FileSystemTestResult::ErrorType ExtFsSpecific::GetFsckReturn(
     int return_code) {
   // The following is taken from the specification in man(8) fsck.ext4.
@@ -111,6 +120,10 @@ string BtrfsFsSpecific::GetFsckCommand(const string &fs_path) {
   return string(kBtrfsFsckCommand) + fs_path;
 }
 
+string BtrfsFsSpecific::GetNewUUIDCommand(const string &disk_path) {
+  return string(kBtrfsNewUUIDCommand) + disk_path;
+}
+
 FileSystemTestResult::ErrorType BtrfsFsSpecific::GetFsckReturn(
     int return_code) {
   // The following is taken from the specification in man(8) btrfs-check.
@@ -143,6 +156,10 @@ string F2fsFsSpecific::GetPostReplayMntOpts() {
 
 string F2fsFsSpecific::GetFsckCommand(const string &fs_path) {
   return string(kFsckCommand) + kFsType + " " + fs_path + " -- -y";
+}
+
+string F2fsFsSpecific::GetNewUUIDCommand(const string &disk_path) {
+  return string(kF2fsNewUUIDCommand);
 }
 
 FileSystemTestResult::ErrorType F2fsFsSpecific::GetFsckReturn(
@@ -178,6 +195,10 @@ string XfsFsSpecific::GetPostReplayMntOpts() {
 
 string XfsFsSpecific::GetFsckCommand(const string &fs_path) {
   return string(kXfsFsckCommand) + fs_path;
+}
+
+string XfsFsSpecific::GetNewUUIDCommand(const string &disk_path) {
+  return string(kXfsNewUUIDCommand) + disk_path;
 }
 
 FileSystemTestResult::ErrorType XfsFsSpecific::GetFsckReturn(

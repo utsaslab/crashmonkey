@@ -72,7 +72,9 @@ class F2fsFzero: public BaseTestCase {
     return 0;
   }
 
-  virtual int run() override {
+  virtual int run(int checkpoint) override {
+    int local_checkpoint = 0;
+    
     const int fd_reg = open(kTestFile, O_RDWR);
     if (fd_reg < 0) {
       return -1;
@@ -97,6 +99,10 @@ class F2fsFzero: public BaseTestCase {
     //Beyond this checkpoint, block count must be >16, but size = 16K
     if (Checkpoint() < 0){
       return -4;
+    }
+    local_checkpoint += 1;
+    if (local_checkpoint == checkpoint) {
+      return 1;
     }
 
     system("stat /mnt/snapshot/test_file");

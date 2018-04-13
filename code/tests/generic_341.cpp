@@ -97,8 +97,9 @@ class Generic341: public BaseTestCase {
     return 0;
   }
 
-  virtual int run() override {
+  virtual int run(int checkpoint) override {
 
+    int local_checkpoint = 0;
     //Rename dir x to dir y
     if (rename(dir_x_path.c_str(), dir_y_path.c_str()) < 0) {
       return -1;
@@ -110,20 +111,24 @@ class Generic341: public BaseTestCase {
       return -2;
     }
 
-    const int dir_x = open(dir_x_path.c_str(), O_RDONLY);
+    const int dir_x = cm_->CmOpen(dir_x_path.c_str(), O_RDONLY);
     if (dir_x < 0) {
       return -3;
     }
 
     //fsync the new directory
-    res = fsync(dir_x);
+    res = cm_->CmFsync(dir_x);
     if (res < 0){
       return -4;
     }
 
     //Make a user checkpoint here. Checkpoint must be 1 beyond this point
-    if (Checkpoint() < 0){
+    if (cm_->CmCheckpoint() < 0){
       return -5;
+    }
+    local_checkpoint += 1;
+    if (local_checkpoint == checkpoint) {
+      return 1;
     }
 
     //Close open files  
