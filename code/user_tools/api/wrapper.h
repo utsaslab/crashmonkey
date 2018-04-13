@@ -53,6 +53,8 @@ class FsFns {
   virtual void FnSync() = 0;
   // TODO(P.S.) check if we want to have syncfs
   // virtual int FnSyncfs(const int fd) = 0;
+  virtual int FnSyncFileRange(const int fd, size_t offset, size_t nbytes,
+    unsigned int flags) = 0;
 
   virtual int CmCheckpoint() = 0;
 };
@@ -88,6 +90,8 @@ class DefaultFsFns : public FsFns {
   virtual void FnSync() override;
   // TODO(P.S.) check if we want to have syncfs
   // virtual int FnSyncfs(const int fd) override;
+  virtual int FnSyncFileRange(const int fd, size_t offset, size_t nbytes,
+    unsigned int flags) override;
 
   virtual int CmCheckpoint() override;
 };
@@ -123,6 +127,8 @@ class CmFsOps {
   virtual void CmSync() = 0;
   // TODO(P.S.) check if we want to have syncfs
   // virtual int CmSyncfs(const int fd) = 0;
+  virtual int CmSyncFileRange(const int fd, size_t offset, size_t nbytes,
+    unsigned int flags) = 0;
 
   virtual int CmCheckpoint() = 0;
 };
@@ -159,6 +165,8 @@ class RecordCmFsOps : public CmFsOps {
   void CmSync();
   // TODO(P.S.) check if we want to have syncfs
   // int CmSyncfs(const int fd);
+  virtual int CmSyncFileRange(const int fd, size_t offset, size_t nbytes,
+    unsigned int flags);
 
   int CmCheckpoint();
 
@@ -231,6 +239,8 @@ class PassthroughCmFsOps : public CmFsOps {
   virtual void CmSync();
   // TODO(P.S.) check if we want to have syncfs
   // virtual int CmSyncfs(const int fd);
+  virtual int CmSyncFileRange(const int fd, size_t offset, size_t nbytes,
+    unsigned int flags);
 
   virtual int CmCheckpoint();
 

@@ -224,14 +224,14 @@ int DiskMod::Deserialize(shared_ptr<char> data, DiskMod &res) {
   // Move past the null terminating character.
   ++data_ptr;
 
-  uint8_t dir_mod = data_ptr[0];
-  ++data_ptr;
-  res.directory_mod = (bool) dir_mod;
-
   if (res.mod_type == DiskMod::kFsyncMod) {
     return 0;
   }
 
+  uint8_t dir_mod = data_ptr[0];
+  ++data_ptr;
+
+  res.directory_mod = (bool) dir_mod;
   uint64_t file_mod_location;
   uint64_t file_mod_len;
   memcpy(&file_mod_location, data_ptr, sizeof(uint64_t));
