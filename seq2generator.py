@@ -753,10 +753,11 @@ def doPermutation(perm):
 
         usedFiles = flatList(set(usedFiles))
 
-        #TODO
-        #syncPermutationsCustom = buildCustomTuple(file_range(usedFiles))
+        #TODO: to generate remaining files, use the custom set
+#        syncPermutationsCustom = buildCustomTuple(file_range(usedFiles))
         syncPermutationsCustom = buildCustomTuple(usedFiles)
-        
+#        syncPermutationsCustom = [x for x in syncPermutationsCustomAll if x not in syncPermutationsCustomUsed]
+
         log = '\n\t\tUsed Files = {0}\n'.format(usedFiles)
         log = log + '\t\tFile range = {0}\n'.format(file_range(usedFiles))
         log_file_handle.write(log)
@@ -767,9 +768,9 @@ def doPermutation(perm):
         isFadatasync = False
         for insSync in range(0, len(syncPermutationsCustom)):
             
-            if isFadatasync:
-                continue
-            
+#            if isFadatasync:
+#                continue
+
             if int(num_ops) == 1 or int(num_ops) == 2:
                 log = '{0}'.format(syncPermutationsCustom[insSync]);
                 log = '\n\t\tFile # ' + `global_count` + ' : ' + `count_sync` + ' : ' + log + '\n'
