@@ -1,9 +1,11 @@
 #include <string.h>
+#include <sys/mman.h>
 #include <sys/types.h>
 #include <unistd.h>
 
 #include <memory>
 #include <string>
+#include <tuple>
 #include <unordered_map>
 #include <utility>
 #include <vector>
@@ -20,6 +22,7 @@ namespace test {
 using std::pair;
 using std::shared_ptr;
 using std::string;
+using std::tuple;
 using std::unordered_map;
 using std::vector;
 
@@ -112,6 +115,22 @@ class FakeFsFns : public FsFns {
     return 0;
 	}
 
+  virtual int FnFsync(const int fd) override {
+    return 0;
+  }
+
+  virtual int FnFdatasync(const int fd) override {
+    return 0;
+  }
+
+  virtual void FnSync() override {
+  }
+
+  virtual int FnSyncFileRange(const int fd, size_t offset, size_t nbytes,
+    unsigned int flags) override {
+    return 0;
+  }
+
   virtual int CmCheckpoint() override {
     return 0;
 	}
@@ -151,6 +170,12 @@ class MockFsFns : public FsFns {
   MOCK_METHOD2(FnStat, int(const std::string &pathname, struct stat *buf));
   MOCK_METHOD1(FnPathExists, bool(const std::string &pathname));
 
+  MOCK_METHOD1(FnFsync, int(const int fd));
+  MOCK_METHOD1(FnFdatasync, int(const int fd));
+  MOCK_METHOD0(FnSync, void());
+  MOCK_METHOD4(FnSyncFileRange, int(const int fd, size_t offset, size_t nbytes,
+    unsigned int flags));
+
   MOCK_METHOD0(CmCheckpoint, int());
 
   void DelegateToFake() {
@@ -173,7 +198,8 @@ class TestCmFsOps : public RecordCmFsOps {
     return &fd_map_;
   }
 
-  unordered_map<int, string> * GetMmapMap() {
+  unordered_map<long long,
+    tuple<string, unsigned long long, unsigned long long>> * GetMmapMap() {
     return &mmap_map_;
   }
 
@@ -184,10 +210,31 @@ class TestCmFsOps : public RecordCmFsOps {
   void AddFdMapping(const int fd, const string &pathname) {
     fd_map_.insert({fd, pathname});
   }
+
+  /*
+   * Add a fake ptr-><mmap data> mapping so the code can use this for things
+   * like msync operations.
+   */
+  void AddMmapMapping(const void *ptr, const string &pathname,
+      const unsigned long long offset, const unsigned long long length) {
+    mmap_map_.insert({(long long) ptr,
+        tuple<string, unsigned long long, unsigned long long>(pathname, offset,
+            length)});
+  }
 };
 
 // For parameterized tests.
 class TestCmFsOpsParameterized : public ::testing::TestWithParam<unsigned int> {
+};
+
+// For parameterized tests.
+class TestCmFsOpsNoMmapAdd :
+    public ::testing::TestWithParam<int> {
+};
+
+// For parameterized tests.
+class TestCmFsOpsMmapAdd : public
+    ::testing::TestWithParam<pair<unsigned long long, unsigned long long>> {
 };
 
 
@@ -479,6 +526,154 @@ TEST(CmFsOps, CheckpointGood) {
 }
 
 /*
+ * Test that calling msync with no offset on a pointer from mmap that was called
+ * with no offset results in
+ *    - a DiskMod of type kData to be placed in the list of mods
+ *    - the right offset and length in the DiskMod
+ *    - the right data in the disk mod
+ */
+TEST(CmFsOps, MsyncZeroOffset) {
+  const string pathname = "/mnt/snapshot/bleh";
+  const int expected_fd = 1;
+  const unsigned long long offset = 0;
+  const unsigned long long length = 1024;
+
+  char buf[length];
+  memset(buf, 'a', length);
+
+  void *mmap_res = &buf;
+
+  MockFsFns mock;
+
+  EXPECT_CALL(mock, FnMsync(mmap_res, length, MS_SYNC));
+
+  TestCmFsOps ops(&mock);
+  ops.AddMmapMapping(mmap_res, pathname, offset, length);
+
+  ops.CmMsync(mmap_res, length, MS_SYNC);
+
+  vector<DiskMod> *mods = ops.GetMods();
+  ASSERT_EQ(mods->size(), 1);
+  EXPECT_EQ(mods->front().mod_type, DiskMod::kDataMod);
+  EXPECT_EQ(mods->front().mod_opts, DiskMod::kMsSyncOpt);
+  EXPECT_EQ(mods->front().file_mod_location, offset);
+  EXPECT_EQ(mods->front().file_mod_len, length);
+  EXPECT_TRUE(memcmp(mods->front().file_mod_data.get(), buf, length) == 0);
+}
+
+/*
+ * Test that calling msync with no offset on a pointer from mmap that was called
+ * with an offset results in
+ *    - a DiskMod of type kData to be placed in the list of mods
+ *    - the right offset and length in the DiskMod
+ *    - the right data in the disk mod
+ */
+TEST(CmFsOps, MsyncNonZeroOffset) {
+  const string pathname = "/mnt/snapshot/bleh";
+  const int expected_fd = 1;
+  const unsigned long long offset = 4096;
+  const unsigned long long length = 1024;
+
+  char buf[length];
+  memset(buf, 'a', length);
+
+  void *mmap_res = &buf;
+
+  MockFsFns mock;
+
+  EXPECT_CALL(mock, FnMsync(mmap_res, length, MS_SYNC));
+
+  TestCmFsOps ops(&mock);
+  ops.AddMmapMapping(mmap_res, pathname, offset, length);
+
+  ops.CmMsync(mmap_res, length, MS_SYNC);
+
+  vector<DiskMod> *mods = ops.GetMods();
+  ASSERT_EQ(mods->size(), 1);
+  EXPECT_EQ(mods->front().mod_type, DiskMod::kDataMod);
+  EXPECT_EQ(mods->front().mod_opts, DiskMod::kMsSyncOpt);
+  EXPECT_EQ(mods->front().file_mod_location, offset);
+  EXPECT_EQ(mods->front().file_mod_len, length);
+  EXPECT_TRUE(memcmp(mods->front().file_mod_data.get(), buf, length) == 0);
+}
+
+/*
+ * Test that calling msync with an offset on a pointer from mmap that was called
+ * with no offset results in
+ *    - a DiskMod of type kData to be placed in the list of mods
+ *    - the right offset and length in the DiskMod
+ *    - the right data in the disk mod
+ */
+TEST(CmFsOps, MsyncZeroOffsetDifferentPtr) {
+  const string pathname = "/mnt/snapshot/bleh";
+  const int expected_fd = 1;
+  const unsigned long long offset = 0;
+  const unsigned long long length = 1024;
+
+  char buf[length + 512];
+  memset(buf, 'b', 512);
+  memset(buf + 512, 'a', length);
+
+  void *mmap_res = &buf;
+
+  MockFsFns mock;
+
+  EXPECT_CALL(mock, FnMsync(mmap_res + 512, length, MS_SYNC));
+
+  TestCmFsOps ops(&mock);
+  ops.AddMmapMapping(mmap_res, pathname, offset, length);
+
+  ops.CmMsync(mmap_res + 512, length, MS_SYNC);
+
+  vector<DiskMod> *mods = ops.GetMods();
+  ASSERT_EQ(mods->size(), 1);
+  EXPECT_EQ(mods->front().mod_type, DiskMod::kDataMod);
+  EXPECT_EQ(mods->front().mod_opts, DiskMod::kMsSyncOpt);
+  EXPECT_EQ(mods->front().file_mod_location, 512);
+  EXPECT_EQ(mods->front().file_mod_len, length);
+  EXPECT_TRUE(
+      memcmp(mods->front().file_mod_data.get(), buf + 512, length) == 0);
+}
+
+/*
+ * Test that calling msync with an offset on a pointer from mmap that was called
+ * with an offset results in
+ *    - a DiskMod of type kData to be placed in the list of mods
+ *    - the right offset and length in the DiskMod
+ *    - the right data in the disk mod
+ */
+TEST(CmFsOps, MsyncNonZeroOffsetDifferentPtr) {
+  const string pathname = "/mnt/snapshot/bleh";
+  const int expected_fd = 1;
+  const unsigned long long offset = 4096;
+  const unsigned long long length = 1024;
+
+  char buf[length + 512];
+  memset(buf, 'b', 512);
+  memset(buf + 512, 'a', length);
+
+  void *mmap_res = &buf;
+
+  MockFsFns mock;
+
+  EXPECT_CALL(mock, FnMsync(mmap_res + 512, length, MS_SYNC));
+
+  TestCmFsOps ops(&mock);
+  ops.AddMmapMapping(mmap_res, pathname, offset, length);
+
+  ops.CmMsync(mmap_res + 512, length, MS_SYNC);
+
+  vector<DiskMod> *mods = ops.GetMods();
+  ASSERT_EQ(mods->size(), 1);
+  EXPECT_EQ(mods->front().mod_type, DiskMod::kDataMod);
+  EXPECT_EQ(mods->front().mod_opts, DiskMod::kMsSyncOpt);
+  EXPECT_EQ(mods->front().file_mod_location, 4608);
+  EXPECT_EQ(mods->front().file_mod_len, length);
+  EXPECT_TRUE(
+      memcmp(mods->front().file_mod_data.get(), buf + 512, length) == 0);
+}
+
+/*
  * Test that writing to a file where the write extends the file size results in
  *    - a DiskMod of type kDataMetadataMod to be placed in the list of mods
  *    - the right offset and length in the DiskMod
@@ -634,11 +829,96 @@ TEST_P(TestCmFsOpsParameterized, WriteFileNoExtendNonZeroOffset) {
   EXPECT_FALSE(strncmp(mods->at(0).file_mod_data.get(), kTestData, write_size));
 }
 
+/*
+ * Test that calling mmap with PROT_WRITE and one of the flags that make it not
+ * write changes back to disk causes
+ *   - no data to be stored in mmap_map_.
+ */
+TEST_P(TestCmFsOpsNoMmapAdd, ShouldNotStore) {
+  const string pathname = "/mnt/snapshot/bleh";
+  const unsigned int expected_fd = 1;
+  const int flags = GetParam();
+  void *mmap_res = (void*) 0x200000;
+
+  MockFsFns mock;
+
+  EXPECT_CALL(mock, FnMmap(nullptr, 4096, PROT_WRITE, flags, expected_fd, 0))
+    .WillOnce(Return(mmap_res));
+
+  TestCmFsOps ops(&mock);
+  ops.AddFdMapping(expected_fd, pathname);
+
+  ops.CmMmap(nullptr, 4096, PROT_WRITE, flags, expected_fd, 0);
+
+  vector<DiskMod> *mods = ops.GetMods();
+  EXPECT_TRUE(mods->empty());
+
+  unordered_map<long long,
+      tuple<string, unsigned long long, unsigned long long>> *mmap_map =
+      ops.GetMmapMap();
+  EXPECT_TRUE(mmap_map->empty());
+}
+
+/*
+ * Test that calling mmap with PROT_WRITE and none of the flags that make it not
+ * write changes back to disk causes
+ *   - data to be stored in mmap_map_.
+ */
+TEST_P(TestCmFsOpsMmapAdd, ShouldStore) {
+  const string pathname = "/mnt/snapshot/bleh";
+  const unsigned int expected_fd = 1;
+  const unsigned long long offset = GetParam().first;
+  const unsigned long long length = GetParam().second;
+  void *mmap_res = (void*) 0x200000;
+
+  MockFsFns mock;
+
+  EXPECT_CALL(mock, FnMmap(nullptr, length, PROT_WRITE, MAP_SHARED, expected_fd,
+        offset))
+    .WillOnce(Return(mmap_res));
+
+  TestCmFsOps ops(&mock);
+  ops.AddFdMapping(expected_fd, pathname);
+
+  void *ptr = ops.CmMmap(nullptr, length, PROT_WRITE, MAP_SHARED, expected_fd,
+      offset);
+
+  EXPECT_EQ(ptr, mmap_res);
+
+  vector<DiskMod> *mods = ops.GetMods();
+  EXPECT_TRUE(mods->empty());
+
+  unordered_map<long long,
+      tuple<string, unsigned long long, unsigned long long>> *mmap_map =
+      ops.GetMmapMap();
+  tuple<string, unsigned long long, unsigned long long> mmap_value =
+    (*mmap_map->begin()).second;
+
+  EXPECT_EQ(mmap_map->size(), 1);
+  EXPECT_EQ(std::get<0>(mmap_value), pathname);
+  EXPECT_EQ(std::get<1>(mmap_value), offset);
+  EXPECT_EQ(std::get<2>(mmap_value), length);
+}
+
 INSTANTIATE_TEST_CASE_P(WriteSizes, TestCmFsOpsParameterized,
     ::testing::Values(
       kTestDataSize,
       kTestDataSize >> 1,
       (kTestDataSize >> 1) - 1));
+
+INSTANTIATE_TEST_CASE_P(NoMmapAdd, TestCmFsOpsNoMmapAdd,
+    ::testing::Values(
+      MAP_PRIVATE,
+      MAP_ANON,
+      MAP_ANONYMOUS
+    ));
+
+INSTANTIATE_TEST_CASE_P(MmapAdd, TestCmFsOpsMmapAdd,
+    ::testing::Values(
+      pair<unsigned long long, unsigned long long>(0, 4096),
+      pair<unsigned long long, unsigned long long>(0, 1024),
+      pair<unsigned long long, unsigned long long>(4096, 4096)
+    ));
 
 }  // namespace test
 }  // namespace fs_testing

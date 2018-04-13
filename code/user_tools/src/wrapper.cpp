@@ -1,10 +1,16 @@
 #include "../api/wrapper.h"
 
+#include <assert.h>
 #include <errno.h>
+#include <fcntl.h>
 #include <string.h>
 #include <sys/stat.h>
 #include <sys/types.h>
 #include <unistd.h>
+
+#include <utility>
+
+
 #include <iostream>
 
 #include "../api/actions.h"
@@ -13,8 +19,10 @@ namespace fs_testing {
 namespace user_tools {
 namespace api {
 
+using std::pair;
 using std::shared_ptr;
 using std::string;
+using std::tuple;
 using std::unordered_map;
 using std::vector;
 
@@ -144,7 +152,7 @@ int RecordCmFsOps::CmMkdir(const string &pathname, const mode_t mode) {
   mod.directory_mod = true;
   mod.path = pathname;
   mod.mod_type = DiskMod::kCreateMod;
-  mod.mod_type = DiskMod::kNoneOpt;
+  mod.mod_opts = DiskMod::kNoneOpt;
 
   mods_.push_back(mod);
 
@@ -328,15 +336,77 @@ ssize_t RecordCmFsOps::CmPwrite(const int fd, const void *buf,
 
 void * RecordCmFsOps::CmMmap(void *addr, const size_t length, const int prot,
     const int flags, const int fd, const off_t offset) {
-  return fns_->FnMmap(addr, length, prot, flags, fd, offset);
+  void *res = fns_->FnMmap(addr, length, prot, flags, fd, offset);
+  if (res == (void*) -1) {
+    return res;
+  }
+
+  if (!(prot & PROT_WRITE) || flags & MAP_PRIVATE || flags & MAP_ANON ||
+      flags & MAP_ANONYMOUS) {
+    // In these cases, the user cannot write to the mmap-ed region, the region
+    // is not backed by a file, or the changes the user makes are not reflected
+    // in the file, so we can just act like this never happened.
+    return res;
+  }
+
+  // All other cases we actually need to keep track of the fact that we mmap-ed
+  // this region.
+  mmap_map_.insert({(long long) res,
+      tuple<string, unsigned int, unsigned int>(
+          fd_map_.at(fd), offset, length)});
+  return res;
 }
 
 int RecordCmFsOps::CmMsync(void *addr, const size_t length, const int flags) {
-  return fns_->FnMsync(addr, length, flags);
+  const int res = fns_->FnMsync(addr, length, flags);
+  if (res < 0) {
+    return res;
+  }
+
+  // Check which file this belongs to. We need to do a search because they may
+  // not have passed the address that was returned in mmap.
+  for (const pair<long long, tuple<string, unsigned int, unsigned int>> &kv :
+      mmap_map_) {
+    if (addr >= (void*) kv.first &&
+        addr < (void*) (kv.first + std::get<2>(kv.second))) {
+      // This is the mapping you're looking for.
+      DiskMod mod;
+      mod.mod_type = DiskMod::kDataMod;
+      mod.mod_opts = (flags & MS_ASYNC) ?
+        DiskMod::kMsAsyncOpt : DiskMod::kMsSyncOpt;
+      mod.path = std::get<0>(kv.second);
+      // Offset into the file is the offset given in mmap plus the how far addr
+      // is from the pointer returned by mmap.
+      mod.file_mod_location =
+        std::get<1>(kv.second) + ((long long) addr - kv.first);
+      mod.file_mod_len = length;
+
+      // Copy over the data that is being sync-ed. We don't know how it is
+      // different than what was there to start with, but we'll have it!
+      mod.file_mod_data.reset(new char[length], [](char* c) {delete[] c;});
+      memcpy(mod.file_mod_data.get(), addr, length);
+
+      mods_.push_back(mod);
+      break;
+    }
+  }
+
+  return res;
 }
 
 int RecordCmFsOps::CmMunmap(void *addr, const size_t length) {
-  return fns_->FnMunmap(addr, length);
+  const int res = fns_->FnMunmap(addr, length);
+  if (res < 0) {
+    return res;
+  }
+
+  // TODO(ashmrtn): Assume that we always munmap with the same pointer and
+  // length that we mmap-ed with. May not actually remove anything if the
+  // mapping was not something that caused writes to be reflected in the
+  // underlying file (i.e. the key wasn't present to begin with).
+  mmap_map_.erase((long long int) addr);
+
+  return res;
 }
 
 int RecordCmFsOps::CmFallocate(const int fd, const int mode, const off_t offset,
@@ -385,8 +455,11 @@ int RecordCmFsOps::CmFallocate(const int fd, const int mode, const off_t offset,
     } else {
       mod.mod_opts = DiskMod::kZeroRangeOpt;
     }
+    /*
   } else if (mode & FALLOC_FL_INSERT_RANGE) {
+    // TODO(ashmrtn): Figure out how to check with glibc defines.
     mod.mod_opts = DiskMod::kInsertRangeOpt;
+    */
   } else if (mode & FALLOC_FL_KEEP_SIZE) {
     mod.mod_opts = DiskMod::kFallocateKeepSizeOpt;
   } else {

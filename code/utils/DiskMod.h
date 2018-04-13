@@ -59,6 +59,11 @@ class DiskMod {
     kZeroRangeOpt,          // Does not have keep_size.
     kZeroRangeKeepSizeOpt,  // Does have keep_size.
     kInsertRangeOpt,        // Cannot have keep_size.
+    // Below are mmap specific.
+
+    // Schedule sync, but return immediately (i.e. Checkpoint() will lie).
+    kMsAsyncOpt,
+    kMsSyncOpt,             // Waits for sync to complete so ok.
   };
 
   std::string path;
