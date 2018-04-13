@@ -44,12 +44,19 @@ SecondDirOptions = ['B']
 #WriteOptions = ['start', 'append', 'overlap', 'prepend']
 WriteOptions = ['append', 'overlap_aligned', 'overlap_unaligned']
 
+# sync_file_range options: the sync range can either be aligned to 4K or unaligned
+SyncFileRangeOptions = ['aligned', 'unaligned']
+
+# truncate options: the new truncated length can either be aligned to 4K or unaligned
+TruncateOptions = ['aligned', 'unaligned']
 
 #d_overlap = 8K-12K (has to be aligned)
 dWriteOptions = ['append', 'overlap']
 
 #removed setxattr
-OperationSet = ['creat', 'mkdir', 'mknod', 'falloc', 'write', 'dwrite', 'link', 'unlink', 'remove', 'rename', 'symlink', 'removexattr', 'fdatasync', 'fsetxattr']
+# OperationSet = ['creat', 'mkdir', 'mknod', 'falloc', 'write', 'dwrite', 'link', 'unlink', 'remove', 'rename', 'symlink', 'removexattr', 'fdatasync', 'fsetxattr']
+
+OperationSet = ['truncate', 'sync_file_range', 'mmap_write']
 
 #We are skipping 041, 336, 342, 343
 #The sequences we want to reach to
@@ -228,6 +235,17 @@ def buildTuple(command):
         d = tuple(FileOptions)
     elif command == 'fsync':
         d = tuple(FileOptions + DirOptions + TestDirOptions +  SecondFileOptions + SecondDirOptions)
+    elif command == 'truncate':
+        d_tmp = list()
+        d_tmp.append(FileOptions)
+        d_tmp.append(TruncateOptions)
+        d = list()
+        for i in itertools.product(*d_tmp):
+            d.append(i)
+    elif command == 'sync_file_range':
+        d = tuple(SyncFileRangeOptions)
+    elif command == 'mmap_write':
+        d = ()
     else:
         d=()
     return d
@@ -549,6 +567,18 @@ def satisfyDep(current_sequence, pos, modified_sequence, modified_pos, open_dir_
     elif command == 'none' or command == 'sync':
         pass
     
+    elif command == 'truncate':
+        file = current_sequence[pos][1][0]
+        option = current_sequence[pos][1][1]
+        
+        modified_pos = checkParentExistsDep(current_sequence, pos, modified_sequence, modified_pos, open_dir_map, open_file_map, file_length_map)
+        
+        # if file doesn't exist, has to be created and opened
+        modified_pos = checkExistsDep(current_sequence, pos, modified_sequence, modified_pos, open_dir_map, open_file_map, file_length_map)
+        
+        # Put some data into the file
+        modified_pos = checkFileLength(current_sequence, pos, modified_sequence, modified_pos, open_dir_map, open_file_map, file_length_map)
+        
     else:
         print command
         print 'Invalid command'
