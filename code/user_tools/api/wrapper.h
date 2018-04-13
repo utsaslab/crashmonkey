@@ -10,6 +10,7 @@
 
 #include <memory>
 #include <string>
+#include <tuple>
 #include <unordered_map>
 #include <vector>
 
@@ -53,6 +54,8 @@ class FsFns {
   virtual void FnSync() = 0;
   // TODO(P.S.) check if we want to have syncfs
   // virtual int FnSyncfs(const int fd) = 0;
+  virtual int FnSyncFileRange(const int fd, size_t offset, size_t nbytes,
+    unsigned int flags) = 0;
 
   virtual int CmCheckpoint() = 0;
 };
@@ -88,6 +91,8 @@ class DefaultFsFns : public FsFns {
   virtual void FnSync() override;
   // TODO(P.S.) check if we want to have syncfs
   // virtual int FnSyncfs(const int fd) override;
+  virtual int FnSyncFileRange(const int fd, size_t offset, size_t nbytes,
+    unsigned int flags) override;
 
   virtual int CmCheckpoint() override;
 };
@@ -123,6 +128,8 @@ class CmFsOps {
   virtual void CmSync() = 0;
   // TODO(P.S.) check if we want to have syncfs
   // virtual int CmSyncfs(const int fd) = 0;
+  virtual int CmSyncFileRange(const int fd, size_t offset, size_t nbytes,
+    unsigned int flags) = 0;
 
   virtual int CmCheckpoint() = 0;
 };
@@ -159,6 +166,8 @@ class RecordCmFsOps : public CmFsOps {
   void CmSync();
   // TODO(P.S.) check if we want to have syncfs
   // int CmSyncfs(const int fd);
+  virtual int CmSyncFileRange(const int fd, size_t offset, size_t nbytes,
+    unsigned int flags);
 
   int CmCheckpoint();
 
@@ -170,8 +179,10 @@ class RecordCmFsOps : public CmFsOps {
   // So that things that require fd can be mapped to pathnames.
   std::unordered_map<int, std::string> fd_map_;
 
-  // So that mmap pointers can be mapped to pathnames.
-  std::unordered_map<int, std::string> mmap_map_;
+  // So that mmap pointers can be mapped to pathnames and mmap offset and
+  // length.
+  std::unordered_map<long long,
+    std::tuple<std::string, unsigned long long, unsigned long long>> mmap_map_;
   std::vector<fs_testing::utils::DiskMod> mods_;
 
   // Set of functions to call for different file system operations. Tracked as a
@@ -231,6 +242,8 @@ class PassthroughCmFsOps : public CmFsOps {
   virtual void CmSync();
   // TODO(P.S.) check if we want to have syncfs
   // virtual int CmSyncfs(const int fd);
+  virtual int CmSyncFileRange(const int fd, size_t offset, size_t nbytes,
+    unsigned int flags);
 
   virtual int CmCheckpoint();
 

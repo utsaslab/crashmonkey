@@ -42,19 +42,28 @@ class DiskMod {
     kDataMmapMod,       // Only file data changed via mmap.
     kRemoveMod,         // File or directory removed.
     kCheckpointMod,     // CrashMonkey Checkpoint() marker.
-    kFsyncMod,          // For fsync/fdatasync that take an argument
-    kSyncMod,           // sync, flushes all the contents
+    kFsyncMod,          // For fsync/fdatasync that persist contents of a file.
+    kSyncMod,           // sync, flushes all the contents.
+    kSyncFileRangeMod,  // syncs pages of the open file falling within a range.
   };
 
   // TODO(ashmrtn): Figure out how to handle permissions.
   enum ModOpts {
-    kNoneOpt = 0,       // No special flags given.
-    kTruncateOpt,       // ex. truncate on open.
+    kNoneOpt = 0,           // No special flags given.
+    kTruncateOpt,           // ex. truncate on open.
     // Below flags are fallocate specific.
-    kPunchHoleOpt,
-    kCollapseRangeOpt,
-    kZeroRangeOpt,
-    kInsertRangeOpt,
+    kFallocateOpt,          // For regular fallocate.
+    kFallocateKeepSizeOpt,  // For regular fallocate with keep size.
+    kPunchHoleKeepSizeOpt,  // Implies keep_size.
+    kCollapseRangeOpt,      // Cannot have keep_size.
+    kZeroRangeOpt,          // Does not have keep_size.
+    kZeroRangeKeepSizeOpt,  // Does have keep_size.
+    kInsertRangeOpt,        // Cannot have keep_size.
+    // Below are mmap specific.
+
+    // Schedule sync, but return immediately (i.e. Checkpoint() will lie).
+    kMsAsyncOpt,
+    kMsSyncOpt,             // Waits for sync to complete so ok.
   };
 
   std::string path;
@@ -96,7 +105,7 @@ class DiskMod {
    */
   static int SerializeChangeHeader(char *buf,
       const unsigned int buf_offset, DiskMod &dm);
-  static int SerializeFileMod(char *buf, const unsigned int buf_offset,
+  static int SerializeDataRange(char *buf, const unsigned int buf_offset,
       DiskMod &dm);
   static int SerializeDirectoryMod(char *buf, const unsigned int len,
       DiskMod &dm);

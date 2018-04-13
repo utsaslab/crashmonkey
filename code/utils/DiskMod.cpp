@@ -18,18 +18,35 @@ uint64_t DiskMod::GetSerializeSize() {
     return res;
   }
 
+  res += sizeof(bool);  // directory_mod.
+
   res += path.size() + 1;  // size() doesn't include null terminator.
 
-  if (mod_type == DiskMod::kFsyncMod) {
+  if (mod_type == DiskMod::kFsyncMod ||
+      mod_type == DiskMod::kRemoveMod ||
+      mod_type == DiskMod::kCreateMod) {
+    return res;
+  }
+
+  if (mod_type == DiskMod::kSyncFileRangeMod ||
+      mod_opts == DiskMod::kFallocateOpt ||
+      mod_opts == DiskMod::kFallocateKeepSizeOpt ||
+      mod_opts == DiskMod::kPunchHoleKeepSizeOpt ||
+      mod_opts == DiskMod::kCollapseRangeOpt ||
+      mod_opts == DiskMod::kZeroRangeOpt ||
+      mod_opts == DiskMod::kZeroRangeKeepSizeOpt ||
+      mod_opts == DiskMod::kInsertRangeOpt) {
+    // Do not contain the data for the range, just the offset and length.
+    res += 2 * sizeof(uint64_t);
     return res;
   }
   
-  res += sizeof(bool);  // directory_mod.
   if (directory_mod) {
     res += directory_added_entry.size() + 1;  // Path changed in directory.
   } else {
     // Data changed, location of change, length of change.
-    res += 2 * sizeof(uint64_t) + file_mod_len;
+    res += 2 * sizeof(uint64_t);
+    return res + file_mod_len;
   }
 
   return res;
@@ -87,7 +104,7 @@ shared_ptr<char> DiskMod::Serialize(DiskMod &dm, unsigned long long *size) {
   }
   buf_offset += res;
 
-  // kCheckpointMod doesn't need anything done after the type.
+  // kCheckpointMod and kSyncMod don't need anything done after the type.
   if (!(dm.mod_type == DiskMod::kCheckpointMod ||
       dm.mod_type == DiskMod::kSyncMod)) {
     res = SerializeChangeHeader(buf, buf_offset, dm);
@@ -95,7 +112,8 @@ shared_ptr<char> DiskMod::Serialize(DiskMod &dm, unsigned long long *size) {
       return shared_ptr<char>(nullptr);
     }
 
-    if (dm.mod_type == DiskMod::kFsyncMod) {
+    if (dm.mod_type == DiskMod::kFsyncMod ||
+        dm.mod_type == DiskMod::kCreateMod) {
       return res_ptr;
     }
 
@@ -108,8 +126,11 @@ shared_ptr<char> DiskMod::Serialize(DiskMod &dm, unsigned long long *size) {
       }
       buf_offset += res;
     } else {
+      // TODO(ashmrtn): *Technically* fallocate and friends can be called on a
+      // directory file descriptor. The current code will not play well with
+      // that.
       // We changed a file, only put that down.
-      res = SerializeFileMod(buf, buf_offset, dm);
+      res = SerializeDataRange(buf, buf_offset, dm);
       if (res < 0) {
         return shared_ptr<char>(nullptr);
       }
@@ -149,7 +170,7 @@ int DiskMod::SerializeChangeHeader(char *buf,
   return size + sizeof(uint8_t);
 }
 
-int DiskMod::SerializeFileMod(char *buf, const unsigned int buf_offset,
+int DiskMod::SerializeDataRange(char *buf, const unsigned int buf_offset,
     DiskMod &dm) {
   buf += buf_offset;
   // Add file_mod_location.
@@ -161,6 +182,19 @@ int DiskMod::SerializeFileMod(char *buf, const unsigned int buf_offset,
   uint64_t file_mod_len = htobe64(dm.file_mod_len);
   memcpy(buf, &file_mod_len, sizeof(uint64_t));
   buf += sizeof(uint64_t);
+
+  if (dm.mod_type == DiskMod::kSyncFileRangeMod ||
+      dm.mod_opts == DiskMod::kFallocateOpt ||
+      dm.mod_opts == DiskMod::kFallocateKeepSizeOpt ||
+      dm.mod_opts == DiskMod::kPunchHoleKeepSizeOpt ||
+      dm.mod_opts == DiskMod::kCollapseRangeOpt ||
+      dm.mod_opts == DiskMod::kZeroRangeOpt ||
+      dm.mod_opts == DiskMod::kZeroRangeKeepSizeOpt ||
+      dm.mod_opts == DiskMod::kInsertRangeOpt) {
+    // kSyncFileRangeMod does not contain the data range, just the offset and
+    // length.
+    return 2 * sizeof(uint64_t);
+  }
 
   // Add file_mod_data (non-null terminated).
   memcpy(buf, dm.file_mod_data.get(), dm.file_mod_len);
@@ -224,11 +258,11 @@ int DiskMod::Deserialize(shared_ptr<char> data, DiskMod &res) {
   // Move past the null terminating character.
   ++data_ptr;
 
-  uint8_t dir_mod = data_ptr[0];
+  res.directory_mod = (bool) data_ptr[0];
   ++data_ptr;
-  res.directory_mod = (bool) dir_mod;
 
-  if (res.mod_type == DiskMod::kFsyncMod) {
+  if (res.mod_type == DiskMod::kFsyncMod ||
+      res.mod_type == DiskMod::kCreateMod) {
     return 0;
   }
 
@@ -243,6 +277,19 @@ int DiskMod::Deserialize(shared_ptr<char> data, DiskMod &res) {
   data_ptr += sizeof(uint64_t);
   file_mod_len = be64toh(file_mod_len);
   res.file_mod_len = file_mod_len;
+
+  // Some mods have file length and location, but no actual data associated with
+  // them.
+  if (res.mod_type == DiskMod::kSyncFileRangeMod ||
+      res.mod_opts == DiskMod::kFallocateOpt ||
+      res.mod_opts == DiskMod::kFallocateKeepSizeOpt ||
+      res.mod_opts == DiskMod::kPunchHoleKeepSizeOpt ||
+      res.mod_opts == DiskMod::kCollapseRangeOpt ||
+      res.mod_opts == DiskMod::kZeroRangeOpt ||
+      res.mod_opts == DiskMod::kZeroRangeKeepSizeOpt ||
+      res.mod_opts == DiskMod::kInsertRangeOpt) {
+    return 0;
+  }
 
   if (res.file_mod_len > 0) {
     // Read the data for this mod.

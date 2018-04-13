@@ -1,10 +1,16 @@
 #include "../api/wrapper.h"
 
+#include <assert.h>
 #include <errno.h>
+#include <fcntl.h>
 #include <string.h>
 #include <sys/stat.h>
 #include <sys/types.h>
 #include <unistd.h>
+
+#include <utility>
+
+
 #include <iostream>
 
 #include "../api/actions.h"
@@ -13,8 +19,10 @@ namespace fs_testing {
 namespace user_tools {
 namespace api {
 
+using std::pair;
 using std::shared_ptr;
 using std::string;
+using std::tuple;
 using std::unordered_map;
 using std::vector;
 
@@ -91,6 +99,7 @@ int DefaultFsFns::FnStat(const std::string &pathname, struct stat *buf) {
 bool DefaultFsFns::FnPathExists(const std::string &pathname) {
   const int res = access(pathname.c_str(), F_OK);
   // TODO(ashmrtn): Should probably have some better way to handle errors.
+  std::cout << __func__ << " returns " << res << std::endl;
   if (res != 0) {
     return false;
   }
@@ -114,6 +123,11 @@ void DefaultFsFns::FnSync() {
 //   return syncfs(fd);
 // }
 
+int DefaultFsFns::FnSyncFileRange(const int fd, size_t offset, size_t nbytes,
+    unsigned int flags) {
+  return sync_file_range(fd, offset, nbytes, flags);
+}
+
 int DefaultFsFns::CmCheckpoint() {
   return Checkpoint();
 }
@@ -129,7 +143,20 @@ int RecordCmFsOps::CmMknod(const string &pathname, const mode_t mode,
 }
 
 int RecordCmFsOps::CmMkdir(const string &pathname, const mode_t mode) {
-  return fns_->FnMkdir(pathname.c_str(), mode);
+  const int res = fns_->FnMkdir(pathname.c_str(), mode);
+  if (res < 0) {
+    return res;
+  }
+
+  DiskMod mod;
+  mod.directory_mod = true;
+  mod.path = pathname;
+  mod.mod_type = DiskMod::kCreateMod;
+  mod.mod_opts = DiskMod::kNoneOpt;
+
+  mods_.push_back(mod);
+
+  return res;
 }
 
 void RecordCmFsOps::CmOpenCommon(const int fd, const string &pathname,
@@ -257,25 +284,191 @@ int RecordCmFsOps::CmWrite(const int fd, const void *buf, const size_t count) {
 
 ssize_t RecordCmFsOps::CmPwrite(const int fd, const void *buf,
     const size_t count, const off_t offset) {
+  DiskMod mod;
+  mod.mod_opts = DiskMod::kNoneOpt;
+  // Get current file position and size. If stat fails, then assume lseek will
+  // fail too and just bail out.
+  struct stat pre_stat_buf;
+  // This could be an fstat(), but I don't see a reason to add another call that
+  // does only reads to the already large interface of FsFns.
+  int res = fns_->FnStat(fd_map_.at(fd), &pre_stat_buf);
+  if (res < 0) {
+    return res;
+  }
+
+  const int write_res = fns_->FnPwrite(fd, buf, count, offset);
+  if (write_res < 0) {
+    return write_res;
+  }
+
+  mod.directory_mod = S_ISDIR(pre_stat_buf.st_mode);
+
+  // TODO(ashmrtn): Support calling write directly on a directory.
+  if (!mod.directory_mod) {
+    // Copy over as much data as was written and see what the new file size is.
+    // This will determine how we set the type of the DiskMod.
+    mod.file_mod_location = offset;
+    mod.file_mod_len = write_res;
+    mod.path = fd_map_.at(fd);
+
+    res = fns_->FnStat(fd_map_.at(fd), &mod.post_mod_stats);
+    if (res < 0) {
+      return write_res;
+    }
+
+    if (pre_stat_buf.st_size != mod.post_mod_stats.st_size) {
+      mod.mod_type = DiskMod::kDataMetadataMod;
+    } else {
+      mod.mod_type = DiskMod::kDataMod;
+    }
+
+    if (write_res > 0) {
+      mod.file_mod_data.reset(new char[write_res], [](char* c) {delete[] c;});
+      memcpy(mod.file_mod_data.get(), buf, write_res);
+    }
+  }
+
+  mods_.push_back(mod);
+
+  return write_res;
   return fns_->FnPwrite(fd, buf, count, offset);
 }
 
 void * RecordCmFsOps::CmMmap(void *addr, const size_t length, const int prot,
     const int flags, const int fd, const off_t offset) {
-  return fns_->FnMmap(addr, length, prot, flags, fd, offset);
+  void *res = fns_->FnMmap(addr, length, prot, flags, fd, offset);
+  if (res == (void*) -1) {
+    return res;
+  }
+
+  if (!(prot & PROT_WRITE) || flags & MAP_PRIVATE || flags & MAP_ANON ||
+      flags & MAP_ANONYMOUS) {
+    // In these cases, the user cannot write to the mmap-ed region, the region
+    // is not backed by a file, or the changes the user makes are not reflected
+    // in the file, so we can just act like this never happened.
+    return res;
+  }
+
+  // All other cases we actually need to keep track of the fact that we mmap-ed
+  // this region.
+  mmap_map_.insert({(long long) res,
+      tuple<string, unsigned int, unsigned int>(
+          fd_map_.at(fd), offset, length)});
+  return res;
 }
 
 int RecordCmFsOps::CmMsync(void *addr, const size_t length, const int flags) {
-  return fns_->FnMsync(addr, length, flags);
+  const int res = fns_->FnMsync(addr, length, flags);
+  if (res < 0) {
+    return res;
+  }
+
+  // Check which file this belongs to. We need to do a search because they may
+  // not have passed the address that was returned in mmap.
+  for (const pair<long long, tuple<string, unsigned int, unsigned int>> &kv :
+      mmap_map_) {
+    if (addr >= (void*) kv.first &&
+        addr < (void*) (kv.first + std::get<2>(kv.second))) {
+      // This is the mapping you're looking for.
+      DiskMod mod;
+      mod.mod_type = DiskMod::kDataMod;
+      mod.mod_opts = (flags & MS_ASYNC) ?
+        DiskMod::kMsAsyncOpt : DiskMod::kMsSyncOpt;
+      mod.path = std::get<0>(kv.second);
+      // Offset into the file is the offset given in mmap plus the how far addr
+      // is from the pointer returned by mmap.
+      mod.file_mod_location =
+        std::get<1>(kv.second) + ((long long) addr - kv.first);
+      mod.file_mod_len = length;
+
+      // Copy over the data that is being sync-ed. We don't know how it is
+      // different than what was there to start with, but we'll have it!
+      mod.file_mod_data.reset(new char[length], [](char* c) {delete[] c;});
+      memcpy(mod.file_mod_data.get(), addr, length);
+
+      mods_.push_back(mod);
+      break;
+    }
+  }
+
+  return res;
 }
 
 int RecordCmFsOps::CmMunmap(void *addr, const size_t length) {
-  return fns_->FnMunmap(addr, length);
+  const int res = fns_->FnMunmap(addr, length);
+  if (res < 0) {
+    return res;
+  }
+
+  // TODO(ashmrtn): Assume that we always munmap with the same pointer and
+  // length that we mmap-ed with. May not actually remove anything if the
+  // mapping was not something that caused writes to be reflected in the
+  // underlying file (i.e. the key wasn't present to begin with).
+  mmap_map_.erase((long long int) addr);
+
+  return res;
 }
 
 int RecordCmFsOps::CmFallocate(const int fd, const int mode, const off_t offset,
     off_t len) {
-  return fns_->FnFallocate(fd, mode, offset, len);
+  struct stat pre_stat;
+  const int pre_stat_res = fns_->FnStat(fd_map_[fd].c_str(), &pre_stat);
+  if (pre_stat_res < 0) {
+    return pre_stat_res;
+  }
+
+  const int res = fns_->FnFallocate(fd, mode, offset, len);
+  if (res < 0) {
+    return res;
+  }
+
+  struct stat post_stat;
+  const int post_stat_res = fns_->FnStat(fd_map_[fd].c_str(), &post_stat);
+  if (post_stat_res < 0) {
+    return post_stat_res;
+  }
+
+  DiskMod mod;
+
+  if (pre_stat.st_size != post_stat.st_size ||
+      pre_stat.st_blocks != post_stat.st_blocks) {
+    mod.mod_type = DiskMod::kDataMetadataMod;
+  } else {
+    mod.mod_type = DiskMod::kDataMod;
+  }
+
+  mod.path = fd_map_[fd];
+  mod.file_mod_location = offset;
+  mod.file_mod_len = len;
+
+  if (mode & FALLOC_FL_PUNCH_HOLE) {
+    // TODO(ashmrtn): Do we want this here? I'm not sure if it will cause
+    // failures that we don't want, though man fallocate(2) says that
+    // FALLOC_FL_PUNCH_HOLE must also have FALLOC_FL_KEEP_SIZE.
+    assert(mode & FALLOC_FL_KEEP_SIZE);
+    mod.mod_opts = DiskMod::kPunchHoleKeepSizeOpt;
+  } else if (mode & FALLOC_FL_COLLAPSE_RANGE) {
+    mod.mod_opts = DiskMod::kCollapseRangeOpt;
+  } else if (mode & FALLOC_FL_ZERO_RANGE) {
+    if (mode & FALLOC_FL_KEEP_SIZE) {
+      mod.mod_opts = DiskMod::kZeroRangeKeepSizeOpt;
+    } else {
+      mod.mod_opts = DiskMod::kZeroRangeOpt;
+    }
+    /*
+  } else if (mode & FALLOC_FL_INSERT_RANGE) {
+    // TODO(ashmrtn): Figure out how to check with glibc defines.
+    mod.mod_opts = DiskMod::kInsertRangeOpt;
+    */
+  } else if (mode & FALLOC_FL_KEEP_SIZE) {
+    mod.mod_opts = DiskMod::kFallocateKeepSizeOpt;
+  } else {
+    mod.mod_opts = DiskMod::kFallocateOpt;
+  }
+
+  mods_.push_back(mod);
+
+  return res;
 }
 
 int RecordCmFsOps::CmClose(const int fd) {
@@ -295,11 +488,33 @@ int RecordCmFsOps::CmRename(const string &old_path, const string &new_path) {
 }
 
 int RecordCmFsOps::CmUnlink(const string &pathname) {
-  return fns_->FnUnlink(pathname.c_str());
+  const int res = fns_->FnUnlink(pathname.c_str());
+  if (res < 0) {
+    return res;
+  }
+
+  DiskMod mod;
+  mod.mod_type = DiskMod::kRemoveMod;
+  mod.mod_opts = DiskMod::kNoneOpt;
+  mod.path = pathname;
+  mods_.push_back(mod);
+
+  return res;
 }
 
 int RecordCmFsOps::CmRemove(const string &pathname) {
-  return fns_->FnRemove(pathname.c_str());
+  const int res = fns_->FnRemove(pathname.c_str());
+  if (res < 0) {
+    return res;
+  }
+
+  DiskMod mod;
+  mod.mod_type = DiskMod::kRemoveMod;
+  mod.mod_opts = DiskMod::kNoneOpt;
+  mod.path = pathname;
+  mods_.push_back(mod);
+
+  return res;
 }
 
 int RecordCmFsOps::CmFsync(const int fd) {
@@ -313,6 +528,9 @@ int RecordCmFsOps::CmFsync(const int fd) {
   mod.mod_type = DiskMod::kFsyncMod;
   mod.mod_opts = DiskMod::kNoneOpt;
   mod.path = fd_map_.at(fd);
+  for (auto i : fd_map_) {
+    std::cout << i.first << " -> " << i.second << std::endl;
+  }
   mods_.push_back(mod);
 
   return res;
@@ -357,6 +575,28 @@ void RecordCmFsOps::CmSync() {
 
 //   return res;
 // }
+
+int RecordCmFsOps::CmSyncFileRange(const int fd, size_t offset, size_t nbytes,
+    unsigned int flags) {
+  const int res = fns_->FnSyncFileRange(fd, offset, nbytes, flags);
+  if (res < 0) {
+    return res;
+  }
+
+  DiskMod mod;
+  mod.mod_type = DiskMod::kSyncFileRangeMod;
+  mod.mod_opts = DiskMod::kNoneOpt;
+  mod.path = fd_map_.at(fd);
+  const int post_stat_res = fns_->FnStat(fd_map_.at(fd), &mod.post_mod_stats);
+  if (post_stat_res < 0) {
+    // TODO(ashmrtn): Some sort of warning here?
+    return post_stat_res;
+  }
+  mod.file_mod_location = offset;
+  mod.file_mod_len = nbytes;
+  mods_.push_back(mod);
+  return res;
+}
 
 int RecordCmFsOps::CmCheckpoint() {
   const int res = fns_->CmCheckpoint();
@@ -494,6 +734,11 @@ void PassthroughCmFsOps::CmSync() {
 // int PassthroughCmFsOps::CmSyncfs(const int fd) {
 //   return fns_->FnSyncfs(fd);
 // }
+
+int PassthroughCmFsOps::CmSyncFileRange(const int fd, size_t offset, size_t nbytes,
+    unsigned int flags) {
+  fns_->FnSyncFileRange(fd, offset, nbytes, flags);
+}
 
 int PassthroughCmFsOps::CmCheckpoint() {
   return fns_->CmCheckpoint();
