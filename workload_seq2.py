@@ -171,7 +171,7 @@ def insertDefine(line, file, index_map):
 
 def insertFalloc(contents, line, index_map, method):
 
-    to_insert = '\n\t\t\t\tif ( fallocate( fd_' + line.split(' ')[1] + ' , ' + line.split(' ')[2] + ' , ' + line.split(' ')[3] + ' , '  + line.split(' ')[4] + ') < 0){ \n\t\t\t\t\t close( fd_' + line.split(' ')[1]  +');\n\t\t\t\t\t return errno;\n\t\t\t\t}\n\n'
+    to_insert = '\n\t\t\t\tif ( fallocate( fd_' + line.split(' ')[1] + ' , ' + line.split(' ')[2] + ' , ' + line.split(' ')[3] + ' , '  + line.split(' ')[4] + ') < 0){ \n\t\t\t\t\tcm_->CmClose( fd_' + line.split(' ')[1]  +');\n\t\t\t\t\t return errno;\n\t\t\t\t}\n\n'
 
     if method == 'setup':
         contents.insert(index_map['setup'], to_insert)
@@ -202,7 +202,7 @@ def insertOpenFile(contents, line, index_map, method):
         redeclare_map[name] = 1
     
     # TODO: prevent redeclations here
-    to_insert = '\n\t\t\t\t' + decl + 'fd_' + line.split(' ')[1] + ' = cm_->CmOpen(' + line.split(' ')[1] + '_path.c_str() , ' + line.split(' ')[2] + ' , ' + line.split(' ')[3] + '); \n\t\t\t\tif ( fd_' + line.split(' ')[1] + ' < 0 ) { \n\t\t\t\t\tclose( fd_' + line.split(' ')[1] + '); \n\t\t\t\t\treturn errno;\n\t\t\t\t}\n\n'
+    to_insert = '\n\t\t\t\t' + decl + 'fd_' + line.split(' ')[1] + ' = cm_->CmOpen(' + line.split(' ')[1] + '_path.c_str() , ' + line.split(' ')[2] + ' , ' + line.split(' ')[3] + '); \n\t\t\t\tif ( fd_' + line.split(' ')[1] + ' < 0 ) { \n\t\t\t\t\tcm_->CmClose( fd_' + line.split(' ')[1] + '); \n\t\t\t\t\treturn errno;\n\t\t\t\t}\n\n'
     
     if method == 'setup':
         contents.insert(index_map['setup'], to_insert)
@@ -220,7 +220,7 @@ def insertMknodFile(contents, line, index_map, method):
         redeclare_map[name] = 1
     
     # TODO: prevent redeclations here
-    to_insert = '\n\t\t\t\t' + decl + 'fd_' + line.split(' ')[1] + ' = mknod(' + line.split(' ')[1] + '_path.c_str() , ' + line.split(' ')[2] + ' , ' + line.split(' ')[3] + '); \n\t\t\t\tif ( fd_' + line.split(' ')[1] + ' < 0 ) { \n\t\t\t\t\tclose( fd_' + line.split(' ')[1] + '); \n\t\t\t\t\treturn errno;\n\t\t\t\t}\n\n'
+    to_insert = '\n\t\t\t\t' + decl + 'fd_' + line.split(' ')[1] + ' = mknod(' + line.split(' ')[1] + '_path.c_str() , ' + line.split(' ')[2] + ' , ' + line.split(' ')[3] + '); \n\t\t\t\tif ( fd_' + line.split(' ')[1] + ' < 0 ) { \n\t\t\t\t\tcm_->CmClose( fd_' + line.split(' ')[1] + '); \n\t\t\t\t\treturn errno;\n\t\t\t\t}\n\n'
 
     if method == 'setup':
         contents.insert(index_map['setup'], to_insert)
@@ -238,7 +238,7 @@ def insertOpenDir(contents, line, index_map, method):
         redeclare_map[name] = 1
     
     # TODO: prevent redeclations here
-    to_insert = '\n\t\t\t\t' + decl + 'fd_' + line.split(' ')[1] + ' = cm_->CmOpen(' + line.split(' ')[1] + '_path.c_str() , O_DIRECTORY , ' + line.split(' ')[2] + '); \n\t\t\t\tif ( fd_' + line.split(' ')[1] + ' < 0 ) { \n\t\t\t\t\tclose( fd_' + line.split(' ')[1] + '); \n\t\t\t\t\treturn errno;\n\t\t\t\t}\n\n'
+    to_insert = '\n\t\t\t\t' + decl + 'fd_' + line.split(' ')[1] + ' = cm_->CmOpen(' + line.split(' ')[1] + '_path.c_str() , O_DIRECTORY , ' + line.split(' ')[2] + '); \n\t\t\t\tif ( fd_' + line.split(' ')[1] + ' < 0 ) { \n\t\t\t\t\tcm_->CmClose( fd_' + line.split(' ')[1] + '); \n\t\t\t\t\treturn errno;\n\t\t\t\t}\n\n'
     
     if method == 'setup':
         contents.insert(index_map['setup'], to_insert)
@@ -376,7 +376,7 @@ def insertRemovexattr(contents, line, index_map, method):
 def insertWrite(contents, option, line, index_map, method):
     if option == 'WriteDataMmap':
         # insertFalloc(contents, '0', line, index_map, method)
-        to_insert = '\n\t\t\t\tif ( fallocate( fd_' + line.split(' ')[1] + ' , 0 , ' + line.split(' ')[2] + ' , '  + line.split(' ')[3] + ') < 0){ \n\t\t\t\t\t close( fd_' + line.split(' ')[1]  +');\n\t\t\t\t\t return errno;\n\t\t\t\t}\n\t\t\t\tif ( ' + option + '( fd_' + line.split(' ')[1] + ', ' + line.split(' ')[2] + ', ' + line.split(' ')[3] + ') < 0){ \n\t\t\t\t\tclose( fd_' + line.split(' ')[1] + '); \n\t\t\t\t\treturn errno;\n\t\t\t\t}\n\n'
+        to_insert = '\n\t\t\t\tif ( fallocate( fd_' + line.split(' ')[1] + ' , 0 , ' + line.split(' ')[2] + ' , '  + line.split(' ')[3] + ') < 0){ \n\t\t\t\t\tcm_->CmClose( fd_' + line.split(' ')[1]  +');\n\t\t\t\t\t return errno;\n\t\t\t\t}\n\t\t\t\tif ( ' + option + '( fd_' + line.split(' ')[1] + ', ' + line.split(' ')[2] + ', ' + line.split(' ')[3] + ') < 0){ \n\t\t\t\t\tcm_->CmClose( fd_' + line.split(' ')[1] + '); \n\t\t\t\t\treturn errno;\n\t\t\t\t}\n\n'
         if method == 'setup':
             contents.insert(index_map['setup'], to_insert)
             updateSetupMap(index_map, 9)
@@ -385,7 +385,7 @@ def insertWrite(contents, option, line, index_map, method):
             updateRunMap(index_map, 9) 
 
     elif option == 'write':
-        to_insert = '\n\t\t\t\tif ( WriteData ( fd_' + line.split(' ')[1] + ', ' + line.split(' ')[2] + ', ' + line.split(' ')[3] + ') < 0){ \n\t\t\t\t\tclose( fd_' + line.split(' ')[1] + '); \n\t\t\t\t\treturn errno;\n\t\t\t\t}\n\n'
+        to_insert = '\n\t\t\t\tif ( WriteData ( fd_' + line.split(' ')[1] + ', ' + line.split(' ')[2] + ', ' + line.split(' ')[3] + ') < 0){ \n\t\t\t\t\tcm_->CmClose( fd_' + line.split(' ')[1] + '); \n\t\t\t\t\treturn errno;\n\t\t\t\t}\n\n'
         if method == 'setup':
             contents.insert(index_map['setup'], to_insert)
             updateSetupMap(index_map, 5)
@@ -406,7 +406,7 @@ def insertWrite(contents, option, line, index_map, method):
             redeclare_map[name] = 1
 
         # TODO: prevent redeclations here
-        to_insert ='\n\t\t\t\tclose(fd_' + line.split(' ')[1] + '); \n\t\t\t\tfd_' + line.split(' ')[1] + ' = open(' + line.split(' ')[1] +'_path.c_str() , O_RDWR|O_DIRECT|O_SYNC , 0777); \n\t\t\t\tif ( fd_' + line.split(' ')[1] +' < 0 ) { \n\t\t\t\t\tclose( fd_' + line.split(' ')[1] +'); \n\t\t\t\t\treturn errno;\n\t\t\t\t}\n\n\t\t\t\t' + data_decl+'\n\t\t\t\tif (posix_memalign(&data_' + line.split(' ')[1] +' , 4096, ' + line.split(' ')[3] +' ) < 0) {\n\t\t\t\t\treturn errno;\n\t\t\t\t}\n\n\t\t\t\t \n\t\t\t\t' +decl+ 'offset_'+ line.split(' ')[1] +' = 0;\n\t\t\t\t' + decl +'to_write_'+line.split(' ')[1] +' = ' + line.split(' ')[3] + ' ;\n\t\t\t\t'+ text_decl+ '\n\t\t\t\twhile (offset_'+line.split(' ')[1]+' < '+ line.split(' ')[3] +'){\n\t\t\t\t\tif (to_write_'+ line.split(' ')[1] +' < 32){\n\t\t\t\t\t\tmemcpy((char *)data_'+ line.split(' ')[1]+ '+ offset_'+ line.split(' ')[1] +', text_'+ line.split(' ')[1] +', to_write_' +line.split(' ')[1]+');\n\t\t\t\t\t\toffset_'+ line.split(' ')[1]+' += to_write_'+ line.split(' ')[1] +';\n\t\t\t\t\t}\n\t\t\t\t\telse {\n\t\t\t\t\t\tmemcpy((char *)data_'+ line.split(' ')[1] +'+ offset_'+line.split(' ')[1] +',text_'+line.split(' ')[1] +', 32);\n\t\t\t\t\t\toffset_'+line.split(' ')[1] +' += 32; \n\t\t\t\t\t} \n\t\t\t\t} \n\n\t\t\t\tif ( pwrite ( fd_' + line.split(' ')[1] + ', data_'+ line.split(' ')[1] + ', '  + line.split(' ')[3] + ', ' + line.split(' ')[2] +') < 0){\n\t\t\t\t\tclose( fd_' + line.split(' ')[1] + '); \n\t\t\t\t\treturn errno;\n\t\t\t\t}\n\n'
+        to_insert ='\n\t\t\t\tcm_->CmClose(fd_' + line.split(' ')[1] + '); \n\t\t\t\tfd_' + line.split(' ')[1] + ' = open(' + line.split(' ')[1] +'_path.c_str() , O_RDWR|O_DIRECT|O_SYNC , 0777); \n\t\t\t\tif ( fd_' + line.split(' ')[1] +' < 0 ) { \n\t\t\t\t\tcm_->CmClose( fd_' + line.split(' ')[1] +'); \n\t\t\t\t\treturn errno;\n\t\t\t\t}\n\n\t\t\t\t' + data_decl+'\n\t\t\t\tif (posix_memalign(&data_' + line.split(' ')[1] +' , 4096, ' + line.split(' ')[3] +' ) < 0) {\n\t\t\t\t\treturn errno;\n\t\t\t\t}\n\n\t\t\t\t \n\t\t\t\t' +decl+ 'offset_'+ line.split(' ')[1] +' = 0;\n\t\t\t\t' + decl +'to_write_'+line.split(' ')[1] +' = ' + line.split(' ')[3] + ' ;\n\t\t\t\t'+ text_decl+ '\n\t\t\t\twhile (offset_'+line.split(' ')[1]+' < '+ line.split(' ')[3] +'){\n\t\t\t\t\tif (to_write_'+ line.split(' ')[1] +' < 32){\n\t\t\t\t\t\tmemcpy((char *)data_'+ line.split(' ')[1]+ '+ offset_'+ line.split(' ')[1] +', text_'+ line.split(' ')[1] +', to_write_' +line.split(' ')[1]+');\n\t\t\t\t\t\toffset_'+ line.split(' ')[1]+' += to_write_'+ line.split(' ')[1] +';\n\t\t\t\t\t}\n\t\t\t\t\telse {\n\t\t\t\t\t\tmemcpy((char *)data_'+ line.split(' ')[1] +'+ offset_'+line.split(' ')[1] +',text_'+line.split(' ')[1] +', 32);\n\t\t\t\t\t\toffset_'+line.split(' ')[1] +' += 32; \n\t\t\t\t\t} \n\t\t\t\t} \n\n\t\t\t\tif ( pwrite ( fd_' + line.split(' ')[1] + ', data_'+ line.split(' ')[1] + ', '  + line.split(' ')[3] + ', ' + line.split(' ')[2] +') < 0){\n\t\t\t\t\tcm_->CmClose( fd_' + line.split(' ')[1] + '); \n\t\t\t\t\treturn errno;\n\t\t\t\t}\n\n'
 
         if method == 'setup':
             contents.insert(index_map['setup'], to_insert)
