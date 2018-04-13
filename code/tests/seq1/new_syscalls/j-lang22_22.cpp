@@ -89,7 +89,7 @@ namespace fs_testing {
 					} 
 				}
 
-				if ( msync ( filep_foo, 4096 , MS_SYNC) < 0){
+				if ( cm_->CmMsync ( filep_foo, 4096 , MS_SYNC) < 0){
 					munmap( filep_foo, 4096); 
 					return -1;
 				}

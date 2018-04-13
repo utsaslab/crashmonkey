@@ -65,7 +65,7 @@ namespace fs_testing {
 				}
 
 
-				if ( sync_file_range( fd_foo , 0 , 4096 , SYNC_FILE_RANGE_WRITE) < 0){ 
+				if ( cm_->CmSyncFileRange( fd_foo , 0 , 4096 , SYNC_FILE_RANGE_WRITE) < 0){ 
 					cm_->CmClose( fd_foo);
 					 return errno;
 				}
