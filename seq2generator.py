@@ -117,6 +117,7 @@ expected_sync_sequence.append([('fsync', 'foo'), ('fsync', 'foo')])
 expected_sequence.append([('write', ('foo', 'append')), ('falloc', ('foo', 'FALLOC_FL_ZERO_RANGE|FALLOC_FL_KEEP_SIZE', 'append')), ('fdatasync', ('foo'))])
 expected_sync_sequence.append([('sync'), ('none'), ('none')])
 
+#We miss this in seq-2, because we disallow workloads of sort creat, creat
 # 5. generic_034 2
 expected_sequence.append([('creat', ('A/foo')), ('creat', ('A/bar'))])
 expected_sync_sequence.append([('sync'), ('fsync', 'A')])
@@ -133,6 +134,7 @@ expected_sync_sequence.append([('sync'), ('fsync', 'foo')])
 expected_sequence.append([('fsetxattr', ('foo')), ('removexattr', ('foo'))])
 expected_sync_sequence.append([('sync'), ('fsync', 'foo')])
 
+#Reachable from current seq 2 generator  (#1396 : creat A/foo, rename A,B) (sync, fsync A)
 # 9. generic_341 3
 expected_sequence.append([('creat', ('A/foo')), ('rename', ('A', 'B')), ('mkdir', ('A'))])
 expected_sync_sequence.append([('sync'), ('none'), ('fsync', 'A')])
@@ -149,6 +151,7 @@ expected_sync_sequence.append([('none'), ('fsync', 'bar')])
 expected_sequence.append([('write', ('foo', 'append')), ('falloc', ('foo', 'FALLOC_FL_KEEP_SIZE', 'append')), ('fdatasync', ('foo'))])
 expected_sync_sequence.append([('sync'), ('none'), ('none')])
 
+#We miss this if we sync only used file set
 # 13. ext4_direct_write 2
 expected_sequence.append([('write', ('foo', 'append')), ('dwrite', ('foo', 'overlap'))])
 expected_sync_sequence.append([('none'), ('fsync', 'bar')])
@@ -202,7 +205,7 @@ def buildTuple(command):
             d.append(i)
     elif command == 'link' or command == 'symlink':
         d_tmp = list()
-        d_tmp.append(FileOptions)
+        d_tmp.append(FileOptions + SecondFileOptions)
         d_tmp.append(SecondFileOptions)
         d = list()
         for i in itertools.product(*d_tmp):
@@ -210,14 +213,14 @@ def buildTuple(command):
                 d.append(i)
     elif command == 'rename':
         d_tmp = list()
-        d_tmp.append(FileOptions)
+        d_tmp.append(FileOptions + SecondFileOptions)
         d_tmp.append(SecondFileOptions)
         d = list()
         for i in itertools.product(*d_tmp):
             if len(set(i)) == 2:
                 d.append(i)
         d_tmp = list()
-        d_tmp.append(DirOptions)
+        d_tmp.append(DirOptions + SecondDirOptions)
         d_tmp.append(SecondDirOptions)
         for i in itertools.product(*d_tmp):
             if len(set(i)) == 2:
@@ -750,7 +753,9 @@ def doPermutation(perm):
 
         usedFiles = flatList(set(usedFiles))
 
-        syncPermutationsCustom = buildCustomTuple(file_range(usedFiles))
+        #TODO
+        #syncPermutationsCustom = buildCustomTuple(file_range(usedFiles))
+        syncPermutationsCustom = buildCustomTuple(usedFiles)
         
         log = '\n\t\tUsed Files = {0}\n'.format(usedFiles)
         log = log + '\t\tFile range = {0}\n'.format(file_range(usedFiles))
@@ -759,8 +764,12 @@ def doPermutation(perm):
 #        if perm[0] == 'fdatasync':
 #            syncPermutationsCustom = [['none' ,]]
 
-
+        isFadatasync = False
         for insSync in range(0, len(syncPermutationsCustom)):
+            
+            if isFadatasync:
+                continue
+            
             if int(num_ops) == 1 or int(num_ops) == 2:
                 log = '{0}'.format(syncPermutationsCustom[insSync]);
                 log = '\n\t\tFile # ' + `global_count` + ' : ' + `count_sync` + ' : ' + log + '\n'
@@ -775,6 +784,7 @@ def doPermutation(perm):
                 op = list()
                 if perm[length] == 'fdatasync':
                     skip_sync = True
+                    isFadatasync = True
                 else:
                     op.append(perm[length])
 
@@ -832,29 +842,29 @@ def doPermutation(perm):
              
              
              
-             #Now build the j-lang file------------------------------------
-            j_lang_file = 'j-lang' + str(global_count)
-            copyfile('code/tests/seq2/base-j-lang', j_lang_file)
-            length_map = {}
-
-            with open(j_lang_file, 'a') as f:
-                run_line = '\n\n# run\n'
-                f.write(run_line)
-
-                for insert in xrange(0, len(modified_sequence)):
-                    cur_line = buildJlang(modified_sequence[insert], length_map)
-                    cur_line_log = '{0}'.format(cur_line) + '\n'
-                    f.write(cur_line_log)
-
-            f.close()
-            
-            exec_command = 'python workload_seq2.py -b code/tests/seq2/base.cpp -t ' + j_lang_file + ' -p code/tests/seq2/ -o ' + str(global_count)
-            subprocess.call(exec_command, shell=True)
-            #Now build the j-lang file------------------------------------
+#             #Now build the j-lang file------------------------------------
+#            j_lang_file = 'j-lang' + str(global_count)
+#            copyfile('code/tests/seq2/base-j-lang', j_lang_file)
+#            length_map = {}
+#
+#            with open(j_lang_file, 'a') as f:
+#                run_line = '\n\n# run\n'
+#                f.write(run_line)
+#
+#                for insert in xrange(0, len(modified_sequence)):
+#                    cur_line = buildJlang(modified_sequence[insert], length_map)
+#                    cur_line_log = '{0}'.format(cur_line) + '\n'
+#                    f.write(cur_line_log)
+#
+#            f.close()
+#            
+#            exec_command = 'python workload_seq2.py -b code/tests/seq2/base.cpp -t ' + j_lang_file + ' -p code/tests/seq2/ -o ' + str(global_count)
+#            subprocess.call(exec_command, shell=True)
+#            #Now build the j-lang file------------------------------------
 
              
-            log = '\n\t\t\tModified sequence = {0}\n'.format(modified_sequence);
-            log_file_handle.write(log)
+#            log = '\n\t\t\tModified sequence = {0}\n'.format(modified_sequence);
+#            log_file_handle.write(log)
 
             isBugWorkload(permutations[count-1], j, syncPermutationsCustom[insSync])
 
