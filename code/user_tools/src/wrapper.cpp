@@ -372,6 +372,9 @@ int RecordCmFsOps::CmFallocate(const int fd, const int mode, const off_t offset,
   mod.file_mod_len = len;
 
   if (mode & FALLOC_FL_PUNCH_HOLE) {
+    // TODO(ashmrtn): Do we want this here? I'm not sure if it will cause
+    // failures that we don't want, though man fallocate(2) says that
+    // FALLOC_FL_PUNCH_HOLE must also have FALLOC_FL_KEEP_SIZE.
     assert(mode & FALLOC_FL_KEEP_SIZE);
     mod.mod_opts = DiskMod::kPunchHoleKeepSizeOpt;
   } else if (mode & FALLOC_FL_COLLAPSE_RANGE) {

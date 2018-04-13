@@ -100,7 +100,7 @@ class DiskMod {
    */
   static int SerializeChangeHeader(char *buf,
       const unsigned int buf_offset, DiskMod &dm);
-  static int SerializeFileMod(char *buf, const unsigned int buf_offset,
+  static int SerializeDataRange(char *buf, const unsigned int buf_offset,
       DiskMod &dm);
   static int SerializeDirectoryMod(char *buf, const unsigned int len,
       DiskMod &dm);
