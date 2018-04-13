@@ -54,7 +54,7 @@ namespace fs_testing {
 
 				int fd_foo = cm_->CmOpen(foo_path.c_str() , O_RDWR|O_CREAT , 0777); 
 				if ( fd_foo < 0 ) { 
-					close( fd_foo); 
+					cm_->CmClose( fd_foo); 
 					return errno;
 				}
 

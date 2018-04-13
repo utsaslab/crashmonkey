@@ -59,7 +59,7 @@ namespace fs_testing {
 
 				int fd_Afoo = mknod(Afoo_path.c_str() , TEST_FILE_PERMS|S_IFCHR|S_IFBLK , 0); 
 				if ( fd_Afoo < 0 ) { 
-					close( fd_Afoo); 
+					cm_->CmClose( fd_Afoo); 
 					return errno;
 				}
 
@@ -74,7 +74,7 @@ namespace fs_testing {
 				}
 				local_checkpoint += 1; 
 
-				if ( close( fd_Afoo) < 0){ 
+				if ( cm_->CmClose ( fd_Afoo) < 0){ 
 					return errno;
 				}
 

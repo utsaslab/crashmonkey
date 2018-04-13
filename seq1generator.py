@@ -44,8 +44,8 @@ SecondDirOptions = ['B']
 #WriteOptions = ['start', 'append', 'overlap', 'prepend']
 WriteOptions = ['append', 'overlap_aligned', 'overlap_unaligned']
 
-# sync_file_range options: the sync range can either be aligned to 4K or unaligned
-SyncFileRangeOptions = ['aligned', 'unaligned']
+# sync_file_range options: the sync range has to be aligned
+SyncFileRangeOptions = ['1page', '2page']
 
 # truncate options: the new truncated length can either be aligned to 4K or unaligned
 TruncateOptions = ['aligned', 'unaligned']
@@ -54,9 +54,9 @@ TruncateOptions = ['aligned', 'unaligned']
 dWriteOptions = ['append', 'overlap']
 
 #removed setxattr
-# OperationSet = ['creat', 'mkdir', 'mknod', 'falloc', 'write', 'dwrite', 'link', 'unlink', 'remove', 'rename', 'symlink', 'removexattr', 'fdatasync', 'fsetxattr']
+OperationSet = ['creat', 'mkdir', 'mknod', 'falloc', 'write', 'dwrite', 'link', 'unlink', 'remove', 'rename', 'symlink', 'removexattr', 'fdatasync', 'fsetxattr']
 
-OperationSet = ['truncate', 'sync_file_range', 'mmap_write']
+#OperationSet = ['truncate', 'syncrange', 'mmapwrite']
 
 #We are skipping 041, 336, 342, 343
 #The sequences we want to reach to
@@ -242,10 +242,20 @@ def buildTuple(command):
         d = list()
         for i in itertools.product(*d_tmp):
             d.append(i)
-    elif command == 'sync_file_range':
-        d = tuple(SyncFileRangeOptions)
-    elif command == 'mmap_write':
-        d = ()
+    elif command == 'syncrange':
+        d_tmp = list()
+        d_tmp.append(FileOptions)
+        d_tmp.append(SyncFileRangeOptions)
+        d = list()
+        for i in itertools.product(*d_tmp):
+            d.append(i)
+    elif command == 'mmapwrite':
+        d_tmp = list()
+        d_tmp.append(FileOptions)
+        d_tmp.append(dWriteOptions)
+        d = list()
+        for i in itertools.product(*d_tmp):
+            d.append(i)
     else:
         d=()
     return d
@@ -486,7 +496,7 @@ def satisfyDep(current_sequence, pos, modified_sequence, modified_pos, open_dir_
         modified_pos = checkFileLength(current_sequence, pos, modified_sequence, modified_pos, open_dir_map, open_file_map, file_length_map)
 
 
-    elif command == 'write' or command == 'dwrite':
+    elif command == 'write' or command == 'dwrite' or command == 'mmapwrite':
         file = current_sequence[pos][1][0]
         option = current_sequence[pos][1][1]
         
@@ -578,7 +588,25 @@ def satisfyDep(current_sequence, pos, modified_sequence, modified_pos, open_dir_
         
         # Put some data into the file
         modified_pos = checkFileLength(current_sequence, pos, modified_sequence, modified_pos, open_dir_map, open_file_map, file_length_map)
+
+    elif command == 'syncrange':
+        file = current_sequence[pos][1][0]
+        option = current_sequence[pos][1][1]
+
+        modified_pos = checkParentExistsDep(current_sequence, pos, modified_sequence, modified_pos, open_dir_map, open_file_map, file_length_map)
+    
+        # if file doesn't exist, has to be created and opened
+        modified_pos = checkExistsDep(current_sequence, pos, modified_sequence, modified_pos, open_dir_map, open_file_map, file_length_map)
         
+        # Put some data into the file
+        modified_pos = checkFileLength(current_sequence, pos, modified_sequence, modified_pos, open_dir_map, open_file_map, file_length_map)
+
+        #Write another page worth conetnt into file
+        if option == '2page':
+            modified_sequence.insert(modified_pos, insertWrite(file, open_dir_map, open_file_map, file_length_map, modified_pos))
+            modified_pos += 1
+
+
     else:
         print command
         print 'Invalid command'
@@ -681,6 +709,26 @@ def buildJlang(op_list, length_map):
 
         command_str = command_str + off + ' ' + len
 
+    if command == 'mmapwrite':
+        file = flat_list[1]
+        write_op = flat_list[2]
+        command_str = command_str + 'mmapwrite ' + file.replace('/','') + ' '
+        
+        if write_op == 'append':
+            len = '4096'
+            if file not in length_map:
+                length_map[file] = 0
+                off = '0'
+            else:
+                off = str(length_map[file])
+            length_map[file] += 4096
+
+        elif write_op == 'overlap':
+            off = '0'
+            len = '4096'
+        
+        command_str = command_str + off + ' ' + len + '\ncheckpoint'
+
     if command == 'link' or command =='rename' or command == 'symlink':
         file1 = flat_list[1]
         file2 = flat_list[2]
@@ -704,6 +752,29 @@ def buildJlang(op_list, length_map):
 
     if command == 'none':
         command_str = command_str + command
+
+    if command == 'truncate':
+        file = flat_list[1]
+        trunc_op = flat_list[2]
+        command_str = command_str + command + ' ' + file.replace('/','') + ' '
+        if trunc_op == 'aligned':
+            len = '0'
+            length_map[file] = 0
+        elif trunc_op == 'unaligned':
+            len = '2500'
+        command_str = command_str + len
+
+    if command == 'syncrange':
+        file = flat_list[1]
+        sync_op = flat_list[2]
+        command_str = command_str + command + ' ' + file.replace('/','') + ' '
+        if sync_op == '1page':
+            off = '0'
+            len = '4096'
+        elif sync_op == '2page':
+            off = '0'
+            len = '8192'
+        command_str = command_str + off + ' ' + len + '\ncheckpoint'
 
     return command_str
 
@@ -752,7 +823,7 @@ def doPermutation(perm):
 
         syncPermutationsCustom = buildCustomTuple(file_range(usedFiles))
 
-        if perm[0] == 'fdatasync':
+        if perm[0] == 'fdatasync' or perm[0] == 'mmapwrite' or  perm[0] == 'syncrange':
             syncPermutationsCustom = [['none' ,]]
         
 
@@ -769,8 +840,8 @@ def doPermutation(perm):
             seq.append(perm + j )
             seq.append(syncPermutationsCustom[insSync][0])
             
-#            log = '\t\t\tCurrent Sequence = {0}'.format(seq);
-#            log_file_handle.write(log)
+            log = '\t\t\tCurrent Sequence = {0}'.format(seq);
+            log_file_handle.write(log)
 
             modified_pos = 0
             modified_sequence = list(seq)
@@ -799,7 +870,7 @@ def doPermutation(perm):
              
              #Now build the j-lang file------------------------------------
             j_lang_file = 'j-lang' + str(global_count)
-            copyfile('code/tests/seq1/j-lang', j_lang_file)
+            copyfile('code/tests/seq1/base-j-lang', j_lang_file)
             length_map = {}
 
             with open(j_lang_file, 'a') as f:
@@ -818,8 +889,8 @@ def doPermutation(perm):
             #Now build the j-lang file------------------------------------
 
              
-#            log = '\t\t\tModified sequence = {0}\n'.format(modified_sequence);
-#            log_file_handle.write(log)
+            log = '\t\t\tModified sequence = {0}\n'.format(modified_sequence);
+            log_file_handle.write(log)
 
             isBugWorkload(permutations[count-1], j, syncPermutationsCustom[insSync])
 

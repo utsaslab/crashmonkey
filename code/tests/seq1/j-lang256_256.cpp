@@ -59,7 +59,7 @@ namespace fs_testing {
 
 				int fd_Afoo = cm_->CmOpen(Afoo_path.c_str() , O_RDWR|O_CREAT , 0777); 
 				if ( fd_Afoo < 0 ) { 
-					close( fd_Afoo); 
+					cm_->CmClose( fd_Afoo); 
 					return errno;
 				}
 
