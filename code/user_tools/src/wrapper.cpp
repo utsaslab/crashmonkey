@@ -91,6 +91,7 @@ int DefaultFsFns::FnStat(const std::string &pathname, struct stat *buf) {
 bool DefaultFsFns::FnPathExists(const std::string &pathname) {
   const int res = access(pathname.c_str(), F_OK);
   // TODO(ashmrtn): Should probably have some better way to handle errors.
+  std::cout << __func__ << " returns " << res << std::endl;
   if (res != 0) {
     return false;
   }
@@ -113,6 +114,11 @@ void DefaultFsFns::FnSync() {
 // int DefaultFsFns::FnSyncfs(const int fd) {
 //   return syncfs(fd);
 // }
+
+int DefaultFsFns::FnSyncFileRange(const int fd, size_t offset, size_t nbytes,
+    unsigned int flags) {
+  return sync_file_range(fd, offset, nbytes, flags);
+}
 
 int DefaultFsFns::CmCheckpoint() {
   return Checkpoint();
@@ -138,7 +144,7 @@ int RecordCmFsOps::CmMkdir(const string &pathname, const mode_t mode) {
   mod.directory_mod = true;
   mod.path = pathname;
   mod.mod_type = DiskMod::kCreateMod;
-  mod.mod_type = DiskMod::kNoneOpts;
+  mod.mod_type = DiskMod::kNoneOpt;
 
   mods_.push_back(mod);
 
@@ -413,7 +419,7 @@ int RecordCmFsOps::CmUnlink(const string &pathname) {
 
   DiskMod mod;
   mod.mod_type = DiskMod::kRemoveMod;
-  mod.mod_opts = DiskMod::kNoneOpts;
+  mod.mod_opts = DiskMod::kNoneOpt;
   mod.path = pathname;
   mods_.push_back(mod);
 
@@ -428,7 +434,7 @@ int RecordCmFsOps::CmRemove(const string &pathname) {
 
   DiskMod mod;
   mod.mod_type = DiskMod::kRemoveMod;
-  mod.mod_opts = DiskMod::kNoneOpts;
+  mod.mod_opts = DiskMod::kNoneOpt;
   mod.path = pathname;
   mods_.push_back(mod);
 
@@ -446,6 +452,9 @@ int RecordCmFsOps::CmFsync(const int fd) {
   mod.mod_type = DiskMod::kFsyncMod;
   mod.mod_opts = DiskMod::kNoneOpt;
   mod.path = fd_map_.at(fd);
+  for (auto i : fd_map_) {
+    std::cout << i.first << " -> " << i.second << std::endl;
+  }
   mods_.push_back(mod);
 
   return res;
@@ -490,6 +499,28 @@ void RecordCmFsOps::CmSync() {
 
 //   return res;
 // }
+
+int RecordCmFsOps::CmSyncFileRange(const int fd, size_t offset, size_t nbytes,
+    unsigned int flags) {
+  const int res = fns_->FnSyncFileRange(fd, offset, nbytes, flags);
+  if (res < 0) {
+    return res;
+  }
+
+  DiskMod mod;
+  mod.mod_type = DiskMod::kSyncFileRangeMod;
+  mod.mod_opts = DiskMod::kNoneOpt;
+  mod.path = fd_map_.at(fd);
+  const int post_stat_res = fns_->FnStat(fd_map_.at(fd), &mod.post_mod_stats);
+  if (post_stat_res < 0) {
+    // TODO(ashmrtn): Some sort of warning here?
+    return post_stat_res;
+  }
+  mod.file_mod_location = offset;
+  mod.file_mod_len = nbytes;
+  mods_.push_back(mod);
+  return res;
+}
 
 int RecordCmFsOps::CmCheckpoint() {
   const int res = fns_->CmCheckpoint();
@@ -627,6 +658,11 @@ void PassthroughCmFsOps::CmSync() {
 // int PassthroughCmFsOps::CmSyncfs(const int fd) {
 //   return fns_->FnSyncfs(fd);
 // }
+
+int PassthroughCmFsOps::CmSyncFileRange(const int fd, size_t offset, size_t nbytes,
+    unsigned int flags) {
+  fns_->FnSyncFileRange(fd, offset, nbytes, flags);
+}
 
 int PassthroughCmFsOps::CmCheckpoint() {
   return fns_->CmCheckpoint();
