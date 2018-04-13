@@ -70,7 +70,7 @@ namespace fs_testing {
 				}
 
 
-				if ( cm_->CmSyncFileRange( fd_Afoo , 0 , 4096 , SYNC_FILE_RANGE_WRITE) < 0){ 
+				if ( cm_->CmSyncFileRange( fd_Afoo , 0 , 4096 , SYNC_FILE_RANGE_WAIT_BEFORE|SYNC_FILE_RANGE_WRITE|SYNC_FILE_RANGE_WAIT_AFTER) < 0){ 
 					cm_->CmClose( fd_Afoo);
 					 return errno;
 				}

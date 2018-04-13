@@ -69,7 +69,7 @@ namespace fs_testing {
 					cm_->CmClose( fd_foo);
 					 return errno;
 				}
-				char *filep_foo = (char *) mmap(NULL, 4096, PROT_WRITE|PROT_READ, MAP_SHARED, fd_foo, 0);
+				char *filep_foo = (char *) cm_->CmMmap(NULL, 4096, PROT_WRITE|PROT_READ, MAP_SHARED, fd_foo, 0);
 				if (filep_foo == MAP_FAILED) {
 					 return -1;
 				}
@@ -90,10 +90,10 @@ namespace fs_testing {
 				}
 
 				if ( cm_->CmMsync ( filep_foo, 4096 , MS_SYNC) < 0){
-					munmap( filep_foo, 4096); 
+					cm_->CmMunmap( filep_foo, 4096); 
 					return -1;
 				}
-				munmap( filep_foo, 4096);
+				cm_->CmMunmap( filep_foo, 4096);
 
 
 				if ( cm_->CmCheckpoint() < 0){ 
