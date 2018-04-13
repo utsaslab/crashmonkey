@@ -54,7 +54,7 @@ namespace fs_testing {
 
 				int fd_foo = cm_->CmOpen(foo_path.c_str() , O_RDWR|O_CREAT , 0777); 
 				if ( fd_foo < 0 ) { 
-					close( fd_foo); 
+					cm_->CmClose( fd_foo); 
 					return errno;
 				}
 
@@ -66,7 +66,7 @@ namespace fs_testing {
 
 				int fd_test = cm_->CmOpen(test_path.c_str() , O_DIRECTORY , 0777); 
 				if ( fd_test < 0 ) { 
-					close( fd_test); 
+					cm_->CmClose( fd_test); 
 					return errno;
 				}
 
@@ -81,12 +81,12 @@ namespace fs_testing {
 				}
 				local_checkpoint += 1; 
 
-				if ( close( fd_foo) < 0){ 
+				if ( cm_->CmClose ( fd_foo) < 0){ 
 					return errno;
 				}
 
 
-				if ( close( fd_test) < 0){ 
+				if ( cm_->CmClose ( fd_test) < 0){ 
 					return errno;
 				}
 

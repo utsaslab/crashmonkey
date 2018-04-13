@@ -64,7 +64,7 @@ namespace fs_testing {
 
 				int fd_bar = cm_->CmOpen(bar_path.c_str() , O_RDWR|O_CREAT , 0777); 
 				if ( fd_bar < 0 ) { 
-					close( fd_bar); 
+					cm_->CmClose( fd_bar); 
 					return errno;
 				}
 
@@ -79,7 +79,7 @@ namespace fs_testing {
 				}
 				local_checkpoint += 1; 
 
-				if ( close( fd_bar) < 0){ 
+				if ( cm_->CmClose ( fd_bar) < 0){ 
 					return errno;
 				}
 

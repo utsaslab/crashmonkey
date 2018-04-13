@@ -59,15 +59,15 @@ namespace fs_testing {
 
 				int fd_Afoo = cm_->CmOpen(Afoo_path.c_str() , O_RDWR|O_CREAT , 0777); 
 				if ( fd_Afoo < 0 ) { 
-					close( fd_Afoo); 
+					cm_->CmClose( fd_Afoo); 
 					return errno;
 				}
 
 
-				close(fd_Afoo); 
+				cm_->CmClose(fd_Afoo); 
 				fd_Afoo = open(Afoo_path.c_str() , O_RDWR|O_DIRECT|O_SYNC , 0777); 
 				if ( fd_Afoo < 0 ) { 
-					close( fd_Afoo); 
+					cm_->CmClose( fd_Afoo); 
 					return errno;
 				}
 
@@ -92,13 +92,13 @@ namespace fs_testing {
 				} 
 
 				if ( pwrite ( fd_Afoo, data_Afoo, 4096, 0) < 0){
-					close( fd_Afoo); 
+					cm_->CmClose( fd_Afoo); 
 					return errno;
 				}
 
 				int fd_Abar = cm_->CmOpen(Abar_path.c_str() , O_RDWR|O_CREAT , 0777); 
 				if ( fd_Abar < 0 ) { 
-					close( fd_Abar); 
+					cm_->CmClose( fd_Abar); 
 					return errno;
 				}
 
@@ -113,12 +113,12 @@ namespace fs_testing {
 				}
 				local_checkpoint += 1; 
 
-				if ( close( fd_Afoo) < 0){ 
+				if ( cm_->CmClose ( fd_Afoo) < 0){ 
 					return errno;
 				}
 
 
-				if ( close( fd_Abar) < 0){ 
+				if ( cm_->CmClose ( fd_Abar) < 0){ 
 					return errno;
 				}
 

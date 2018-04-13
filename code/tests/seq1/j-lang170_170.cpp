@@ -54,21 +54,21 @@ namespace fs_testing {
 
 				int fd_foo = cm_->CmOpen(foo_path.c_str() , O_RDWR|O_CREAT , 0777); 
 				if ( fd_foo < 0 ) { 
-					close( fd_foo); 
+					cm_->CmClose( fd_foo); 
 					return errno;
 				}
 
 
 				if ( WriteData ( fd_foo, 0, 4096) < 0){ 
-					close( fd_foo); 
+					cm_->CmClose( fd_foo); 
 					return errno;
 				}
 
 
-				close(fd_foo); 
+				cm_->CmClose(fd_foo); 
 				fd_foo = open(foo_path.c_str() , O_RDWR|O_DIRECT|O_SYNC , 0777); 
 				if ( fd_foo < 0 ) { 
-					close( fd_foo); 
+					cm_->CmClose( fd_foo); 
 					return errno;
 				}
 
@@ -93,7 +93,7 @@ namespace fs_testing {
 				} 
 
 				if ( pwrite ( fd_foo, data_foo, 4096, 0) < 0){
-					close( fd_foo); 
+					cm_->CmClose( fd_foo); 
 					return errno;
 				}
 
@@ -107,7 +107,7 @@ namespace fs_testing {
 				}
 				local_checkpoint += 1; 
 
-				if ( close( fd_foo) < 0){ 
+				if ( cm_->CmClose ( fd_foo) < 0){ 
 					return errno;
 				}
 

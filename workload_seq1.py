@@ -171,7 +171,7 @@ def insertDefine(line, file, index_map):
 
 def insertFalloc(contents, line, index_map, method):
 
-    to_insert = '\n\t\t\t\tif ( fallocate( fd_' + line.split(' ')[1] + ' , ' + line.split(' ')[2] + ' , ' + line.split(' ')[3] + ' , '  + line.split(' ')[4] + ') < 0){ \n\t\t\t\t\t close( fd_' + line.split(' ')[1]  +');\n\t\t\t\t\t return errno;\n\t\t\t\t}\n\n'
+    to_insert = '\n\t\t\t\tif ( fallocate( fd_' + line.split(' ')[1] + ' , ' + line.split(' ')[2] + ' , ' + line.split(' ')[3] + ' , '  + line.split(' ')[4] + ') < 0){ \n\t\t\t\t\tcm_->CmClose( fd_' + line.split(' ')[1]  +');\n\t\t\t\t\t return errno;\n\t\t\t\t}\n\n'
 
     if method == 'setup':
         contents.insert(index_map['setup'], to_insert)
@@ -179,6 +179,18 @@ def insertFalloc(contents, line, index_map, method):
     else:
         contents.insert(index_map['run'], to_insert)
         updateRunMap(index_map, 5)
+
+def insertSyncRange(contents, line, index_map, method):
+    
+    to_insert = '\n\t\t\t\tif ( cm_->CmSyncFileRange( fd_' + line.split(' ')[1] + ' , ' + line.split(' ')[2] + ' , ' + line.split(' ')[3] + ' , SYNC_FILE_RANGE_WAIT_BEFORE|SYNC_FILE_RANGE_WRITE|SYNC_FILE_RANGE_WAIT_AFTER) < 0){ \n\t\t\t\t\tcm_->CmClose( fd_' + line.split(' ')[1]  +');\n\t\t\t\t\t return errno;\n\t\t\t\t}\n\n'
+    
+    if method == 'setup':
+        contents.insert(index_map['setup'], to_insert)
+        updateSetupMap(index_map, 5)
+    else:
+        contents.insert(index_map['run'], to_insert)
+        updateRunMap(index_map, 5)
+
 
 def insertMkdir(contents, line, index_map, method):
     
@@ -202,7 +214,7 @@ def insertOpenFile(contents, line, index_map, method):
         redeclare_map[name] = 1
     
     # TODO: prevent redeclations here
-    to_insert = '\n\t\t\t\t' + decl + 'fd_' + line.split(' ')[1] + ' = cm_->CmOpen(' + line.split(' ')[1] + '_path.c_str() , ' + line.split(' ')[2] + ' , ' + line.split(' ')[3] + '); \n\t\t\t\tif ( fd_' + line.split(' ')[1] + ' < 0 ) { \n\t\t\t\t\tclose( fd_' + line.split(' ')[1] + '); \n\t\t\t\t\treturn errno;\n\t\t\t\t}\n\n'
+    to_insert = '\n\t\t\t\t' + decl + 'fd_' + line.split(' ')[1] + ' = cm_->CmOpen(' + line.split(' ')[1] + '_path.c_str() , ' + line.split(' ')[2] + ' , ' + line.split(' ')[3] + '); \n\t\t\t\tif ( fd_' + line.split(' ')[1] + ' < 0 ) { \n\t\t\t\t\tcm_->CmClose( fd_' + line.split(' ')[1] + '); \n\t\t\t\t\treturn errno;\n\t\t\t\t}\n\n'
     
     if method == 'setup':
         contents.insert(index_map['setup'], to_insert)
@@ -220,7 +232,7 @@ def insertMknodFile(contents, line, index_map, method):
         redeclare_map[name] = 1
     
     # TODO: prevent redeclations here
-    to_insert = '\n\t\t\t\t' + decl + 'fd_' + line.split(' ')[1] + ' = mknod(' + line.split(' ')[1] + '_path.c_str() , ' + line.split(' ')[2] + ' , ' + line.split(' ')[3] + '); \n\t\t\t\tif ( fd_' + line.split(' ')[1] + ' < 0 ) { \n\t\t\t\t\tclose( fd_' + line.split(' ')[1] + '); \n\t\t\t\t\treturn errno;\n\t\t\t\t}\n\n'
+    to_insert = '\n\t\t\t\t' + decl + 'fd_' + line.split(' ')[1] + ' = mknod(' + line.split(' ')[1] + '_path.c_str() , ' + line.split(' ')[2] + ' , ' + line.split(' ')[3] + '); \n\t\t\t\tif ( fd_' + line.split(' ')[1] + ' < 0 ) { \n\t\t\t\t\tcm_->CmClose( fd_' + line.split(' ')[1] + '); \n\t\t\t\t\treturn errno;\n\t\t\t\t}\n\n'
 
     if method == 'setup':
         contents.insert(index_map['setup'], to_insert)
@@ -238,7 +250,7 @@ def insertOpenDir(contents, line, index_map, method):
         redeclare_map[name] = 1
     
     # TODO: prevent redeclations here
-    to_insert = '\n\t\t\t\t' + decl + 'fd_' + line.split(' ')[1] + ' = cm_->CmOpen(' + line.split(' ')[1] + '_path.c_str() , O_DIRECTORY , ' + line.split(' ')[2] + '); \n\t\t\t\tif ( fd_' + line.split(' ')[1] + ' < 0 ) { \n\t\t\t\t\tclose( fd_' + line.split(' ')[1] + '); \n\t\t\t\t\treturn errno;\n\t\t\t\t}\n\n'
+    to_insert = '\n\t\t\t\t' + decl + 'fd_' + line.split(' ')[1] + ' = cm_->CmOpen(' + line.split(' ')[1] + '_path.c_str() , O_DIRECTORY , ' + line.split(' ')[2] + '); \n\t\t\t\tif ( fd_' + line.split(' ')[1] + ' < 0 ) { \n\t\t\t\t\tcm_->CmClose( fd_' + line.split(' ')[1] + '); \n\t\t\t\t\treturn errno;\n\t\t\t\t}\n\n'
     
     if method == 'setup':
         contents.insert(index_map['setup'], to_insert)
@@ -259,9 +271,20 @@ def insertRemoveFile(contents,option, line, index_map, method):
         contents.insert(index_map['run'], to_insert)
         updateRunMap(index_map, 4)
 
+def insertTruncateFile(contents, line, index_map, method):
+    
+    to_insert = '\n\t\t\t\tif ( truncate (' + line.split(' ')[1] + '_path.c_str(), ' + line.split(' ')[2] + ') < 0){ \n\t\t\t\t\treturn errno;\n\t\t\t\t}\n\n'
+    
+    if method == 'setup':
+        contents.insert(index_map['setup'], to_insert)
+        updateSetupMap(index_map, 4)
+    else:
+        contents.insert(index_map['run'], to_insert)
+        updateRunMap(index_map, 4)
+
 
 def insertClose(contents, line, index_map, method):
-    to_insert = '\n\t\t\t\tif ( ' + line.split(' ')[0] + '( fd_' + line.split(' ')[1] + ') < 0){ \n\t\t\t\t\treturn errno;\n\t\t\t\t}\n\n'
+    to_insert = '\n\t\t\t\tif ( cm_->CmClose ( fd_' + line.split(' ')[1] + ') < 0){ \n\t\t\t\t\treturn errno;\n\t\t\t\t}\n\n'
     
     if method == 'setup':
         contents.insert(index_map['setup'], to_insert)
@@ -364,18 +387,34 @@ def insertRemovexattr(contents, line, index_map, method):
         updateRunMap(index_map, 4)
 
 def insertWrite(contents, option, line, index_map, method):
-    if option == 'WriteDataMmap':
+    if option == 'mmapwrite':
         # insertFalloc(contents, '0', line, index_map, method)
-        to_insert = '\n\t\t\t\tif ( fallocate( fd_' + line.split(' ')[1] + ' , 0 , ' + line.split(' ')[2] + ' , '  + line.split(' ')[3] + ') < 0){ \n\t\t\t\t\t close( fd_' + line.split(' ')[1]  +');\n\t\t\t\t\t return errno;\n\t\t\t\t}\n\t\t\t\tif ( ' + option + '( fd_' + line.split(' ')[1] + ', ' + line.split(' ')[2] + ', ' + line.split(' ')[3] + ') < 0){ \n\t\t\t\t\tclose( fd_' + line.split(' ')[1] + '); \n\t\t\t\t\treturn errno;\n\t\t\t\t}\n\n'
+        name = 'filep_' + line.split(' ')[1]
+        decl = ' '
+        data_decl = ' '
+        text_decl = ' '
+        
+        
+        if name not in redeclare_map:
+            decl = 'int '
+            filep_decl = 'char *'
+            data_decl = 'void* data_' +line.split(' ')[1] + ';'
+            text_decl = 'const char *text_' + line.split(' ')[1] +'  = \"abcdefghijklmnopqrstuvwxyz123456\";'
+            redeclare_map[name] = 1
+        
+#        to_insert = '\n\t\t\t\tif ( fallocate( fd_' + line.split(' ')[1] + ' , 0 , ' + line.split(' ')[2] + ' , '  + line.split(' ')[3] + ') < 0){ \n\t\t\t\t\t close( fd_' + line.split(' ')[1]  +');\n\t\t\t\t\t return errno;\n\t\t\t\t}\n\t\t\t\tif ( WriteDataMmap( fd_' + line.split(' ')[1] + ', ' + line.split(' ')[2] + ', ' + line.split(' ')[3] + ') < 0){ \n\t\t\t\t\tclose( fd_' + line.split(' ')[1] + '); \n\t\t\t\t\treturn errno;\n\t\t\t\t}\n\n'
+
+        to_insert = '\n\t\t\t\tif ( fallocate( fd_' + line.split(' ')[1] + ' , 0 , ' + line.split(' ')[2] + ' , '  + line.split(' ')[3] + ') < 0){ \n\t\t\t\t\tcm_->CmClose( fd_' + line.split(' ')[1]  +');\n\t\t\t\t\t return errno;\n\t\t\t\t}\n\t\t\t\t' + filep_decl + 'filep_' + line.split(' ')[1] + ' = (char *) cm_->CmMmap(NULL, ' + line.split(' ')[3] +', PROT_WRITE|PROT_READ, MAP_SHARED, fd_' + line.split(' ')[1] + ', ' + line.split(' ')[2] + ');\n\t\t\t\tif (filep_' + line.split(' ')[1] + ' == MAP_FAILED) {\n\t\t\t\t\t return -1;\n\t\t\t\t}\n\n\t\t\t\t' +decl+ 'offset_'+ line.split(' ')[1] +' = 0;\n\t\t\t\t' + decl +'to_write_'+line.split(' ')[1] +' = ' + line.split(' ')[3] + ' ;\n\t\t\t\t'+ text_decl+ '\n\n\t\t\t\twhile (offset_'+line.split(' ')[1]+' < '+ line.split(' ')[3] +'){\n\t\t\t\t\tif (to_write_'+ line.split(' ')[1] +' < 32){\n\t\t\t\t\t\tmemcpy(filep_'+ line.split(' ')[1]+ '+ offset_'+ line.split(' ')[1] +', text_'+ line.split(' ')[1] +', to_write_' +line.split(' ')[1]+');\n\t\t\t\t\t\toffset_'+ line.split(' ')[1]+' += to_write_'+ line.split(' ')[1] +';\n\t\t\t\t\t}\n\t\t\t\t\telse {\n\t\t\t\t\t\tmemcpy(filep_'+ line.split(' ')[1] +'+ offset_'+line.split(' ')[1] +',text_'+line.split(' ')[1] +', 32);\n\t\t\t\t\t\toffset_'+line.split(' ')[1] +' += 32; \n\t\t\t\t\t} \n\t\t\t\t}\n\n\t\t\t\tif ( cm_->CmMsync ( filep_' + line.split(' ')[1] + ', 4096 , MS_SYNC) < 0){\n\t\t\t\t\tcm_->CmMunmap( filep_' + line.split(' ')[1] + ', 4096); \n\t\t\t\t\treturn -1;\n\t\t\t\t}\n\t\t\t\tcm_->CmMunmap( filep_' + line.split(' ')[1] + ', 4096);\n\n'
+    
         if method == 'setup':
             contents.insert(index_map['setup'], to_insert)
-            updateSetupMap(index_map, 9)
+            updateSetupMap(index_map, 30)
         else:
             contents.insert(index_map['run'], to_insert)
-            updateRunMap(index_map, 9) 
+            updateRunMap(index_map, 30)
 
     elif option == 'write':
-        to_insert = '\n\t\t\t\tif ( WriteData ( fd_' + line.split(' ')[1] + ', ' + line.split(' ')[2] + ', ' + line.split(' ')[3] + ') < 0){ \n\t\t\t\t\tclose( fd_' + line.split(' ')[1] + '); \n\t\t\t\t\treturn errno;\n\t\t\t\t}\n\n'
+        to_insert = '\n\t\t\t\tif ( WriteData ( fd_' + line.split(' ')[1] + ', ' + line.split(' ')[2] + ', ' + line.split(' ')[3] + ') < 0){ \n\t\t\t\t\tcm_->CmClose( fd_' + line.split(' ')[1] + '); \n\t\t\t\t\treturn errno;\n\t\t\t\t}\n\n'
         if method == 'setup':
             contents.insert(index_map['setup'], to_insert)
             updateSetupMap(index_map, 5)
@@ -396,7 +435,7 @@ def insertWrite(contents, option, line, index_map, method):
             redeclare_map[name] = 1
 
         # TODO: prevent redeclations here
-        to_insert ='\n\t\t\t\tclose(fd_' + line.split(' ')[1] + '); \n\t\t\t\tfd_' + line.split(' ')[1] + ' = open(' + line.split(' ')[1] +'_path.c_str() , O_RDWR|O_DIRECT|O_SYNC , 0777); \n\t\t\t\tif ( fd_' + line.split(' ')[1] +' < 0 ) { \n\t\t\t\t\tclose( fd_' + line.split(' ')[1] +'); \n\t\t\t\t\treturn errno;\n\t\t\t\t}\n\n\t\t\t\t' + data_decl+'\n\t\t\t\tif (posix_memalign(&data_' + line.split(' ')[1] +' , 4096, ' + line.split(' ')[3] +' ) < 0) {\n\t\t\t\t\treturn errno;\n\t\t\t\t}\n\n\t\t\t\t \n\t\t\t\t' +decl+ 'offset_'+ line.split(' ')[1] +' = 0;\n\t\t\t\t' + decl +'to_write_'+line.split(' ')[1] +' = ' + line.split(' ')[3] + ' ;\n\t\t\t\t'+ text_decl+ '\n\t\t\t\twhile (offset_'+line.split(' ')[1]+' < '+ line.split(' ')[3] +'){\n\t\t\t\t\tif (to_write_'+ line.split(' ')[1] +' < 32){\n\t\t\t\t\t\tmemcpy((char *)data_'+ line.split(' ')[1]+ '+ offset_'+ line.split(' ')[1] +', text_'+ line.split(' ')[1] +', to_write_' +line.split(' ')[1]+');\n\t\t\t\t\t\toffset_'+ line.split(' ')[1]+' += to_write_'+ line.split(' ')[1] +';\n\t\t\t\t\t}\n\t\t\t\t\telse {\n\t\t\t\t\t\tmemcpy((char *)data_'+ line.split(' ')[1] +'+ offset_'+line.split(' ')[1] +',text_'+line.split(' ')[1] +', 32);\n\t\t\t\t\t\toffset_'+line.split(' ')[1] +' += 32; \n\t\t\t\t\t} \n\t\t\t\t} \n\n\t\t\t\tif ( pwrite ( fd_' + line.split(' ')[1] + ', data_'+ line.split(' ')[1] + ', '  + line.split(' ')[3] + ', ' + line.split(' ')[2] +') < 0){\n\t\t\t\t\tclose( fd_' + line.split(' ')[1] + '); \n\t\t\t\t\treturn errno;\n\t\t\t\t}\n\n'
+        to_insert ='\n\t\t\t\tcm_->CmClose(fd_' + line.split(' ')[1] + '); \n\t\t\t\tfd_' + line.split(' ')[1] + ' = open(' + line.split(' ')[1] +'_path.c_str() , O_RDWR|O_DIRECT|O_SYNC , 0777); \n\t\t\t\tif ( fd_' + line.split(' ')[1] +' < 0 ) { \n\t\t\t\t\tcm_->CmClose( fd_' + line.split(' ')[1] +'); \n\t\t\t\t\treturn errno;\n\t\t\t\t}\n\n\t\t\t\t' + data_decl+'\n\t\t\t\tif (posix_memalign(&data_' + line.split(' ')[1] +' , 4096, ' + line.split(' ')[3] +' ) < 0) {\n\t\t\t\t\treturn errno;\n\t\t\t\t}\n\n\t\t\t\t \n\t\t\t\t' +decl+ 'offset_'+ line.split(' ')[1] +' = 0;\n\t\t\t\t' + decl +'to_write_'+line.split(' ')[1] +' = ' + line.split(' ')[3] + ' ;\n\t\t\t\t'+ text_decl+ '\n\t\t\t\twhile (offset_'+line.split(' ')[1]+' < '+ line.split(' ')[3] +'){\n\t\t\t\t\tif (to_write_'+ line.split(' ')[1] +' < 32){\n\t\t\t\t\t\tmemcpy((char *)data_'+ line.split(' ')[1]+ '+ offset_'+ line.split(' ')[1] +', text_'+ line.split(' ')[1] +', to_write_' +line.split(' ')[1]+');\n\t\t\t\t\t\toffset_'+ line.split(' ')[1]+' += to_write_'+ line.split(' ')[1] +';\n\t\t\t\t\t}\n\t\t\t\t\telse {\n\t\t\t\t\t\tmemcpy((char *)data_'+ line.split(' ')[1] +'+ offset_'+line.split(' ')[1] +',text_'+line.split(' ')[1] +', 32);\n\t\t\t\t\t\toffset_'+line.split(' ')[1] +' += 32; \n\t\t\t\t\t} \n\t\t\t\t} \n\n\t\t\t\tif ( pwrite ( fd_' + line.split(' ')[1] + ', data_'+ line.split(' ')[1] + ', '  + line.split(' ')[3] + ', ' + line.split(' ')[2] +') < 0){\n\t\t\t\t\tcm_->CmClose( fd_' + line.split(' ')[1] + '); \n\t\t\t\t\treturn errno;\n\t\t\t\t}\n\n'
 
         if method == 'setup':
             contents.insert(index_map['setup'], to_insert)
@@ -471,6 +510,21 @@ def insertFunctions(line, file, index_map, method):
                 updateRunMap(index_map, 1)
             insertClose(contents, line, index_map, method)
 
+        elif line.split(' ')[0] == 'truncate':
+            if method == 'setup':
+                updateSetupMap(index_map, 1)
+            else:
+                updateRunMap(index_map, 1)
+            insertTruncateFile(contents, line, index_map, method)
+
+        elif line.split(' ')[0] == 'syncrange':
+            if method == 'setup':
+                updateSetupMap(index_map, 1)
+            else:
+                updateRunMap(index_map, 1)
+            insertSyncRange(contents, line, index_map, method)
+                
+
         elif line.split(' ')[0] == 'fsync' or line.split(' ')[0] == 'fdatasync':
             if method == 'setup':
                 updateSetupMap(index_map, 1)
@@ -522,7 +576,7 @@ def insertFunctions(line, file, index_map, method):
             option = line.split(' ')[0]
             insertLink(contents, option, line, index_map, method)
 
-        elif line.split(' ')[0] == 'write' or line.split(' ')[0] == 'dwrite':
+        elif line.split(' ')[0] == 'write' or line.split(' ')[0] == 'dwrite' or line.split(' ')[0] == 'mmapwrite':
             if method == 'setup':
                 updateSetupMap(index_map, 1)
             else:
