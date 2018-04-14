@@ -45,7 +45,6 @@ class Generic106: public BaseTestCase {
   virtual int setup() override {
 
 	init_paths();
-
     // Create test directory A.
 	string dir_path = mnt_dir_ + "/" TEST_DIR_A;
     int res = mkdir(dir_path.c_str(), 0777);
@@ -54,24 +53,28 @@ class Generic106: public BaseTestCase {
     }
 
     //Create file foo in TEST_DIR_A 
-    const int fd_foo = open(foo_path.c_str(), O_RDWR | O_CREAT, TEST_FILE_PERMS);
+    int fd_foo = open(foo_path.c_str(), O_RDWR | O_CREAT, TEST_FILE_PERMS);
     if (fd_foo < 0) {
       return -1;
     }
-    // Create a new hard link
-    if(link(foo_path.c_str(), foo_link_path.c_str()) < 0){
-      return -2;
-    }
+
+    close(fd_foo);
 
     sync();
-    close(fd_foo);
 
     return 0;
   }
 
   virtual int run() override {
 
-	init_paths();
+    init_paths();
+
+    // Create a new hard link
+    if(link(foo_path.c_str(), foo_link_path.c_str()) < 0){
+      return -2;
+    }
+
+    sync();
   
     // Unlink foo_link
     if(unlink(foo_link_path.c_str()) < 0){
@@ -83,7 +86,7 @@ class Generic106: public BaseTestCase {
     	return -4;
     }
 
-	const int fd_foo = open(foo_path.c_str(), O_RDWR | O_CREAT, TEST_FILE_PERMS);
+    int fd_foo = open(foo_path.c_str(), O_RDWR | O_CREAT, TEST_FILE_PERMS);
     if (fd_foo < 0) {
       return -5;
     }
@@ -115,9 +118,9 @@ class Generic106: public BaseTestCase {
 	system(rm_cmd.c_str());
 
 	// Directory should be removeable
-	if (rmdir(dir.c_str()) < 0) {
+	if (rmdir(dir.c_str()) < 0 && errno == ENOTEMPTY ) {
         test_result->SetError(DataTestResult::kFileMetadataCorrupted);
-        test_result->error_description = " : Unable to remove directory after deleting files";
+        test_result->error_description = " : Unable to remove directory after deleting files - Stale link file unremovable";
 	}
     return 0;
   }
