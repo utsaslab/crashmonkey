@@ -421,10 +421,11 @@ bool DiskContents::compare_file_contents(DiskContents &compare_disk, std::string
 
   std::ifstream f1(base_path, std::ios::binary);
   std::ifstream f2(compare_path, std::ios::binary);
-  
+
   if (!f1 || !f2) {
     std::cout << "Error opening input file streams " << base_path  << " and ";
     std::cout << compare_path << std::endl;
+    compare_disk.unmount_and_delete_mount_point();
     return false;
   }
 
@@ -438,6 +439,7 @@ bool DiskContents::compare_file_contents(DiskContents &compare_disk, std::string
   f2.read(buffer_f2, length);
 
   if (strcmp(buffer_f1, buffer_f2) == 0) {
+    compare_disk.unmount_and_delete_mount_point();
     return true;
   }
 
@@ -445,6 +447,7 @@ bool DiskContents::compare_file_contents(DiskContents &compare_disk, std::string
   diff_file << "Content Mismatch of file " << path << " from " << offset << " of length " << length << endl;
   diff_file << base_path << " has " << buffer_f1 << endl;
   diff_file << compare_path << " has " << buffer_f2 << endl;
+  compare_disk.unmount_and_delete_mount_point();
   return false;
 }
 
