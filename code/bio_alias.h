@@ -7,7 +7,7 @@
 
 #include <linux/version.h>
 
-#if LINUX_VERSION_CODE >= KERNEL_VERSION(3, 13, 0) \
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(3, 12, 0) \
   && LINUX_VERSION_CODE < KERNEL_VERSION(3, 14, 0)
 
 #define BI_RW                   bi_rw
