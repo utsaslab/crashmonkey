@@ -5,9 +5,9 @@ Reproducing xfstest generic/056
 2. Create a hard link to the file
 3. Create another file bar and fsync it
 
-After a crash, the file foo should have the same contents that was written initially.
+After a crash, the file foo should persist the contents that was fsynced.
 
-https://github.com/kdave/xfstests/blob/master/tests/generic/056
+https://patchwork.kernel.org/patch/5822681/
 */
 
 
@@ -66,10 +66,6 @@ class Generic056: public BaseTestCase {
       return -1;
     }
 
-    // Write some contents to the file and the backup file
-    if (WriteData(fd_foo, 0, 4096) < 0) {
-    	return -2;
-    }
     if (WriteData(fd_foo_backup, 0, 4096) < 0) {
     	return -2;
     }
@@ -90,9 +86,23 @@ class Generic056: public BaseTestCase {
       return -1;
     }
 
+    // Write some contents to the file and the backup file
+    if (WriteData(fd_foo, 0, 4096) < 0) {
+    	return -2;
+    }
+
+    if (fsync(fd_foo) < 0) {
+	return -3;
+    }
+
+    //After this checkpoint, foo should have the same data as foo_backup.	
+    if (Checkpoint() < 0){
+      return -4;
+    }	
+
     // Create a new hard link
     if(link(foo_path.c_str(), foo_link_path.c_str()) < 0){
-      return -2;
+      return -5;
     }
 
     const int fd_bar = open(bar_path.c_str(), O_RDWR | O_CREAT, TEST_FILE_PERMS);
@@ -130,7 +140,8 @@ class Generic056: public BaseTestCase {
 
     close(fd_foo);
 
-    // Irrespective of the checkpoint, md5sum of foo should match with md5sum of foo_backup
+    // If checkpoint >= 1, md5sum of foo should match with md5sum of foo_backup
+     if (last_checkpoint >= 1){
 	string expected_md5sum = get_md5sum(foo_backup_path);
 	string actual_md5sum = get_md5sum(foo_path);
 	if (expected_md5sum.compare(actual_md5sum) != 0) {
@@ -138,6 +149,7 @@ class Generic056: public BaseTestCase {
         test_result->error_description = " : md5sum of foo not maching with foo backup";
 		return 0;
 	}
+      }
 
     return 0;
   }

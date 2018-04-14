@@ -8,9 +8,9 @@ Reproducing fstest generic/335
 5. fsync dir A
 
 If a power fail occurs now, and remount the filesystem, 
-file bar should be present under A and file foo should be present
-under directory C.
-
+file bar should be present under A and file foo should be present under directory C.
+ 
+https://patchwork.kernel.org/patch/8312681/
 */
 
 
