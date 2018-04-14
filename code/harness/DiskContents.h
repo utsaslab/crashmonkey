@@ -49,6 +49,8 @@ public:
   bool compare_disk_contents(DiskContents &compare_disk, std::ofstream &diff_file);
   bool compare_entries_at_path(DiskContents &compare_disk, std::string path,
     std::ofstream &diff_file);
+  bool compare_file_contents(DiskContents &compare_disk, std::string path,
+    int offset, int length, std::ofstream &diff_file);
 
 private:
   bool device_mounted;

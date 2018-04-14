@@ -391,4 +391,48 @@ bool DiskContents::compare_entries_at_path(DiskContents &compare_disk,
   return retValue;
 }
 
+bool DiskContents::compare_file_contents(DiskContents &compare_disk, std::string path,
+    int offset, int length, std::ofstream &diff_file) {
+  bool retValue = true;
+  if (strcmp(disk_path, compare_disk.disk_path) == 0) {
+    return retValue;
+  }
+
+  std::string base_path = "/mnt/snapshot" + path;
+  if (compare_disk.mount_disk() != 0) {
+    std::cout << "Mounting " << compare_disk.disk_path << " failed" << std::endl;
+    return false;
+  }
+  std::string compare_disk_mount_point(compare_disk.get_mount_point());
+  std::string compare_path = compare_disk_mount_point + path;
+
+  std::ifstream f1(base_path, std::ifstream::binary|std::ifstream::ate);
+  std::ifstream f2(compare_path, std::ifstream::binary|std::ifstream::ate);
+
+  if (f1.fail() || f2.fail()) {
+    std::cout << "Error opening input file streams " << base_path  << " and ";
+    std::cout << compare_path << std::endl;
+    return false;
+  }
+
+  f1.seekg(offset, std::ifstream::beg);
+  f2.seekg(offset, std::ifstream::beg);
+
+  char * buffer_f1 = new char[length];
+  char * buffer_f2 = new char[length];
+
+  f1.read(buffer_f1, length);
+  f2.read(buffer_f2, length);
+
+  if (strcmp(buffer_f1, buffer_f2) == 0) {
+    return true;
+  }
+
+  diff_file << __func__ << " failed" << std::endl;
+  diff_file << "Content Mismatch of file " << path << " from " << offset << " of length " << length << endl;
+  diff_file << base_path << " has " << buffer_f1 << endl;
+  diff_file << compare_path << " has " << buffer_f2 << endl;
+  return false;
+}
+
 } // namespace fs_testing
