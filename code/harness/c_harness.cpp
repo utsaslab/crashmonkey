@@ -30,7 +30,6 @@
 #define TEST_DIRTY_EXPIRE_TIME_CENTISECS 3000
 #define TEST_DIRTY_EXPIRE_TIME_STRING \
   TO_STRING(TEST_DIRTY_EXPIRE_TIME_CENTISECS)
-#define WRITE_DELAY ((TEST_DIRTY_EXPIRE_TIME_CENTISECS / 100) * 4)
 #define MOUNT_DELAY 1
 
 #define DIRECTORY_PERMS \
@@ -78,7 +77,6 @@ int main(int argc, char** argv) {
   cout << "running " << argv << endl;
 
   string dirty_expire_time_centisecs(TEST_DIRTY_EXPIRE_TIME_STRING);
-  unsigned long int test_sleep_delay = WRITE_DELAY;
   string fs_type("ext4");
   string flags_dev("/dev/vda");
   string test_dev("/dev/ram0");
@@ -729,7 +727,10 @@ int main(int argc, char** argv) {
     // layer and then stop logging writes.
     cout << "Waiting for writeback delay" << endl;
     logfile << "Waiting for writeback delay" << endl;
-    sleep(WRITE_DELAY);
+    unsigned int sleep_time = test_harness.GetPostRunDelay();
+    while (sleep_time > 0) {
+      sleep_time = sleep(sleep_time);
+    }
 
     cout << "Disabling wrapper device logging" << endl;
     logfile << "Disabling wrapper device logging" << endl;

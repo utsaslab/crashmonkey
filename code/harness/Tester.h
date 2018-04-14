@@ -126,6 +126,8 @@ class Tester {
   void StartTestSuite();
   void EndTestSuite();
 
+  unsigned int GetPostRunDelay();
+
   // TODO(ashmrtn): Figure out why making these private slows things down a lot.
  private:
   FsSpecific *fs_specific_ops_ = NULL;
