@@ -437,6 +437,8 @@ bool DiskContents::compare_file_contents(DiskContents &compare_disk, std::string
 
   f1.read(buffer_f1, length);
   f2.read(buffer_f2, length);
+  f1.close();
+  f2.close();
 
   if (strcmp(buffer_f1, buffer_f2) == 0) {
     compare_disk.unmount_and_delete_mount_point();
