@@ -45,7 +45,6 @@ class DiskMod {
     kFsyncMod,          // For fsync/fdatasync that persist contents of a file.
     kSyncMod,           // sync, flushes all the contents.
     kSyncFileRangeMod,  // syncs pages of the open file falling within a range.
-    kMsyncMod,
   };
 
   // TODO(ashmrtn): Figure out how to handle permissions.

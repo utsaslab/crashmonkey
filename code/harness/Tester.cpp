@@ -754,7 +754,7 @@ bool Tester::check_disk_and_snapshot_contents(char* disk_path, int last_checkpoi
     } else if (i.mod_type == DiskMod::kSyncMod) {
       bool retVal = disk1.compare_disk_contents(disk2, diff_file);
       return retVal;
-    } else if (i.mod_type == DiskMod::kMsyncMod ||
+    } else if (i.mod_type == DiskMod::kDataMod ||
         i.mod_type == DiskMod::kSyncFileRangeMod) {
       string path(i.path);
       path.erase(0, 13);
