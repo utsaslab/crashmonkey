@@ -59,30 +59,35 @@ class Generic107: public BaseTestCase {
     if (fd_foo < 0) {
       return -1;
     }
-    // Create two links to foo
-    if(link(foo_path.c_str(), foo_link_path.c_str()) < 0){
-      return -2;
-    }
-    if(link(foo_path.c_str(), foo_link_path2.c_str()) < 0){
-      return -2;
-    }
+
+    close(fd_foo);
 
     sync();
-    close(fd_foo);
 
     return 0;
   }
 
   virtual int run() override {
 
-	init_paths();
-  
+    init_paths();
+
+    // Create two links to foo
+    if(link(foo_path.c_str(), foo_link_path.c_str()) < 0){
+      return -2;
+    }
+
+    if(link(foo_path.c_str(), foo_link_path2.c_str()) < 0){
+      return -2;
+    }
+	
+    sync();
+
     // Unlink foo_link2
     if(unlink(foo_link_path2.c_str()) < 0){
       return -3;
     }
 
-	const int fd_foo = open(foo_path.c_str(), O_RDWR | O_CREAT, TEST_FILE_PERMS);
+    const int fd_foo = open(foo_path.c_str(), O_RDWR | O_CREAT, TEST_FILE_PERMS);
     if (fd_foo < 0) {
       return -5;
     }
@@ -110,21 +115,11 @@ class Generic107: public BaseTestCase {
 	string dir = mnt_dir_ + "/" TEST_DIR_A;
 	string rm_cmd = "rm -f " + dir + "/*";
 
-	if (last_checkpoint > 0) { // If foo_link2 was unlinked
-		string command = "ls -1 " + dir;
-		string output = get_system_output(command);
-		if (output.compare(TEST_FILE_FOO_LINK) != 0) {
-	        test_result->SetError(DataTestResult::kFileMetadataCorrupted);
-	        test_result->error_description = " : Only foo_link_ should be present in directory";
-	        return 0;
-		}
-	}
-
 	// Remove files within the directory
 	system(rm_cmd.c_str());
 
 	// Directory should be removeable
-	if (rmdir(dir.c_str()) < 0) {
+	if (rmdir(dir.c_str()) < 0 && errno == ENOTEMPTY) {
         test_result->SetError(DataTestResult::kFileMetadataCorrupted);
         test_result->error_description = " : Unable to remove directory after deleting files";
 	}
@@ -142,16 +137,6 @@ class Generic107: public BaseTestCase {
         foo_link_path2 = mnt_dir_ + "/" TEST_DIR_A "/" TEST_FILE_FOO_LINK + "2";
     }
 
-    string get_system_output(string command) {
-        FILE *fp;
-        fp = popen(command.c_str(), "r");
-        char out[1000]; // Assuming output won't be longer than this
-        fscanf(fp,"%s", out);
-        fclose(fp);
-
-        string out_str(out);
-        return out_str;
-    }
 };
 
 }  // namespace tests
