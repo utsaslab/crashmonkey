@@ -144,7 +144,7 @@ int RecordCmFsOps::CmMkdir(const string &pathname, const mode_t mode) {
   mod.directory_mod = true;
   mod.path = pathname;
   mod.mod_type = DiskMod::kCreateMod;
-  mod.mod_type = DiskMod::kNoneOpts;
+  mod.mod_type = DiskMod::kNoneOpt;
 
   mods_.push_back(mod);
 
@@ -419,7 +419,7 @@ int RecordCmFsOps::CmUnlink(const string &pathname) {
 
   DiskMod mod;
   mod.mod_type = DiskMod::kRemoveMod;
-  mod.mod_opts = DiskMod::kNoneOpts;
+  mod.mod_opts = DiskMod::kNoneOpt;
   mod.path = pathname;
   mods_.push_back(mod);
 
@@ -434,7 +434,7 @@ int RecordCmFsOps::CmRemove(const string &pathname) {
 
   DiskMod mod;
   mod.mod_type = DiskMod::kRemoveMod;
-  mod.mod_opts = DiskMod::kNoneOpts;
+  mod.mod_opts = DiskMod::kNoneOpt;
   mod.path = pathname;
   mods_.push_back(mod);
 
