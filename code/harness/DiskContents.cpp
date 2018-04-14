@@ -406,10 +406,23 @@ bool DiskContents::compare_file_contents(DiskContents &compare_disk, std::string
   std::string compare_disk_mount_point(compare_disk.get_mount_point());
   std::string compare_path = compare_disk_mount_point + path;
 
-  std::ifstream f1(base_path, std::ifstream::binary|std::ifstream::ate);
-  std::ifstream f2(compare_path, std::ifstream::binary|std::ifstream::ate);
+  fileAttributes base_fa, compare_fa;
+  struct stat base_statbuf, compare_statbuf;
+  if (stat(base_path.c_str(), &base_statbuf) == -1) {
+    std::cout << "Failed stating the file " << base_path << std::endl;
+    compare_disk.unmount_and_delete_mount_point();
+    return false;
+  }
+  if (stat(compare_path.c_str(), &compare_statbuf) == -1) {
+    std::cout << "Failed stating the file " << compare_path << std::endl;
+    compare_disk.unmount_and_delete_mount_point();
+    return false;
+  }
 
-  if (f1.fail() || f2.fail()) {
+  std::ifstream f1(base_path, std::ios::binary);
+  std::ifstream f2(compare_path, std::ios::binary);
+  
+  if (!f1 || !f2) {
     std::cout << "Error opening input file streams " << base_path  << " and ";
     std::cout << compare_path << std::endl;
     return false;
