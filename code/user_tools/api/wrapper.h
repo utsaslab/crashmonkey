@@ -10,6 +10,7 @@
 
 #include <memory>
 #include <string>
+#include <tuple>
 #include <unordered_map>
 #include <vector>
 
@@ -178,8 +179,10 @@ class RecordCmFsOps : public CmFsOps {
   // So that things that require fd can be mapped to pathnames.
   std::unordered_map<int, std::string> fd_map_;
 
-  // So that mmap pointers can be mapped to pathnames.
-  std::unordered_map<int, std::string> mmap_map_;
+  // So that mmap pointers can be mapped to pathnames and mmap offset and
+  // length.
+  std::unordered_map<long long,
+    std::tuple<std::string, unsigned long long, unsigned long long>> mmap_map_;
   std::vector<fs_testing::utils::DiskMod> mods_;
 
   // Set of functions to call for different file system operations. Tracked as a
