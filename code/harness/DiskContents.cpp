@@ -350,17 +350,22 @@ bool DiskContents::compare_entries_at_path(DiskContents &compare_disk,
   }
 
   fileAttributes base_fa, compare_fa;
+  bool failed_stat = false;
   struct stat base_statbuf, compare_statbuf;
   if (stat(base_path.c_str(), &base_statbuf) == -1) {
-    std::cout << "Failed stating the file " << base_path << std::endl;
-    compare_disk.unmount_and_delete_mount_point();
-    return false;
+    diff_file << "Failed stating the file " << base_path << std::endl;
+    failed_stat = true;
   }
   if (stat(compare_path.c_str(), &compare_statbuf) == -1) {
-    std::cout << "Failed stating the file " << compare_path << std::endl;
+    diff_file << "Failed stating the file " << compare_path << std::endl;
+    failed_stat = true;
+  }
+
+  if (failed_stat) {
     compare_disk.unmount_and_delete_mount_point();
     return false;
   }
+
   base_fa.set_stat_attr(&base_statbuf);
   compare_fa.set_stat_attr(&compare_statbuf);
   if (!(base_fa.compare_stat_attr(compare_fa.stat_attr))) {
@@ -407,14 +412,18 @@ bool DiskContents::compare_file_contents(DiskContents &compare_disk, std::string
   std::string compare_path = compare_disk_mount_point + path;
 
   fileAttributes base_fa, compare_fa;
+  bool failed_stat = false;
   struct stat base_statbuf, compare_statbuf;
   if (stat(base_path.c_str(), &base_statbuf) == -1) {
-    std::cout << "Failed stating the file " << base_path << std::endl;
-    compare_disk.unmount_and_delete_mount_point();
-    return false;
+    diff_file << "Failed stating the file " << base_path << std::endl;
+    failed_stat = true;
   }
   if (stat(compare_path.c_str(), &compare_statbuf) == -1) {
-    std::cout << "Failed stating the file " << compare_path << std::endl;
+    diff_file << "Failed stating the file " << compare_path << std::endl;
+    failed_stat = true;
+  }
+
+  if (failed_stat) {
     compare_disk.unmount_and_delete_mount_point();
     return false;
   }
