@@ -19,7 +19,20 @@
 #define BIO_DISCARD_FLAG        REQ_DISCARD
 #define BIO_IS_WRITE(bio)       (!!(bio_rw(bio) & REQ_WRITE))
 
-#elif LINUX_VERSION_CODE >= KERNEL_VERSION(4, 3, 0) \
+#elif LINUX_VERSION_CODE >= KERNEL_VERSION(4, 1, 0) \
+  && LINUX_VERSION_CODE < KERNEL_VERSION(4, 2, 0)
+
+#define BI_RW                   bi_rw
+#define BI_DISK                 bi_bdev->bd_disk
+#define BI_SIZE                 bi_iter.bi_size
+#define BI_SECTOR               bi_iter.bi_sector
+#define BIO_ENDIO(bio, err)     bio_endio(bio, err)
+#define BIO_IO_ERR(bio, err)    bio_endio(bio, err)
+#define BIO_DISCARD_FLAG        REQ_DISCARD
+#define BIO_IS_WRITE(bio)       (!!(bio_rw(bio) & REQ_WRITE))
+
+
+#elif LINUX_VERSION_CODE >= KERNEL_VERSION(4, 4, 0) \
   && LINUX_VERSION_CODE < KERNEL_VERSION(4, 5, 0)
 
 #define BI_RW                   bi_rw
