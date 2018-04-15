@@ -49,17 +49,8 @@ class Generic104: public BaseTestCase {
   virtual int setup() override {
 
 	init_paths();
-   sync();
-
-    return 0;
-  }
-
-  virtual int run() override {
-
-    init_paths();
-
     // Create test directory A.
-	string dir_path = mnt_dir_ + "/" TEST_DIR_A;
+        string dir_path = mnt_dir_ + "/" TEST_DIR_A;
     int res = mkdir(dir_path.c_str(), 0777);
     if (res < 0) {
       return -1;
@@ -81,9 +72,14 @@ class Generic104: public BaseTestCase {
     close(fd_bar);
 
     sync();
-    if (Checkpoint() < 0){
-	return -2;
-    }
+
+    return 0;
+  }
+
+  virtual int run() override {
+
+    init_paths();
+
 
     // Create a new hard link for file foo
     if(link(foo_path.c_str(), foo_link_path.c_str()) < 0){
@@ -95,7 +91,7 @@ class Generic104: public BaseTestCase {
       return -3;
     }
 
-    fd_bar = open(bar_path.c_str(), O_RDWR, TEST_FILE_PERMS);
+    int fd_bar = open(bar_path.c_str(), O_RDWR, TEST_FILE_PERMS);
     if (fd_bar < 0) {
       return -1;
     }
@@ -111,7 +107,7 @@ class Generic104: public BaseTestCase {
 
     //Close open files  
     close(fd_bar);
-    sync();
+    
     return 0;
   }
 
@@ -119,7 +115,6 @@ class Generic104: public BaseTestCase {
       DataTestResult *test_result) override {
 
 	init_paths();
-
 	string dir = mnt_dir_ + "/" TEST_DIR_A;
 	string rm_cmd = "rm -f " + dir + "/*";
 
