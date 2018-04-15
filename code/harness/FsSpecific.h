@@ -104,7 +104,7 @@ class BtrfsFsSpecific : public FsSpecific {
   virtual unsigned int GetPostRunDelaySeconds() override;
 
   static constexpr char kFsType[] = "btrfs";
-  static const unsigned int kDelaySeconds = 120;
+  static const unsigned int kDelaySeconds = 34;
 };
 
 class F2fsFsSpecific : public FsSpecific {
