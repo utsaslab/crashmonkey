@@ -33,7 +33,7 @@ for ip in `cat live_nodes`; do
 	port=3022
 	for j in `seq 1 $num_vms`; do
 		sshpass -p "alohomora" scp -o "StrictHostKeyChecking no" -P $port pandian@$ip:~/projects/crashmonkey/diff_results/* $run/diff_files/
-		sshpass -p "alohomora" scp -o "StrictHostKeyChecking no" -P $port pandian@$ip:~/projects/crashmonkey/xfsmonkey*.log $run/xfsmonkey_logs/
+		sshpass -p "alohomora" scp -o "StrictHostKeyChecking no" -P $port pandian@$ip:~/projects/crashmonkey/xfsmonkey*.log $run/xfsmonkey_logs/xfsmonkey_log_server_"$i"_vm_"$j".log
 		port=`expr $port + 1`
 	done
 	i=`expr $i + 1`
