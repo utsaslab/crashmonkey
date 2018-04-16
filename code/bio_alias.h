@@ -8,7 +8,7 @@
 #include <linux/version.h>
 
 #if LINUX_VERSION_CODE >= KERNEL_VERSION(3, 12, 0) \
-  && LINUX_VERSION_CODE < KERNEL_VERSION(3, 14, 0)
+  && LINUX_VERSION_CODE < KERNEL_VERSION(3, 14, 0) 
 
 #define BI_RW                   bi_rw
 #define BI_DISK                 bi_bdev->bd_disk
@@ -19,8 +19,10 @@
 #define BIO_DISCARD_FLAG        REQ_DISCARD
 #define BIO_IS_WRITE(bio)       (!!(bio_rw(bio) & REQ_WRITE))
 
-#elif LINUX_VERSION_CODE >= KERNEL_VERSION(4, 1, 0) \
-  && LINUX_VERSION_CODE < KERNEL_VERSION(4, 2, 0)
+#elif (LINUX_VERSION_CODE >= KERNEL_VERSION(4, 1, 0) \
+  && LINUX_VERSION_CODE < KERNEL_VERSION(4, 2, 0)) || \
+  (LINUX_VERSION_CODE >= KERNEL_VERSION(3,16,0) \
+  && LINUX_VERSION_CODE < KERNEL_VERSION(3,17,0))
 
 #define BI_RW                   bi_rw
 #define BI_DISK                 bi_bdev->bd_disk
