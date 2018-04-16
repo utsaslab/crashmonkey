@@ -37,7 +37,7 @@ CXXFLAGS += --std=c++11 -g -Wall -Wextra -pthread
 
 # All tests produced by this Makefile.  Remember to add new tests you
 # created to the list.
-TESTS = DiskModTest CmFsOpsTest
+TESTS = DiskModTest CmFsOpsTest WorkloadTest
 
 # All Google Test headers.  Usually you shouldn't change this
 # definition.
@@ -182,6 +182,17 @@ CmFsOpsTest : \
 			$(CODE_DIR)/utils/DiskMod.cpp \
 			gtest_main.a \
 			gmock_main.a
+	$(CXX) $(CPPFLAGS) $(CXXFLAGS) $(GOPTS) -lpthread $^ -o $@
+
+WorkloadTest.o : $(USER_DIR)/user_tools/WorkloadTest.cpp \
+			$(GTEST_HEADERS)
+	$(CXX) $(CPPFLAGS) $(CXXFLAGS) $(GOPTS) $(SYS_HEADERS) \
+		-c $(USER_DIR)/user_tools/WorkloadTest.cpp
+
+WorkloadTest : \
+			WorkloadTest.o \
+			$(CODE_DIR)/user_tools/src/workload.cpp \
+			gtest_main.a
 	$(CXX) $(CPPFLAGS) $(CXXFLAGS) $(GOPTS) -lpthread $^ -o $@
 
 TesterTest.o : $(USER_DIR)/harness/TesterTest.cpp $(CODE_DIR)/utils/utils.h \
