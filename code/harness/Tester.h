@@ -86,8 +86,8 @@ class Tester {
   int test_setup();
   int test_init_values(std::string mountDir, long filesysSize);
   int test_run();
-  int test_check_random_permutations(const bool full_bio_replay,
-      const int num_rounds, std::ofstream& log);
+  int test_check_random_permutations(const bool enable_soft_epochs,
+      const bool full_bio_replay, const int num_rounds, std::ofstream& log);
   int test_check_log_replay(std::ofstream& log);
   int test_restore_log();
   int test_check_current();

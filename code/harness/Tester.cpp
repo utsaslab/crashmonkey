@@ -609,12 +609,18 @@ vector<milliseconds> Tester::test_fsck_and_user_test(
   return res;
 }
 
-int Tester::test_check_random_permutations(bool full_bio_replay,
-    const int num_rounds, ofstream& log) {
+int Tester::test_check_random_permutations(const bool enable_soft_epochs,
+    const bool full_bio_replay, const int num_rounds, ofstream& log) {
   assert(current_test_suite_ != NULL);
   time_point<steady_clock> start_time = steady_clock::now();
   Permuter *p = permuter_loader.get_instance();
-  p->InitDataVector(sector_size_, log_data);
+  if (enable_soft_epochs) {
+    p->InitDataVectorSoft(sector_size_, log_data);
+  } else {
+    p->InitDataVector(sector_size_, log_data);
+  }
+  p->LogEpochs(log);
+  log << endl;
   vector<DiskWriteData> permutes;
   for (int rounds = 0; rounds < num_rounds; ++rounds) {
     // Print status every 1024 iterations.

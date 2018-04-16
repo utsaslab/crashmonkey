@@ -1,6 +1,7 @@
 #ifndef PERMUTER_H
 #define PERMUTER_H
 
+#include <fstream>
 #include <list>
 #include <unordered_set>
 #include <utility>
@@ -72,6 +73,7 @@ class Permuter {
       std::vector<fs_testing::utils::disk_write> &data);
   void InitDataVectorSoft(unsigned int sector_size,
       std::vector<fs_testing::utils::disk_write> &data);
+  void LogEpochs(std::ofstream &log);
   bool GenerateCrashState(std::vector<fs_testing::utils::DiskWriteData> &res,
       fs_testing::PermuteTestResult &log_data);
   bool GenerateSectorCrashState(

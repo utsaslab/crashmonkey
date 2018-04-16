@@ -2,6 +2,7 @@
 
 #include <algorithm>
 #include <chrono>
+#include <iostream>
 #include <list>
 #include <memory>
 #include <unordered_set>
@@ -14,6 +15,7 @@ namespace fs_testing {
 namespace permuter {
 
 using std::list;
+using std::ofstream;
 using std::pair;
 using std::shared_ptr;
 using std::size_t;
@@ -128,6 +130,15 @@ DiskWriteData EpochOpSector::ToWriteData() {
   return DiskWriteData(false, parent->abs_index, parent_sector_index,
       disk_offset, size, parent->op.get_data(),
       (max_sector_size * parent_sector_index));
+}
+
+void Permuter::LogEpochs(ofstream &log) {
+  for (auto &epoch : epochs_) {
+    for (auto &op : epoch.ops) {
+      log << op.abs_index << std::endl;
+    }
+    log << "~~~~~~~~~~" << std::endl;
+  }
 }
 
 epoch* Permuter::AddNewEpoch() {

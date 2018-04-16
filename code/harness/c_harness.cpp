@@ -35,7 +35,7 @@
 #define DIRECTORY_PERMS \
   (S_IRUSR | S_IWUSR | S_IRGRP | S_IWGRP | S_IROTH | S_IWOTH)
 
-#define OPTS_STRING "bd:f:e:l:m:np:r:s:t:vFIPS:"
+#define OPTS_STRING "bd:f:e:hl:m:np:r:s:t:vFIPS:"
 
 namespace {
   unsigned int kSocketQueueDepth;
@@ -57,6 +57,7 @@ static const option long_options[] = {
   {"background", no_argument, NULL, 'b'},
   {"test-dev", required_argument, NULL, 'd'},
   {"disk_size", required_argument, NULL, 'e'},
+  {"soft-epochs", no_argument, NULL, 'h'},
   {"flag-device", required_argument, NULL, 'f'},
   {"log-file", required_argument, NULL, 'l'},
   {"mount-opts", required_argument, NULL, 'm'},
@@ -91,6 +92,7 @@ int main(int argc, char** argv) {
   bool in_order_replay = true;
   bool permuted_order_replay = true;
   bool full_bio_replay = false;
+  bool enable_soft_epochs = false;
   int iterations = 10000;
   int disk_size = 10240;
   unsigned int sector_size = 512;
@@ -113,6 +115,9 @@ int main(int argc, char** argv) {
         break;
       case 'e':
         disk_size = atoi(optarg);
+        break;
+      case 'h':
+        enable_soft_epochs = true;
         break;
       case 'l':
         log_file_save = string(optarg);
@@ -870,8 +875,8 @@ int main(int argc, char** argv) {
     logfile << "Writing profiled data to block device and checking with fsck" <<
       endl;
 
-    test_harness.test_check_random_permutations(full_bio_replay, iterations,
-        logfile);
+    test_harness.test_check_random_permutations(enable_soft_epochs,
+        full_bio_replay, iterations, logfile);
 
     for (unsigned int i = 0; i < Tester::NUM_TIME; ++i) {
       cout << "\t" << (Tester::time_stats) i << ": " <<
