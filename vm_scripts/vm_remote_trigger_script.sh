@@ -29,10 +29,15 @@ echo alohomora | sudo -S mkdir -p /mnt/snapshot
 echo Copying cpp workload files to code/tests/..
 cp ~/seq2/* code/tests/
 
+echo alohomora | sudo -S rm build/tests/j-lang*.so
+
 echo Compiling..
 make
 
 echo Moving built so files to xfsMonkeyTests/..
+
+echo alohomora | sudo -S rm -r build/xfsMonkeyTests
+
 echo alohomora | sudo -S mkdir -p build/xfsMonkeyTests
 echo alohomora | sudo -S mv build/tests/j-lang*.so build/xfsMonkeyTests/
 
