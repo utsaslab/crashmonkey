@@ -7,7 +7,7 @@ Reproducing xfstest generic/322 _rename_test
 After a crash at random point, bar should be present and should have the same contents
 written to foo.
 
-https://github.com/kdave/xfstests/blob/master/tests/generic/322
+https://patchwork.kernel.org/patch/3234541/
 */
 
 
@@ -66,11 +66,11 @@ class Generic322: public BaseTestCase {
     }
 
     // Write some contents to the file
-    if (WriteData(fd_foo, 0, 1024) < 0) {
+    if (WriteData(fd_foo, 0, 4096) < 0) {
     	return -2;
     }
     // Write some contents to the backup file (for verifying md5sum in check_test)
-    if (WriteData(fd_foo_backup, 0, 1024) < 0) {
+    if (WriteData(fd_foo_backup, 0, 4096) < 0) {
     	return -2;
     }
 
@@ -133,23 +133,27 @@ class Generic322: public BaseTestCase {
 		close(fd_foo);
 	}
 
-	if (fd_bar < 0 && last_checkpoint >= 1) {
-        test_result->SetError(DataTestResult::kFileMissing);
-        test_result->error_description = " : Unable to locate bar file after crash recovery";
-        return 0;
-	}
+	//The checkpoint was after fsync(bar). So we should find file bar
+	if (last_checkpoint >= 1){
 
-	string expected_md5sum = get_md5sum(foo_backup_path);
-	string actual_md5sum = get_md5sum(bar_path);
+		if (fd_bar < 0) {
+        		test_result->SetError(DataTestResult::kFileMissing);
+        		test_result->error_description = " : Unable to locate bar file after crash recovery";
+			return 0;
+		}
 
-	if (expected_md5sum.compare(actual_md5sum) != 0 && last_checkpoint >= 1) {
-        test_result->SetError(DataTestResult::kFileDataCorrupted);
-        test_result->error_description = " : md5sum of bar does not match with expected md5sum of foo backup";
-	}
+		string expected_md5sum = get_md5sum(foo_backup_path);
+		string actual_md5sum = get_md5sum(bar_path);
 
-	if (fd_bar >= 0) {
-		close(fd_bar);
-	}
+		if (last_checkpoint >=1 && expected_md5sum.compare(actual_md5sum) != 0) {
+        		test_result->SetError(DataTestResult::kFileDataCorrupted);
+        		test_result->error_description = " : md5sum of bar does not match with expected md5sum of foo backup";
+		}
+
+		if (fd_bar >= 0) {
+			close(fd_bar);
+		}
+ 	}
     return 0;
   }
 

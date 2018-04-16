@@ -76,21 +76,36 @@ class Ext2FsSpecific : public ExtFsSpecific {
  public:
   Ext2FsSpecific();
   static constexpr char kFsType[] = "ext2";
-  static const unsigned int kDelaySeconds = 15;
+#if THREE_THIRTEEN == 1 || FOUR_FOUR == 1 || FOUR_FIFTEEN == 1 || \
+    FOUR_SIXTEEN == 1
+  static const unsigned int kDelaySeconds = 20;
+#else
+  static const unsigned int kDelaySeconds = 120;
+#endif
 };
 
 class Ext3FsSpecific : public ExtFsSpecific {
  public:
   Ext3FsSpecific();
   static constexpr char kFsType[] = "ext3";
-  static const unsigned int kDelaySeconds = 36;
+#if THREE_THIRTEEN == 1 || FOUR_FOUR == 1 || FOUR_FIFTEEN == 1 || \
+    FOUR_SIXTEEN == 1
+  static const unsigned int kDelaySeconds = 42;
+#else
+  static const unsigned int kDelaySeconds = 120;
+#endif
 };
 
 class Ext4FsSpecific : public ExtFsSpecific {
  public:
   Ext4FsSpecific();
   static constexpr char kFsType[] = "ext4";
-  static const unsigned int kDelaySeconds = 36;
+#if THREE_THIRTEEN == 1 || FOUR_FOUR == 1 || FOUR_FIFTEEN == 1 ||\
+    FOUR_SIXTEEN == 1
+  static const unsigned int kDelaySeconds = 42;
+#else
+  static const unsigned int kDelaySeconds = 120;
+#endif
 };
 
 class BtrfsFsSpecific : public FsSpecific {
@@ -104,7 +119,12 @@ class BtrfsFsSpecific : public FsSpecific {
   virtual unsigned int GetPostRunDelaySeconds() override;
 
   static constexpr char kFsType[] = "btrfs";
-  static const unsigned int kDelaySeconds = 34;
+#if THREE_THIRTEEN == 1 || FOUR_FOUR == 1 || FOUR_FIFTEEN == 1 || \
+    FOUR_SIXTEEN == 1
+  static const unsigned int kDelaySeconds = 40;
+#else
+  static const unsigned int kDelaySeconds = 120;
+#endif
 };
 
 class F2fsFsSpecific : public FsSpecific {
@@ -118,7 +138,15 @@ class F2fsFsSpecific : public FsSpecific {
   virtual unsigned int GetPostRunDelaySeconds() override;
 
   static constexpr char kFsType[] = "f2fs";
-  static const unsigned int kDelaySeconds = 71;
+#if THREE_THIRTEEN == 1
+  static const unsigned int kDelaySeconds = 15;
+#elif FOUR_FOUR == 1
+  static const unsigned int kDelaySeconds = 76;
+#elif FOUR_FIFTEEN == 1 || FOUR_SIXTEEN == 1
+  static const unsigned int kDelaySeconds = 67;
+#else
+  static const unsigned int kDelaySeconds = 120;
+#endif
 };
 
 class XfsFsSpecific : public FsSpecific {
@@ -132,7 +160,11 @@ class XfsFsSpecific : public FsSpecific {
   virtual unsigned int GetPostRunDelaySeconds() override;
 
   static constexpr char kFsType[] = "xfs";
+#if FOUR_FIFTEEN == 1 || FOUR_SIXTEEN == 1
+  static const unsigned int kDelaySeconds = 97;
+#else
   static const unsigned int kDelaySeconds = 120;
+#endif
 };
 
 /*
