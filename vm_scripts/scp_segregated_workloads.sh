@@ -1,5 +1,10 @@
 #!/bin/bash
 
+if [ "$#" -ne 2 ]; then
+    echo "Illegal number of parameters; Please provide start server number and end server number as the parameters;"
+    exit 1
+fi
+
 i=1
 
 st=$1
