@@ -283,6 +283,10 @@ def buildCustomTuple(file_list):
         for i in itertools.product(SyncSetCustom, SyncSetNoneCustom):
             syncPermutationsCustom.append(i)
 
+    elif int(num_ops) == 3:
+        for i in itertools.product(SyncSetCustom, SyncSetCustom, SyncSetNoneCustom):
+            syncPermutationsCustom.append(i)
+
     return syncPermutationsCustom
 
 
@@ -833,7 +837,7 @@ def doPermutation(perm):
 #            if isFadatasync:
 #                continue
 
-            if int(num_ops) == 1 or int(num_ops) == 2:
+            if int(num_ops) == 1 or int(num_ops) == 2 or int(num_ops) == 3:
                 log = '{0}'.format(syncPermutationsCustom[insSync]);
                 log = '\n\t\tFile # ' + `global_count` + ' : ' + `count_sync` + ' : ' + log + '\n'
                 log_file_handle.write(log)
