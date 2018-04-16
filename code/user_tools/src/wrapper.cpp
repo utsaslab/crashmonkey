@@ -484,6 +484,14 @@ int RecordCmFsOps::CmClose(const int fd) {
 }
 
 int RecordCmFsOps::CmRename(const string &old_path, const string &new_path) {
+  // check if there are any open files with the old path
+  // change the file descriptors to point to the new path
+  for (auto it = fd_map_.begin(); it != fd_map_.end(); it++) {
+    string& open_fd_old_path = it->second;
+    if (open_fd_old_path.compare(old_path) == 0) {
+      fd_map_[it->first] = new_path;
+    }
+  }
   return fns_->FnRename(old_path, new_path);
 }
 
