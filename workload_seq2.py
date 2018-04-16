@@ -355,7 +355,7 @@ def insertCheckpoint(contents, line, index_map, method):
 
 
 def insertRename(contents, line, index_map, method):
-    to_insert = '\n\t\t\t\tif ( ' + line.split(' ')[0] + '(' + line.split(' ')[1] + '_path.c_str() , '+ line.split(' ')[2] + '_path.c_str() '+ ') < 0){ \n\t\t\t\t\treturn errno;\n\t\t\t\t}\n\n'
+    to_insert = '\n\t\t\t\tif ( cm_->CmRename (' + line.split(' ')[1] + '_path.c_str() , '+ line.split(' ')[2] + '_path.c_str() '+ ') < 0){ \n\t\t\t\t\treturn errno;\n\t\t\t\t}\n\n'
     
     if method == 'setup':
         contents.insert(index_map['setup'], to_insert)
