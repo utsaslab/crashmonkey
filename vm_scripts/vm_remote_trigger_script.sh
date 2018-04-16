@@ -23,6 +23,9 @@ echo alohomora | sudo -S rm *.log
 echo alohomora | sudo -S rm build/*.log
 echo alohomora | sudo -S rm diff_results/*
 
+# Do cm cleanup -> rm cow_brd, disk_wrapper, umount etc
+echo alohomora | sudo -S bash /home/pandian/cm_cleanup.sh
+
 echo Creating /mnt/snapshot..
 echo alohomora | sudo -S mkdir -p /mnt/snapshot
 
