@@ -901,8 +901,8 @@ def doPermutation(perm):
         usedFiles = flatList(set(usedFiles))
 
         #TODO: to generate remaining files, use the custom set
-#        syncPermutationsCustom = buildCustomTuple(file_range(usedFiles))
-        syncPermutationsCustom = buildCustomTuple(usedFiles)
+        syncPermutationsCustom = buildCustomTuple(file_range(usedFiles))
+#        syncPermutationsCustom = buildCustomTuple(usedFiles)
 #        syncPermutationsCustom = [x for x in syncPermutationsCustomAll if x not in syncPermutationsCustomUsed]
 
         log = '\n\t\tUsed Files = {0}\n'.format(usedFiles)
@@ -1011,8 +1011,8 @@ def doPermutation(perm):
 #            #Now build the j-lang file------------------------------------
 
              
-            log = '\n\t\t\tModified sequence = {0}\n'.format(modified_sequence);
-            log_file_handle.write(log)
+#            log = '\n\t\t\tModified sequence = {0}\n'.format(modified_sequence);
+#            log_file_handle.write(log)
 
             isBugWorkload(permutations[count-1], j, syncPermutationsCustom[insSync])
 
@@ -1086,8 +1086,8 @@ def main():
 
     start_time = time.time()
 
-#    for i in itertools.product(OperationSet, repeat=int(num_ops)):
-    for i in itertools.permutations(OperationSet, int(num_ops)):
+    for i in itertools.product(OperationSet, repeat=int(num_ops)):
+#    for i in itertools.permutations(OperationSet, int(num_ops)):
         doPermutation(i)
 
 #    pool = Pool(processes = 4)
