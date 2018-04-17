@@ -51,8 +51,8 @@ dWriteOptions = ['append', 'overlap']
 #Truncate file options
 TruncateOptions = ['aligned', 'unaligned']
 
-#removed symlink
-OperationSet = ['creat', 'mkdir', 'mknod', 'falloc', 'write', 'dwrite', 'link', 'unlink', 'remove', 'rename', 'removexattr', 'fdatasync', 'fsetxattr', 'truncate', 'mmapwrite']
+#removed symlink, mknod
+OperationSet = ['creat', 'mkdir', 'falloc', 'write', 'dwrite', 'link', 'unlink', 'remove', 'rename', 'removexattr', 'fdatasync', 'fsetxattr', 'truncate', 'mmapwrite']
 
 #We are skipping 041, 336, 342, 343
 #The sequences we want to reach to
