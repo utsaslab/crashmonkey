@@ -376,6 +376,30 @@ def checkDirDep(current_sequence, pos, modified_sequence, modified_pos, open_dir
     
     #Either open or closed doesn't matter. File should not exist at all
     if file_name in open_dir_map and file_name != 'test':
+        #if dir is A, remove contents within it too
+        if file_name == 'A':
+            if 'A/foo' in open_file_map and open_file_map['A/foo'] == 1:
+                file = 'A/foo'
+                modified_sequence.insert(modified_pos, insertClose(file, open_dir_map, open_file_map, file_length_map, modified_pos))
+                modified_pos += 1
+                modified_sequence.insert(modified_pos, insertUnlink(file, open_dir_map, open_file_map, file_length_map, modified_pos))
+                modified_pos += 1
+            elif 'A/foo' in open_file_map and open_file_map['A/foo'] == 0:
+                file = 'A/foo'
+                modified_sequence.insert(modified_pos, insertUnlink(file, open_dir_map, open_file_map, file_length_map, modified_pos))
+                modified_pos += 1
+            elif 'A/bar' in open_file_map and open_file_map['A/bar'] == 1:
+                file = 'A/bar'
+                modified_sequence.insert(modified_pos, insertClose(file, open_dir_map, open_file_map, file_length_map, modified_pos))
+                modified_pos += 1
+                modified_sequence.insert(modified_pos, insertUnlink(file, open_dir_map, open_file_map, file_length_map, modified_pos))
+                modified_pos += 1
+            elif 'A/bar' in open_file_map and open_file_map['A/bar'] == 0:
+                file = 'A/bar'
+                modified_sequence.insert(modified_pos, insertUnlink(file, open_dir_map, open_file_map, file_length_map, modified_pos))
+                modified_pos += 1
+
+
         #Insert dependency before the creat command
         modified_sequence.insert(modified_pos, insertRmdir(file_name, open_dir_map, open_file_map, file_length_map, modified_pos))
         modified_pos += 1
@@ -434,8 +458,13 @@ def checkExistsDep(current_sequence, pos, modified_sequence, modified_pos, open_
 
 
 def checkClosed(current_sequence, pos, modified_sequence, modified_pos, open_dir_map, open_file_map, file_length_map):
-    file_name = current_sequence[pos][1]
     
+    file_names = current_sequence[pos][1]
+    if isinstance(file_names, basestring):
+        file_name = file_names
+    else:
+        file_name = file_names[0]
+
     if file_name in open_file_map and open_file_map[file_name] == 1:
         modified_sequence.insert(modified_pos, insertClose(file_name, open_dir_map, open_file_map, file_length_map, modified_pos))
         modified_pos += 1
@@ -509,6 +538,7 @@ def satisfyDep(current_sequence, pos, modified_sequence, modified_pos, open_dir_
         #if file doesn't exist, has to be created and opened
         modified_pos = checkExistsDep(current_sequence, pos, modified_sequence, modified_pos, open_dir_map, open_file_map, file_length_map)
         
+        
         #if we chose to do an append, let's not care about the file size
         # however if its an overwrite or unaligned write, then ensure file is atleast one page long
         if option == 'append':
@@ -518,12 +548,31 @@ def satisfyDep(current_sequence, pos, modified_sequence, modified_pos, open_dir_
         elif option == 'overlap' or 'overlap_aligned' or 'overlap_unaligned':
             modified_pos = checkFileLength(current_sequence, pos, modified_sequence, modified_pos, open_dir_map, open_file_map, file_length_map)
 
+        #If we do a dwrite, let's close the file after that
+        if command == 'dwrite':
+            if file in FileOptions or file in SecondFileOptions:
+                open_file_map[file] = 0
+
+
     elif command == 'link':
         second_file = current_sequence[pos][1][1]
         
         modified_pos = checkParentExistsDep(current_sequence, pos, modified_sequence, modified_pos, open_dir_map, open_file_map, file_length_map)
         
         modified_pos = checkExistsDep(current_sequence, pos, modified_sequence, modified_pos, open_dir_map, open_file_map, file_length_map)
+        
+        if second_file in open_file_map and open_file_map[second_file] == 1:
+        #Insert dependency - open before the command
+            modified_sequence.insert(modified_pos, insertClose(second_file, open_dir_map, open_file_map, file_length_map, modified_pos))
+            modified_pos += 1
+    
+        #if we have a closed file, remove it
+        if second_file in open_file_map and open_file_map[second_file] == 0:
+            #Insert dependency - open before the command
+            modified_sequence.insert(modified_pos, insertUnlink(second_file, open_dir_map, open_file_map, file_length_map, modified_pos))
+            modified_pos += 1
+        
+        
         #We have created a new file, but it isn't open yet
         open_file_map[second_file] = 0
     
@@ -924,7 +973,7 @@ def doPermutation(perm):
                     f.write(cur_line_log)
 
             f.close()
-#
+
 #            exec_command = 'python workload_seq2.py -b code/tests/seq2/base.cpp -t ' + j_lang_file + ' -p code/tests/seq2/ -o ' + str(global_count)
 #            subprocess.call(exec_command, shell=True)
 #            #Now build the j-lang file------------------------------------
