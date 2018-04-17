@@ -29,10 +29,11 @@ echo alohomora | sudo -S bash /home/pandian/cm_cleanup.sh
 echo Creating /mnt/snapshot..
 echo alohomora | sudo -S mkdir -p /mnt/snapshot
 
+echo alohomora | sudo -S rm code/tests/j-lang*.cpp
+echo alohomora | sudo -S rm build/tests/j-lang*.so
+
 echo Copying cpp workload files to code/tests/..
 cp ~/seq2/* code/tests/
-
-echo alohomora | sudo -S rm build/tests/j-lang*.so
 
 echo Compiling..
 make
