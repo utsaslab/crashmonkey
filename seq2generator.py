@@ -358,8 +358,6 @@ def insertWrite(file_name, open_dir_map, open_file_map, file_length_map, modifie
 #Creat : file should not exist. If it does, remove it.
 def checkCreatDep(current_sequence, pos, modified_sequence, modified_pos, open_dir_map, open_file_map, file_length_map):
     file_name = current_sequence[pos][1]
-    if file_name not in FileOptions and file_name not in SecondFileOptions:
-        print 'Invalid param list for Creat'
     
     
     #Either open or closed doesn't matter. File should not exist at all
@@ -585,8 +583,16 @@ def satisfyDep(current_sequence, pos, modified_sequence, modified_pos, open_dir_
         
         modified_pos = checkExistsDep(current_sequence, pos, modified_sequence, modified_pos, open_dir_map, open_file_map, file_length_map)
         
+        #Checks if first file is closed
+        modified_pos = checkClosed(current_sequence, pos, modified_sequence, modified_pos, open_dir_map, open_file_map, file_length_map)
+        
+        if second_file in open_file_map and open_file_map[second_file] == 1:
+            #Insert dependency - close the second file
+            modified_sequence.insert(modified_pos, insertClose(second_file, open_dir_map, open_file_map, file_length_map, modified_pos))
+            modified_pos += 1
+        
         #We have removed the first file, and created a second file
-        if first_file in FileOptions:
+        if first_file in FileOptions or first_file in SecondFileOptions:
             open_file_map.pop(first_file, None)
             open_file_map[second_file] = 0
         elif first_file in DirOptions:
@@ -603,7 +609,7 @@ def satisfyDep(current_sequence, pos, modified_sequence, modified_pos, open_dir_
     
     elif command == 'remove' or command == 'unlink':
         #Close any open file handle and then unlink
-        file = current_sequence[pos][1][0]
+        file = current_sequence[pos][1]
         
         modified_pos = checkParentExistsDep(current_sequence, pos, modified_sequence, modified_pos, open_dir_map, open_file_map, file_length_map)
         
