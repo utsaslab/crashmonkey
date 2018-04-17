@@ -491,6 +491,14 @@ int RecordCmFsOps::CmRename(const string &old_path, const string &new_path) {
     if (open_fd_old_path.compare(old_path) == 0) {
       fd_map_[it->first] = new_path;
     }
+    // if we are renaming a directory that is open; we want to
+    // change the mapping of the open files in that directory
+    auto found = open_fd_old_path.find(old_path);
+    if ( found != std::string::npos) {
+      std::cout << "Renaming " << fd_map_[it->first] << std::endl;
+      fd_map_[it->first].replace(found, old_path.length(), new_path);
+      std::cout << "Renamed to " << fd_map_[it->first] << std::endl;
+    }
   }
   return fns_->FnRename(old_path, new_path);
 }
