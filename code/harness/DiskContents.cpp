@@ -441,13 +441,16 @@ bool DiskContents::compare_file_contents(DiskContents &compare_disk, std::string
   f1.seekg(offset, std::ifstream::beg);
   f2.seekg(offset, std::ifstream::beg);
 
-  char * buffer_f1 = new char[length];
-  char * buffer_f2 = new char[length];
+  char * buffer_f1 = new char[length + 1];
+  char * buffer_f2 = new char[length + 1];
 
   f1.read(buffer_f1, length);
   f2.read(buffer_f2, length);
   f1.close();
   f2.close();
+
+  buffer_f1[length] = '\0';
+  buffer_f2[length] = '\0';
 
   if (strcmp(buffer_f1, buffer_f2) == 0) {
     compare_disk.unmount_and_delete_mount_point();

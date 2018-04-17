@@ -37,7 +37,7 @@ CXXFLAGS += --std=c++11 -g -Wall -Wextra -pthread
 
 # All tests produced by this Makefile.  Remember to add new tests you
 # created to the list.
-TESTS = RandomPermuterTest DiskWriteTest DiskModTest TesterTest CmFsOpsTest
+TESTS = DiskModTest CmFsOpsTest WorkloadTest
 
 # All Google Test headers.  Usually you shouldn't change this
 # definition.
@@ -56,7 +56,7 @@ GMOCK_HEADERS = $(GMOCK_DIR)/include/gmock/*.h \
 all : $(TESTS)
 
 clean :
-	rm -f $(TESTS) gmock.a gmock_main.a *.o
+	rm -f $(TESTS) gmock.a gmock_main.a gtest.a gtest_main.a *.o
 
 # Builds gmock.a and gmock_main.a.  These libraries contain both
 # Google Mock and Google Test.  A test should link with either gmock.a
@@ -90,6 +90,16 @@ gmock.a : gmock-all.o gtest-all.o
 	$(AR) $(ARFLAGS) $@ $^
 
 gmock_main.a : gmock-all.o gtest-all.o gmock_main.o
+	$(AR) $(ARFLAGS) $@ $^
+
+gtest_main.o : $(GTEST_SRCS_)
+	$(CXX) $(CPPFLAGS) -I$(GTEST_DIR) $(CXXFLAGS) -c \
+		$(GTEST_DIR)/src/gtest_main.cc
+
+gtest.a : gtest-all.o
+	$(AR) $(ARFLAGS) $@ $^
+
+gtest_main.a : gtest-all.o gtest_main.o
 	$(AR) $(ARFLAGS) $@ $^
 
 
@@ -127,7 +137,7 @@ PermuterTest : \
 			$(CODE_DIR)/results/PermuteTestResult.cpp \
 			$(CODE_DIR)/utils/utils.cpp \
 			gtest_main.a \
-			gtest_main.a
+			gmock_main.a
 	$(CXX) $(CPPFLAGS) $(CXXFLAGS) $(GOPTS) -lpthread $^ -o $@
 
 DiskWriteTest.o : $(USER_DIR)/utils/DiskWriteTest.cpp \
@@ -172,6 +182,17 @@ CmFsOpsTest : \
 			$(CODE_DIR)/utils/DiskMod.cpp \
 			gtest_main.a \
 			gmock_main.a
+	$(CXX) $(CPPFLAGS) $(CXXFLAGS) $(GOPTS) -lpthread $^ -o $@
+
+WorkloadTest.o : $(USER_DIR)/user_tools/WorkloadTest.cpp \
+			$(GTEST_HEADERS)
+	$(CXX) $(CPPFLAGS) $(CXXFLAGS) $(GOPTS) $(SYS_HEADERS) \
+		-c $(USER_DIR)/user_tools/WorkloadTest.cpp
+
+WorkloadTest : \
+			WorkloadTest.o \
+			$(CODE_DIR)/user_tools/src/workload.cpp \
+			gtest_main.a
 	$(CXX) $(CPPFLAGS) $(CXXFLAGS) $(GOPTS) -lpthread $^ -o $@
 
 TesterTest.o : $(USER_DIR)/harness/TesterTest.cpp $(CODE_DIR)/utils/utils.h \
