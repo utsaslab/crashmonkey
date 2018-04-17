@@ -46,7 +46,9 @@ int WriteData(int fd, unsigned int offset, unsigned int size) {
     (offset + (kTestDataSize - 1)) & (~(kTestDataSize - 1));
   // Round down size to 4k for number of full pages to write.
   
-  const unsigned int aligned_size = (size >= kTestDataSize) ? (size - (rounded_offset - offset)) & ~(kTestDataSize - 1): 0;
+  const unsigned int aligned_size = (size >= kTestDataSize) ?
+    (size - (rounded_offset - offset)) & ~(kTestDataSize - 1) :
+    0;
   unsigned int num_written = 0;
 
   // The start of the write range is not aligned with our data blocks.
@@ -56,13 +58,15 @@ int WriteData(int fd, unsigned int offset, unsigned int size) {
   if (rounded_offset != offset) {
     // We should never write more than kTestDataSize of unaligned data at the
     // start.
-    while (offset + num_written < rounded_offset){
+    const unsigned int to_write = (size < rounded_offset - offset) ?
+      size : rounded_offset - offset;
+    while (num_written < to_write){
       const unsigned int mod_offset =
-        num_written + (offset & (kTestDataSize - 1));
+        (num_written + offset) & (kTestDataSize - 1);
       assert(mod_offset < kTestDataSize);
 
-      int res = pwrite(fd, kTestDataBlock + mod_offset,
-          rounded_offset - (offset + num_written), offset + num_written);
+      int res = pwrite(fd, kTestDataBlock + mod_offset, to_write - num_written,
+          offset + num_written);
       if (res < 0) {
         return res;
       }
