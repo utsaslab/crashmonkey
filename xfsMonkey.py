@@ -131,7 +131,9 @@ def main():
 					print 'Retry running ' ,filename.replace('.so', ''), '\nRunning... '	 
 			file = filename.replace('.so', '')			
 			#diff_command = 'tail -vn +1 build/diff* >> diff_results/' + file  + '; rm build/diff*' 
-			subprocess.call('cat build/diff* > out', shell=True)
+			#subprocess.call('cat build/diff* > out', shell=True)
+			#Get the last numbered diff file if present
+			subprocess.call('cat build/$(ls build/ | grep diff | tail -n -1) > out', shell=True)
 			diff_command = './copy_diff.sh out ' + file
 			subprocess.call('tail -vn +1 build/diff*', shell=True)
 			subprocess.call(diff_command, shell=True)
