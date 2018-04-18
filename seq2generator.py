@@ -103,20 +103,22 @@ def file_range(file_list):
 
 #--------------------------------------------------------#
 
-
-# 1. btrfs_link_unlink 3
+#If we don't allow dependency ops on same file, we'll miss this in seq2
+#This is actually seq 2 = [link foo-bar, 'sync', unlink bar, 'fsync-bar']
+# 1. btrfs_link_unlink 3 (yes finds in 2)
 expected_sequence.append([('link', ('foo', 'bar')), ('unlink', ('bar')), ('creat', ('bar'))])
 expected_sync_sequence.append([('sync'), ('none'), ('fsync', 'bar')])
 
-# 2. btrfs_rename_special_file 3
+
+# 2. btrfs_rename_special_file 3 (yes in 3)
 expected_sequence.append([('mknod', ('foo')), ('rename', ('foo', 'bar')), ('link', ('bar', 'foo'))])
 expected_sync_sequence.append([('fsync', 'bar'), ('none'), ('fsync', 'bar')])
 
-# 3. new_bug1_btrfs 2
+# 3. new_bug1_btrfs 2 (Yes finds in 2)
 expected_sequence.append([('write', ('foo', 'append')), ('falloc', ('foo', 'FALLOC_FL_ZERO_RANGE|FALLOC_FL_KEEP_SIZE', 'append'))])
 expected_sync_sequence.append([('fsync', 'foo'), ('fsync', 'foo')])
 
-# 4. new_bug2_f2fs 3
+# 4. new_bug2_f2fs 3 (Yes finds in 2)
 expected_sequence.append([('write', ('foo', 'append')), ('falloc', ('foo', 'FALLOC_FL_ZERO_RANGE|FALLOC_FL_KEEP_SIZE', 'append')), ('fdatasync', ('foo'))])
 expected_sync_sequence.append([('sync'), ('none'), ('none')])
 
@@ -125,39 +127,63 @@ expected_sync_sequence.append([('sync'), ('none'), ('none')])
 expected_sequence.append([('creat', ('A/foo')), ('creat', ('A/bar'))])
 expected_sync_sequence.append([('sync'), ('fsync', 'A')])
 
-# 6. generic_039 2
+# 6. generic_039 2 (Yes finds in 2)
 expected_sequence.append([('link', ('foo', 'bar')), ('remove', ('bar'))])
 expected_sync_sequence.append([('sync'), ('fsync', 'foo')])
 
-# 7. generic_059 2
+# 7. generic_059 2 (yes finds in 2)
 expected_sequence.append([('write', ('foo', 'append')), ('falloc', ('foo', 'FALLOC_FL_PUNCH_HOLE|FALLOC_FL_KEEP_SIZE', 'overlap_unaligned'))])
 expected_sync_sequence.append([('sync'), ('fsync', 'foo')])
 
-# 8. generic_066 2
+# 8. generic_066 2 (Yes finds in 2)
 expected_sequence.append([('fsetxattr', ('foo')), ('removexattr', ('foo'))])
 expected_sync_sequence.append([('sync'), ('fsync', 'foo')])
 
-#Reachable from current seq 2 generator  (#1396 : creat A/foo, rename A,B) (sync, fsync A)
-# 9. generic_341 3
+#Reachable from current seq 2 generator  (#1360 : creat A/foo, rename A,B) (sync, fsync A)
+#We will miss this, if we restrict that op2 reuses files from op1
+# 9. generic_341 3 (Yes finds in 2)
 expected_sequence.append([('creat', ('A/foo')), ('rename', ('A', 'B')), ('mkdir', ('A'))])
 expected_sync_sequence.append([('sync'), ('none'), ('fsync', 'A')])
 
-# 10. generic_348 1
+# 10. generic_348 1 (yes finds in 1)
 expected_sequence.append([('symlink', ('foo', 'A/bar'))])
 expected_sync_sequence.append([('fsync', 'A')])
 
-# 11. generic_376 2
+# 11. generic_376 2 (yes finds in 2)
 expected_sequence.append([('rename', ('foo', 'bar')), ('creat', ('foo'))])
 expected_sync_sequence.append([('none'), ('fsync', 'bar')])
 
-# 12. generic_468 3
+#Yes reachable from sseeq2 - (falloc (foo, append), fdatasync foo)
+# 12. generic_468 3 (yes, finds in 2)
 expected_sequence.append([('write', ('foo', 'append')), ('falloc', ('foo', 'FALLOC_FL_KEEP_SIZE', 'append')), ('fdatasync', ('foo'))])
 expected_sync_sequence.append([('sync'), ('none'), ('none')])
 
-#We miss this if we sync only used file set
+#We miss this if we sync only used file set - or we need an option 'none' to end the file with
 # 13. ext4_direct_write 2
 expected_sequence.append([('write', ('foo', 'append')), ('dwrite', ('foo', 'overlap'))])
 expected_sync_sequence.append([('none'), ('fsync', 'bar')])
+
+#14 btrfs_EEXIST (Seq 1)
+#creat foo, fsync foo
+#write foo 0-4K, fsync foo
+
+#btrfs use -O extref during mkfs
+#15. generic 041 (If we consider the 3000 as setup, then seq length 3)
+#create 3000 link(foo, foo_i), sync, unlink(foo_0), link(foo, foo_3001), link(foo, foo_0), fsync foo
+
+#16. generic 056 (seq2)
+#write(foo, 0-4K), fsync foo, link(foo, bar), fsync some random file/dir
+
+#requires that we allow repeated operations (check if mmap write works here)
+#17 generic 090 (seq3)
+#write(foo 0-4K), sync, link(foo, bar), sync, append(foo, 4K-8K), fsync foo
+
+#18 generic_104 (seq2)
+#link(foo, foo1), link(bar, bar1), fsync(bar)
+
+#19 generic 106
+#link(foo, bar), sync, unlink(bar) *drop cache* fsync foo
+
 
 
 def build_parser():
@@ -386,7 +412,7 @@ def checkDirDep(current_sequence, pos, modified_sequence, modified_pos, open_dir
                 file = 'A/foo'
                 modified_sequence.insert(modified_pos, insertUnlink(file, open_dir_map, open_file_map, file_length_map, modified_pos))
                 modified_pos += 1
-            elif 'A/bar' in open_file_map and open_file_map['A/bar'] == 1:
+            if 'A/bar' in open_file_map and open_file_map['A/bar'] == 1:
                 file = 'A/bar'
                 modified_sequence.insert(modified_pos, insertClose(file, open_dir_map, open_file_map, file_length_map, modified_pos))
                 modified_pos += 1
@@ -875,8 +901,8 @@ def doPermutation(perm):
         usedFiles = flatList(set(usedFiles))
 
         #TODO: to generate remaining files, use the custom set
-#        syncPermutationsCustom = buildCustomTuple(file_range(usedFiles))
-        syncPermutationsCustom = buildCustomTuple(usedFiles)
+        syncPermutationsCustom = buildCustomTuple(file_range(usedFiles))
+#        syncPermutationsCustom = buildCustomTuple(usedFiles)
 #        syncPermutationsCustom = [x for x in syncPermutationsCustomAll if x not in syncPermutationsCustomUsed]
 
         log = '\n\t\tUsed Files = {0}\n'.format(usedFiles)
@@ -985,8 +1011,8 @@ def doPermutation(perm):
 #            #Now build the j-lang file------------------------------------
 
              
-            log = '\n\t\t\tModified sequence = {0}\n'.format(modified_sequence);
-            log_file_handle.write(log)
+#            log = '\n\t\t\tModified sequence = {0}\n'.format(modified_sequence);
+#            log_file_handle.write(log)
 
             isBugWorkload(permutations[count-1], j, syncPermutationsCustom[insSync])
 
@@ -1060,8 +1086,8 @@ def main():
 
     start_time = time.time()
 
-#    for i in itertools.product(OperationSet, repeat=int(num_ops)):
-    for i in itertools.permutations(OperationSet, int(num_ops)):
+    for i in itertools.product(OperationSet, repeat=int(num_ops)):
+#    for i in itertools.permutations(OperationSet, int(num_ops)):
         doPermutation(i)
 
 #    pool = Pool(processes = 4)
