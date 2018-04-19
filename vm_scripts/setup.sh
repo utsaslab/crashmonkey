@@ -3,6 +3,8 @@
 # update the aliases
 cat vm_aliases >> ~/.bashrc
 
+source ~/.bashrc
+
 # set up crashmonkey in this vm
 mkdir projects
 cd projects/
