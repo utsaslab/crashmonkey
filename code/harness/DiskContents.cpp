@@ -466,14 +466,6 @@ bool DiskContents::compare_file_contents(DiskContents &compare_disk, std::string
   return false;
 }
 
-bool dirExists(std::string path) {
-  struct stat sb;
-  if (stat(path.c_str(), &sb) == 0 && S_ISDIR(sb.st_mode)) {
-    return true;
-  }
-  return false;
-}
-
 bool isEmptyDirOrFile(std::string path) {
   DIR *directory = opendir(path.c_str());
   if (directory == NULL) {
@@ -497,7 +489,7 @@ bool isEmptyDirOrFile(std::string path) {
 bool isFile(std::string path) {
   struct stat sb;
   if (stat(path.c_str(), &sb) < 0) {
-    std::cout << "Failed stating " << path << std::endl;
+    std::cout << __func__ << ": Failed stating " << path << std::endl;
     return false;
   }
   if (S_ISDIR(sb.st_mode)) {
@@ -511,22 +503,21 @@ bool DiskContents::deleteFiles(std::string path, std::ofstream &diff_file) {
     return true;
   }
 
-  system("tree /mnt/snapshot");
-
   if (isEmptyDirOrFile(path) == true) {
     if (path.compare("/mnt/snapshot") == 0) {
       return true;
     }
     if (isFile(path) == true) {
-      return unlink(path.c_str());
+      return (unlink(path.c_str()) == 0);
     } else {
-      return rmdir(path.c_str());
+      return (rmdir(path.c_str()) == 0);
     }
   }
 
   DIR *directory = opendir(path.c_str());
   if (directory == NULL) {
     std::cout << "Couldn't open the directory " << path << std::endl;
+    diff_file << "Couldn't open the directory " << path << std::endl;
     return false;
   }
 
@@ -538,24 +529,19 @@ bool DiskContents::deleteFiles(std::string path, std::ofstream &diff_file) {
     }
 
     std::string subpath = path + "/" + std::string(dir_entry->d_name);
+    bool subpathIsFile = isFile(subpath);
     bool res = deleteFiles(subpath, diff_file);
     if (!res) {
       closedir(directory);
-      diff_file << "Couldn't remove directory " << subpath << endl;
-      std::cout << "Couldn't remove directory " << subpath << endl;
+      diff_file << "Couldn't remove directory " << subpath << " " << strerror(errno) << endl;
+      std::cout << "Couldn't remove directory " << subpath << " " << strerror(errno) << endl;
       return res;
     }
 
-    if (isFile(subpath.c_str())) {
-      if (unlink(subpath.c_str()) < 0) {
-        diff_file << "Couldn't remove file " << subpath << endl;
-        std::cout << "Couldn't remove file " << subpath << endl;
-        return false;
-      }
-    } else {
+    if (!subpathIsFile) {
       if (rmdir(subpath.c_str()) < 0) {
-        diff_file << "Couldn't remove directory " << subpath << endl;
-        std::cout << "Couldn't remove directory " << subpath << endl;
+        diff_file << "Couldn't remove directory " << subpath << " "  << strerror(errno) << endl;
+        std::cout << "Couldn't remove directory " << subpath << " " << strerror(errno) << endl;
         return false;
       }
     }
@@ -576,10 +562,8 @@ bool DiskContents::makeFiles(std::string base_path, std::ofstream &diff_file) {
         return false;
       }
       close(fd);
-      system("tree /mnt/snapshot");
     }
   }
-  system("tree /mnt/snapshot");
   return true;
 }
 
@@ -588,11 +572,13 @@ bool DiskContents::sanity_checks(std::ofstream &diff_file) {
   std::string base_path = "/mnt/snapshot";
   if (!makeFiles(base_path, diff_file)) {
     std::cout << "Failed: Couldn't create files in all directories" << std::endl;
+    diff_file << "Failed: Couldn't create files in all directories" << std::endl;
     return false;
   }
 
   if (!deleteFiles(base_path, diff_file)) {
     std::cout << "Failed: Couldn't delete all the existing directories" << std::endl;
+    diff_file << "Failed: Couldn't delete all the existing directories" << std::endl;
     return false;
   }
 
