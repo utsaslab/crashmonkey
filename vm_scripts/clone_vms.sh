@@ -1,7 +1,7 @@
 #!/bin/bash
 
 if [ "$#" -ne 3 ]; then
-    echo "Illegal number of parameters; Please provide start vm number, end vm number and starting port as the parameters;"
+    echo "Illegal number of parameters; Please provide start vm number, end vm number and starting port as the parameters (for example, 2 4 3023);"
     exit 1
 fi
 

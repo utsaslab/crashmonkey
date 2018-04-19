@@ -490,6 +490,7 @@ int RecordCmFsOps::CmRename(const string &old_path, const string &new_path) {
     string& open_fd_old_path = it->second;
     if (open_fd_old_path.compare(old_path) == 0) {
       fd_map_[it->first] = new_path;
+      continue;
     }
     // if we are renaming a directory that is open; we want to
     // change the mapping of the open files in that directory
