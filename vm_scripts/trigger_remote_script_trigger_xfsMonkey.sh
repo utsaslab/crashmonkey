@@ -1,12 +1,12 @@
 #!/bin/bash
 
-if [ "$#" -ne 2 ]; then
-    echo "Illegal number of parameters; Please provide number of vms and file system as the parameters;"
+if [ "$#" -ne 1 ]; then
+    echo "Illegal number of parameters; Please provide file system as the parameter;"
     exit 1
 fi
 
-num_vms=$1
-fs=$2
+num_vms=$num_vms
+fs=$1
 
 port=3022
 for i in `seq 1 $num_vms`; do

@@ -1,5 +1,8 @@
 #!/bin/bash
 
+# update the aliases
+cat vm_aliases >> ~/.bashrc
+
 # set up crashmonkey in this vm
 mkdir projects
 cd projects/
@@ -28,6 +31,24 @@ sudo apt-get install -f
 #sudo apt install virtualbox*.deb
 sudo VBoxManage extpack install --replace Oracle_VM_VirtualBox_Extension_Pack-5.2.8-121009.vbox-extpack
 
-# import existing 4 VMs
-VBoxManage import ~/ubuntu16-4vms-export.ova
+# import existing 1 VM
+VBoxManage import ~/ubuntu16-vm1-export.ova
 
+# Cloning the 1 VM to 15 more VMs
+./clone_vms.sh 2 16 3023
+
+# Start all the vms
+./start_all_vms.sh
+
+# Wait for a minute for all VMs to start
+echo 'Sleeping for a minute...'
+sleep 60
+
+# SCP all the remote scripts to the VMs
+./scp_remote_scripts_to_vms.sh
+
+# Update the host names in the VMs
+./trigger_remote_script_update_hostname.sh
+
+# now we are done
+echo 'Server and VMs setup complete (hopefully) :)'
