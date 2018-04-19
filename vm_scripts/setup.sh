@@ -37,6 +37,8 @@ sudo VBoxManage extpack install --replace Oracle_VM_VirtualBox_Extension_Pack-5.
 # import existing 1 VM
 VBoxManage import ~/ubuntu16-vm1-export.ova
 
+cd ~/
+
 # Cloning the 1 VM to 15 more VMs
 ./clone_vms.sh 2 16 3023
 
