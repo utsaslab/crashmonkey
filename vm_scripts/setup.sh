@@ -11,6 +11,7 @@ cd projects/
 
 sudo apt-get update
 sudo apt-get install -y git
+sudo apt-get install -y sshpass
 
 git clone https://github.com/utsaslab/crashmonkey
 sudo apt-get install -y btrfs-tools f2fs-tools xfsprogs libelf-dev
