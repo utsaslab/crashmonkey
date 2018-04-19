@@ -387,22 +387,22 @@ def insertRemovexattr(contents, line, index_map, method):
 
 def insertWrite(contents, option, line, index_map, method):
     if option == 'mmapwrite':
-        # insertFalloc(contents, '0', line, index_map, method)
         name = 'filep_' + line.split(' ')[1]
         decl = ' '
         data_decl = ' '
         text_decl = ' '
+        filep_decl = ' '
         
         
         if name not in redeclare_map:
             decl = 'int '
             filep_decl = 'char *'
             data_decl = 'void* data_' +line.split(' ')[1] + ';'
-            text_decl = 'const char *text_' + line.split(' ')[1] +'  = \"abcdefghijklmnopqrstuvwxyz123456\";'
+            text_decl = 'const char *text_' + line.split(' ')[1] +'  = \"mmmmmmmmmmklmnopqrstuvwxyz123456\";'
             redeclare_map[name] = 1
     
         
-        to_insert = '\n\t\t\t\tif ( fallocate( fd_' + line.split(' ')[1] + ' , 0 , ' + line.split(' ')[2] + ' , '  + line.split(' ')[3] + ') < 0){ \n\t\t\t\t\tcm_->CmClose( fd_' + line.split(' ')[1]  +');\n\t\t\t\t\t return errno;\n\t\t\t\t}\n\t\t\t\t' + filep_decl + 'filep_' + line.split(' ')[1] + ' = (char *) cm_->CmMmap(NULL, ' + line.split(' ')[3] +', PROT_WRITE|PROT_READ, MAP_SHARED, fd_' + line.split(' ')[1] + ', ' + line.split(' ')[2] + ');\n\t\t\t\tif (filep_' + line.split(' ')[1] + ' == MAP_FAILED) {\n\t\t\t\t\t return -1;\n\t\t\t\t}\n\n\t\t\t\t' +decl+ 'offset_'+ line.split(' ')[1] +' = 0;\n\t\t\t\t' + decl +'to_write_'+line.split(' ')[1] +' = ' + line.split(' ')[3] + ' ;\n\t\t\t\t'+ text_decl+ '\n\n\t\t\t\twhile (offset_'+line.split(' ')[1]+' < '+ line.split(' ')[3] +'){\n\t\t\t\t\tif (to_write_'+ line.split(' ')[1] +' < 32){\n\t\t\t\t\t\tmemcpy(filep_'+ line.split(' ')[1]+ '+ offset_'+ line.split(' ')[1] +', text_'+ line.split(' ')[1] +', to_write_' +line.split(' ')[1]+');\n\t\t\t\t\t\toffset_'+ line.split(' ')[1]+' += to_write_'+ line.split(' ')[1] +';\n\t\t\t\t\t}\n\t\t\t\t\telse {\n\t\t\t\t\t\tmemcpy(filep_'+ line.split(' ')[1] +'+ offset_'+line.split(' ')[1] +',text_'+line.split(' ')[1] +', 32);\n\t\t\t\t\t\toffset_'+line.split(' ')[1] +' += 32; \n\t\t\t\t\t} \n\t\t\t\t}\n\n\t\t\t\tif ( cm_->CmMsync ( filep_' + line.split(' ')[1] + ', 4096 , MS_SYNC) < 0){\n\t\t\t\t\tcm_->CmMunmap( filep_' + line.split(' ')[1] + ', 4096); \n\t\t\t\t\treturn -1;\n\t\t\t\t}\n\t\t\t\tcm_->CmMunmap( filep_' + line.split(' ')[1] + ', 4096);\n\n'
+        to_insert = '\n\t\t\t\tif ( fallocate( fd_' + line.split(' ')[1] + ' , 0 , ' + line.split(' ')[2] + ' , '  + line.split(' ')[3] + ') < 0){ \n\t\t\t\t\tcm_->CmClose( fd_' + line.split(' ')[1]  +');\n\t\t\t\t\t return errno;\n\t\t\t\t}\n\t\t\t\t' + filep_decl + 'filep_' + line.split(' ')[1] + ' = (char *) cm_->CmMmap(NULL, ' + line.split(' ')[3] + ' + ' + line.split(' ')[2]  +', PROT_WRITE|PROT_READ, MAP_SHARED, fd_' + line.split(' ')[1] + ', 0);\n\t\t\t\tif (filep_' + line.split(' ')[1] + ' == MAP_FAILED) {\n\t\t\t\t\t return -1;\n\t\t\t\t}\n\n\t\t\t\t' +decl+ 'offset_'+ line.split(' ')[1] +' = 0;\n\t\t\t\t' + decl +'to_write_'+line.split(' ')[1] +' = ' + line.split(' ')[3] + ' ;\n\t\t\t\t'+ text_decl+ '\n\n\t\t\t\twhile (offset_'+line.split(' ')[1]+' < '+ line.split(' ')[3] +'){\n\t\t\t\t\tif (to_write_'+ line.split(' ')[1] +' < 32){\n\t\t\t\t\t\tmemcpy(filep_'+ line.split(' ')[1]+ ' + ' + line.split(' ')[2] + ' + offset_'+ line.split(' ')[1] +', text_'+ line.split(' ')[1] +', to_write_' +line.split(' ')[1]+');\n\t\t\t\t\t\toffset_'+ line.split(' ')[1]+' += to_write_'+ line.split(' ')[1] +';\n\t\t\t\t\t}\n\t\t\t\t\telse {\n\t\t\t\t\t\tmemcpy(filep_'+ line.split(' ')[1] + ' + ' + line.split(' ')[2] + ' + offset_' +line.split(' ')[1] + ',text_'+line.split(' ')[1] + ', 32);\n\t\t\t\t\t\toffset_'+line.split(' ')[1] +' += 32; \n\t\t\t\t\t} \n\t\t\t\t}\n\n\t\t\t\tif ( cm_->CmMsync ( filep_' + line.split(' ')[1] + ' + ' + line.split(' ')[2] + ', 4096 , MS_SYNC) < 0){\n\t\t\t\t\tcm_->CmMunmap( filep_' + line.split(' ')[1] + ',' + line.split(' ')[2] + ' + ' + line.split(' ')[3] +'); \n\t\t\t\t\treturn -1;\n\t\t\t\t}\n\t\t\t\tcm_->CmMunmap( filep_' + line.split(' ')[1] + ' , ' + line.split(' ')[2] + ' + ' +  line.split(' ')[3] +');\n\n'
         
         if method == 'setup':
             contents.insert(index_map['setup'], to_insert)
@@ -431,7 +431,7 @@ def insertWrite(contents, option, line, index_map, method):
         if name not in redeclare_map:
             decl = 'int '
             data_decl = 'void* data_' +line.split(' ')[1] + ';'
-            text_decl = 'const char *text_' + line.split(' ')[1] +'  = \"abcdefghijklmnopqrstuvwxyz123456\";'
+            text_decl = 'const char *text_' + line.split(' ')[1] +'  = \"ddddddddddklmnopqrstuvwxyz123456\";'
             redeclare_map[name] = 1
 
         # TODO: prevent redeclations here

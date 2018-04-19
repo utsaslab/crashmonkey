@@ -178,13 +178,42 @@ expected_sync_sequence.append([('none'), ('fsync', 'bar')])
 #17 generic 090 (seq3)
 #write(foo 0-4K), sync, link(foo, bar), sync, append(foo, 4K-8K), fsync foo
 
-#18 generic_104 (seq2)
+#18 generic_104 (seq2) larger file set
 #link(foo, foo1), link(bar, bar1), fsync(bar)
 
-#19 generic 106
+#19 generic 106 (seq 2)
 #link(foo, bar), sync, unlink(bar) *drop cache* fsync foo
 
+#20 generic 107 (seq 3)
+#link(foo, A/foo), link(foo, A/bar), sync, unlink(A/bar), fsync(foo)
 
+#21 generic 177
+#write(foo, 0-32K), sync, punch_hole(foo, 24K-32K), punch_hole(foo, 4K-64K) fsync foo
+
+#22 generic 321 2 fsyncs?
+#rename(foo, A/foo), fsync A, fsync A/foo
+
+#23 generic 322 (yes, seq1)
+#rename(A/foo, A/bar), fsync(A/bar)
+
+#24 generic 335 (seq 2) but larger file set
+#rename(A/foo, foo), creat bar, fsync(test)
+
+#25 generic 336 (seq 4)
+#link(A/foo, B/foo), creat B/bar, sync, unlink(B/foo), mv(B/bar, C/bar), fsync A/foo
+
+
+#26 generic 342 (seq 3)
+# write foo 0-4K, sync, rename(foo,bar), write(foo) fsync(foo)
+
+#27 generic 343 (seq 2)
+#link(A/foo, A/bar) , rename(B/foo_new, A/foo_new), fsync(A/foo)
+
+#28 generic 325 (seq3)
+#write,(foo, 0-256K), mmapwrite(0-4K), mmapwrite(252-256K), msync(0-64K), msync(192-256K)
+
+#29 new btrfs link (seq1)
+#link(foo, bar), fsync(foo)
 
 def build_parser():
     parser = argparse.ArgumentParser(description='Bug Workload Generator for XFSMonkey v0.1')
