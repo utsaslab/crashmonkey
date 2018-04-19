@@ -21,6 +21,5 @@
 2. Double check if the instances have enough disk space (> 200 GB).  
 3. Copy all the scripts under vm_scripts folder of crashmonkey git repo to the home directory of all the instances (you will need all the scripts).  
 4. Install the latest kernel by executing `./install-4.16.sh` followed by `sudo reboot`. In a while, you will be able to ssh again.  
-5. Get a copy of `ubuntu16-16vms-export.ova` file in ~/ in the instances (which is the exported version of the VMs from other machines). This file should be obtainable from one of our own servers (chennai/thoothukudi/tenali/udipi/erode)
+5. Get a copy of `ubuntu16-vm1-export.ova` file in ~/ in the instances (which is the exported version of the VMs from other machines). This file should be obtainable from one of our own servers (chennai/thoothukudi/tenali/udipi/erode - for example, using `scp pandian@chennai.csres.utexas.edu:~/ubuntu16-vm1-export.ova ~/`.  
 5. Now in all the instances, run `./setup.sh`, which sets up crashmonkey, installs virtual box and imports the VMs.  
-6. Add the contents of vm_aliases file (which is present inside vm_scripts in crashmonkey repo) to ~/.bashrc of the new instances created.  
