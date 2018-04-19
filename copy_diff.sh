@@ -7,9 +7,9 @@ _target="$2"
 if [ -s "$_file" ] 
 then
 	echo "$_file : Failed test : Non empty diff"
-	tail -vn +1 build/diff* >> diff_results/$_target
+	cat $_file >> diff_results/$_target
 	rm build/diff*
 else
-    rm build/diff*
+   	 rm build/diff*
 	echo "$_file : Passed test"
 fi
