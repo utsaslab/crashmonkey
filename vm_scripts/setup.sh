@@ -42,6 +42,7 @@ cd ~/
 # Cloning the 1 VM to 15 more VMs
 ./clone_vms.sh 2 16 3023
 
+export num_vms=`cat ~/.bashrc | grep num_vms | cut -d '=' -f2`
 # Start all the vms
 ./start_all_vms.sh
 
