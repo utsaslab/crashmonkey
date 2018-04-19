@@ -15,6 +15,7 @@
 8. Once all this is done, you should be able to ping the machine using the floating IP.  
 9. To ssh into the machines, you need the private key (ask Pandian for the key - crashmonkey.pem).  
    `ssh -i <path_to_pem_file> cc@<floating_ip>`
+10. In order to be able to cssh to the nodes, add the IdentityFile config to your ~/.ssh/config file (check the mail that I sent with the subject 'Chameleon VMs are up and running').  
 
 ### Setting up VMs on the instances
 1. Once the instances are up, make sure ssh into all the instances work (sometimes it doesn't work, in which case you might want to recreate the instance).  
@@ -23,3 +24,5 @@
 4. Install the latest kernel by executing `./install-4.16.sh` followed by `sudo reboot`. In a while, you will be able to ssh again.  
 5. Get a copy of `ubuntu16-vm1-export.ova` file in ~/ in the instances (which is the exported version of the VMs from other machines). This file should be obtainable from one of our own servers (chennai/thoothukudi/tenali/udipi/erode - for example, using `scp pandian@chennai.csres.utexas.edu:~/ubuntu16-vm1-export.ova ~/`.  
 5. Now in all the instances, run `./setup.sh`, which sets up crashmonkey, installs virtual box and imports the VMs.  
+6. If at any point setup script fails (which is more likely to happen), please resume the steps from which point it failed. You should be able to figure out why it failed by looking at the setup script.   
+7. At this point, all VMs are set up and are already started and running. You might want to run `ssh-keygen` in the chameleon instances and copy the ~/.ssh/id_rsa.pub to the VMs' ~/.ssh/authorized_keys (using `scp -P <port> ~/.ssh/id_rsa.pub /home/pandian/.ssh/authorized_keys`) so that logging into the VMs will be easier (won't ask for password).  
