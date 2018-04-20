@@ -514,8 +514,8 @@ def checkParentExistsDep(current_sequence, pos, modified_sequence, modified_pos,
             modified_pos += 1
 
         #Parent dir doesn't exist
-        if (Parent(file_name) == 'A' or Parent(file_name) == 'B')  and Parent(file_name2) not in open_dir_map:
-            modified_sequence.insert(modified_pos, insertMkdir(Parent(file_name), open_dir_map, open_file_map, file_length_map, modified_pos))
+        if (Parent(file_name2) == 'A' or Parent(file_name2) == 'B')  and Parent(file_name2) not in open_dir_map:
+            modified_sequence.insert(modified_pos, insertMkdir(Parent(file_name2), open_dir_map, open_file_map, file_length_map, modified_pos))
             modified_pos += 1
                 
     return modified_pos
@@ -685,7 +685,7 @@ def satisfyDep(current_sequence, pos, modified_sequence, modified_pos, open_dir_
         if first_file in FileOptions or first_file in SecondFileOptions:
             open_file_map.pop(first_file, None)
             open_file_map[second_file] = 0
-        elif first_file in DirOptions:
+        elif first_file in DirOptions or first_file in SecondDirOptions:
             open_dir_map.pop(first_file, None)
             open_dir_map[second_file] = 0
         
