@@ -4,8 +4,8 @@ A
 B
 A/foo
 A/bar
-foo
-bar
+B/foo
+B/bar
 
 # declare
 local_checkpoint
