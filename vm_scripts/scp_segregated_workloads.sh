@@ -26,9 +26,7 @@ for ip in `cat live_nodes`; do
 		continue
 	fi
 
-	for j in `seq 1 $num_vms`; do
-		scp -r -o "StrictHostKeyChecking no" -i ~/crashmonkey.pem workloads/seg/node"$i"-"$ip"/* cc@$ip:~/seq2/
-	done
+	scp -r -o "StrictHostKeyChecking no" -i ~/crashmonkey.pem workloads/seg/node"$i"-"$ip"/* cc@$ip:~/seq2/
 
 	i=`expr $i + 1`
 done

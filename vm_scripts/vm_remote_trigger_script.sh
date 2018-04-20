@@ -6,6 +6,15 @@ if [ "$#" -ne 1 ]; then
 fi
 fs=$1
 
+# If xfsMonkey is already running, skip running again
+num=`ps aux | grep xfsMonkey | grep -v grep | wc -l`
+
+if [ $num -ne 0 ]
+then
+        echo xfsMonkey is already running.. Skipping the triggering of xfsMonkey..  
+	exit
+fi
+
 # install libattr for xattr headers
 echo Installing libattr1-dev..
 echo alohomora | sudo -S apt-get install --yes libattr1-dev btrfs-tools f2fs-tools xfsprogs

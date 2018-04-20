@@ -53,5 +53,5 @@ alias shutvm14='VBoxManage controlvm ubuntu16-vm14 poweroff'
 alias shutvm15='VBoxManage controlvm ubuntu16-vm15 poweroff'
 alias shutvm16='VBoxManage controlvm ubuntu16-vm16 poweroff'
 
-num_vms=16
+export num_vms=16
 
