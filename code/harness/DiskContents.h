@@ -51,9 +51,6 @@ public:
     std::ofstream &diff_file);
   bool compare_file_contents(DiskContents &compare_disk, std::string path,
     int offset, int length, std::ofstream &diff_file);
-  bool deleteFiles(std::string path, std::ofstream &diff_file);
-  bool makeFiles(std::string base_path, std::ofstream &diff_file);
-  bool sanity_checks(std::ofstream &diff_file);
 
 private:
   bool device_mounted;
