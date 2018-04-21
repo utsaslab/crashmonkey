@@ -750,7 +750,7 @@ bool Tester::check_disk_and_snapshot_contents(char* disk_path, int last_checkpoi
       path.erase(0, 13);
       std::cout << path << std::endl;
       bool ret = disk1.compare_entries_at_path(disk2, path, diff_file);
-      if (ret && (last_checkpoint == mods_.size()-1)) {
+      if (last_checkpoint == mods_.size()-1) {
         if (disk1.sanity_checks(diff_file) == false) {
           std::cout << "Failed: Sanity checks on " << disk_path << endl;
           return false;
@@ -759,7 +759,7 @@ bool Tester::check_disk_and_snapshot_contents(char* disk_path, int last_checkpoi
       return ret;
     } else if (i.mod_type == DiskMod::kSyncMod) {
       bool retVal = disk1.compare_disk_contents(disk2, diff_file);
-      if (retVal && (last_checkpoint == mods_.size()-1)) {
+      if (last_checkpoint == mods_.size()-1) {
         if (disk1.sanity_checks(diff_file) == false) {
           std::cout << "Failed: Sanity checks on " << disk_path << endl;
           return false;
@@ -772,7 +772,7 @@ bool Tester::check_disk_and_snapshot_contents(char* disk_path, int last_checkpoi
       path.erase(0, 13);
       bool retVal = disk1.compare_file_contents(disk2, path, i.file_mod_location,
         i.file_mod_len, diff_file);
-      if (retVal && (last_checkpoint == mods_.size()-1)) {
+      if (last_checkpoint == mods_.size()-1) {
         if (disk1.sanity_checks(diff_file) == false) {
           std::cout << "Failed: Sanity checks on " << disk_path << endl;
           return false;
