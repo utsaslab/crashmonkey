@@ -99,7 +99,6 @@ int DefaultFsFns::FnStat(const std::string &pathname, struct stat *buf) {
 bool DefaultFsFns::FnPathExists(const std::string &pathname) {
   const int res = access(pathname.c_str(), F_OK);
   // TODO(ashmrtn): Should probably have some better way to handle errors.
-  std::cout << __func__ << " returns " << res << std::endl;
   if (res != 0) {
     return false;
   }
@@ -496,9 +495,7 @@ int RecordCmFsOps::CmRename(const string &old_path, const string &new_path) {
     // change the mapping of the open files in that directory
     auto found = open_fd_old_path.find(old_path);
     if ( found != std::string::npos) {
-      std::cout << "Renaming " << fd_map_[it->first] << std::endl;
       fd_map_[it->first].replace(found, old_path.length(), new_path);
-      std::cout << "Renamed to " << fd_map_[it->first] << std::endl;
     }
   }
   return fns_->FnRename(old_path, new_path);
@@ -535,7 +532,6 @@ int RecordCmFsOps::CmRemove(const string &pathname) {
 }
 
 int RecordCmFsOps::CmFsync(const int fd) {
-  std::cout << __func__ << std::endl;
   const int res = fns_->FnFsync(fd);
   if (res < 0) {
     return res;
@@ -545,9 +541,6 @@ int RecordCmFsOps::CmFsync(const int fd) {
   mod.mod_type = DiskMod::kFsyncMod;
   mod.mod_opts = DiskMod::kNoneOpt;
   mod.path = fd_map_.at(fd);
-  for (auto i : fd_map_) {
-    std::cout << i.first << " -> " << i.second << std::endl;
-  }
   mods_.push_back(mod);
 
   return res;
@@ -644,7 +637,6 @@ int RecordCmFsOps::WriteWhole(const int fd, const unsigned long long size,
 }
 
 int RecordCmFsOps::Serialize(const int fd) {
-  std::cout << __func__ << std::endl;
   for (auto &mod : mods_) {
     unsigned long long size;
     shared_ptr<char> serial_mod = DiskMod::Serialize(mod, &size);

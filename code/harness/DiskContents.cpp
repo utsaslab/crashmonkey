@@ -207,7 +207,7 @@ void DiskContents::get_contents(const char* path) {
       }
       fa.set_dir_attr(dir_entry);
       fa.set_stat_attr(&statbuf);
-      contents[filename] = fa;
+      contents[current_path] = fa;
       // If the entry is a directory and not . or .. make a recursive call
       get_contents(current_path.c_str());
     } else if (dir_entry->d_type == DT_LNK) {
@@ -217,14 +217,14 @@ void DiskContents::get_contents(const char* path) {
         continue;
       }
       fa.set_stat_attr(&lstatbuf);
-      contents[filename] = fa;
+      contents[current_path] = fa;
     } else if (dir_entry->d_type == DT_REG) {
       fa.set_md5sum(current_path);
       fa.set_stat_attr(&statbuf);
-      contents[filename] = fa;
+      contents[current_path] = fa;
     } else {
       fa.set_stat_attr(&statbuf);
-      contents[filename] = fa;
+      contents[current_path] = fa;
     }
   } while (dir_entry = readdir(directory));
   closedir(directory);
@@ -235,7 +235,6 @@ const char* DiskContents::get_mount_point() {
 }
 
 bool DiskContents::compare_disk_contents(DiskContents &compare_disk, std::ofstream &diff_file) {
-  std::cout << __func__ << std::endl;
   bool retValue = true;
 
   if (strcmp(disk_path, compare_disk.disk_path) == 0) {
@@ -311,7 +310,6 @@ bool DiskContents::compare_disk_contents(DiskContents &compare_disk, std::ofstre
 // TODO(P.S.) Cleanup the code and pull out redundant code into separate functions
 bool DiskContents::compare_entries_at_path(DiskContents &compare_disk,
   std::string path, std::ofstream &diff_file) {
-  std::cout << __func__ << std::endl;
   bool retValue = true;
 
   if (strcmp(disk_path, compare_disk.disk_path) == 0) {
@@ -319,7 +317,6 @@ bool DiskContents::compare_entries_at_path(DiskContents &compare_disk,
   }
 
   std::string base_path = "/mnt/snapshot" + path;
-  get_contents(base_path.c_str());
 
   if (compare_disk.mount_disk() != 0) {
     std::cout << "Mounting " << compare_disk.disk_path << " failed" << std::endl;
@@ -327,27 +324,6 @@ bool DiskContents::compare_entries_at_path(DiskContents &compare_disk,
 
   std::string compare_disk_mount_point(compare_disk.get_mount_point());
   std::string compare_path = compare_disk_mount_point + path;
-  compare_disk.get_contents(compare_path.c_str());
-
-  // Compare the size of contents
-  if (contents.size() != compare_disk.contents.size()) {
-    diff_file << "DIFF: Mismatch" << std::endl;
-    diff_file << "Unequal #entries in " << disk_path << ", " << compare_disk.disk_path;
-    diff_file << std::endl << std::endl;
-    diff_file << disk_path << " contains:" << std::endl;
-    for (auto i : contents) {
-      diff_file << i.first << std::endl;
-    }
-    diff_file << std::endl;
-
-    diff_file << compare_disk.disk_path << " contains:" << std::endl;
-    for (auto i : compare_disk.contents) {
-      diff_file << i.first << std::endl;
-    }
-    diff_file << std::endl;
-    compare_disk.unmount_and_delete_mount_point();
-    return false;
-  }
 
   fileAttributes base_fa, compare_fa;
   bool failed_stat = false;

@@ -38,6 +38,7 @@
   * This will scp the workloads serially which is slow, so use `./scp_segregated_workloads_parallel.sh` to trigger the scp in parallel (background processes).  
   * Note that the parallel script right now handles 64 nodes, if the number of live nodes changes, you need to change the parallel script as well.  
   * Also note that scp is not complete until `ps aux | grep scp_segregated` yields empty results. 
+  * If the instances had changed (recreated), then the entries have to be removed from ~/.ssh/known_hosts file otherwise the scp will fail with host verification failed. So, if the instances had changed, remove ~/.ssh/known_hosts and then trigger the pull script.  
   
 ### Triggering the workloads
 1. Now, we need to get the remote scripts and the workloads to the VMs from the chameleon instances. To do that, login into cssh into all chameleon instances, copy the latest vm_scripts/* (as checked in the repo) from somewhere (probably by scping from chennai machine). A sample command would be `for i in ``seq 1 5``; do sshpass -p alohomora scp pandian@chennai.csres.utexas.edu:~/projects/crashmonkey/vm_scripts/* .; echo Sleeping for 1 second..; sleep 1; done`.  
@@ -52,8 +53,8 @@ Since all the workloads are running in the VMs, it is difficult to monitor the s
 
 ### Getting the results
 Once the workloads are complete (which you can make sure by using the above steps), you can pull the list of log files and the diff files as follows -  
-1. Run `./pull_diff_files_and_xfsmonkey_log.sh <dir> <start_vm>	<end_vm>` which creates a directory dir and pulls the log files and diff files from the servers in the range [`start_vm`, `end_vm`].  
-2. The above is a serial script which will take a long time. So, you can use `./pull_diff_files_and_xfsmonkey_log_parallel.sh <dir>` which pulls the necessary files from all the VMs. Similar to `scp_segregated_workloads_parallel.sh` script, you should change this parallel script also if the number of live nodes changes.  
-3. Use `ps aux | grep pull_diff_files` to check if the pull script has completed. Once it's complete, you can find all the log and diff files under `dir` specified.  
-
+1. If the instances had changed (recreated), then the entries have to be removed from ~/.ssh/known_hosts file otherwise the scp will fail with host verification failed. So, if the instances had changed, remove ~/.ssh/known_hosts and then trigger the pull script.  
+2. Run `./pull_diff_files_and_xfsmonkey_log.sh <dir> <start_vm>	<end_vm>` which creates a directory dir and pulls the log files and diff files from the servers in the range [`start_vm`, `end_vm`].  
+3. The above is a serial script which will take a long time. So, you can use `./pull_diff_files_and_xfsmonkey_log_parallel.sh <dir>` which pulls the necessary files from all the VMs. Similar to `scp_segregated_workloads_parallel.sh` script, you should change this parallel script also if the number of live nodes changes.  
+4. Use `ps aux | grep pull_diff_files` to check if the pull script has completed. Once it's complete, you can find all the log and diff files under `dir` specified.  
 
