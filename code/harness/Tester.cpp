@@ -451,6 +451,16 @@ int Tester::GetChangeData(const int fd) {
     }
   }
 
+  int checkpoint = 0;
+  for (auto i : mods_) {
+    checkpoint += 1;
+    std::cout << "At checkpoint " << checkpoint << std::endl;
+    for (auto j : i) {
+      std::cout << j.path << " " << j.mod_type << std::endl;
+    }
+    cout << std::endl << endl;
+  }
+
   return SUCCESS;
 }
 
@@ -732,7 +742,9 @@ bool Tester::check_disk_and_snapshot_contents(char* disk_path, int last_checkpoi
   DiskContents disk1(disk_path, type), disk2(snapshot_path, type);
 
   assert(last_checkpoint < mods_.size());
+  std::cout <<  "LAST_CHECKPOINT: " << last_checkpoint  << mods_.size()-1 << std::endl;
   for (auto i : mods_.at(last_checkpoint-1)) {
+    std::cout << i.mod_type << std::endl;
     if (i.mod_type == DiskMod::kFsyncMod) {
       string path(i.path);
       path.erase(0, 13);
@@ -770,7 +782,7 @@ bool Tester::check_disk_and_snapshot_contents(char* disk_path, int last_checkpoi
     }
   }
 
-  std::cout << "ERROR: " << __func__ << std::endl;
+  std::cout << "ERROR" << std::endl;
   return false;
 }
 
