@@ -1,0 +1,13 @@
+# define
+test
+A
+B
+A/foo
+A/bar
+B/foo
+B/bar
+
+# declare
+local_checkpoint
+
+# setup

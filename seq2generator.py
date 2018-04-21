@@ -991,49 +991,49 @@ def doPermutation(perm):
                         sync_op.append('0')
                     seq.append(tuple(flatList(sync_op)))
 
-#            log = '\t\t\tCurrent Sequence = {0}'.format(seq);
-#            log_file_handle.write(log)
-
-            modified_pos = 0
-            modified_sequence = list(seq)
-            open_file_map = {}
-            file_length_map = {}
-            open_dir_map = {}
-            #test dir exists
-            open_dir_map['test'] = 0
-            
-            for i in xrange(0, len(seq)):
-                modified_pos = satisfyDep(seq, i, modified_sequence, modified_pos, open_dir_map, open_file_map, file_length_map)
-                modified_pos += 1
-        
-            #now close all open files
-            for file_name in open_file_map:
-                if open_file_map[file_name] == 1:
-                    modified_sequence.insert(modified_pos, insertClose(file_name, open_dir_map, open_file_map, file_length_map, modified_pos))
-                    modified_pos += 1
-
-            for file_name in open_dir_map:
-                if open_dir_map[file_name] == 1:
-                    modified_sequence.insert(modified_pos, insertClose(file_name, open_dir_map, open_file_map, file_length_map, modified_pos))
-                    modified_pos += 1
-             
-             
-             
-#             #Now build the j-lang file------------------------------------
-            j_lang_file = 'j-lang' + str(global_count)
-            copyfile('code/tests/seq2/base-j-lang', j_lang_file)
-            length_map = {}
-
-            with open(j_lang_file, 'a') as f:
-                run_line = '\n\n# run\n'
-                f.write(run_line)
-
-                for insert in xrange(0, len(modified_sequence)):
-                    cur_line = buildJlang(modified_sequence[insert], length_map)
-                    cur_line_log = '{0}'.format(cur_line) + '\n'
-                    f.write(cur_line_log)
-
-            f.close()
+##            log = '\t\t\tCurrent Sequence = {0}'.format(seq);
+##            log_file_handle.write(log)
+#
+#            modified_pos = 0
+#            modified_sequence = list(seq)
+#            open_file_map = {}
+#            file_length_map = {}
+#            open_dir_map = {}
+#            #test dir exists
+#            open_dir_map['test'] = 0
+#            
+#            for i in xrange(0, len(seq)):
+#                modified_pos = satisfyDep(seq, i, modified_sequence, modified_pos, open_dir_map, open_file_map, file_length_map)
+#                modified_pos += 1
+#        
+#            #now close all open files
+#            for file_name in open_file_map:
+#                if open_file_map[file_name] == 1:
+#                    modified_sequence.insert(modified_pos, insertClose(file_name, open_dir_map, open_file_map, file_length_map, modified_pos))
+#                    modified_pos += 1
+#
+#            for file_name in open_dir_map:
+#                if open_dir_map[file_name] == 1:
+#                    modified_sequence.insert(modified_pos, insertClose(file_name, open_dir_map, open_file_map, file_length_map, modified_pos))
+#                    modified_pos += 1
+#             
+#             
+#             
+##             #Now build the j-lang file------------------------------------
+#            j_lang_file = 'j-lang' + str(global_count)
+#            copyfile('code/tests/seq2/base-j-lang', j_lang_file)
+#            length_map = {}
+#
+#            with open(j_lang_file, 'a') as f:
+#                run_line = '\n\n# run\n'
+#                f.write(run_line)
+#
+#                for insert in xrange(0, len(modified_sequence)):
+#                    cur_line = buildJlang(modified_sequence[insert], length_map)
+#                    cur_line_log = '{0}'.format(cur_line) + '\n'
+#                    f.write(cur_line_log)
+#
+#            f.close()
 
 #            exec_command = 'python workload_seq2.py -b code/tests/seq2/base.cpp -t ' + j_lang_file + ' -p code/tests/seq2/ -o ' + str(global_count)
 #            subprocess.call(exec_command, shell=True)
