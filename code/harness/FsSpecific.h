@@ -89,6 +89,19 @@ class Ext4FsSpecific : public ExtFsSpecific {
   static constexpr char kFsType[] = "ext4";
 };
 
+class JfsFsSpecific : public FsSpecific {
+ public:
+  virtual std::string GetFsTypeString();
+  virtual std::string GetMkfsCommand(std::string &device_path);
+  virtual std::string GetPostReplayMntOpts();
+  virtual std::string GetFsckCommand(const std::string &fs_path);
+  virtual std::string GetNewUUIDCommand(const std::string &disk_path);
+  virtual fs_testing::FileSystemTestResult::ErrorType GetFsckReturn(
+      int return_code);
+
+  static constexpr char kFsType[] = "jfs";
+};
+
 class BtrfsFsSpecific : public FsSpecific {
  public:
   virtual std::string GetFsTypeString();
