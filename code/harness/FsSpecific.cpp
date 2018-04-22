@@ -1,4 +1,6 @@
+#include <iostream>
 #include "FsSpecific.h"
+
 #include <uuid/uuid.h>
 
 namespace fs_testing {
@@ -278,7 +280,7 @@ string Nilfs2FsSpecific::GetFsckCommand(const string &fs_path) {
 string Nilfs2FsSpecific::GetNewUUIDCommand(const string &disk_path) {
   uuid_t new_uuid;
   uuid_generate(new_uuid);
-  char *uuid_char;
+  char uuid_char[37];
   uuid_unparse(new_uuid, uuid_char);
   return string(kNilfs2NewUUIDCommand) + string(uuid_char) + " " + disk_path;;
 }
