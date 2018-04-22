@@ -136,6 +136,10 @@ void Tester::EndTestSuite() {
   current_test_suite_ = NULL;
 }
 
+unsigned int Tester::GetPostRunDelay() {
+  return fs_specific_ops_->GetPostRunDelaySeconds();
+}
+
 int Tester::clone_device() {
   std::cout << "cloning device " << device_raw << std::endl;
   if (ioctl(cow_brd_fd, COW_BRD_SNAPSHOT) < 0) {

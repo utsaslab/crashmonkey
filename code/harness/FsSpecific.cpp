@@ -49,15 +49,19 @@ FsSpecific* GetFsSpecific(std::string &fs_type) {
 
 /******************************* Ext File Systems *****************************/
 constexpr char Ext2FsSpecific::kFsType[];
-Ext2FsSpecific::Ext2FsSpecific() : ExtFsSpecific(Ext2FsSpecific::kFsType) { }
+Ext2FsSpecific::Ext2FsSpecific() :
+  ExtFsSpecific(Ext2FsSpecific::kFsType, Ext2FsSpecific::kDelaySeconds) { }
 
 constexpr char Ext3FsSpecific::kFsType[];
-Ext3FsSpecific::Ext3FsSpecific() : ExtFsSpecific(Ext3FsSpecific::kFsType) { }
+Ext3FsSpecific::Ext3FsSpecific() :
+  ExtFsSpecific(Ext3FsSpecific::kFsType, Ext3FsSpecific::kDelaySeconds) { }
 
 constexpr char Ext4FsSpecific::kFsType[];
-Ext4FsSpecific::Ext4FsSpecific() : ExtFsSpecific(Ext4FsSpecific::kFsType) { }
+Ext4FsSpecific::Ext4FsSpecific() :
+  ExtFsSpecific(Ext4FsSpecific::kFsType, Ext4FsSpecific::kDelaySeconds) { }
 
-ExtFsSpecific::ExtFsSpecific(std::string type) : fs_type_(type) { }
+ExtFsSpecific::ExtFsSpecific(std::string type, unsigned int delay_seconds) :
+  fs_type_(type), delay_seconds_(delay_seconds) { }
 
 string ExtFsSpecific::GetMkfsCommand(string &device_path) {
   return string(kMkfsStart) + fs_type_ + " " +
@@ -105,6 +109,10 @@ string ExtFsSpecific::GetFsTypeString() {
   return string(Ext4FsSpecific::kFsType);
 }
 
+unsigned int ExtFsSpecific::GetPostRunDelaySeconds() {
+  return delay_seconds_;
+}
+
 /******************************* Btrfs ****************************************/
 constexpr char BtrfsFsSpecific::kFsType[];
 
@@ -141,6 +149,10 @@ FileSystemTestResult::ErrorType BtrfsFsSpecific::GetFsckReturn(
 
 string BtrfsFsSpecific::GetFsTypeString() {
   return string(BtrfsFsSpecific::kFsType);
+}
+
+unsigned int BtrfsFsSpecific::GetPostRunDelaySeconds() {
+  return BtrfsFsSpecific::kDelaySeconds;
 }
 
 /******************************* F2fs *****************************************/
@@ -182,6 +194,10 @@ string F2fsFsSpecific::GetFsTypeString() {
   return string(F2fsFsSpecific::kFsType);
 }
 
+unsigned int F2fsFsSpecific::GetPostRunDelaySeconds() {
+  return F2fsFsSpecific::kDelaySeconds;
+}
+
 /******************************* Xfs ******************************************/
 constexpr char XfsFsSpecific::kFsType[];
 
@@ -213,6 +229,10 @@ FileSystemTestResult::ErrorType XfsFsSpecific::GetFsckReturn(
 
 string XfsFsSpecific::GetFsTypeString() {
   return string(XfsFsSpecific::kFsType);
+}
+
+unsigned int XfsFsSpecific::GetPostRunDelaySeconds() {
+  return XfsFsSpecific::kDelaySeconds;
 }
 
 }  // namespace fs_testing
