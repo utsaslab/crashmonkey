@@ -1,4 +1,5 @@
 #include "FsSpecific.h"
+#include <uuid/uuid.h>
 
 namespace fs_testing {
 
@@ -27,7 +28,7 @@ constexpr char kBtrfsNewUUIDCommand[] = "yes | btrfstune -u ";
 constexpr char kXfsNewUUIDCommand[] = "xfs_admin -U generate ";
 constexpr char kF2fsNewUUIDCommand[] = ":";
 constexpr char kJfsNewUUIDCommand[] = "jfs_tune -U random ";
-
+constexpr char kNilfs2NewUUIDCommand[] = "nilfs-tune -U ";
 constexpr char kJfsMkfsStart[] = "yes | mkfs.jfs ";
 }
 
@@ -48,6 +49,8 @@ FsSpecific* GetFsSpecific(std::string &fs_type) {
     return new XfsFsSpecific();
   } else if (fs_type.compare(JfsFsSpecific::kFsType) == 0) {
     return new JfsFsSpecific();
+  } else if (fs_type.compare(Nilfs2FsSpecific::kFsType) == 0) {
+    return new Nilfs2FsSpecific();
   } 
   return NULL;
 }
@@ -256,6 +259,47 @@ FileSystemTestResult::ErrorType JfsFsSpecific::GetFsckReturn(
 string JfsFsSpecific::GetFsTypeString() {
   return string(JfsFsSpecific::kFsType);
 }
+
+/******************************* Nilfs2 *****************************************/
+constexpr char Nilfs2FsSpecific::kFsType[];
+
+string Nilfs2FsSpecific::GetMkfsCommand(string &device_path) {
+  return string(kMkfsStart) + Nilfs2FsSpecific::kFsType + " " +  device_path;
+}
+
+string Nilfs2FsSpecific::GetPostReplayMntOpts() {
+  return string();
+}
+
+string Nilfs2FsSpecific::GetFsckCommand(const string &fs_path) {
+  return string(kFsckCommand) + kFsType + " " + fs_path + " -- -y";
+}
+
+string Nilfs2FsSpecific::GetNewUUIDCommand(const string &disk_path) {
+  uuid_t new_uuid;
+  uuid_generate(new_uuid);
+  char *uuid_char;
+  uuid_unparse(new_uuid, uuid_char);
+  return string(kNilfs2NewUUIDCommand) + string(uuid_char) + " " + disk_path;;
+}
+
+FileSystemTestResult::ErrorType Nilfs2FsSpecific::GetFsckReturn(
+    int return_code) {
+  if (return_code == 0) {
+    return FileSystemTestResult::kClean;
+  }
+
+  if (return_code == 0) {
+    return FileSystemTestResult::kFixed;
+  }
+
+  return FileSystemTestResult::kCheck;
+}
+
+string Nilfs2FsSpecific::GetFsTypeString() {
+  return string(Nilfs2FsSpecific::kFsType);
+}
+
 
 
 }  // namespace fs_testing

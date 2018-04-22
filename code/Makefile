@@ -3,7 +3,7 @@ KERNEL_VERSION := $(shell uname -r)
 GCC = gcc
 GPP = g++
 DEBUG_FLAGS += -g -DDEBUG
-GOPTS = -std=c++11
+GOPTS = -std=c++11 
 GOTPSSO = -shared -fPIC
 
 BUILD_DIR = $(CURDIR)/../build
@@ -136,7 +136,7 @@ $(BUILD_DIR)/c_harness: \
 		$(BUILD_DIR)/user_tools/src/actions.o \
 		$(BUILD_DIR)/user_tools/src/wrapper.o
 	mkdir -p $(@D)
-	$(GPP) $(GOPTS) $^ -ldl -o $@
+	$(GPP) $(GOPTS) $^ -ldl -o $@ -luuid
 
 $(BUILD_DIR)/tests/generic_042/%.o: %.cpp
 	mkdir -p $(@D)
