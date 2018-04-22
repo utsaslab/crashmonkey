@@ -30,7 +30,8 @@
 #define TEST_DIRTY_EXPIRE_TIME_CENTISECS 3000
 #define TEST_DIRTY_EXPIRE_TIME_STRING \
   TO_STRING(TEST_DIRTY_EXPIRE_TIME_CENTISECS)
-#define WRITE_DELAY ((TEST_DIRTY_EXPIRE_TIME_CENTISECS / 100) * 4)
+//#define WRITE_DELAY ((TEST_DIRTY_EXPIRE_TIME_CENTISECS / 100) * 4)
+#define WRITE_DELAY (2)
 #define MOUNT_DELAY 1
 
 #define DIRECTORY_PERMS \
@@ -827,6 +828,7 @@ int main(int argc, char** argv) {
           test_harness.getNewDiskClone(checkpoint);
           if (!last_checkpoint) {
             if (test_harness.mount_snapshot() != SUCCESS) {
+ 	      std::cout << "Mount error" << std::endl;
               test_harness.cleanup_harness();
               return -1;
             }
@@ -836,6 +838,7 @@ int main(int argc, char** argv) {
         if (automate_check_test && last_checkpoint) {
           test_harness.getCompleteRunDiskClone();
         }
+
         // Increment the checkpoint at which run exits
         checkpoint += 1;
       } while (!last_checkpoint && automate_check_test);

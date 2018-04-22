@@ -625,8 +625,16 @@ vector<milliseconds> Tester::test_fsck_and_user_test(
   // and anything else it may need to so that fsck does a better job later if
   // we run it.
   time_point<steady_clock> mount_start_time = steady_clock::now();
+  if (fs_type == "jfs"){
+        string command = "fsck.jfs " + string(device_path);
+        std::cout << "In test fsck : Running fsck before mount in JFS on " << string(device_path) << std::endl;
+        system(command.c_str());
+        sleep(1);
+  }
   if (mount_device(device_path.c_str(),
         fs_specific_ops_->GetPostReplayMntOpts().c_str()) != SUCCESS) {
+     std::cout << "Mount error" << std::endl;
+     sleep(1);
     test_info.fs_test.SetError(FileSystemTestResult::kKernelMount);
   }
   time_point<steady_clock> mount_end_time = steady_clock::now();
@@ -695,8 +703,10 @@ vector<milliseconds> Tester::test_fsck_and_user_test(
   // Begin test case timing.
   time_point<steady_clock> test_case_start_time = steady_clock::now();
   if (automate_check_test) {
+
     bool retVal = check_disk_and_snapshot_contents(SNAPSHOT_PATH, last_checkpoint);
     if (!retVal) {
+      std::cout << "Autocheck failed" << std::endl;
       test_info.data_test.SetError(
         fs_testing::tests::DataTestResult::kAutoCheckFailed);
     }
@@ -979,9 +989,21 @@ int Tester::test_check_log_replay(std::ofstream& log, bool automate_check_test) 
     // 3. Check the resulting disk image with fsck and the user test. For now,
     // just ignore the timing data that we can get from this function.
     if (log_iter->is_checkpoint()) {
+
+  if (fs_type == "jfs"){
+
+        string command = "fsck.jfs " + string(SNAPSHOT_PATH);
+
+        std::cout << "In-order : Running fsck before mount in JFS on " << string(SNAPSHOT_PATH) << std::endl;
+
+        system(command.c_str());
+
+        sleep(1);
+
+  }
       test_fsck_and_user_test(SNAPSHOT_PATH,
           test_info.permute_data.last_checkpoint, test_info, automate_check_test);
-
+      std::cout << "Done in-order replay" << std::endl;
       test_info.PrintResults(log);
       current_test_suite_->TallyTimingResult(test_info);
     }
