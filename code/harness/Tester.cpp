@@ -730,6 +730,7 @@ bool Tester::check_disk_and_snapshot_contents(char* disk_path, int last_checkpoi
   const char* type = fs_type.c_str();
 
   DiskContents disk1(disk_path, type), disk2(snapshot_path, type);
+  disk1.set_mount_point("/mnt/snapshot");
 
   assert(last_checkpoint < mods_.size());
   for (auto i : mods_.at(last_checkpoint-1)) {

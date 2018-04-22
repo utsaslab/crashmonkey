@@ -180,6 +180,10 @@ int DiskContents::unmount_and_delete_mount_point() {
   return 0;
 }
 
+void DiskContents::set_mount_point(std::string path) {
+  strcpy(mount_point, path.c_str());
+}
+
 void DiskContents::get_contents(const char* path) {
   DIR *directory;
   struct dirent *dir_entry;
@@ -196,6 +200,8 @@ void DiskContents::get_contents(const char* path) {
     std::string parent_path(path);
     std::string filename(dir_entry->d_name);
     std::string current_path = parent_path + "/" + filename;
+    std::string relative_path = current_path;
+    relative_path.erase(0, strlen(mount_point));
     struct stat statbuf;
     fileAttributes fa;
     if (stat(current_path.c_str(), &statbuf) == -1) {
@@ -207,7 +213,7 @@ void DiskContents::get_contents(const char* path) {
       }
       fa.set_dir_attr(dir_entry);
       fa.set_stat_attr(&statbuf);
-      contents[current_path] = fa;
+      contents[relative_path] = fa;
       // If the entry is a directory and not . or .. make a recursive call
       get_contents(current_path.c_str());
     } else if (dir_entry->d_type == DT_LNK) {
@@ -217,14 +223,14 @@ void DiskContents::get_contents(const char* path) {
         continue;
       }
       fa.set_stat_attr(&lstatbuf);
-      contents[current_path] = fa;
+      contents[relative_path] = fa;
     } else if (dir_entry->d_type == DT_REG) {
       fa.set_md5sum(current_path);
       fa.set_stat_attr(&statbuf);
-      contents[current_path] = fa;
+      contents[relative_path] = fa;
     } else {
       fa.set_stat_attr(&statbuf);
-      contents[current_path] = fa;
+      contents[relative_path] = fa;
     }
   } while (dir_entry = readdir(directory));
   closedir(directory);
@@ -530,7 +536,7 @@ bool DiskContents::makeFiles(std::string base_path, std::ofstream &diff_file) {
   get_contents(base_path.c_str());
   for (auto &i : contents) {
     if (S_ISDIR((i.second).stat_attr->st_mode)) {
-      std::string filepath = base_path + "/" + i.first + "/" + i.first + "_dummy";
+      std::string filepath = base_path + i.first + "/" + "_dummy";
       int fd = open(filepath.c_str(), O_CREAT|O_RDWR);
       if (fd < 0) {
         diff_file <<  "Couldn't create file " << filepath << endl;
