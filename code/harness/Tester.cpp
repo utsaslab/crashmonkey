@@ -200,6 +200,11 @@ int Tester::umount_device() {
 }
 
 int Tester::mount_snapshot() {
+  if (fs_type == "jfs"){
+        string command = "fsck.jfs " + string(SNAPSHOT_PATH);
+	std::cout << "Running fsck before mount in JFS" << std::endl;
+  	system(command.c_str());
+  }
   if (mount(SNAPSHOT_PATH, MNT_MNT_POINT, fs_type.c_str(), 0, NULL) < 0) {
     return MNT_MNT_ERR;
   }
