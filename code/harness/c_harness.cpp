@@ -562,8 +562,9 @@ int main(int argc, char** argv) {
       test_harness.cleanup_harness();
       return -1;
     }
-
-    // TODO(ashmrtn): Can probably remove this...
+ system("blktrace -d /dev/hwm -o - | blkparse -i - > out-blk.txt &");
+ sleep(5);    
+// TODO(ashmrtn): Can probably remove this...
     cout << "Sleeping after mount" << endl;
     unsigned int to_sleep = MOUNT_DELAY;
     do {
@@ -647,6 +648,8 @@ int main(int argc, char** argv) {
        * aren't closed in the process running the worload, the parent won't hang
        * due to a busy mount point.
        ************************************************************************/
+      cout << "Starting blktrace" << endl;
+//      system("blktrace -d /dev/hwm -o - | blkparse -i - > out-blk.txt &");
       cout << "Running test profile" << endl;
       logfile << "Running test profile" << endl;
       {
@@ -731,7 +734,10 @@ int main(int argc, char** argv) {
     while (sleep_time > 0) {
       sleep_time = sleep(sleep_time);
     }
-
+    cout << "Let's sleep 30 sec more" << endl;
+    sleep(30);
+    cout << "Kill blktrace" << endl;
+    system("pkill -f blk");
     cout << "Disabling wrapper device logging" << endl;
     logfile << "Disabling wrapper device logging" << endl;
     test_harness.end_wrapper_logging();

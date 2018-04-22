@@ -167,6 +167,19 @@ class XfsFsSpecific : public FsSpecific {
 #endif
 };
 
+class JfsFsSpecific : public FsSpecific {
+ public:
+  virtual std::string GetFsTypeString();
+  virtual std::string GetMkfsCommand(std::string &device_path);
+  virtual std::string GetPostReplayMntOpts();
+  virtual std::string GetFsckCommand(const std::string &fs_path);
+  virtual fs_testing::FileSystemTestResult::ErrorType GetFsckReturn(
+      int return_code);
+  virtual unsigned int GetPostRunDelaySeconds() override;
+
+  static constexpr char kFsType[] = "jfs";
+  static const unsigned int kDelaySeconds = 120;
+};
 /*
  * Return a subclass of FsSpecific corresponding to the given file system type.
  * The parameter fs_type should be an all lower case string representing the

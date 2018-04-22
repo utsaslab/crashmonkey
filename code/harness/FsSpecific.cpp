@@ -19,7 +19,7 @@ constexpr char kExtMkfsOpts[] =
 // system some without it. It also says to be careful about using the repair
 // flag.
 constexpr char kBtrfsFsckCommand[] = "yes | btrfs check ";
-
+constexpr char kJfsMkfsStart[] = "yes | mkfs.jfs ";
 constexpr char kXfsFsckCommand[] = "xfs_repair ";
 }
 
@@ -38,7 +38,9 @@ FsSpecific* GetFsSpecific(std::string &fs_type) {
     return new F2fsFsSpecific();
   } else if (fs_type.compare(XfsFsSpecific::kFsType) == 0) {
     return new XfsFsSpecific();
-  }
+  } else if (fs_type.compare(JfsFsSpecific::kFsType) == 0) {
+    return new JfsFsSpecific();
+  } 
   return NULL;
 }
 
@@ -212,6 +214,43 @@ string XfsFsSpecific::GetFsTypeString() {
 
 unsigned int XfsFsSpecific::GetPostRunDelaySeconds() {
   return XfsFsSpecific::kDelaySeconds;
+}
+
+
+/******************************* Jfs *****************************************/
+constexpr char JfsFsSpecific::kFsType[];
+
+string JfsFsSpecific::GetMkfsCommand(string &device_path) {
+  return string(kJfsMkfsStart) +  device_path;
+}
+
+string JfsFsSpecific::GetPostReplayMntOpts() {
+  return string();
+}
+
+string JfsFsSpecific::GetFsckCommand(const string &fs_path) {
+  return string(kFsckCommand) + kFsType + " " + fs_path + " -- -y";
+}
+
+FileSystemTestResult::ErrorType JfsFsSpecific::GetFsckReturn(
+    int return_code) {
+  if (return_code == 0) {
+    return FileSystemTestResult::kClean;
+  }
+
+  if (return_code == 0) {
+    return FileSystemTestResult::kFixed;
+  }
+
+  return FileSystemTestResult::kCheck;
+}
+
+string JfsFsSpecific::GetFsTypeString() {
+  return string(JfsFsSpecific::kFsType);
+}
+
+unsigned int JfsFsSpecific::GetPostRunDelaySeconds() {
+  return JfsFsSpecific::kDelaySeconds;
 }
 
 }  // namespace fs_testing

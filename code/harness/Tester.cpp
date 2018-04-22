@@ -512,6 +512,13 @@ vector<milliseconds> Tester::test_fsck_and_user_test(
   // and anything else it may need to so that fsck does a better job later if
   // we run it.
   time_point<steady_clock> mount_start_time = steady_clock::now();
+
+  if (fs_type == "jfs"){
+        string command = "fsck.jfs " + string(device_path);
+        std::cout << "In test fsck : Running fsck before mount in JFS on " << string(device_path) << std::endl;
+        system(command.c_str());
+        sleep(1);
+  }
   if (mount_device(device_path.c_str(),
         fs_specific_ops_->GetPostReplayMntOpts().c_str()) != SUCCESS) {
     test_info.fs_test.SetError(FileSystemTestResult::kKernelMount);
