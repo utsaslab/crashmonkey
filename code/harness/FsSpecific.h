@@ -83,21 +83,21 @@ class Ext2FsSpecific : public ExtFsSpecific {
  public:
   Ext2FsSpecific();
   static constexpr char kFsType[] = "ext2";
-  static const unsigned int kDelaySeconds = 15;
+  static const unsigned int kDelaySeconds = 2;
 };
 
 class Ext3FsSpecific : public ExtFsSpecific {
  public:
   Ext3FsSpecific();
   static constexpr char kFsType[] = "ext3";
-  static const unsigned int kDelaySeconds = 36;
+  static const unsigned int kDelaySeconds = 2;
 };
 
 class Ext4FsSpecific : public ExtFsSpecific {
  public:
   Ext4FsSpecific();
   static constexpr char kFsType[] = "ext4";
-  static const unsigned int kDelaySeconds = 36;
+  static const unsigned int kDelaySeconds = 2;
 };
 
 class BtrfsFsSpecific : public FsSpecific {
@@ -112,7 +112,7 @@ class BtrfsFsSpecific : public FsSpecific {
   virtual unsigned int GetPostRunDelaySeconds() override;
 
   static constexpr char kFsType[] = "btrfs";
-  static const unsigned int kDelaySeconds = 34;
+  static const unsigned int kDelaySeconds = 2;
 };
 
 class F2fsFsSpecific : public FsSpecific {
@@ -127,7 +127,7 @@ class F2fsFsSpecific : public FsSpecific {
   virtual unsigned int GetPostRunDelaySeconds() override;
 
   static constexpr char kFsType[] = "f2fs";
-  static const unsigned int kDelaySeconds = 71;
+  static const unsigned int kDelaySeconds = 2;
 };
 
 class XfsFsSpecific : public FsSpecific {
@@ -142,7 +142,7 @@ class XfsFsSpecific : public FsSpecific {
   virtual unsigned int GetPostRunDelaySeconds() override;
 
   static constexpr char kFsType[] = "xfs";
-  static const unsigned int kDelaySeconds = 120;
+  static const unsigned int kDelaySeconds = 2;
 };
 
 /*
