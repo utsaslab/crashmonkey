@@ -643,13 +643,13 @@ vector<milliseconds> Tester::test_fsck_and_user_test(
         system(command.c_str());
         sleep(1);
   }
-
+  /*
   if (fs_type == "ntfs"){
         string command = "ntfsfix " + string(device_path);
         std::cout << "In test fsck : Running fsck before mount in ntfs on " << string(device_path) << std::endl;
         system(command.c_str());
         sleep(1);
-  }
+  }*/
 
   if (mount_device(device_path.c_str(),
         fs_specific_ops_->GetPostReplayMntOpts().c_str()) != SUCCESS) {

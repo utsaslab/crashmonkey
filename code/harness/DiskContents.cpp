@@ -72,14 +72,14 @@ bool fileAttributes::compare_stat_attr(struct stat *a) {
   }
 
   return ((stat_attr->st_ino == a->st_ino) &&
-    (stat_attr->st_mode == a->st_mode) &&
+    //(stat_attr->st_mode == a->st_mode) &&
     (stat_attr->st_nlink == a->st_nlink) &&
     (stat_attr->st_uid == a->st_uid) &&
     (stat_attr->st_gid == a->st_gid) &&
     // (stat_attr->st_rdev == a->st_rdev) &&
     // (stat_attr->st_dev == a->st_dev) &&
     (stat_attr->st_size == a->st_size) &&
-    (stat_attr->st_blksize == a->st_blksize) &&
+    // (stat_attr->st_blksize == a->st_blksize) &&
     (stat_attr->st_blocks == a->st_blocks));
 }
 
@@ -143,7 +143,9 @@ int DiskContents::mount_disk() {
     std::cout << "creating mountpoint failed" << std::endl;
     return -1;
   }
+  std::cout << "Mounting disk : " << disk_path << std::endl;
   // Mount the disk
+
   if (mount(disk_path, mount_point, fs_type, MS_RDONLY, NULL) < 0) {
     return -1;
   }

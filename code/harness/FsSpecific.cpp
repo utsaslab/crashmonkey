@@ -18,7 +18,7 @@ constexpr char kExtMkfsOpts[] =
   "-E lazy_itable_init=0,lazy_journal_init=0";
 
 constexpr char kNtfsMkfsOpts[] =
-  "-p 0 -H 2 -S 8";
+  "-p 0 -H 1 -S 8 -s 512";
 
 // TODO(ashmrtn): See if we actually want the repair flag or not. The man page
 // for btrfs check is not clear on whether it will try to cleanup the file

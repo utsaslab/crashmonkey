@@ -555,6 +555,13 @@ int main(int argc, char** argv) {
       return -1;
     }
 
+   /* cout << "Mounting wrapper file system" << endl;
+    if (test_harness.mount_wrapper_device(mount_opts.c_str()) != SUCCESS) {
+      cerr << "Error mounting wrapper file system" << endl;
+      test_harness.cleanup_harness();
+      return -1;
+    }*/
+
     // Clear wrapper module logs prior to test profiling.
     cout << "Clearing wrapper device logs" << endl;
     logfile << "Clearing wrapper device logs" << endl;
@@ -573,7 +580,7 @@ int main(int argc, char** argv) {
       test_harness.cleanup_harness();
       return -1;
     }
-
+    // system("sudo blktrace -d /dev/hwm -o - | blkparse -i - > out_blk.txt &");
     // TODO(ashmrtn): Can probably remove this...
     cout << "Sleeping after mount" << endl;
     unsigned int to_sleep = MOUNT_DELAY;
@@ -581,7 +588,7 @@ int main(int argc, char** argv) {
       to_sleep = sleep(to_sleep);
     } while (to_sleep > 0);
 
-
+    //sleep(5);
     /***************************************************************************
      * Run the actual workload that we will be testing.
      **************************************************************************/
@@ -764,6 +771,8 @@ int main(int argc, char** argv) {
           logfile << "Waiting for writeback delay" << endl;
           sleep(WRITE_DELAY);
 
+          //system("pkill -f blk");
+          //sleep(2);
           cout << "Disabling wrapper device logging" << endl;
           logfile << "Disabling wrapper device logging" << endl;
           test_harness.end_wrapper_logging();
@@ -827,6 +836,7 @@ int main(int argc, char** argv) {
           // get a new diskclone and mount it for next the checkpoint
           test_harness.getNewDiskClone(checkpoint);
           if (!last_checkpoint) {
+	    std::cout << "Getting new disk clone" << std::endl;
             if (test_harness.mount_snapshot() != SUCCESS) {
  	      std::cout << "Mount error" << std::endl;
               test_harness.cleanup_harness();
