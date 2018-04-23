@@ -58,7 +58,7 @@ bool fileAttributes::compare_dir_attr(struct dirent* a) {
     return false;
   }
   return ((dir_attr->d_ino == a->d_ino) &&
-    (dir_attr->d_off == a->d_off) &&
+   // (dir_attr->d_off == a->d_off) &&
     (dir_attr->d_reclen == a->d_reclen) &&
     (dir_attr->d_type == a->d_type) &&
     (strcmp(dir_attr->d_name, a->d_name) == 0));
