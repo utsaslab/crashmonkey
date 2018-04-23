@@ -45,12 +45,16 @@ public:
   
   int mount_disk();
   const char* get_mount_point();
+  void set_mount_point(std::string path);
   int unmount_and_delete_mount_point();
   bool compare_disk_contents(DiskContents &compare_disk, std::ofstream &diff_file);
   bool compare_entries_at_path(DiskContents &compare_disk, std::string path,
     std::ofstream &diff_file);
   bool compare_file_contents(DiskContents &compare_disk, std::string path,
     int offset, int length, std::ofstream &diff_file);
+  bool deleteFiles(std::string path, std::ofstream &diff_file);
+  bool makeFiles(std::string base_path, std::ofstream &diff_file);
+  bool sanity_checks(std::ofstream &diff_file);
 
 private:
   bool device_mounted;

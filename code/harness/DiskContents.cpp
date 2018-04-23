@@ -182,6 +182,10 @@ int DiskContents::unmount_and_delete_mount_point() {
   return 0;
 }
 
+void DiskContents::set_mount_point(std::string path) {
+  strcpy(mount_point, path.c_str());
+}
+
 void DiskContents::get_contents(const char* path) {
   DIR *directory;
   struct dirent *dir_entry;
@@ -198,6 +202,8 @@ void DiskContents::get_contents(const char* path) {
     std::string parent_path(path);
     std::string filename(dir_entry->d_name);
     std::string current_path = parent_path + "/" + filename;
+    std::string relative_path = current_path;
+    relative_path.erase(0, strlen(mount_point));
     struct stat statbuf;
     fileAttributes fa;
     if (stat(current_path.c_str(), &statbuf) == -1) {
@@ -209,7 +215,7 @@ void DiskContents::get_contents(const char* path) {
       }
       fa.set_dir_attr(dir_entry);
       fa.set_stat_attr(&statbuf);
-      contents[filename] = fa;
+      contents[relative_path] = fa;
       // If the entry is a directory and not . or .. make a recursive call
       get_contents(current_path.c_str());
     } else if (dir_entry->d_type == DT_LNK) {
@@ -219,14 +225,14 @@ void DiskContents::get_contents(const char* path) {
         continue;
       }
       fa.set_stat_attr(&lstatbuf);
-      contents[filename] = fa;
+      contents[relative_path] = fa;
     } else if (dir_entry->d_type == DT_REG) {
       fa.set_md5sum(current_path);
       fa.set_stat_attr(&statbuf);
-      contents[filename] = fa;
+      contents[relative_path] = fa;
     } else {
       fa.set_stat_attr(&statbuf);
-      contents[filename] = fa;
+      contents[relative_path] = fa;
     }
   } while (dir_entry = readdir(directory));
   closedir(directory);
@@ -466,5 +472,126 @@ bool DiskContents::compare_file_contents(DiskContents &compare_disk, std::string
   compare_disk.unmount_and_delete_mount_point();
   return false;
 }
+
+bool isEmptyDirOrFile(std::string path) {
+  DIR *directory = opendir(path.c_str());
+  if (directory == NULL) {
+    return true;
+  }
+
+  struct dirent *dir_entry;
+  int num_dir_entries = 0;
+  while (dir_entry = readdir(directory)) {
+    if (++num_dir_entries > 2) {
+      break;
+    }
+  }
+  closedir(directory);
+  if (num_dir_entries <= 2) {
+    return true;
+  }
+  return false;
+}
+
+bool isFile(std::string path) {
+  struct stat sb;
+  if (stat(path.c_str(), &sb) < 0) {
+    std::cout << __func__ << ": Failed stating " << path << std::endl;
+    return false;
+  }
+  if (S_ISDIR(sb.st_mode)) {
+    return false;
+  }
+  return true;
+}
+
+bool DiskContents::deleteFiles(std::string path, std::ofstream &diff_file) {
+  if (path.empty()) {
+    return true;
+  }
+
+  if (isEmptyDirOrFile(path) == true) {
+    if (path.compare("/mnt/snapshot") == 0) {
+      return true;
+    }
+    if (isFile(path) == true) {
+      return (unlink(path.c_str()) == 0);
+    } else {
+      return (rmdir(path.c_str()) == 0);
+    }
+  }
+
+  DIR *directory = opendir(path.c_str());
+  if (directory == NULL) {
+    std::cout << "Couldn't open the directory " << path << std::endl;
+    diff_file << "Couldn't open the directory " << path << std::endl;
+    return false;
+  }
+
+  struct dirent *dir_entry;
+  while (dir_entry = readdir(directory)) {
+    if ((strcmp(dir_entry->d_name, ".") == 0) ||
+        (strcmp(dir_entry->d_name, "..") == 0)) {
+      continue;
+    }
+
+    std::string subpath = path + "/" + std::string(dir_entry->d_name);
+    bool subpathIsFile = isFile(subpath);
+    bool res = deleteFiles(subpath, diff_file);
+    if (!res) {
+      closedir(directory);
+      diff_file << "Couldn't remove directory " << subpath << " " << strerror(errno) << endl;
+      std::cout << "Couldn't remove directory " << subpath << " " << strerror(errno) << endl;
+      return res;
+    }
+
+    if (!subpathIsFile) {
+      if (rmdir(subpath.c_str()) < 0) {
+        diff_file << "Couldn't remove directory " << subpath << " "  << strerror(errno) << endl;
+        std::cout << "Couldn't remove directory " << subpath << " " << strerror(errno) << endl;
+        return false;
+      }
+    }
+  }
+  closedir(directory);
+  return true;
+}
+
+bool DiskContents::makeFiles(std::string base_path, std::ofstream &diff_file) {
+  get_contents(base_path.c_str());
+  for (auto &i : contents) {
+    if (S_ISDIR((i.second).stat_attr->st_mode)) {
+      std::string filepath = base_path + i.first + "/" + "_dummy";
+      int fd = open(filepath.c_str(), O_CREAT|O_RDWR);
+      if (fd < 0) {
+        diff_file <<  "Couldn't create file " << filepath << endl;
+        std::cout <<  "Couldn't create file " << filepath << endl;
+        return false;
+      }
+      close(fd);
+    }
+  }
+  return true;
+}
+
+bool DiskContents::sanity_checks(std::ofstream &diff_file) {
+  std::cout << __func__ << std::endl;
+  std::string base_path = "/mnt/snapshot";
+  if (!makeFiles(base_path, diff_file)) {
+    std::cout << "Failed: Couldn't create files in all directories" << std::endl;
+    diff_file << "Failed: Couldn't create files in all directories" << std::endl;
+    return false;
+  }
+
+  if (!deleteFiles(base_path, diff_file)) {
+    std::cout << "Failed: Couldn't delete all the existing directories" << std::endl;
+    diff_file << "Failed: Couldn't delete all the existing directories" << std::endl;
+    return false;
+  }
+
+  std::cout << "Passed sanity checks" << std::endl;
+  return true;
+}
+
 
 } // namespace fs_testing

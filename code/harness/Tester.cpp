@@ -136,6 +136,10 @@ void Tester::EndTestSuite() {
   current_test_suite_ = NULL;
 }
 
+unsigned int Tester::GetPostRunDelay() {
+  return fs_specific_ops_->GetPostRunDelaySeconds();
+}
+
 int Tester::clone_device() {
   std::cout << "cloning device " << device_raw << std::endl;
   if (ioctl(cow_brd_fd, COW_BRD_SNAPSHOT) < 0) {
@@ -775,6 +779,7 @@ bool Tester::check_disk_and_snapshot_contents(char* disk_path, int last_checkpoi
   const char* type = fs_type.c_str();
 
   DiskContents disk1(disk_path, type), disk2(snapshot_path, type);
+  disk1.set_mount_point("/mnt/snapshot");
 
   assert(last_checkpoint < mods_.size());
   std::cout <<  "LAST_CHECKPOINT: " << last_checkpoint << std::endl;
