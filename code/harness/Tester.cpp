@@ -180,7 +180,12 @@ int Tester::mount_wrapper_device(const char* opts) {
 }
 
 int Tester::mount_device(const char* dev, const char* opts) {
-  if (mount(dev, MNT_MNT_POINT, fs_type.c_str(), 0, (void*) opts) < 0) {
+  if (fs_type == "ntfs"){
+     string command = "mount -t ntfs-3g " + string(dev) + " " + MNT_MNT_POINT;
+     system(command.c_str());
+     sleep(1);
+  }
+  else if (mount(dev, MNT_MNT_POINT, fs_type.c_str(), 0, (void*) opts) < 0) {
     disk_mounted = false;
     return MNT_MNT_ERR;
   }
@@ -205,7 +210,14 @@ int Tester::mount_snapshot() {
 	std::cout << "Running fsck before mount in JFS" << std::endl;
   	system(command.c_str());
   }
-  if (mount(SNAPSHOT_PATH, MNT_MNT_POINT, fs_type.c_str(), 0, NULL) < 0) {
+
+  if (fs_type == "ntfs"){
+     string command = "mount -t ntfs-3g " + string(SNAPSHOT_PATH) + " " + MNT_MNT_POINT;
+     system(command.c_str());
+     sleep(1);
+  }
+
+  else if (mount(SNAPSHOT_PATH, MNT_MNT_POINT, fs_type.c_str(), 0, NULL) < 0) {
     return MNT_MNT_ERR;
   }
   return SUCCESS;
@@ -631,6 +643,14 @@ vector<milliseconds> Tester::test_fsck_and_user_test(
         system(command.c_str());
         sleep(1);
   }
+
+  if (fs_type == "ntfs"){
+        string command = "ntfsfix " + string(device_path);
+        std::cout << "In test fsck : Running fsck before mount in ntfs on " << string(device_path) << std::endl;
+        system(command.c_str());
+        sleep(1);
+  }
+
   if (mount_device(device_path.c_str(),
         fs_specific_ops_->GetPostReplayMntOpts().c_str()) != SUCCESS) {
      std::cout << "Mount error" << std::endl;

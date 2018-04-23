@@ -115,6 +115,19 @@ class Nilfs2FsSpecific : public FsSpecific {
   static constexpr char kFsType[] = "nilfs2";
 };
 
+class NtfsFsSpecific : public FsSpecific {
+ public:
+  virtual std::string GetFsTypeString();
+  virtual std::string GetMkfsCommand(std::string &device_path);
+  virtual std::string GetPostReplayMntOpts();
+  virtual std::string GetFsckCommand(const std::string &fs_path);
+  virtual std::string GetNewUUIDCommand(const std::string &disk_path);
+  virtual fs_testing::FileSystemTestResult::ErrorType GetFsckReturn(
+      int return_code);
+
+  static constexpr char kFsType[] = "ntfs";
+};
+
 class BtrfsFsSpecific : public FsSpecific {
  public:
   virtual std::string GetFsTypeString();

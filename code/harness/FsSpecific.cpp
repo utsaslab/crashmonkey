@@ -17,6 +17,9 @@ constexpr char kExtRemountOpts[] = "errors=remount-ro";
 constexpr char kExtMkfsOpts[] =
   "-E lazy_itable_init=0,lazy_journal_init=0";
 
+constexpr char kNtfsMkfsOpts[] =
+  "-p 0 -H 2 -S 8";
+
 // TODO(ashmrtn): See if we actually want the repair flag or not. The man page
 // for btrfs check is not clear on whether it will try to cleanup the file
 // system some without it. It also says to be careful about using the repair
@@ -31,6 +34,7 @@ constexpr char kXfsNewUUIDCommand[] = "xfs_admin -U generate ";
 constexpr char kF2fsNewUUIDCommand[] = ":";
 constexpr char kJfsNewUUIDCommand[] = "jfs_tune -U random ";
 constexpr char kNilfs2NewUUIDCommand[] = "nilfs-tune -U ";
+constexpr char kNtfsNewUUIDCommand[] = "ntfslabel  --new-half-serial ";
 constexpr char kJfsMkfsStart[] = "yes | mkfs.jfs ";
 }
 
@@ -53,6 +57,8 @@ FsSpecific* GetFsSpecific(std::string &fs_type) {
     return new JfsFsSpecific();
   } else if (fs_type.compare(Nilfs2FsSpecific::kFsType) == 0) {
     return new Nilfs2FsSpecific();
+  } else if (fs_type.compare(NtfsFsSpecific::kFsType) == 0) {
+    return new NtfsFsSpecific();
   } 
   return NULL;
 }
@@ -242,7 +248,7 @@ string JfsFsSpecific::GetFsckCommand(const string &fs_path) {
 }
 
 string JfsFsSpecific::GetNewUUIDCommand(const string &disk_path) {
-  return string(kJfsNewUUIDCommand) + disk_path;;
+  return string(kJfsNewUUIDCommand) + disk_path;
 }
 
 FileSystemTestResult::ErrorType JfsFsSpecific::GetFsckReturn(
@@ -282,7 +288,7 @@ string Nilfs2FsSpecific::GetNewUUIDCommand(const string &disk_path) {
   uuid_generate(new_uuid);
   char uuid_char[37];
   uuid_unparse(new_uuid, uuid_char);
-  return string(kNilfs2NewUUIDCommand) + string(uuid_char) + " " + disk_path;;
+  return string(kNilfs2NewUUIDCommand) + string(uuid_char) + " " + disk_path;
 }
 
 FileSystemTestResult::ErrorType Nilfs2FsSpecific::GetFsckReturn(
@@ -291,7 +297,7 @@ FileSystemTestResult::ErrorType Nilfs2FsSpecific::GetFsckReturn(
     return FileSystemTestResult::kClean;
   }
 
-  if (return_code == 0) {
+  if (return_code > 0) {
     return FileSystemTestResult::kFixed;
   }
 
@@ -302,6 +308,38 @@ string Nilfs2FsSpecific::GetFsTypeString() {
   return string(Nilfs2FsSpecific::kFsType);
 }
 
+
+/******************************* Ntfs *****************************************/
+constexpr char NtfsFsSpecific::kFsType[];
+
+string NtfsFsSpecific::GetMkfsCommand(string &device_path) {
+  return string(kMkfsStart) + NtfsFsSpecific::kFsType + " " + kNtfsMkfsOpts + " " + device_path;
+}
+
+string NtfsFsSpecific::GetPostReplayMntOpts() {
+  return string();
+}
+
+string NtfsFsSpecific::GetFsckCommand(const string &fs_path) {
+  return string(kFsckCommand) + kFsType + " " + fs_path + " -- -y";
+}
+
+string NtfsFsSpecific::GetNewUUIDCommand(const string &disk_path) {
+  return string(kNtfsNewUUIDCommand) + " " + disk_path;
+}
+
+FileSystemTestResult::ErrorType NtfsFsSpecific::GetFsckReturn(
+    int return_code) {
+  if (return_code == 0) {
+    return FileSystemTestResult::kClean;
+  }
+
+  return FileSystemTestResult::kCheck;
+}
+
+string NtfsFsSpecific::GetFsTypeString() {
+  return string(JfsFsSpecific::kFsType);
+}
 
 
 }  // namespace fs_testing
