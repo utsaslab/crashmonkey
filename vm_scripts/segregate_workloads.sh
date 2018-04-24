@@ -10,7 +10,7 @@ k=1
 num_per_vm=$1
 max=$2
 workload_base_path=$3
-num_vms=$num_vms
+num_vms=16
 
 for ip in `cat live_nodes`; do
 	echo `date` ------------- Segregating to node $i IP $ip starting from k $k -----------------
