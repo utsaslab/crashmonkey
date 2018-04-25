@@ -1,16 +1,16 @@
 #!/bin/bash
 
-if [ "$#" -ne 1 ]; then
-    echo "Illegal number of parameters; Please provide unique run identifier as the parameter;"
+if [ "$#" -ne 3 ]; then
+    echo "Illegal number of parameters; Please provide unique run identifier, batch size and num_servers as the parameter;"
     exit 1
 fi
 
 run=$1
 
-batch_size=5
+batch_size=$2
 st=1
 end=`expr $st + $batch_size - 1`
-num_servers=64
+num_servers=$3
 
 i=1
 while [ $st -le $num_servers ]; do
