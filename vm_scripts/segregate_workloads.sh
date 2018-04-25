@@ -12,6 +12,8 @@ max=$2
 workload_base_path=$3
 num_vms=12
 
+rm -r workloads/seg
+
 for ip in `cat live_nodes`; do
 	echo `date` ------------- Segregating to node $i IP $ip starting from k $k -----------------
 	mkdir -p workloads/seg/node"$i"-"$ip"
