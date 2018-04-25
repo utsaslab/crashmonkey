@@ -14,15 +14,10 @@ mkdir -p $run
 mkdir -p $run/diff_files
 mkdir -p $run/xfsmonkey_logs
 
+num_vms=16
+
 for ip in `cat live_nodes`; do
         echo `date` ------------- Checking for diff file from node $i IP $ip -----------------
-
-        if [ $i -le 6 ]
-        then
-                num_vms=8
-        else
-                num_vms=16
-        fi
 
         if [ $i -lt $st ] || [ $i -gt $end ]
         then
