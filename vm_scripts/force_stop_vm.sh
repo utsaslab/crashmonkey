@@ -6,5 +6,5 @@ if [ "$#" -ne 1 ]; then
 fi
 
 vm=$1
-kill `ps aux | grep startvm"$vm" | grep -v grep | tr -s ' ' | cut -d ' ' -f2`
+kill `ps aux | grep ubuntu16-vm"$vm" | grep -v grep | tr -s ' ' | cut -d ' ' -f2`
 
