@@ -499,14 +499,18 @@ def checkExistsDep(current_sequence, pos, modified_sequence, modified_pos, open_
         if file_name not in open_dir_map:
             modified_sequence.insert(modified_pos, insertMkdir(file_name, open_dir_map, open_file_map, file_length_map, modified_pos))
             modified_pos += 1
-    
+        
+        if file_name in open_dir_map and open_dir_map[file_name] == 0:
+            modified_sequence.insert(modified_pos, insertOpen(file_name, open_dir_map, open_file_map, file_length_map, modified_pos))
+            modified_pos += 1
 
 
-    if file_name not in open_file_map or open_file_map[file_name] == 0:
+    if file_name in FileOptions or file_name in SecondFileOptions:
+        if file_name not in open_file_map or open_file_map[file_name] == 0:
         #Insert dependency - open before the command
-        modified_sequence.insert(modified_pos, insertOpen(file_name, open_dir_map, open_file_map, file_length_map, modified_pos))
-        modified_pos += 1
-            
+            modified_sequence.insert(modified_pos, insertOpen(file_name, open_dir_map, open_file_map, file_length_map, modified_pos))
+            modified_pos += 1
+    
     return modified_pos
 
 

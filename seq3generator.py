@@ -54,7 +54,8 @@ TruncateOptions = ['unaligned']
 #removed symlink, mknod
 #OperationSet = ['creat', 'mkdir', 'falloc', 'write', 'dwrite', 'link', 'unlink', 'remove', 'rename', 'removexattr', 'fdatasync', 'fsetxattr', 'truncate', 'mmapwrite']
 
-OperationSet = ['write', 'link', 'unlink', 'rename', 'truncate']
+#OperationSet = ['write', 'link', 'unlink', 'rename', 'truncate']
+OperationSet = ['link','rename']
 
 #We are skipping 041, 336, 342, 343
 #The sequences we want to reach to
@@ -983,7 +984,7 @@ def doPermutation(perm):
         for insSync in range(0, len(syncPermutationsCustom)):
             
 
-            if int(num_ops) == 1 or int(num_ops) == 2 or int(num_ops) == 3:
+            if int(num_ops) == 1 or int(num_ops) == 2 or int(num_ops) == 3 or int(num_ops) == 4:
                 log = '{0}'.format(syncPermutationsCustom[insSync]);
                 log = '\n\t\tFile # ' + `global_count` + ' : ' + `count_sync` + ' : ' + log + '\n'
                 log_file_handle.write(log)
@@ -1027,64 +1028,64 @@ def doPermutation(perm):
                         sync_op.append('0')
                     seq.append(tuple(flatList(sync_op)))
 
-#            log = '\t\t\tCurrent Sequence = {0}'.format(seq);
-#            log_file_handle.write(log)
-
-
-#            #------Satisy dependencies now----------
-
-            modified_pos = 0
-            modified_sequence = list(seq)
-            open_file_map = {}
-            file_length_map = {}
-            open_dir_map = {}
-            #test dir exists
-            open_dir_map['test'] = 0
-            
-            for i in xrange(0, len(seq)):
-                modified_pos = satisfyDep(seq, i, modified_sequence, modified_pos, open_dir_map, open_file_map, file_length_map)
-                modified_pos += 1
-        
-            #now close all open files
-            for file_name in open_file_map:
-                if open_file_map[file_name] == 1:
-                    modified_sequence.insert(modified_pos, insertClose(file_name, open_dir_map, open_file_map, file_length_map, modified_pos))
-                    modified_pos += 1
-
-            for file_name in open_dir_map:
-                if open_dir_map[file_name] == 1:
-                    modified_sequence.insert(modified_pos, insertClose(file_name, open_dir_map, open_file_map, file_length_map, modified_pos))
-                    modified_pos += 1
-
-#            #------Satisy dependencies now----------
-
-             
-             
-##             #Now build the j-lang file------------------------------------
-            j_lang_file = 'j-lang' + str(global_count)
-            copyfile('code/tests/seq3/base-j-lang', j_lang_file)
-            length_map = {}
-
-            with open(j_lang_file, 'a') as f:
-                run_line = '\n\n# run\n'
-                f.write(run_line)
-
-                for insert in xrange(0, len(modified_sequence)):
-                    cur_line = buildJlang(modified_sequence[insert], length_map)
-                    cur_line_log = '{0}'.format(cur_line) + '\n'
-                    f.write(cur_line_log)
-
-            f.close()
-
-            exec_command = 'python workload_seq2.py -b code/tests/seq3/base.cpp -t ' + j_lang_file + ' -p code/tests/seq3/ -o ' + str(global_count)
-            subprocess.call(exec_command, shell=True)
-            #Now build the j-lang file------------------------------------
-
-#             
-            log = '\n\t\t\tModified sequence = {0}\n'.format(modified_sequence);
+            log = '\t\t\tCurrent Sequence = {0}'.format(seq);
             log_file_handle.write(log)
+
 #
-#            isBugWorkload(permutations[count-1], j, syncPermutationsCustom[insSync])
+##            #------Satisy dependencies now----------
+#
+#            modified_pos = 0
+#            modified_sequence = list(seq)
+#            open_file_map = {}
+#            file_length_map = {}
+#            open_dir_map = {}
+#            #test dir exists
+#            open_dir_map['test'] = 0
+#            
+#            for i in xrange(0, len(seq)):
+#                modified_pos = satisfyDep(seq, i, modified_sequence, modified_pos, open_dir_map, open_file_map, file_length_map)
+#                modified_pos += 1
+#        
+#            #now close all open files
+#            for file_name in open_file_map:
+#                if open_file_map[file_name] == 1:
+#                    modified_sequence.insert(modified_pos, insertClose(file_name, open_dir_map, open_file_map, file_length_map, modified_pos))
+#                    modified_pos += 1
+#
+#            for file_name in open_dir_map:
+#                if open_dir_map[file_name] == 1:
+#                    modified_sequence.insert(modified_pos, insertClose(file_name, open_dir_map, open_file_map, file_length_map, modified_pos))
+#                    modified_pos += 1
+#
+##            #------Satisy dependencies now----------
+#
+#             
+#             
+###             #Now build the j-lang file------------------------------------
+#            j_lang_file = 'j-lang' + str(global_count)
+#            copyfile('code/tests/seq3/base-j-lang', j_lang_file)
+#            length_map = {}
+#
+#            with open(j_lang_file, 'a') as f:
+#                run_line = '\n\n# run\n'
+#                f.write(run_line)
+#
+#                for insert in xrange(0, len(modified_sequence)):
+#                    cur_line = buildJlang(modified_sequence[insert], length_map)
+#                    cur_line_log = '{0}'.format(cur_line) + '\n'
+#                    f.write(cur_line_log)
+#
+#            f.close()
+#
+#            exec_command = 'python workload_seq2.py -b code/tests/seq3/base.cpp -t ' + j_lang_file + ' -p code/tests/seq3/ -o ' + str(global_count)
+#            subprocess.call(exec_command, shell=True)
+#            #Now build the j-lang file------------------------------------
+#
+##             
+#            log = '\n\t\t\tModified sequence = {0}\n'.format(modified_sequence);
+#            log_file_handle.write(log)
+##
+##            isBugWorkload(permutations[count-1], j, syncPermutationsCustom[insSync])
 
 
 
