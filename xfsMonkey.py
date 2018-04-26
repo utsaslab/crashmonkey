@@ -116,7 +116,7 @@ def main():
 			print get_time_string(), '\n', '-'*20, 'Test #',test_num, '-'*20
 
 			#Run the test now
-			print get_time_string(), 'Running xfstest : ', filename.replace('.so', ''), 'as Crashmonkey standalone \nRunning...'
+			print get_time_string(), 'Running xfstest : ', filename.replace('.so', ''), 'as Crashmonkey standalone \n', get_time_string(), 'Running...'
 			
 			#Sometimes we face an error connecting to socket. So let's retry one more time
 			#if CM throws a error for a particular test.
@@ -140,12 +140,12 @@ def main():
 					if retry == 2 and p_status != 0 :
 						print get_time_string(), 'Could not run test : ', filename.replace('.so', '')
 					else:
-						print get_time_string(), res_final	
+						print res_final	
 					break
 				else:
 					error = re.sub(r'(?s).*error', '\nError', output, flags=re.I)
 					print get_time_string(), error
-					print get_time_string(), 'Retry running ' ,filename.replace('.so', ''), '\nRunning... '	 
+					print get_time_string(), 'Retry running ' ,filename.replace('.so', ''), '\n', get_time_string(), 'Running... '	 
 			file = filename.replace('.so', '')			
 			#diff_command = 'tail -vn +1 build/diff* >> diff_results/' + file  + '; rm build/diff*' 
 			#subprocess.call('cat build/diff* > out', shell=True)
