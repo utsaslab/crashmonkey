@@ -1,6 +1,6 @@
 #!/bin/bash
 
-if [ "$#" -ne 1 ]; then
+if [ "$#" -ne 3 ]; then
     echo "Illegal number of parameters; Please provide file system, start vm and end vm number as the parameters;"
     exit 1
 fi
