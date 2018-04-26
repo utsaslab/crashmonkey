@@ -5,11 +5,11 @@ port=3022
 i=1
 
 while [ $i -le $num_vms ]; do
-	res=`rsh -p $port pandian@127.0.0.1 "touch /home/pandian/a 2>&1" | grep 'Read-only'`
+	res=`rsh -p $port pandian@127.0.0.1 "touch /home/pandian/a; echo abc"`
 	
-	if [ ! -z "$res" ];
+	if [ -z "$res" ];
 	then
-                echo 'VM '$i' is read-only. Restarting it.. '
+                echo 'VM '$i' is unresponsive. Restarting it.. '
                 ./force_stop_vm.sh $i
 		sleep 3
                 ./start_particular_vm.sh $i
