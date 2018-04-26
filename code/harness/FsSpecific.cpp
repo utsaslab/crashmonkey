@@ -14,6 +14,8 @@ constexpr char kExtRemountOpts[] = "errors=remount-ro";
 constexpr char kExtMkfsOpts[] =
   "-E lazy_itable_init=0,lazy_journal_init=0";
 
+constexpr char kF2fsMkfsOpts[] = "-m";
+
 // TODO(ashmrtn): See if we actually want the repair flag or not. The man page
 // for btrfs check is not clear on whether it will try to cleanup the file
 // system some without it. It also says to be careful about using the repair
@@ -159,7 +161,8 @@ unsigned int BtrfsFsSpecific::GetPostRunDelaySeconds() {
 constexpr char F2fsFsSpecific::kFsType[];
 
 string F2fsFsSpecific::GetMkfsCommand(string &device_path) {
-  return string(kMkfsStart) + F2fsFsSpecific::kFsType + " " +  device_path;
+  return string(kMkfsStart) + F2fsFsSpecific::kFsType + " " +
+		  kF2fsMkfsOpts + " " + device_path;
 }
 
 string F2fsFsSpecific::GetPostReplayMntOpts() {
