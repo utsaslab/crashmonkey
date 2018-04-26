@@ -7,7 +7,7 @@ num_vms=$num_vms
 
 port=3022
 for i in `seq 1 $num_vms`; do
-	echo SCPing workloads to VM $i...
+	echo `date` ' SCPing workloads to VM '$i'...'
 
 	rsh -p $port pandian@127.0.0.1 "rm -r ~/seq2"
 	rsh -p $port pandian@127.0.0.1 "mkdir -p ~/seq2"
@@ -17,3 +17,5 @@ for i in `seq 1 $num_vms`; do
 	
 	port=`expr $port + 1`
 done
+
+echo `date` ' SCP workloads complete.'
