@@ -43,7 +43,24 @@ def cleanup():
 	p.wait()
 	print 'Done cleaning up test harness'
 
+def get_current_epoch_micros():
+    return int(time.time() * 1000)
+
+
+def get_time_string():
+    epoch_micros = get_current_epoch_micros()
+    epoch_secs = epoch_micros / 1000
+    micros = epoch_micros % 1000
+
+    return time.strftime('%Y-%m-%d %H:%M:%S', time.localtime(epoch_secs)) + '.' + str(micros) + ' '
+    # return time.strftime('%c') + ' '
+
+
+def get_time_from_epoch(epoch_secs):
+    return time.strftime('%Y-%m-%d %H:%M:%S', time.localtime(epoch_secs))
+
 def print_setup(parsed_args):
+	print(get_time_string() + 'Starting xfsMonkey run..')
 	print '\n{: ^50s}'.format('XFSMonkey Test Suite v0.1\n')
 	print '='*20, 'Setup' , '='*20, '\n'
 	print '{0:20}  {1}'.format('Filesystem type', parsed_args.fs_type)
@@ -96,10 +113,10 @@ def main():
 
 			#Print the test number
 			test_num+=1
-			print '\n', '-'*20, 'Test #',test_num, '-'*20
+			print get_time_string(), '\n', '-'*20, 'Test #',test_num, '-'*20
 
 			#Run the test now
-			print 'Running xfstest : ', filename.replace('.so', ''), 'as Crashmonkey standalone \nRunning...'
+			print get_time_string(), 'Running xfstest : ', filename.replace('.so', ''), 'as Crashmonkey standalone \nRunning...'
 			
 			#Sometimes we face an error connecting to socket. So let's retry one more time
 			#if CM throws a error for a particular test.
@@ -121,14 +138,14 @@ def main():
 				retry += 1
 				if (p_status == 0 or retry == 2):
 					if retry == 2 and p_status != 0 :
-						print 'Could not run test : ', filename.replace('.so', '')
+						print get_time_string(), 'Could not run test : ', filename.replace('.so', '')
 					else:
-						print res_final	
+						print get_time_string(), res_final	
 					break
 				else:
 					error = re.sub(r'(?s).*error', '\nError', output, flags=re.I)
-					print error
-					print 'Retry running ' ,filename.replace('.so', ''), '\nRunning... '	 
+					print get_time_string(), error
+					print get_time_string(), 'Retry running ' ,filename.replace('.so', ''), '\nRunning... '	 
 			file = filename.replace('.so', '')			
 			#diff_command = 'tail -vn +1 build/diff* >> diff_results/' + file  + '; rm build/diff*' 
 			#subprocess.call('cat build/diff* > out', shell=True)
@@ -141,7 +158,7 @@ def main():
 	#Stop logging
 	sys.stdout = original
 	log_file_handle.close()
-	print 'xfsMonkey test completed. See ', log_file ,' for test summary\n\n'
+	print get_time_string(), 'xfsMonkey test completed. See ', log_file ,' for test summary\n\n'
 
 if __name__ == '__main__':
 	main()
