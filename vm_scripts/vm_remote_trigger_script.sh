@@ -17,7 +17,7 @@ fi
 
 num=`ps aux | grep vm_remote_trigger_script | grep -v grep | wc -l`
 
-if [ $num -gt 2 ]
+if [ $num -gt 3 ]
 then
         echo `date` 'trigger script might already be running (check the processes below).. Skipping the triggering of xfsMonkey..  '
 	ps aux | grep vm_remote_trigger_script
