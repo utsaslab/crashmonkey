@@ -6,6 +6,6 @@ if [ "$#" -ne 1 ]; then
 fi
 vm=$1
 
-echo Starting VM $vm...
+echo `date` 'Starting VM '$vm'...'
 VBoxManage startvm ubuntu16-vm"$vm" --type headless
 
