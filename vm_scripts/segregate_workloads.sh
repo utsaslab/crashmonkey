@@ -1,6 +1,6 @@
 #!/bin/bash
 
-if [ "$#" -ne 4 ]; then
+if [ "$#" -ne 5 ]; then
     echo "Illegal number of parameters; Please provide num workloads per vm, start workload number, max workload number, base path to workload files, and output seg directory path (workloads/seq3-nested-seg1 for example) as the parameters;"
     exit 1
 fi
