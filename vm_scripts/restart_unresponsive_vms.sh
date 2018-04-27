@@ -5,7 +5,7 @@ port=3022
 i=1
 
 while [ $i -le $num_vms ]; do
-	res=`rsh -p $port pandian@127.0.0.1 "touch /home/pandian/a; echo abc"`
+	res=`timeout -s KILL 10 rsh -p $port pandian@127.0.0.1 "echo abc"`
 	
 	if [ -z "$res" ];
 	then
