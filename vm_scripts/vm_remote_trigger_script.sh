@@ -15,6 +15,16 @@ then
 	exit
 fi
 
+num=`ps aux | grep vm_remote_trigger_script | grep -v grep | wc -l`
+
+if [ $num -gt 2 ]
+then
+        echo `date` 'trigger script might already be running (check the processes below).. Skipping the triggering of xfsMonkey..  '
+	ps aux | grep vm_remote_trigger_script
+        exit
+fi
+
+
 # install libattr for xattr headers
 echo `date` 'Installing libattr1-dev..'
 echo alohomora | sudo -S apt-get install --yes libattr1-dev btrfs-tools f2fs-tools xfsprogs
