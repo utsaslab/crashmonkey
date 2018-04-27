@@ -4,9 +4,8 @@ num_vms=$num_vms
 port=3022
 i=1
 
-touch xyz
 while [ $i -le $num_vms ]; do
-	timeout -s KILL 10 scp -P $port xyz pandian@127.0.0.1:~/
+	timeout -s KILL 10 sshpass -p "alohomora" scp -o "StrictHostKeyChecking no" -P $port ~/vm_remote_* pandian@127.0.0.1:~/
 	ex=$?
 
 	if [ $ex -ne 0 ];
