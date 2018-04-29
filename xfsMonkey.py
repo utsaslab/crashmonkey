@@ -136,8 +136,8 @@ def main():
 
 				#print output
 				retry += 1
-				if (p_status == 0 or retry == 3):
-					if retry == 2 and p_status != 0 :
+				if (p_status == 0 or retry == 4):
+					if retry == 4 and p_status != 0 :
 						print get_time_string(), 'Could not run test : ', filename.replace('.so', '')
 					else:
 						print res_final	
