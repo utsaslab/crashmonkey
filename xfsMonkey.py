@@ -136,7 +136,7 @@ def main():
 
 				#print output
 				retry += 1
-				if (p_status == 0 or retry == 2):
+				if (p_status == 0 or retry == 3):
 					if retry == 2 and p_status != 0 :
 						print get_time_string(), 'Could not run test : ', filename.replace('.so', '')
 					else:
@@ -145,6 +145,8 @@ def main():
 				else:
 					error = re.sub(r'(?s).*error', '\nError', output, flags=re.I)
 					print get_time_string(), error
+					print get_time_string(), 'Running cm_cleanup script..'
+					os.system('bash vm_scripts/cm_cleanup.sh')
 					print get_time_string(), 'Retry running ' ,filename.replace('.so', ''), '\n', get_time_string(), 'Running... '	 
 			file = filename.replace('.so', '')			
 			#diff_command = 'tail -vn +1 build/diff* >> diff_results/' + file  + '; rm build/diff*' 
