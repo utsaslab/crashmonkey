@@ -1189,29 +1189,29 @@ def doPermutation(perm):
 #             
 #             
 ##             #Now build the j-lang file------------------------------------
-#         j_lang_file = 'j-lang' + str(global_count)
-#          source_j_lang_file = 'code/tests/' + dest_dir + '/base-j-lang'
-#           copyfile(source_j_lang_file, j_lang_file)
-#           length_map = {}
+            j_lang_file = 'j-lang' + str(global_count)
+            source_j_lang_file = 'code/tests/' + dest_dir + '/base-j-lang'
+            copyfile(source_j_lang_file, j_lang_file)
+            length_map = {}
 
-#            with open(j_lang_file, 'a') as f:
-#               run_line = '\n\n# run\n'
-#                f.write(run_line)
+            with open(j_lang_file, 'a') as f:
+                run_line = '\n\n# run\n'
+                f.write(run_line)
 
-#                for insert in xrange(0, len(modified_sequence)):
-#                    cur_line = buildJlang(modified_sequence[insert], length_map)
-#                    cur_line_log = '{0}'.format(cur_line) + '\n'
-            #                   f.write(cur_line_log)
+                for insert in xrange(0, len(modified_sequence)):
+                    cur_line = buildJlang(modified_sequence[insert], length_map)
+                    cur_line_log = '{0}'.format(cur_line) + '\n'
+                    f.write(cur_line_log)
 
-#           f.close()
+            f.close()
 
-#  exec_command = 'python workload_seq3.py -b code/tests/' + dest_dir + '/base.cpp -t ' + j_lang_file + ' -p code/tests/' + dest_dir + '/ -o ' + str(global_count)
-#    subprocess.call(exec_command, shell=True)
+  exec_command = 'python workload_seq3.py -b code/tests/' + dest_dir + '/base.cpp -t ' + j_lang_file + ' -p code/tests/' + dest_dir + '/ -o ' + str(global_count)
+    subprocess.call(exec_command, shell=True)
             #Now build the j-lang file------------------------------------
 #
 ##             
-#log = '\n\t\t\tModified sequence = {0}\n'.format(modified_sequence);
-# log_file_handle.write(log)
+log = '\n\t\t\tModified sequence = {0}\n'.format(modified_sequence);
+ log_file_handle.write(log)
 ##
 ##            isBugWorkload(permutations[count-1], j, syncPermutationsCustom[insSync])
 
@@ -1222,6 +1222,7 @@ parameterList = {}
 SyncSet = list()
 num_ops = 0
 nested = False
+demo = False
 syncPermutations = []
 count = 0
 permutations = []
@@ -1238,6 +1239,7 @@ def main():
     global nested
     global permutations
     global SyncSet
+    global demo
     global log_file_handle
     global count_param
     global FileOptions
@@ -1255,7 +1257,6 @@ def main():
     print_setup(parsed_args)
 
     num_ops = parsed_args.sequence_len
-    demo = parsed_args.demo
 
     print parsed_args.nested
     
@@ -1275,9 +1276,13 @@ def main():
 
     if parsed_args.demo == ('True' or 'true'):
         print demo
+        demo = True
         OperationSet = ['link','falloc']
 
-    
+    else:
+        demo = False
+
+
     #OperationSet = ['creat', 'mkdir', 'falloc', 'write', 'dwrite', 'link', 'unlink', 'remove', 'rename', 'removexattr', 'fsetxattr', 'truncate', 'mmapwrite']
 
     for i in xrange(0,len(expected_sequence)):
@@ -1313,6 +1318,10 @@ def main():
     
     if nested:
         dest_dir += '_nested'
+
+    if demo:
+        dest_dir += '_demo'
+    
 
     target_path = 'code/tests/' + dest_dir + '/j-lang-files/'
     if not os.path.exists(target_path):
