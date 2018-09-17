@@ -25,24 +25,27 @@ from multiprocessing import Pool
 
 FallocOptions = ['FALLOC_FL_ZERO_RANGE', 'FALLOC_FL_ZERO_RANGE|FALLOC_FL_KEEP_SIZE','FALLOC_FL_PUNCH_HOLE|FALLOC_FL_KEEP_SIZE','FALLOC_FL_KEEP_SIZE', 0]
 
-FsyncOptions = ['fsync','fdatasync']
+FsyncOptions = ['fsync','fdatasync', 'sync']
 
 #This should take care of file name/ dir name
-FileOptions = ['B/foo', 'A/foo', 'AC/foo']
+FileOptions = ['B/foo', 'A/foo']#, 'AC/foo']
 
 SecondFileOptions = ['B/bar', 'A/bar']
 
 #A, B are  subdir under test
 DirOptions = ['A']
 TestDirOptions = ['test']
-SecondDirOptions = ['B', 'AC']
+SecondDirOptions = ['B']#, 'AC']
+
+print FileOptions
+print SecondDirOptions
 
 #this will take care of offset + length combo
 #Start = 4-16K , append = 16K-20K, overlap = 8000 - 12096, prepend = 0-4K
 
 #Append should append to file size, and overwrites should be possible
-#WriteOptions = ['start', 'append', 'overlap', 'prepend'] 'overlap_aligned'
-WriteOptions = ['append', 'overlap_unaligned']
+WriteOptions = ['start', 'append', 'overlap', 'prepend'] #'overlap_aligned'
+#WriteOptions = ['append', 'overlap_unaligned']
 
 
 #d_overlap = 8K-12K (has to be aligned)
@@ -52,10 +55,10 @@ dWriteOptions = ['append', 'overlap']
 TruncateOptions = ['unaligned']
 
 #removed symlink, mknod
-#OperationSet = ['creat', 'mkdir', 'falloc', 'write', 'dwrite', 'link', 'unlink', 'remove', 'rename', 'removexattr', 'fdatasync', 'fsetxattr', 'truncate', 'mmapwrite']
+OperationSet = ['creat', 'mkdir', 'falloc', 'write', 'dwrite', 'link', 'unlink', 'remove', 'rename', 'removexattr', 'fsetxattr', 'truncate', 'mmapwrite', 'symlink']
 
 #OperationSet = ['write', 'link', 'unlink', 'rename', 'truncate']
-OperationSet = ['link','rename']
+#OperationSet = ['link','rename']
 
 #We are skipping 041, 336, 342, 343
 #The sequences we want to reach to
@@ -235,6 +238,8 @@ def build_parser():
 
     # global args
     parser.add_argument('--sequence_len', '-l', default='3', help='Number of critical ops in the bugy workload')
+    parser.add_argument('--nested', '-n', default='False', help='Add a level of nesting')
+    parser.add_argument('--demo', '-d', default='False', help='Demo Workload')
 
     return parser
 
@@ -243,6 +248,7 @@ def print_setup(parsed_args):
     print '\n{: ^50s}'.format('XFSMonkey Bug Workload generatorv0.1\n')
     print '='*20, 'Setup' , '='*20, '\n'
     print '{0:20}  {1}'.format('Sequence length', parsed_args.sequence_len)
+    print '{0:20}  {1}'.format('Nested', parsed_args.nested)
     print '\n', '='*48, '\n'
 
 min = 0
@@ -250,7 +256,7 @@ min = 0
 def buildTuple(command):
     if command == 'creat':
         d = tuple(FileOptions)
-    elif command == 'mkdir':
+    elif command == 'mkdir' or command == 'rmdir':
         d = tuple(DirOptions)
     elif command == 'mknod':
         d = tuple(FileOptions)
@@ -1012,12 +1018,20 @@ def doPermutation(perm):
     global global_count
     global parameterList
     global num_ops
+    global nested
     global syncPermutations
     global count
     global permutations
     global SyncSet
     global log_file_handle
     global count_param
+    
+    dest_dir = 'seq'+num_ops
+    
+    if nested:
+        dest_dir += '_nested'
+    
+    print dest_dir
     
     #if our permutation is of the type (write, write, write - lets skip it.) We'll handle it in write intensive workload set
     if len(set(perm)) == 1 and list(set(perm))[0] == 'write':
@@ -1054,11 +1068,12 @@ def doPermutation(perm):
 #            print usedSofar
 #            print intersect
             if len(intersect) == 0 and paramLength > 0:
-#                print 'Skip this option'
-                toSkip = True
+                #print 'Skip this option'
+                #toSkip = True
                 continue
 
         if toSkip:
+            #print 'Skip this option'
             continue
 
         log = '{0}'.format(j)
@@ -1096,7 +1111,7 @@ def doPermutation(perm):
         for insSync in range(0, len(syncPermutationsCustom)):
             
 
-            if int(num_ops) == 1 or int(num_ops) == 2 or int(num_ops) == 3 or int(num_ops) == 4:
+            if int(num_ops) == 1 or int(num_ops) == 2 or int(num_ops) == 3:
                 log = '{0}'.format(syncPermutationsCustom[insSync]);
                 log = '\n\t\tFile # ' + `global_count` + ' : ' + `count_sync` + ' : ' + log + '\n'
                 log_file_handle.write(log)
@@ -1174,28 +1189,29 @@ def doPermutation(perm):
 #             
 #             
 ##             #Now build the j-lang file------------------------------------
-            j_lang_file = 'j-lang' + str(global_count)
-            copyfile('code/tests/seq3-nested/base-j-lang', j_lang_file)
-            length_map = {}
+#         j_lang_file = 'j-lang' + str(global_count)
+#          source_j_lang_file = 'code/tests/' + dest_dir + '/base-j-lang'
+#           copyfile(source_j_lang_file, j_lang_file)
+#           length_map = {}
 
-            with open(j_lang_file, 'a') as f:
-                run_line = '\n\n# run\n'
-                f.write(run_line)
+#            with open(j_lang_file, 'a') as f:
+#               run_line = '\n\n# run\n'
+#                f.write(run_line)
 
-                for insert in xrange(0, len(modified_sequence)):
-                    cur_line = buildJlang(modified_sequence[insert], length_map)
-                    cur_line_log = '{0}'.format(cur_line) + '\n'
-                    f.write(cur_line_log)
+#                for insert in xrange(0, len(modified_sequence)):
+#                    cur_line = buildJlang(modified_sequence[insert], length_map)
+#                    cur_line_log = '{0}'.format(cur_line) + '\n'
+            #                   f.write(cur_line_log)
 
-            f.close()
+#           f.close()
 
-            exec_command = 'python workload_seq2.py -b code/tests/seq3-nested/base.cpp -t ' + j_lang_file + ' -p code/tests/seq3-nested/ -o ' + str(global_count)
-            subprocess.call(exec_command, shell=True)
+#  exec_command = 'python workload_seq3.py -b code/tests/' + dest_dir + '/base.cpp -t ' + j_lang_file + ' -p code/tests/' + dest_dir + '/ -o ' + str(global_count)
+#    subprocess.call(exec_command, shell=True)
             #Now build the j-lang file------------------------------------
 #
 ##             
-            log = '\n\t\t\tModified sequence = {0}\n'.format(modified_sequence);
-            log_file_handle.write(log)
+#log = '\n\t\t\tModified sequence = {0}\n'.format(modified_sequence);
+# log_file_handle.write(log)
 ##
 ##            isBugWorkload(permutations[count-1], j, syncPermutationsCustom[insSync])
 
@@ -1205,6 +1221,7 @@ global_count = 0
 parameterList = {}
 SyncSet = list()
 num_ops = 0
+nested = False
 syncPermutations = []
 count = 0
 permutations = []
@@ -1218,10 +1235,14 @@ def main():
     global num_ops
     global syncPermutations
     global count
+    global nested
     global permutations
     global SyncSet
     global log_file_handle
     global count_param
+    global FileOptions
+    global SecondDirOptions
+    global OperationSet
     
     #open log file
     log_file = time.strftime('%Y%m%d_%H%M%S') + '-bugWorkloadGen.log'
@@ -1234,6 +1255,30 @@ def main():
     print_setup(parsed_args)
 
     num_ops = parsed_args.sequence_len
+    demo = parsed_args.demo
+
+    print parsed_args.nested
+    
+    if parsed_args.nested == ('True' or 'true'):
+        nested = True
+        print nested
+    
+    else:
+        nested = False
+    
+    if nested:
+        FileOptions = FileOptions + ['AC/foo']
+        SecondDirOptions = SecondDirOptions + ['AC']
+
+    print FileOptions
+    print SecondDirOptions
+
+    if parsed_args.demo == ('True' or 'true'):
+        print demo
+        OperationSet = ['link','falloc']
+
+    
+    #OperationSet = ['creat', 'mkdir', 'falloc', 'write', 'dwrite', 'link', 'unlink', 'remove', 'rename', 'removexattr', 'fsetxattr', 'truncate', 'mmapwrite']
 
     for i in xrange(0,len(expected_sequence)):
         print 'Bug #', i+1
@@ -1262,6 +1307,25 @@ def main():
     SyncSet.append(none)
     SyncSet = tuple(SyncSet)
 #    print SyncSet
+
+
+    dest_dir = 'seq'+num_ops
+    
+    if nested:
+        dest_dir += '_nested'
+
+    target_path = 'code/tests/' + dest_dir + '/j-lang-files/'
+    if not os.path.exists(target_path):
+        os.makedirs(target_path)
+
+    #copy base files into this directory
+    dest_j_lang_file = 'code/tests/' + dest_dir + '/base-j-lang'
+    source_j_lang_file = 'code/tests/ace-base/base-j-lang'
+    copyfile(source_j_lang_file, dest_j_lang_file)
+
+    dest_j_lang_cpp = 'code/tests/' + dest_dir + '/base.cpp'
+    source_j_lang_cpp = 'code/tests/ace-base/base.cpp'
+    copyfile(source_j_lang_cpp, dest_j_lang_cpp)
 
 
     for i in itertools.product(SyncSet, repeat=int(num_ops)):
@@ -1297,7 +1361,11 @@ def main():
 
     log_file_handle.close()
 
-    subprocess.call('mv j-lang* code/tests/seq3-nested/j-lang-files/', shell = True)
+
+
+    target = 'mv j-lang* ' + target_path
+    print target
+    subprocess.call(target, shell = True)
 
 
 if __name__ == '__main__':
