@@ -14,9 +14,9 @@ ___
 
 ### Bug 1 : File lost during rename ###
 
-|Workload (seq-3)| Type| Fails on| Result
+|Workload | Type| Fails on| Result
 | :---:| :---: | :---: | :---: |
-|mkdir A <br/> touch A/bar <br /> fsync A/bar <br />mkdir B <br /> touch B/bar <br /> rename B/bar A/bar <br /> touch A/foo  <br /> fsync A/foo <br/> fsync A| seq-3 | btrfs|Rename(B/bar, A/bar) did not go through, but ended up deleting the destination file A/bar as well as did not persist the source file B/bar. <br /> [[Report](https://www.spinics.net/lists/linux-btrfs/msg77290.html)] [[Developer's response](https://www.spinics.net/lists/linux-btrfs/msg77318.html)]
+|mkdir A <br> touch A/bar <br> fsync A/bar <br>mkdir B <br> touch B/bar <br> rename B/bar A/bar <br> touch A/foo  <br> fsync A/foo <br> fsync A <br> ----CRASH----| seq-3 | btrfs|Rename(B/bar, A/bar) did not go through, but ended up deleting <br>the destination file A/bar as well as did not persist the source file B/bar. <br> [[Report](https://www.spinics.net/lists/linux-btrfs/msg77290.html)] [[Developer's response](https://www.spinics.net/lists/linux-btrfs/msg77318.html)]
 
 
 **Output** :
@@ -27,7 +27,7 @@ automated check_test:
 
 DIFF: Content Mismatch /A
 
-/mnt/snapshot/A:
+Actual (/mnt/snapshot/A):
 ---File Stat Atrributes---
 Inode     : 257
 TotalSize : 6
@@ -36,7 +36,7 @@ BlockSize : 4096
 #HardLinks: 1
 
 
-/mnt/cow_ram_snapshot4_0/A:
+Expected (/mnt/cow_ram_snapshot4_0/A):
 ---File Stat Atrributes---
 Inode     : 257
 TotalSize : 12
@@ -45,7 +45,38 @@ BlockSize : 4096
 #HardLinks: 1
 ```
 
+### Bug 2 : File persisted in both directories after rename ###
 
+|Workload | Type| Fails on| Result
+| :---:| :---: | :---: | :---: |
+|mkdir A <br/> mkdir A/C <br> rename A/C B <br> touch B/bar <br> fsync B/bar <br> rename B/bar A/bar <br> rename A B <br> fsync B/bar <br> ----CRASH----| seq-3 (nested) | btrfs| Rename(B/bar, A/bar) was not atomic and persists the file in both source <br> and destination directories. <br> [[Report](https://www.spinics.net/lists/linux-btrfs/msg77415.html)] [[Developer's response](https://www.spinics.net/lists/linux-btrfs/msg81425.html)]
+
+
+**Output** :
+```
+automated check_test:
+                failed: 1
+
+
+DIFF: Content Mismatch /B/bar
+
+Actual (/mnt/snapshot/B/bar):
+---File Stat Atrributes---
+Inode     : 259
+TotalSize : 0
+BlockSize : 4096
+#Blocks   : 0
+#HardLinks: 2
+
+
+Expected (/mnt/cow_ram_snapshot3_0/B/bar):
+---File Stat Atrributes---
+Inode     : 259
+TotalSize : 0
+BlockSize : 4096
+#Blocks   : 0
+#HardLinks: 1
+```
 
 
 ### Bug 8 : Acknowledged on btrfs ###
