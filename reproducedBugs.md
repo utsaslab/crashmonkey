@@ -1,8 +1,8 @@
-# Bugs reproduced with XFSMonkey
+# Bugs reproduced by CrashMonkey and Ace
 
 ```
 #Summary:
-	Total bugs reproduced = 26
+	Total unique bugs reproduced = 26
 		1. Fails on btrfs = 24
 		2. Fails on f2fs  = 2
 		3. Fails on ext4  = 2
@@ -139,7 +139,7 @@
 
 	**Result** : Fails on btrfs (kernel 3.12). In the append write path, fsync didnot log the inode item in a new transaction. [Data inconsistency](https://patchwork.kernel.org/patch/6624481)
 
-        **Output** :
+    **Output** :
 	```
 	Reordering tests ran 1121 tests with
 		passed cleanly: 1120
@@ -158,10 +158,10 @@
 8. ### generic_104 ### 
         Test that if we create hard link for two files within the same directory, but fsync only one of them, on replay the directory must be removable after unlinking the original and linked files. 
 
-        **Result** : Fails on btrfs (kernel 4.1.1). [The directory becomes unremovable even after deleting all files within.](https://patchwork.kernel.org/patch/6852751/)
+    **Result** : Fails on btrfs (kernel 4.1.1). [The directory becomes unremovable even after deleting all files within.](https://patchwork.kernel.org/patch/6852751/)
 
-        **Output** :
-        ```
+    **Output** :
+    ```
 	Reordering tests ran 272 tests with
 		passed cleanly: 18
 		passed fixed: 0
@@ -174,7 +174,7 @@
 			incorrect block count: 0
 			other: 0
 
-        ```
+    ```
 
 
 9. ### generic_106 ###
@@ -221,12 +221,12 @@
 
 
 11. ### generic_177 ### 
-        Test that if we punch a hole on overalapping regions and fsync the file, the file layout and extent map is persisted after a crash. 
+    Test that if we punch a hole on overalapping regions and fsync the file, the file layout and extent map is persisted after a crash. 
 
-        **Result** : Fails on btrfs when using the no-holes feature (kernel 4.1.1). [Extent map incorrect after recovery.](https://patchwork.kernel.org/patch/7536021/)
+    **Result** : Fails on btrfs when using the no-holes feature (kernel 4.1.1). [Extent map incorrect after recovery.](https://patchwork.kernel.org/patch/7536021/)
 
-        **Output** :
-        ```
+    **Output** :
+    ```
 	Reordering tests ran 343 tests with
 		passed cleanly: 342
 		passed fixed: 0
@@ -238,37 +238,37 @@
 			file metadata corrupted: 0
 			incorrect block count: 0
 			other: 0
-        ```
+    ```
 
 
 12. ### generic_321 ###
-        Test that if we rename a file from one directory to another, and fsync both the destination directory as well as the renamed file, the rename should persist. Also, this file should be removable, and allow the destination directory to be removed as well.
+    Test that if we rename a file from one directory to another, and fsync both the destination directory as well as the renamed file, the rename should persist. Also, this file should be removable, and allow the destination directory to be removed as well.
 
-        **Result** : Fails on btrfs (kernel 3.12). [The renamed file is persisted in both directories and becomes unremovable from destination.](https://patchwork.kernel.org/patch/3234531/)
+    **Result** : Fails on btrfs (kernel 3.12). [The renamed file is persisted in both directories and becomes unremovable from destination.](https://patchwork.kernel.org/patch/3234531/)
 
-        **Output** :
-        ```
-        Reordering tests ran 83 tests with
-        	passed cleanly: 18
-        	passed fixed: 0
-        	fsck required: 0
-        	failed: 65
-                	old file persisted: 65
-                	file missing: 0
-                	file data corrupted: 0
-                	file metadata corrupted: 0
-                	incorrect block count: 0
-                	other: 0
+    **Output** :
+    ```
+    Reordering tests ran 83 tests with
+        passed cleanly: 18
+        passed fixed: 0
+        fsck required: 0
+        failed: 65
+                old file persisted: 65
+                file missing: 0
+                file data corrupted: 0
+                file metadata corrupted: 0
+                incorrect block count: 0
+                other: 0
 
-        ```
+    ```
 
 13. ### generic_322 ###
-        Test that if we write to a file, rename it within the same directory, and fsync the renamed file, the rename should persist.
+    Test that if we write to a file, rename it within the same directory, and fsync the renamed file, the rename should persist.
 
-        **Result** : Fails on btrfs (kernel 3.12). [The renamed file didnot survive the fsync](https://patchwork.kernel.org/patch/3234541/)
+    **Result** : Fails on btrfs (kernel 3.12). [The renamed file didnot survive the fsync](https://patchwork.kernel.org/patch/3234541/)
 
-        **Output** :
-        ```
+    **Output** :
+    ```
 	Reordering tests ran 83 tests with
 		passed cleanly: 82
 		passed fixed: 0
@@ -281,15 +281,15 @@
 			incorrect block count: 0
 			other: 0
 
-        ```
+    ```
 
 14. ### generic_325 ### 
-        Test that if we do a ranged fsync(msync a range covering partial dirty pages), followed by a ranged fsync of the remaining dirty pages, then after a crash the data must be preserved.
+    Test that if we do a ranged fsync(msync a range covering partial dirty pages), followed by a ranged fsync of the remaining dirty pages, then after a crash the data must be preserved.
 
-        **Result** : Fails on btrfs (kernel 3.16). The second msync was a no-op in btrfs [Data inconsistency](https://patchwork.kernel.org/patch/4813651/)
+    **Result** : Fails on btrfs (kernel 3.16). The second msync was a no-op in btrfs [Data inconsistency](https://patchwork.kernel.org/patch/4813651/)
 
-        **Output** :
-        ```
+    **Output** :
+    ```
 	Reordering tests ran 8354 tests with
 		passed cleanly: 8353
 		passed fixed: 0
@@ -302,7 +302,7 @@
 			incorrect block count: 0
 			other: 0
 
-        ```
+    ```
 
 
 15. ### generic_335 ###
