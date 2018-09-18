@@ -2,8 +2,8 @@
 
 ```
 #Summary:
-	Total bugs reproduced = 25
-		1. Fails on btrfs = 23
+	Total bugs reproduced = 26
+		1. Fails on btrfs = 24
 		2. Fails on f2fs  = 2
 		3. Fails on ext4  = 2
 		4. Fails on xfs   = 0
@@ -283,8 +283,29 @@
 
         ```
 
+14. ### generic_325 ### 
+        Test that if we do a ranged fsync(msync a range covering partial dirty pages), followed by a ranged fsync of the remaining dirty pages, then after a crash the data must be preserved.
 
-14. ### generic_335 ###
+        **Result** : Fails on btrfs (kernel 3.16). The second msync was a no-op in btrfs [Data inconsistency](https://patchwork.kernel.org/patch/4813651/)
+
+        **Output** :
+        ```
+	Reordering tests ran 8354 tests with
+		passed cleanly: 8353
+		passed fixed: 0
+		fsck required: 0
+		failed: 1
+			old file persisted: 0
+			file missing: 0
+			file data corrupted: 1
+			file metadata corrupted: 0
+			incorrect block count: 0
+			other: 0
+
+        ```
+
+
+15. ### generic_335 ###
 	Suppose we move a file from one directory to another and fsync the parent of the old directory. If we crash and remount the filesystem, file that we moved must exist and be present in the new directory.
 
 
@@ -306,7 +327,7 @@
 
 	```
 
-15. ### generic_336 ###
+16. ### generic_336 ###
 	Suppose we move a file from one directory to another and fsync the file. Before this, the directory inode containing this file must have been fsynced/logged. If we crash and remount the filesystem, file that we moved must exist
 
 
@@ -327,7 +348,7 @@
 
 	```
 
-16. ### generic_341 ###
+17. ### generic_341 ###
 	Test that if we rename a directory, create a new directory that has the old name of our former directory and is a child of the same parent directory, fsync the new inode, power fail and mount the filesystem, we see our first directory with the new name and no files under it were lost.
 
 	**Result** : Fails on btrfs (kernel 4.4). [The moved directory and all its files are lost](https://www.spinics.net/lists/linux-btrfs/msg53591.html)
@@ -347,7 +368,7 @@
 
 	```
 
-17. ### generic_342 ###
+18. ### generic_342 ###
 	We rename a file, and create a new file with the old name o the renamed file, and fsync it. If we recover after a crash now, we should see both the renamed file and the new file.
 
 	**Result** : Fails on f2fs (kernel 4.15) and btrfs (kernel 4.4). The renamed file is lost : [f2fs](https://git.kernel.org/pub/scm/linux/kernel/git/jaegeuk/f2fs.git/commit/?id=0a007b97aad6e1700ef5c3815d14e88192cc1124), [btrfs](https://patchwork.kernel.org/patch/8694301/)
@@ -387,7 +408,7 @@
 
 
 
-18. ### generic_343 ###
+19. ### generic_343 ###
 	If we move a directory to a new parent and later log that parent and don't explicitly log the old parent, when we replay the log we should not end up with entries for the moved directory in both the old and new parent directories.
 
 	**Result** : Fails on btrfs (kernel 4.4). [The moved directory is present in both old and new parent](https://patchwork.kernel.org/patch/8766401/)
@@ -407,7 +428,7 @@
 
 	```
 
-19. ### generic_348 ###
+20. ### generic_348 ###
 	If we create a symlink, fsync its parent directory, power fail and mount again the filesystem, the symlink should exist and its content must match what we specified when we created it (must not be empty or point to something else)
 
 	**Result** : Fails on btrfs (kernel 4.4). [We end up with an empty symlink](https://patchwork.kernel.org/patch/9158353/)
@@ -427,7 +448,7 @@
 
 	```
 
-20. ### generic_376 ###
+21. ### generic_376 ###
 	Rename a file without changing its parent directory, create a new file that has the old name of the file we renamed and fsync the file we renamed. Rename should work correctly and after a power failure both file should exist.
 
 	**Result** : Fails on btrfs (kernel 4.4). [The new file created is lost](https://patchwork.kernel.org/patch/9297215/)
@@ -447,7 +468,7 @@
 
 	```
 
-21. ### generic_468 ###
+22. ### generic_468 ###
 	Test that fallocate with KEEP_SIZE followed by a fdatasync then crash, we see the right number of allocated blocks. 
 
 	**Result** : Fails on ext4 and f2fs (kernel 4.4). [The blocks allocated beyond EOF are all lost.](https://patchwork.kernel.org/patch/10120293/)
@@ -486,7 +507,7 @@
 
 	```
 
-22. ### generic_ext4_direct_write ###
+23. ### generic_ext4_direct_write ###
 	If a buffered write extends a file, and before it is resolved, if we do a direct write, the file size should be updated correctly. In ext4 direct write path, we update i_disksize only when new eof is greater than i_size, and don't update it even when new eof is greater than i_disksize but less than i_size
 
 	**Result** : Fails on ext4 (kernel 4.15). [The file size is 0, while block count is non zero due to direct write](https://marc.info/?l=linux-ext4&m=151669669030547&w=2)
@@ -506,7 +527,7 @@
 
 	```
 
-23. ### btrfs_link_unlink ###
+24. ### btrfs_link_unlink ###
 	Suppose we remove a hard link to a file, and create a new file with the same name, followed by a fsync. If we crash now, the fsync log cannot be replayed, and makes the FS unmountable.      
 
 	**Result** : Fails on btrfs (kernel 4.16). [Filesystem becomes unmountable.](https://www.spinics.net/lists/linux-btrfs/msg75204.html)
@@ -528,7 +549,7 @@
 	```
 
 
-24. ### btrfs_rename_special_file ###
+25. ### btrfs_rename_special_file ###
 	Suppose we rename a special file(FIFO, character/block device or symlink), and then create a hard link with the old name of the special file. If we now persist the fsync log tree, and crash, the filesystem becomes unmountable.     
 
 	**Result** : Fails on btrfs (kernel 4.16). [Filesystem becomes unmountable.](https://www.mail-archive.com/linux-btrfs@vger.kernel.org/msg73890.html)
@@ -549,7 +570,7 @@
 
 	```
 
-25. ### btrfs_inode_eexist ###
+26. ### btrfs_inode_eexist ###
 	Suppose we create a file (assign a new objectid to the new inode) and persist these changes in the log tree by issuing a fsync(). If we now crash, let the log replay complete and try creating a new file, the create fails with EEXIST.     
 
 	**Result** : Fails on btrfs (kernel 4.16). This is because the new file inode will be assigned the same objectid as the file present in fsync log, because the highest objectid in use was not recalculated after log replay. [File create fails with EEXIST.](https://www.mail-archive.com/linux-btrfs@vger.kernel.org/msg73890.html)

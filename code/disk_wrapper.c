@@ -50,6 +50,8 @@ static struct hwm_device {
   bool log_on;
 #if (LINUX_VERSION_CODE >= KERNEL_VERSION(3, 12, 0) && \
   LINUX_VERSION_CODE < KERNEL_VERSION(3, 14, 0)) || \
+ (LINUX_VERSION_CODE >= KERNEL_VERSION(3, 16, 0) && \
+  LINUX_VERSION_CODE < KERNEL_VERSION(3, 17, 0)) || \
  (LINUX_VERSION_CODE >= KERNEL_VERSION(4, 1, 0) && \
   LINUX_VERSION_CODE < KERNEL_VERSION(4, 2, 0)) || \
   (LINUX_VERSION_CODE >= KERNEL_VERSION(4, 4, 0) && \
@@ -316,12 +318,25 @@ static unsigned long long convert_flags(unsigned long long flags) {
     res |= HWM_PM_FLAG;
   }
 
-// These are flags present in 4.4 but not 3.13.
-#if (LINUX_VERSION_CODE >= KERNEL_VERSION(4, 1, 0) && \
+//these are flags present in 3.16 but not 3.13
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(3, 16, 0) && \
+    LINUX_VERSION_CODE < KERNEL_VERSION(3, 17, 0)
+
+  if (flags & REQ_PM) {
+    res |= HWM_PM_FLAG;
+  }
+  if (flags & REQ_HASHED) {
+    res |= HWM_HASHED_FLAG;
+  }
+  if (flags & REQ_MQ_INFLIGHT) {
+    res |= HWM_MQ_INFLIGHT_FLAG;
+  }
+#endif
+#elif (LINUX_VERSION_CODE >= KERNEL_VERSION(4, 1, 0) && \
     LINUX_VERSION_CODE < KERNEL_VERSION(4, 2, 0)) || \
     (LINUX_VERSION_CODE >= KERNEL_VERSION(4, 4, 0) && \
      LINUX_VERSION_CODE < KERNEL_VERSION(4, 5, 0))
-
+// These are flags present in 4.4 but not 3.13.
   if (flags & REQ_PM) {
     res |= HWM_PM_FLAG;
   }
@@ -337,7 +352,6 @@ static unsigned long long convert_flags(unsigned long long flags) {
   if (flags & REQ_NO_TIMEOUT) {
     res |= HWM_NO_TIMEOUT_FLAG;
   }
-#endif
 #elif LINUX_VERSION_CODE >= KERNEL_VERSION(4, 15, 0) \
     && LINUX_VERSION_CODE < KERNEL_VERSION(4, 17, 0)
 
@@ -448,6 +462,8 @@ static void print_rw_flags(unsigned long rw, unsigned long flags) {
 // TODO(ashmrtn): Currently not thread safe/reentrant. Make it so.
 #if (LINUX_VERSION_CODE >= KERNEL_VERSION(3, 12, 0) && \
     LINUX_VERSION_CODE < KERNEL_VERSION(3, 14, 0)) || \
+    (LINUX_VERSION_CODE >= KERNEL_VERSION(3, 16, 0) && \
+    LINUX_VERSION_CODE < KERNEL_VERSION(3, 17, 0)) || \
     (LINUX_VERSION_CODE >= KERNEL_VERSION(4, 1, 0) && \
     LINUX_VERSION_CODE < KERNEL_VERSION(4, 2, 0)) || \
     (LINUX_VERSION_CODE >= KERNEL_VERSION(4, 4, 0) && \
@@ -558,6 +574,8 @@ static blk_qc_t disk_wrapper_bio(struct request_queue* q, struct bio* bio) {
   hwm = (struct hwm_device*) q->queuedata;
 #if (LINUX_VERSION_CODE >= KERNEL_VERSION(3, 12, 0) && \
     LINUX_VERSION_CODE < KERNEL_VERSION(3, 14, 0)) || \
+    (LINUX_VERSION_CODE >= KERNEL_VERSION(3, 16, 0) && \
+    LINUX_VERSION_CODE < KERNEL_VERSION(3, 17, 0)) || \
    (LINUX_VERSION_CODE >= KERNEL_VERSION(4, 1, 0) && \
    LINUX_VERSION_CODE < KERNEL_VERSION(4, 2, 0)) || \
    (LINUX_VERSION_CODE >= KERNEL_VERSION(4, 4, 0) && \
@@ -638,6 +656,8 @@ static int __init disk_wrapper_init(void) {
 
 #if (LINUX_VERSION_CODE >= KERNEL_VERSION(3, 12, 0) && \
     LINUX_VERSION_CODE < KERNEL_VERSION(3, 14, 0)) || \
+    (LINUX_VERSION_CODE >= KERNEL_VERSION(3, 16, 0) && \
+   LINUX_VERSION_CODE < KERNEL_VERSION(3, 17, 0)) || \
    (LINUX_VERSION_CODE >= KERNEL_VERSION(4, 1, 0) && \
    LINUX_VERSION_CODE < KERNEL_VERSION(4, 2, 0)) || \
   (LINUX_VERSION_CODE >= KERNEL_VERSION(4, 4, 0) && \
@@ -665,7 +685,9 @@ static int __init disk_wrapper_init(void) {
   }
 #if (LINUX_VERSION_CODE >= KERNEL_VERSION(3, 12, 0) && \
     LINUX_VERSION_CODE < KERNEL_VERSION(3, 14, 0)) || \
-    (LINUX_VERSION_CODE >= KERNEL_VERSION(4, 1, 0) && \
+    (LINUX_VERSION_CODE >= KERNEL_VERSION(3, 16, 0) && \
+   LINUX_VERSION_CODE < KERNEL_VERSION(3, 17, 0)) || \
+   (LINUX_VERSION_CODE >= KERNEL_VERSION(4, 1, 0) && \
     LINUX_VERSION_CODE < KERNEL_VERSION(4, 2, 0)) || \
   (LINUX_VERSION_CODE >= KERNEL_VERSION(4, 4, 0) && \
    LINUX_VERSION_CODE < KERNEL_VERSION(4, 5, 0))
@@ -701,10 +723,12 @@ static int __init disk_wrapper_init(void) {
   // Make this queue have the same flags as the queue we're feeding into.
 #if (LINUX_VERSION_CODE >= KERNEL_VERSION(3, 12, 0) && \
     LINUX_VERSION_CODE < KERNEL_VERSION(3, 14, 0)) || \
+    (LINUX_VERSION_CODE >= KERNEL_VERSION(3, 16, 0) && \
+   LINUX_VERSION_CODE < KERNEL_VERSION(3, 17, 0)) || \
    (LINUX_VERSION_CODE >= KERNEL_VERSION(4, 1, 0) && \
-   LINUX_VERSION_CODE < KERNEL_VERSION(4, 2, 0)) || \ 
- (LINUX_VERSION_CODE >= KERNEL_VERSION(4, 4, 0) && \
-   LINUX_VERSION_CODE < KERNEL_VERSION(4, 5, 0))
+   LINUX_VERSION_CODE < KERNEL_VERSION(4, 2, 0)) || \
+    (LINUX_VERSION_CODE >= KERNEL_VERSION(4, 4, 0) && \
+   LINUX_VERSION_CODE < KERNEL_VERSION(4, 5, 0)) 
   Device.gd->queue->flush_flags = flush_flags;
 #endif
   Device.gd->queue->queue_flags = queue_flags;
@@ -713,7 +737,9 @@ static int __init disk_wrapper_init(void) {
       Device.gd->queue->queue_flags);
 #if (LINUX_VERSION_CODE >= KERNEL_VERSION(3, 12, 0) && \
     LINUX_VERSION_CODE < KERNEL_VERSION(3, 14, 0)) || \
-    (LINUX_VERSION_CODE >= KERNEL_VERSION(4, 1, 0) && \
+  (LINUX_VERSION_CODE >= KERNEL_VERSION(3, 16, 0) && \
+    LINUX_VERSION_CODE < KERNEL_VERSION(3, 17, 0)) || \
+  (LINUX_VERSION_CODE >= KERNEL_VERSION(4, 1, 0) && \
     LINUX_VERSION_CODE < KERNEL_VERSION(4, 2, 0)) || \
   (LINUX_VERSION_CODE >= KERNEL_VERSION(4, 4, 0) && \
    LINUX_VERSION_CODE < KERNEL_VERSION(4, 5, 0))
@@ -735,6 +761,8 @@ static void __exit hello_cleanup(void) {
   free_logs();
 #if (LINUX_VERSION_CODE >= KERNEL_VERSION(3, 12, 0) && \
   LINUX_VERSION_CODE < KERNEL_VERSION(3, 14, 0)) || \
+   (LINUX_VERSION_CODE >= KERNEL_VERSION(3, 16, 0) && \
+  LINUX_VERSION_CODE < KERNEL_VERSION(3, 17, 0)) || \
   (LINUX_VERSION_CODE >= KERNEL_VERSION(4, 1, 0) && \
    LINUX_VERSION_CODE < KERNEL_VERSION(4, 2, 0)) || \
   (LINUX_VERSION_CODE >= KERNEL_VERSION(4, 4, 0) && \
