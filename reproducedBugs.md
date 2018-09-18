@@ -1,21 +1,22 @@
 # Bugs reproduced by CrashMonkey and Ace
 
-```
-# Summary:
+
+#### Summary:
 	Total unique bugs reproduced = 26
-        1. Fails on btrfs = 24
+		1. Fails on btrfs = 24
 		2. Fails on f2fs  = 2
 		3. Fails on ext4  = 2
 		4. Fails on xfs   = 0
 
 
-The workloads to reproduce the following bugs can be found [here].(https://github.com/utsaslab/crashmonkey/tree/master/code/tests)
-	
-```
+The workloads to reproduce the following bugs can be found [here](https://github.com/utsaslab/crashmonkey/tree/master/code/tests).
+
+___
+
 
 
 1. ### generic_034 ###
-	If a directory entry is both found in the persisted metadata and in the fsync log, at log replay time the directory entry should update the right value of i_size for the files created before a crash. After recovery, removing all the files in this directory should ensure that the directory is removable. 
+	If a directory entry is both found in the persisted metadata and in the fsync log, at log replay time the directory entry should update the right value of i_size for the files created before a crash. After recovery, removing all the files in this directory should ensure that the directory is removable.
 
 	**Result** : Fails on btrfs (kernel 3.13). [The directory is unremovable due to incorrect i_size.](https://patchwork.kernel.org/patch/4864571/)
 
@@ -35,7 +36,7 @@ The workloads to reproduce the following bugs can be found [here].(https://githu
 	```
 
 2. ### generic_039 ###
-	If we decrement link count for a file, fsync and crash, on replaying the log tree, the i_size due to the removed link should be decremented. Also there should be no dangling directory index references that makes the directory unremovable. 
+	If we decrement link count for a file, fsync and crash, on replaying the log tree, the i_size due to the removed link should be decremented. Also there should be no dangling directory index references that makes the directory unremovable.
 
 	**Result** : Fails on btrfs (kernel 3.13). [The parent directory is unremovable due to incorrect i_size.](https://patchwork.kernel.org/patch/6058101/)
 
@@ -55,7 +56,7 @@ The workloads to reproduce the following bugs can be found [here].(https://githu
 	```
 
 3. ### generic_041 ###
-	Consider an inode with a large number of hard links, some of which may be extrefs. If we turn a regular ref into an extref, fsync the inode and then crash, the filesystem should be consistent and mountable. 
+	Consider an inode with a large number of hard links, some of which may be extrefs. If we turn a regular ref into an extref, fsync the inode and then crash, the filesystem should be consistent and mountable.
 
 	**Result** : Fails on btrfs (kernel 3.13). Fsync log makes the replay code always fail with -EOVERFLOW when processing the inode's references. [Makes the filesystem unmountable.](https://www.spinics.net/lists/linux-btrfs/msg41157.html)
 
@@ -75,7 +76,7 @@ The workloads to reproduce the following bugs can be found [here].(https://githu
 	```
 
 4. ### generic_056 ###
-	If we write data into a file and fsync it, and later create a hard link to the same file, and persist the fsync log, on recovery the file data is lost. 
+	If we write data into a file and fsync it, and later create a hard link to the same file, and persist the fsync log, on recovery the file data is lost.
 
 	**Result** : Fails on btrfs (kernel 3.13). The file that was previously written to and fsynced, loses data adding a hard link and persisting the fsync log- because the i_size is updated incorrectly during fsync log replay. [Data inconsistency](https://patchwork.kernel.org/patch/5822681)
 
@@ -97,7 +98,7 @@ The workloads to reproduce the following bugs can be found [here].(https://githu
 
 
 5. ### generic_059 ###
-	If we punch a hole for a small range (partial page), and fsync the file, the operation should persist. 
+	If we punch a hole for a small range (partial page), and fsync the file, the operation should persist.
 
 	**Result** : Fails on btrfs (kernel 3.13). [Inode item was not updated, making fsync a no-op.](https://patchwork.kernel.org/patch/5830801/)
 
@@ -117,7 +118,7 @@ The workloads to reproduce the following bugs can be found [here].(https://githu
 	```
 
 6. ### generic_066 ###
-	Test that if we delete a xattr from a file and fsync the file, after log replay the file should not have the deleted xattr. 
+	Test that if we delete a xattr from a file and fsync the file, after log replay the file should not have the deleted xattr.
 
 	**Result** : Fails on btrfs (kernel 3.13). [The deleted xattr appears in the file, even after fsync.](https://www.spinics.net/lists/linux-btrfs/msg42162.html)
 
@@ -156,10 +157,10 @@ The workloads to reproduce the following bugs can be found [here].(https://githu
 			incorrect block count: 0
 			other: 0        
 	```
-        
 
-8. ### generic_104 ### 
-    Test that if we create hard link for two files within the same directory, but fsync only one of them, on replay the directory must be removable after unlinking the original and linked files. 
+
+8. ### generic_104 ###
+    Test that if we create hard link for two files within the same directory, but fsync only one of them, on replay the directory must be removable after unlinking the original and linked files.
 
     **Result** : Fails on btrfs (kernel 4.1.1). [The directory becomes unremovable even after deleting all files within.](https://patchwork.kernel.org/patch/6852751/)
 
@@ -181,7 +182,7 @@ The workloads to reproduce the following bugs can be found [here].(https://githu
 
 
 9. ### generic_106 ###
-	Test that if we remove a hard link for an inode, evict the inode, fsync it and crash, on replay the directory must be removable after unlinking the original file. 
+	Test that if we remove a hard link for an inode, evict the inode, fsync it and crash, on replay the directory must be removable after unlinking the original file.
 
 	**Result** : Fails on btrfs (kernel 3.13). [The directory becomes unremovable even after deleting all files within.](https://patchwork.kernel.org/patch/6860971)
 
@@ -223,8 +224,8 @@ The workloads to reproduce the following bugs can be found [here].(https://githu
 	```
 
 
-11. ### generic_177 ### 
-    Test that if we punch a hole on overalapping regions and fsync the file, the file layout and extent map is persisted after a crash. 
+11. ### generic_177 ###
+    Test that if we punch a hole on overalapping regions and fsync the file, the file layout and extent map is persisted after a crash.
 
     **Result** : Fails on btrfs when using the no-holes feature (kernel 4.1.1). [Extent map incorrect after recovery.](https://patchwork.kernel.org/patch/7536021/)
 
@@ -286,7 +287,7 @@ The workloads to reproduce the following bugs can be found [here].(https://githu
 
     ```
 
-14. ### generic_325 ### 
+14. ### generic_325 ###
     Test that if we do a ranged fsync(msync a range covering partial dirty pages), followed by a ranged fsync of the remaining dirty pages, then after a crash the data must be preserved.
 
     **Result** : Fails on btrfs (kernel 3.16). The second msync was a no-op in btrfs [Data inconsistency](https://patchwork.kernel.org/patch/4813651/)
@@ -472,7 +473,7 @@ The workloads to reproduce the following bugs can be found [here].(https://githu
 	```
 
 22. ### generic_468 ###
-	Test that fallocate with KEEP_SIZE followed by a fdatasync then crash, we see the right number of allocated blocks. 
+	Test that fallocate with KEEP_SIZE followed by a fdatasync then crash, we see the right number of allocated blocks.
 
 	**Result** : Fails on ext4 and f2fs (kernel 4.4). [The blocks allocated beyond EOF are all lost.](https://patchwork.kernel.org/patch/10120293/)
 
