@@ -1,0 +1,23 @@
+# define
+test
+A
+A/C
+B
+A/foo
+A/bar
+B/foo
+B/bar
+A/C/foo
+A/C/bar
+
+# declare
+local_checkpoint
+
+# setup
+
+# run
+mkdir A 0777
+opendir A 0777
+fsync A
+checkpoint 1
+close A
