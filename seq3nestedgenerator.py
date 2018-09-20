@@ -13,11 +13,11 @@ import json
 import pprint
 import collections
 import threading
-
+from progressbar import *
 from shutil import copyfile
 from string import maketrans
 from multiprocessing import Pool
-
+from progress.bar import *
 
 
 #All functions that has options go here
@@ -44,19 +44,19 @@ SecondDirOptions = ['B']
 
 #Append should append to file size, and overwrites should be possible
 #WriteOptions = ['append', 'overlap_aligned', 'overlap_unaligned']
-WriteOptions = ['append', 'overlap_unaligned_start', 'overlap_unaligned_end', 'overlap_extend']
+WriteOptions = ['append', 'overlap_unaligned_start', 'overlap_extend'] # 'overlap_unaligned_end'
 
 
 #d_overlap = 8K-12K (has to be aligned)
 #dWriteOptions = ['append', 'overlap']
-dWriteOptions = ['append', 'overlap_start', 'overlap_end']
+dWriteOptions = ['append', 'overlap_start'] # 'overlap_end'
 
 #Truncate file options 'aligned'
 TruncateOptions = ['unaligned']
 
 #Set of file-system operations to be used in test generation.
 # We currently support : creat, mkdir, falloc, write, dwrite, link, unlink, remove, rename, fsetxattr, removexattr, truncate, mmapwrite, symlink, fsync, fdatasync, sync
-OperationSet = ['creat', 'mkdir', 'falloc', 'write', 'dwrite', 'link', 'unlink', 'remove', 'rename', 'removexattr', 'fsetxattr', 'truncate', 'mmapwrite', 'fdatasync']
+OperationSet = ['creat', 'mkdir', 'falloc', 'write', 'dwrite','mmapwrite', 'link', 'unlink', 'remove', 'rename', 'fsetxattr', 'removexattr', 'truncate', 'fdatasync']
 
 
 #The sequences we want to reach to, to reproduce known bugs.
@@ -1317,11 +1317,11 @@ def main():
         SecondDirOptions = SecondDirOptions + ['AC']
 
     # We just print all known bugs
-    for i in xrange(0,len(expected_sequence)):
-        print 'Bug #', i+1
-        print expected_sequence[i]
-        print expected_sync_sequence[i]
-        print '\n'
+    #for i in xrange(0,len(expected_sequence)):
+    #   print 'Bug #', i+1
+    #   print expected_sequence[i]
+    #   print expected_sync_sequence[i]
+    #   print '\n'
 
 
     # This is basically the list of possible paramter options for each file-system operation. For example, if the fileset has 4 files and the op is creat, then there are 4 parameter options to creat. We log it just to get an estimate of the increase in the options as we expand the file set.
@@ -1350,7 +1350,6 @@ def main():
     SyncSet.append(sync)
     SyncSet.append(none)
     SyncSet = tuple(SyncSet)
-    print SyncSet
 
 
     dest_dir = 'seq'+num_ops
@@ -1378,10 +1377,19 @@ def main():
     source_j_lang_cpp = 'code/tests/ace-base/base.cpp'
     copyfile(source_j_lang_cpp, dest_j_lang_cpp)
 
-
+    # Workloads can take really long to generate. SO let's create a progress bar.
+    
     # Create all permutations of persistence ops  of given sequence length. This will be merged to the phase-2 workload.
     for i in itertools.product(SyncSet, repeat=int(num_ops)):
         syncPermutations.append(i)
+
+
+    # This is the number of input operations
+    log = 'Total file-system operations tested = ' +  `len(OperationSet)` + '\n'
+    print log
+    log_file_handle.write(log)
+
+
 
     # Time workload generation
     start_time = time.time()
@@ -1389,8 +1397,18 @@ def main():
     # **PHASE 1** : Create all permutations of file-system operations of given sequence lengt. ops can repeat.
     # To create only permutations of ops with no repeptions allowed, use this
     #for i in itertools.permutations(OperationSet, int(num_ops)):
+    totalOpCombinations = len(OperationSet) ** int(num_ops)
+    bar = FillingCirclesBar('Generating workloads.. ', max=totalOpCombinations, suffix='%(percent).0f%%  (Completed %(index)d/%(max)d)')
+
+    # This is the number of input operations
+    log = 'Total Phase-1 Skeletons = ' +  `totalOpCombinations` + '\n'
+    print log
+    log_file_handle.write(log)
+
+    bar.start()
     for i in itertools.product(OperationSet, repeat=int(num_ops)):
         doPermutation(i)
+        bar.next()
 
 
 
@@ -1402,14 +1420,11 @@ def main():
 
     # End timer
     end_time = time.time()
+    bar.finish()
 
-    # This is the number of input operations
-    log = 'Total permutations of input op set = ' +  `count` + '\n'
-    print log
-    log_file_handle.write(log)
 
     # This is the total number of workloads generated
-    log = 'Total workloads inspected = '  + `global_count`  + '\n'
+    log = '\nTotal workloads generated = '  + `global_count`  + '\n'
     print log
     log_file_handle.write(log)
 
