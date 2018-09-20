@@ -43,13 +43,13 @@ SecondDirOptions = ['B']
 #Start = 4-16K , append = 16K-20K, overlap = 8000 - 12096, prepend = 0-4K
 
 #Append should append to file size, and overwrites should be possible
-WriteOptions = ['start', 'append', 'overlap', 'prepend']
-#WriteOptions = ['append', 'overlap_unaligned_start', 'overlap_unaligned_end', 'overlap_extend']
+#WriteOptions = ['append', 'overlap_aligned', 'overlap_unaligned']
+WriteOptions = ['append', 'overlap_unaligned_start', 'overlap_unaligned_end', 'overlap_extend']
 
 
 #d_overlap = 8K-12K (has to be aligned)
-dWriteOptions = ['append', 'overlap']
-#dWriteOptions = ['append', 'overlap_start', 'overlap_end']
+#dWriteOptions = ['append', 'overlap']
+dWriteOptions = ['append', 'overlap_start', 'overlap_end']
 
 #Truncate file options 'aligned'
 TruncateOptions = ['unaligned']
@@ -899,6 +899,7 @@ def buildJlang(op_list, length_map):
         file = flat_list[1]
         command_str = command_str + 'mknod ' + file.replace('/','') + ' TEST_FILE_PERMS|S_IFCHR|S_IFBLK' + ' 0'
 
+
     if command == 'falloc':
         file = flat_list[1]
         option = flat_list[2]
@@ -906,40 +907,50 @@ def buildJlang(op_list, length_map):
         command_str = command_str + 'falloc ' + file.replace('/','') + ' ' + str(option) + ' '
         if write_op == 'append':
             off = str(length_map[file])
-            len = '4096'
-            length_map[file] += 4096
-        elif write_op == 'overlap_aligned':
+            lenn = '32768'
+            length_map[file] += 32768
+        elif write_op == 'overlap_unaligned_start':
             off = '0'
-            len = '4096'
-        else:
-            off = '1000'
-            len = '3000'
-
-        command_str = command_str + off + ' ' + len
+            lenn = '5000'
+        elif write_op == 'overlap_unaligned_end':
+            size = length_map[file]
+            off = str(size-5000)
+            lenn = '5000'
+        elif write_op == 'overlap_extend':
+            size = length_map[file]
+            off = str(size-2000)
+            lenn = '5000'
+            length_map[file] += 3000
+        
+        command_str = command_str + off + ' ' + lenn
 
     if command == 'write':
         file = flat_list[1]
         write_op = flat_list[2]
         command_str = command_str + 'write ' + file.replace('/','') + ' '
         if write_op == 'append':
-            len = '4096'
+            lenn = '32768'
             if file not in length_map:
                 length_map[file] = 0
                 off = '0'
             else:
                 off = str(length_map[file])
             
-            length_map[file] += 4096
-
-        elif write_op == 'overlap_aligned':
+            length_map[file] += 32768
+        
+        elif write_op == 'overlap_unaligned_start':
             off = '0'
-            len = '4096'
-
-        else:
-            off = '1000'
-            len = '3000'
-
-        command_str = command_str + off + ' ' + len
+            lenn = '5000'
+        elif write_op == 'overlap_unaligned_end':
+            size = length_map[file]
+            off = str(size-5000)
+            lenn = '5000'
+        elif write_op == 'overlap_extend':
+            size = length_map[file]
+            off = str(size-2000)
+            lenn = '5000'
+        
+        command_str = command_str + off + ' ' + lenn
 
     if command == 'dwrite':
         file = flat_list[1]
@@ -947,20 +958,24 @@ def buildJlang(op_list, length_map):
         command_str = command_str + 'dwrite ' + file.replace('/','') + ' '
         
         if write_op == 'append':
-            len = '4096'
+            lenn = '32768'
             if file not in length_map:
                 length_map[file] = 0
                 off = '0'
             else:
                 off = str(length_map[file])
-            length_map[file] += 4096
-    
-        elif write_op == 'overlap':
+            length_map[file] += 32768
+
+        elif write_op == 'overlap_start':
             off = '0'
-            len = '4096'
+            lenn = '8192'
+        elif write_op == 'overlap_end':
+            size = length_map[file]
+            off = str(size-8192)
+            lenn = '8192'
 
-        command_str = command_str + off + ' ' + len
-
+        command_str = command_str + off + ' ' + lenn
+    
     if command == 'mmapwrite':
         file = flat_list[1]
         write_op = flat_list[2]
@@ -968,19 +983,25 @@ def buildJlang(op_list, length_map):
         command_str = command_str + 'mmapwrite ' + file.replace('/','') + ' '
         
         if write_op == 'append':
-            len = '4096'
+            lenn = '32768'
             if file not in length_map:
                 length_map[file] = 0
                 off = '0'
             else:
                 off = str(length_map[file])
-            length_map[file] += 4096
-
-        elif write_op == 'overlap':
-            off = '0'
-            len = '4096'
+            length_map[file] += 32768
         
-        command_str = command_str + off + ' ' + len + '\ncheckpoint ' + ret
+        elif write_op == 'overlap_start':
+            off = '0'
+            lenn = '8192'
+        elif write_op == 'overlap_end':
+            size = length_map[file]
+            off = str(size-8192)
+            lenn = '8192'
+        
+        command_str = command_str + off + ' ' + lenn + '\ncheckpoint ' + ret
+
+    
 
     if command == 'link' or command =='rename' or command == 'symlink':
         file1 = flat_list[1]
@@ -1224,7 +1245,7 @@ def doPermutation(perm):
 
             f.close()
 
-            exec_command = 'python workload_seq3.py -b code/tests/' + dest_dir + '/base.cpp -t ' + j_lang_file + ' -p code/tests/' + dest_dir + '/ -o ' + str(global_count)
+            exec_command = 'python workload_seq2.py -b code/tests/' + dest_dir + '/base.cpp -t ' + j_lang_file + ' -p code/tests/' + dest_dir + '/ -o ' + str(global_count)
             subprocess.call(exec_command, shell=True)
 
 
