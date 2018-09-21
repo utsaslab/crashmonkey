@@ -1,7 +1,7 @@
 ## Creating new instances
 ### Getting the instances up and running on chameleon
 1. Go to http://chi.tacc.chameleoncloud.org/.  
-2. You might need to create a new lease max instances are already created for existing leases.  
+2. You might need to create a new lease (max instances are already created for existing leases).  
 3. Lease option will be under 'Reservations' tab on the left, create a new lease with some min nodes and max nodes with the filters as node_type: Compute_haswell and local_gb >= 120 (since we will need to run more VMs and each VM will need 10 GB).  
 4. Once the lease is created, go to Instances page by clicking on 'Compute' tab on the left. 
 5. Click on launch instance and do the following -  

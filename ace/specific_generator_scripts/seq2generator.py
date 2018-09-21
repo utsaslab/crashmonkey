@@ -28,9 +28,9 @@ FallocOptions = ['FALLOC_FL_ZERO_RANGE', 'FALLOC_FL_ZERO_RANGE|FALLOC_FL_KEEP_SI
 FsyncOptions = ['fsync','fdatasync']
 
 #This should take care of file name/ dir name
-FileOptions = ['B/foo', 'A/foo']
+FileOptions = ['foo', 'A/foo']
 
-SecondFileOptions = ['B/bar', 'A/bar']
+SecondFileOptions = ['bar', 'A/bar']
 
 #A, B are  subdir under test
 DirOptions = ['A']
@@ -41,21 +41,18 @@ SecondDirOptions = ['B']
 #Start = 4-16K , append = 16K-20K, overlap = 8000 - 12096, prepend = 0-4K
 
 #Append should append to file size, and overwrites should be possible
-#WriteOptions = ['start', 'append', 'overlap', 'prepend'] 'overlap_aligned'
-WriteOptions = ['append', 'overlap_unaligned']
+#WriteOptions = ['start', 'append', 'overlap', 'prepend']
+WriteOptions = ['append', 'overlap_aligned', 'overlap_unaligned']
 
 
 #d_overlap = 8K-12K (has to be aligned)
 dWriteOptions = ['append', 'overlap']
 
-#Truncate file options 'aligned'
-TruncateOptions = ['unaligned']
+#Truncate file options
+TruncateOptions = ['aligned', 'unaligned']
 
 #removed symlink, mknod
-#OperationSet = ['creat', 'mkdir', 'falloc', 'write', 'dwrite', 'link', 'unlink', 'remove', 'rename', 'removexattr', 'fdatasync', 'fsetxattr', 'truncate', 'mmapwrite']
-
-#OperationSet = ['write', 'link', 'unlink', 'rename', 'truncate']
-OperationSet = ['link','rename']
+OperationSet = ['creat', 'mkdir', 'falloc', 'write', 'dwrite', 'link', 'unlink', 'remove', 'rename', 'removexattr', 'fdatasync', 'fsetxattr', 'truncate', 'mmapwrite']
 
 #We are skipping 041, 336, 342, 343
 #The sequences we want to reach to
@@ -73,10 +70,6 @@ def SiblingOf(file):
         return 'A/bar'
     elif file == 'A/bar':
         return 'A/foo'
-    elif file == 'B/foo':
-        return 'B/bar'
-    elif file == 'B/bar' :
-        return 'B/foo'
     elif file == 'A' :
         return 'B'
     elif file == 'B':
@@ -89,8 +82,6 @@ def Parent(file):
         return 'test'
     if file == 'A/foo' or file == 'A/bar':
         return 'A'
-    if file == 'B/foo' or file == 'B/bar':
-        return 'B'
     if file == 'A' or file == 'B' or file == 'test':
         return 'test'
 
@@ -272,8 +263,8 @@ def buildTuple(command):
             d.append(i)
     elif command == 'link' or command == 'symlink':
         d_tmp = list()
-        d_tmp.append(FileOptions)
-        d_tmp.append(SecondFileOptions + FileOptions)
+        d_tmp.append(FileOptions + SecondFileOptions)
+        d_tmp.append(SecondFileOptions)
         d = list()
         for i in itertools.product(*d_tmp):
             if len(set(i)) == 2:
@@ -349,10 +340,6 @@ def buildCustomTuple(file_list):
 
     elif int(num_ops) == 3:
         for i in itertools.product(SyncSetCustom, SyncSetCustom, SyncSetNoneCustom):
-            syncPermutationsCustom.append(i)
-
-    elif int(num_ops) == 4:
-        for i in itertools.product(SyncSetCustom, SyncSetCustom, SyncSetCustom, SyncSetNoneCustom):
             syncPermutationsCustom.append(i)
 
     return syncPermutationsCustom
@@ -466,29 +453,6 @@ def checkDirDep(current_sequence, pos, modified_sequence, modified_pos, open_dir
                 modified_pos += 1
 
 
-        if file_name == 'B':
-            if 'B/foo' in open_file_map and open_file_map['B/foo'] == 1:
-                file = 'B/foo'
-                modified_sequence.insert(modified_pos, insertClose(file, open_dir_map, open_file_map, file_length_map, modified_pos))
-                modified_pos += 1
-                modified_sequence.insert(modified_pos, insertUnlink(file, open_dir_map, open_file_map, file_length_map, modified_pos))
-                modified_pos += 1
-            elif 'B/foo' in open_file_map and open_file_map['B/foo'] == 0:
-                file = 'B/foo'
-                modified_sequence.insert(modified_pos, insertUnlink(file, open_dir_map, open_file_map, file_length_map, modified_pos))
-                modified_pos += 1
-            if 'B/bar' in open_file_map and open_file_map['B/bar'] == 1:
-                file = 'B/bar'
-                modified_sequence.insert(modified_pos, insertClose(file, open_dir_map, open_file_map, file_length_map, modified_pos))
-                modified_pos += 1
-                modified_sequence.insert(modified_pos, insertUnlink(file, open_dir_map, open_file_map, file_length_map, modified_pos))
-                modified_pos += 1
-            elif 'B/bar' in open_file_map and open_file_map['B/bar'] == 0:
-                file = 'B/bar'
-                modified_sequence.insert(modified_pos, insertUnlink(file, open_dir_map, open_file_map, file_length_map, modified_pos))
-                modified_pos += 1
-
-
         #Insert dependency before the creat command
         modified_sequence.insert(modified_pos, insertRmdir(file_name, open_dir_map, open_file_map, file_length_map, modified_pos))
         modified_pos += 1
@@ -501,8 +465,8 @@ def checkParentExistsDep(current_sequence, pos, modified_sequence, modified_pos,
     if isinstance(file_names, basestring):
         file_name = file_names
         #Parent dir doesn't exist
-        if (Parent(file_name) == 'A' or Parent(file_name) == 'B')  and Parent(file_name) not in open_dir_map:
-            modified_sequence.insert(modified_pos, insertMkdir(Parent(file_name), open_dir_map, open_file_map, file_length_map, modified_pos))
+        if Parent(file_name) == 'A' and Parent(file_name) not in open_dir_map:
+            modified_sequence.insert(modified_pos, insertMkdir('A', open_dir_map, open_file_map, file_length_map, modified_pos))
             modified_pos += 1
 
     else:
@@ -510,13 +474,13 @@ def checkParentExistsDep(current_sequence, pos, modified_sequence, modified_pos,
         file_name2 = file_names[1]
         
         #Parent dir doesn't exist
-        if (Parent(file_name) == 'A' or Parent(file_name) == 'B')  and Parent(file_name) not in open_dir_map:
-            modified_sequence.insert(modified_pos, insertMkdir(Parent(file_name), open_dir_map, open_file_map, file_length_map, modified_pos))
+        if Parent(file_name) == 'A' and Parent(file_name) not in open_dir_map:
+            modified_sequence.insert(modified_pos, insertMkdir('A', open_dir_map, open_file_map, file_length_map, modified_pos))
             modified_pos += 1
 
         #Parent dir doesn't exist
-        if (Parent(file_name2) == 'A' or Parent(file_name2) == 'B')  and Parent(file_name2) not in open_dir_map:
-            modified_sequence.insert(modified_pos, insertMkdir(Parent(file_name2), open_dir_map, open_file_map, file_length_map, modified_pos))
+        if Parent(file_name2) == 'A' and Parent(file_name2) not in open_dir_map:
+            modified_sequence.insert(modified_pos, insertMkdir('A', open_dir_map, open_file_map, file_length_map, modified_pos))
             modified_pos += 1
                 
     return modified_pos
@@ -535,14 +499,18 @@ def checkExistsDep(current_sequence, pos, modified_sequence, modified_pos, open_
         if file_name not in open_dir_map:
             modified_sequence.insert(modified_pos, insertMkdir(file_name, open_dir_map, open_file_map, file_length_map, modified_pos))
             modified_pos += 1
-    
+        
+        if file_name in open_dir_map and open_dir_map[file_name] == 0:
+            modified_sequence.insert(modified_pos, insertOpen(file_name, open_dir_map, open_file_map, file_length_map, modified_pos))
+            modified_pos += 1
 
 
-    if file_name not in open_file_map or open_file_map[file_name] == 0:
+    if file_name in FileOptions or file_name in SecondFileOptions:
+        if file_name not in open_file_map or open_file_map[file_name] == 0:
         #Insert dependency - open before the command
-        modified_sequence.insert(modified_pos, insertOpen(file_name, open_dir_map, open_file_map, file_length_map, modified_pos))
-        modified_pos += 1
-            
+            modified_sequence.insert(modified_pos, insertOpen(file_name, open_dir_map, open_file_map, file_length_map, modified_pos))
+            modified_pos += 1
+    
     return modified_pos
 
 
@@ -686,7 +654,7 @@ def satisfyDep(current_sequence, pos, modified_sequence, modified_pos, open_dir_
         if first_file in FileOptions or first_file in SecondFileOptions:
             open_file_map.pop(first_file, None)
             open_file_map[second_file] = 0
-        elif first_file in DirOptions or first_file in SecondDirOptions:
+        elif first_file in DirOptions:
             open_dir_map.pop(first_file, None)
             open_dir_map[second_file] = 0
         
@@ -932,10 +900,6 @@ def doPermutation(perm):
     global log_file_handle
     global count_param
     
-    #if our permutation is of the type (write, write, write - lets skip it.) We'll handle it in write intensive workload set
-    if len(set(perm)) == 1 and list(set(perm))[0] == 'write':
-        return
-
     permutations.append(perm)
     log = ', '.join(perm);
     log = '\n' + `count` + ' : ' + log + '\n'
@@ -970,21 +934,24 @@ def doPermutation(perm):
         usedFiles = flatList(set(usedFiles))
 
         #TODO: to generate remaining files, use the custom set
-#        syncPermutationsCustom = buildCustomTuple(file_range(usedFiles))
-        syncPermutationsCustom = buildCustomTuple(usedFiles)
+        syncPermutationsCustom = buildCustomTuple(file_range(usedFiles))
+#        syncPermutationsCustom = buildCustomTuple(usedFiles)
 #        syncPermutationsCustom = [x for x in syncPermutationsCustomAll if x not in syncPermutationsCustomUsed]
 
         log = '\n\t\tUsed Files = {0}\n'.format(usedFiles)
         log = log + '\t\tFile range = {0}\n'.format(file_range(usedFiles))
         log_file_handle.write(log)
 
-
+#        if perm[0] == 'fdatasync':
+#            syncPermutationsCustom = [['none' ,]]
 
         isFadatasync = False
         for insSync in range(0, len(syncPermutationsCustom)):
             
+#            if isFadatasync:
+#                continue
 
-            if int(num_ops) == 1 or int(num_ops) == 2 or int(num_ops) == 3 or int(num_ops) == 4:
+            if int(num_ops) == 1 or int(num_ops) == 2 or int(num_ops) == 3:
                 log = '{0}'.format(syncPermutationsCustom[insSync]);
                 log = '\n\t\tFile # ' + `global_count` + ' : ' + `count_sync` + ' : ' + log + '\n'
                 log_file_handle.write(log)
@@ -1028,66 +995,59 @@ def doPermutation(perm):
                         sync_op.append('0')
                     seq.append(tuple(flatList(sync_op)))
 
-            log = '\t\t\tCurrent Sequence = {0}'.format(seq);
-            log_file_handle.write(log)
+##            log = '\t\t\tCurrent Sequence = {0}'.format(seq);
+##            log_file_handle.write(log)
+#
+            modified_pos = 0
+            modified_sequence = list(seq)
+            open_file_map = {}
+            file_length_map = {}
+            open_dir_map = {}
+            #test dir exists
+            open_dir_map['test'] = 0
+            
+            for i in xrange(0, len(seq)):
+                modified_pos = satisfyDep(seq, i, modified_sequence, modified_pos, open_dir_map, open_file_map, file_length_map)
+                modified_pos += 1
+        
+            #now close all open files
+            for file_name in open_file_map:
+                if open_file_map[file_name] == 1:
+                    modified_sequence.insert(modified_pos, insertClose(file_name, open_dir_map, open_file_map, file_length_map, modified_pos))
+                    modified_pos += 1
 
-#
-##            #------Satisy dependencies now----------
-#
-#            modified_pos = 0
-#            modified_sequence = list(seq)
-#            open_file_map = {}
-#            file_length_map = {}
-#            open_dir_map = {}
-#            #test dir exists
-#            open_dir_map['test'] = 0
-#            
-#            for i in xrange(0, len(seq)):
-#                modified_pos = satisfyDep(seq, i, modified_sequence, modified_pos, open_dir_map, open_file_map, file_length_map)
-#                modified_pos += 1
-#        
-#            #now close all open files
-#            for file_name in open_file_map:
-#                if open_file_map[file_name] == 1:
-#                    modified_sequence.insert(modified_pos, insertClose(file_name, open_dir_map, open_file_map, file_length_map, modified_pos))
-#                    modified_pos += 1
-#
-#            for file_name in open_dir_map:
-#                if open_dir_map[file_name] == 1:
-#                    modified_sequence.insert(modified_pos, insertClose(file_name, open_dir_map, open_file_map, file_length_map, modified_pos))
-#                    modified_pos += 1
-#
-##            #------Satisy dependencies now----------
-#
+            for file_name in open_dir_map:
+                if open_dir_map[file_name] == 1:
+                    modified_sequence.insert(modified_pos, insertClose(file_name, open_dir_map, open_file_map, file_length_map, modified_pos))
+                    modified_pos += 1
+
+
 #             
-#             
-###             #Now build the j-lang file------------------------------------
-#            j_lang_file = 'j-lang' + str(global_count)
-#            copyfile('code/tests/seq3/base-j-lang', j_lang_file)
-#            length_map = {}
-#
-#            with open(j_lang_file, 'a') as f:
-#                run_line = '\n\n# run\n'
-#                f.write(run_line)
-#
-#                for insert in xrange(0, len(modified_sequence)):
-#                    cur_line = buildJlang(modified_sequence[insert], length_map)
-#                    cur_line_log = '{0}'.format(cur_line) + '\n'
-#                    f.write(cur_line_log)
-#
-#            f.close()
-#
-#            exec_command = 'python workload_seq2.py -b code/tests/seq3/base.cpp -t ' + j_lang_file + ' -p code/tests/seq3/ -o ' + str(global_count)
-#            subprocess.call(exec_command, shell=True)
-#            #Now build the j-lang file------------------------------------
-#
-##             
+##             #Now build the j-lang file------------------------------------
+            j_lang_file = 'j-lang' + str(global_count)
+            copyfile('code/tests/seq2/base-j-lang', j_lang_file)
+            length_map = {}
+
+            with open(j_lang_file, 'a') as f:
+                run_line = '\n\n# run\n'
+                f.write(run_line)
+
+                for insert in xrange(0, len(modified_sequence)):
+                    cur_line = buildJlang(modified_sequence[insert], length_map)
+                    cur_line_log = '{0}'.format(cur_line) + '\n'
+                    f.write(cur_line_log)
+
+            f.close()
+
+            exec_command = 'python workload_seq2.py -b code/tests/seq2/base.cpp -t ' + j_lang_file + ' -p code/tests/seq2/ -o ' + str(global_count)
+            subprocess.call(exec_command, shell=True)
+            #Now build the j-lang file------------------------------------
+
+             
 #            log = '\n\t\t\tModified sequence = {0}\n'.format(modified_sequence);
 #            log_file_handle.write(log)
-##
-##            isBugWorkload(permutations[count-1], j, syncPermutationsCustom[insSync])
 
-
+            isBugWorkload(permutations[count-1], j, syncPermutationsCustom[insSync])
 
 global_count = 0
 parameterList = {}
@@ -1185,7 +1145,7 @@ def main():
 
     log_file_handle.close()
 
-#    subprocess.call('mv j-lang* code/tests/seq2/j-lang-files/', shell = True)
+    subprocess.call('mv j-lang* code/tests/seq2/j-lang-files/', shell = True)
 
 
 if __name__ == '__main__':

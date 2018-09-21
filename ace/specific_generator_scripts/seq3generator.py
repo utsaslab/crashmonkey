@@ -1,6 +1,6 @@
 #!/usr/bin/env python
 
-#To run : python bugWorkloadGen.py -l <seq_length> -n <nested : True|False> -d <demo : True|False>
+#To run : python bugWorkloadGen.py -n 3
 import os
 import re
 import sys
@@ -13,58 +13,57 @@ import json
 import pprint
 import collections
 import threading
-from progressbar import *
+
 from shutil import copyfile
 from string import maketrans
 from multiprocessing import Pool
-from progress.bar import *
+
 
 
 #All functions that has options go here
+#FallocOptions = ['FALLOC_FL_ZERO_RANGE','FALLOC_FL_ZERO_RANGE | FALLOC_FL_KEEP_SIZE','FALLOC_FL_PUNCH_HOLE | FALLOC_FL_KEEP_SIZE', '0',  'FALLOC_FL_KEEP_SIZE']
 
 FallocOptions = ['FALLOC_FL_ZERO_RANGE', 'FALLOC_FL_ZERO_RANGE|FALLOC_FL_KEEP_SIZE','FALLOC_FL_PUNCH_HOLE|FALLOC_FL_KEEP_SIZE','FALLOC_FL_KEEP_SIZE', 0]
 
-FsyncOptions = ['fsync','fdatasync', 'sync']
+FsyncOptions = ['fsync','fdatasync']
 
 #This should take care of file name/ dir name
-#Default option : test, test/A [foo, bar] , test/B [foo, bar]
-# We have seperated it out into two sets, first and second, in order to eliminate duplicate workloads that differ just in terms of file names.
 FileOptions = ['B/foo', 'A/foo']
+
 SecondFileOptions = ['B/bar', 'A/bar']
 
-#A,B are  subdirectories under test
-# test directory(root) is under a separate list because we don't want to try to create/remove it in the workload. But we should be able to fsync it.
+#A, B are  subdir under test
 DirOptions = ['A']
 TestDirOptions = ['test']
 SecondDirOptions = ['B']
-
 
 #this will take care of offset + length combo
 #Start = 4-16K , append = 16K-20K, overlap = 8000 - 12096, prepend = 0-4K
 
 #Append should append to file size, and overwrites should be possible
-#WriteOptions = ['append', 'overlap_aligned', 'overlap_unaligned']
-WriteOptions = ['append', 'overlap_unaligned_start', 'overlap_extend'] # 'overlap_unaligned_end'
+#WriteOptions = ['start', 'append', 'overlap', 'prepend'] 'overlap_aligned'
+WriteOptions = ['append', 'overlap_unaligned']
 
 
 #d_overlap = 8K-12K (has to be aligned)
-#dWriteOptions = ['append', 'overlap']
-dWriteOptions = ['append', 'overlap_start'] # 'overlap_end'
+dWriteOptions = ['append', 'overlap']
 
 #Truncate file options 'aligned'
 TruncateOptions = ['unaligned']
 
-#Set of file-system operations to be used in test generation.
-# We currently support : creat, mkdir, falloc, write, dwrite, link, unlink, remove, rename, fsetxattr, removexattr, truncate, mmapwrite, symlink, fsync, fdatasync, sync
-OperationSet = ['creat', 'mkdir', 'falloc', 'write', 'dwrite','mmapwrite', 'link', 'unlink', 'remove', 'rename', 'fsetxattr', 'removexattr', 'truncate', 'fdatasync']
+#removed symlink, mknod
+#OperationSet = ['creat', 'mkdir', 'falloc', 'write', 'dwrite', 'link', 'unlink', 'remove', 'rename', 'removexattr', 'fdatasync', 'fsetxattr', 'truncate', 'mmapwrite']
 
+OperationSet = ['write', 'link', 'unlink', 'rename', 'truncate']
+#OperationSet = ['link','rename']
 
-#The sequences we want to reach to, to reproduce known bugs.
+#We are skipping 041, 336, 342, 343
+#The sequences we want to reach to
 expected_sequence = []
 expected_sync_sequence = []
 
 
-#return sibling of a file/directory
+
 def SiblingOf(file):
     if file == 'foo':
         return 'bar'
@@ -78,10 +77,6 @@ def SiblingOf(file):
         return 'B/bar'
     elif file == 'B/bar' :
         return 'B/foo'
-    elif file == 'AC/foo':
-        return 'AC/bar'
-    elif file == 'AC/bar' :
-        return 'AC/foo'
     elif file == 'A' :
         return 'B'
     elif file == 'B':
@@ -89,22 +84,16 @@ def SiblingOf(file):
     elif file == 'test':
         return 'test'
 
-#Return parent of a file/directory
 def Parent(file):
     if file == 'foo' or file == 'bar':
         return 'test'
-    if file == 'A/foo' or file == 'A/bar' or file == 'AC':
+    if file == 'A/foo' or file == 'A/bar':
         return 'A'
     if file == 'B/foo' or file == 'B/bar':
         return 'B'
     if file == 'A' or file == 'B' or file == 'test':
         return 'test'
-    if file == 'AC/foo' or file == 'AC/bar':
-        return 'AC'
 
-
-# Given a list of files, return a list of related files.
-# These are optimizations to reduce the effective workload set, by persisting only related files during workload generation.
 def file_range(file_list):
     file_set = list(file_list)
     for i in xrange(0, len(file_list)):
@@ -113,15 +102,16 @@ def file_range(file_list):
     return list(set(file_set))
 
 
-#----------------------Known Bug summary-----------------------#
+#----------------------Bug summary-----------------------#
 
-#Length 1 = 3
-#Length 2 = 14
-#length 3 = 9
+#Length 1 = 1
+#Length 2 = 7
+#length 3 = 5
 
-# Total encoded = 26
-#--------------------------------------------------------------#
-#TODO: Update this list carefully.
+# Total encoded = 13
+
+#--------------------------------------------------------#
+
 #If we don't allow dependency ops on same file, we'll miss this in seq2
 #This is actually seq 2 = [link foo-bar, 'sync', unlink bar, 'fsync-bar']
 # 1. btrfs_link_unlink 3 (yes finds in 2)
@@ -231,33 +221,30 @@ expected_sync_sequence.append([('none'), ('fsync', 'bar')])
 #28 generic 325 (seq3)
 #write,(foo, 0-256K), mmapwrite(0-4K), mmapwrite(252-256K), msync(0-64K), msync(192-256K)
 
-
+#29 new btrfs link (seq1)
+#link(foo, bar), fsync(foo)
 
 def build_parser():
-    parser = argparse.ArgumentParser(description='Automatic Crash Explorer v0.1')
+    parser = argparse.ArgumentParser(description='Bug Workload Generator for XFSMonkey v0.1')
 
     # global args
     parser.add_argument('--sequence_len', '-l', default='3', help='Number of critical ops in the bugy workload')
-    parser.add_argument('--nested', '-n', default='False', help='Add an extra level of nesting?')
-    parser.add_argument('--demo', '-d', default='False', help='Create a demo workload set?')
 
     return parser
 
 
 def print_setup(parsed_args):
-    print '\n{: ^50s}'.format('Automatic Crash Explorer v0.1\n')
+    print '\n{: ^50s}'.format('XFSMonkey Bug Workload generatorv0.1\n')
     print '='*20, 'Setup' , '='*20, '\n'
     print '{0:20}  {1}'.format('Sequence length', parsed_args.sequence_len)
-    print '{0:20}  {1}'.format('Nested', parsed_args.nested)
-    print '{0:20}  {1}'.format('Demo', parsed_args.demo)
     print '\n', '='*48, '\n'
 
+min = 0
 
-# Helper to build all possible combination of parameters to a given file-system operation
 def buildTuple(command):
     if command == 'creat':
         d = tuple(FileOptions)
-    elif command == 'mkdir' or command == 'rmdir':
+    elif command == 'mkdir':
         d = tuple(DirOptions)
     elif command == 'mknod':
         d = tuple(FileOptions)
@@ -330,9 +317,6 @@ def buildTuple(command):
     return d
 
 
-# Given a restricted list of files, this function builds all combinations of input parameters to persistence operations.
-# Once the parameters to core-ops are picked, it is not required to persist a file totally unrelated to the set of used files in the workload. So we can restrict the set of files for persistence to either related files(includes the parent and siblings of files used in the workload) or further restrict it to strictly pick from the set of used files only.
-# We can optionally add a persistence point after each core-FS op, except for the last one. The last core-op must be followed by a persistence op, so that we don't truncate it to a workload of lower sequence.
 def buildCustomTuple(file_list):
     global num_ops
     
@@ -374,7 +358,7 @@ def buildCustomTuple(file_list):
     return syncPermutationsCustom
 
 
-# Find the auto-generated workload that matches the necoded sequence of known bugs. This is to sanity check that Ace can indeed generate workloads to reproduce the bug, if run on appropriate kernel veersions.
+
 def isBugWorkload(opList, paramList, syncList):
     for i in xrange(0,len(expected_sequence)):
         if len(opList) != len(expected_sequence[i]):
@@ -402,7 +386,7 @@ def isBugWorkload(opList, paramList, syncList):
             return True
 
 
-# A bunch of functions to insert ops into the j-lang file.
+
 def insertUnlink(file_name, open_dir_map, open_file_map, file_length_map, modified_pos):
     open_file_map.pop(file_name, None)
     return ('unlink', file_name)
@@ -439,8 +423,7 @@ def insertWrite(file_name, open_dir_map, open_file_map, file_length_map, modifie
     file_length_map[file_name] += 1
     return ('write', (file_name, 'append'))
 
-
-#Dependency checks : Creat - file should not exist. If it does, remove it.
+#Creat : file should not exist. If it does, remove it.
 def checkCreatDep(current_sequence, pos, modified_sequence, modified_pos, open_dir_map, open_file_map, file_length_map):
     file_name = current_sequence[pos][1]
     
@@ -452,14 +435,12 @@ def checkCreatDep(current_sequence, pos, modified_sequence, modified_pos, open_d
         modified_pos += 1
     return modified_pos
 
-#Dependency checks : Mkdir
 def checkDirDep(current_sequence, pos, modified_sequence, modified_pos, open_dir_map, open_file_map, file_length_map):
     file_name = current_sequence[pos][1]
     if file_name not in DirOptions and file_name not in SecondDirOptions:
         print 'Invalid param list for mkdir'
     
-    #Either open or closed doesn't matter. Directory should not exist at all
-    # TODO : We heavily depend on the pre-defined file list. Need to generalize it at some point.
+    #Either open or closed doesn't matter. File should not exist at all
     if file_name in open_dir_map and file_name != 'test':
         #if dir is A, remove contents within it too
         if file_name == 'A':
@@ -482,36 +463,6 @@ def checkDirDep(current_sequence, pos, modified_sequence, modified_pos, open_dir
             elif 'A/bar' in open_file_map and open_file_map['A/bar'] == 0:
                 file = 'A/bar'
                 modified_sequence.insert(modified_pos, insertUnlink(file, open_dir_map, open_file_map, file_length_map, modified_pos))
-                modified_pos += 1
-            
-            if 'AC' in open_dir_map and open_dir_map['AC'] == 1:
-                file = 'AC'
-                modified_sequence.insert(modified_pos, insertClose(file, open_dir_map, open_file_map, file_length_map, modified_pos))
-                modified_pos += 1
-            if 'AC' in open_dir_map:
-                if 'AC/foo' in open_file_map and open_file_map['AC/foo'] == 1:
-                    file = 'AC/foo'
-                    modified_sequence.insert(modified_pos, insertClose(file, open_dir_map, open_file_map, file_length_map, modified_pos))
-                    modified_pos += 1
-                    modified_sequence.insert(modified_pos, insertUnlink(file, open_dir_map, open_file_map, file_length_map, modified_pos))
-                    modified_pos += 1
-                elif 'AC/foo' in open_file_map and open_file_map['AC/foo'] == 0:
-                    file = 'AC/foo'
-                    modified_sequence.insert(modified_pos, insertUnlink(file, open_dir_map, open_file_map, file_length_map, modified_pos))
-                    modified_pos += 1
-                if 'AC/bar' in open_file_map and open_file_map['AC/bar'] == 1:
-                    file = 'AC/bar'
-                    modified_sequence.insert(modified_pos, insertClose(file, open_dir_map, open_file_map, file_length_map, modified_pos))
-                    modified_pos += 1
-                    modified_sequence.insert(modified_pos, insertUnlink(file, open_dir_map, open_file_map, file_length_map, modified_pos))
-                    modified_pos += 1
-                elif 'AC/bar' in open_file_map and open_file_map['AC/bar'] == 0:
-                    file = 'AC/bar'
-                    modified_sequence.insert(modified_pos, insertUnlink(file, open_dir_map, open_file_map, file_length_map, modified_pos))
-                    modified_pos += 1
-
-                file = 'AC'
-                modified_sequence.insert(modified_pos, insertRmdir(file, open_dir_map, open_file_map, file_length_map, modified_pos))
                 modified_pos += 1
 
 
@@ -537,28 +488,6 @@ def checkDirDep(current_sequence, pos, modified_sequence, modified_pos, open_dir
                 modified_sequence.insert(modified_pos, insertUnlink(file, open_dir_map, open_file_map, file_length_map, modified_pos))
                 modified_pos += 1
 
-        if file_name == 'AC':
-            if 'AC/foo' in open_file_map and open_file_map['AC/foo'] == 1:
-                file = 'AC/foo'
-                modified_sequence.insert(modified_pos, insertClose(file, open_dir_map, open_file_map, file_length_map, modified_pos))
-                modified_pos += 1
-                modified_sequence.insert(modified_pos, insertUnlink(file, open_dir_map, open_file_map, file_length_map, modified_pos))
-                modified_pos += 1
-            elif 'AC/foo' in open_file_map and open_file_map['AC/foo'] == 0:
-                file = 'AC/foo'
-                modified_sequence.insert(modified_pos, insertUnlink(file, open_dir_map, open_file_map, file_length_map, modified_pos))
-                modified_pos += 1
-            if 'AC/bar' in open_file_map and open_file_map['AC/bar'] == 1:
-                file = 'AC/bar'
-                modified_sequence.insert(modified_pos, insertClose(file, open_dir_map, open_file_map, file_length_map, modified_pos))
-                modified_pos += 1
-                modified_sequence.insert(modified_pos, insertUnlink(file, open_dir_map, open_file_map, file_length_map, modified_pos))
-                modified_pos += 1
-            elif 'AC/bar' in open_file_map and open_file_map['AC/bar'] == 0:
-                file = 'AC/bar'
-                modified_sequence.insert(modified_pos, insertUnlink(file, open_dir_map, open_file_map, file_length_map, modified_pos))
-                modified_pos += 1
-
 
         #Insert dependency before the creat command
         modified_sequence.insert(modified_pos, insertRmdir(file_name, open_dir_map, open_file_map, file_length_map, modified_pos))
@@ -566,7 +495,7 @@ def checkDirDep(current_sequence, pos, modified_sequence, modified_pos, open_dir
             
     return modified_pos
 
-# Check if parent directories exist, if not create them.
+
 def checkParentExistsDep(current_sequence, pos, modified_sequence, modified_pos, open_dir_map, open_file_map, file_length_map):
     file_names = current_sequence[pos][1]
     if isinstance(file_names, basestring):
@@ -575,15 +504,6 @@ def checkParentExistsDep(current_sequence, pos, modified_sequence, modified_pos,
         if (Parent(file_name) == 'A' or Parent(file_name) == 'B')  and Parent(file_name) not in open_dir_map:
             modified_sequence.insert(modified_pos, insertMkdir(Parent(file_name), open_dir_map, open_file_map, file_length_map, modified_pos))
             modified_pos += 1
-        if Parent(file_name) == 'AC' and Parent(file_name) not in open_dir_map:
-            if Parent(Parent(file_name)) not in open_dir_map:
-                modified_sequence.insert(modified_pos, insertMkdir(Parent(Parent(file_name)), open_dir_map, open_file_map, file_length_map, modified_pos))
-                modified_pos += 1
-                    
-            modified_sequence.insert(modified_pos, insertMkdir(Parent(file_name), open_dir_map, open_file_map, file_length_map, modified_pos))
-            modified_pos += 1
-
-
 
     else:
         file_name = file_names[0]
@@ -593,32 +513,16 @@ def checkParentExistsDep(current_sequence, pos, modified_sequence, modified_pos,
         if (Parent(file_name) == 'A' or Parent(file_name) == 'B')  and Parent(file_name) not in open_dir_map:
             modified_sequence.insert(modified_pos, insertMkdir(Parent(file_name), open_dir_map, open_file_map, file_length_map, modified_pos))
             modified_pos += 1
-        
-        if Parent(file_name) == 'AC' and Parent(file_name) not in open_dir_map:
-            if Parent(Parent(file_name)) not in open_dir_map:
-                modified_sequence.insert(modified_pos, insertMkdir(Parent(Parent(file_name)), open_dir_map, open_file_map, file_length_map, modified_pos))
-                modified_pos += 1
-            
-            modified_sequence.insert(modified_pos, insertMkdir(Parent(file_name), open_dir_map, open_file_map, file_length_map, modified_pos))
-            modified_pos += 1
 
         #Parent dir doesn't exist
         if (Parent(file_name2) == 'A' or Parent(file_name2) == 'B')  and Parent(file_name2) not in open_dir_map:
             modified_sequence.insert(modified_pos, insertMkdir(Parent(file_name2), open_dir_map, open_file_map, file_length_map, modified_pos))
             modified_pos += 1
-
-        if Parent(file_name2) == 'AC' and Parent(file_name2) not in open_dir_map:
-            if Parent(Parent(file_name2)) not in open_dir_map:
-                modified_sequence.insert(modified_pos, insertMkdir(Parent(Parent(file_name2)), open_dir_map, open_file_map, file_length_map, modified_pos))
-                modified_pos += 1
-            
-            modified_sequence.insert(modified_pos, insertMkdir(Parent(file_name2), open_dir_map, open_file_map, file_length_map, modified_pos))
-            modified_pos += 1
-    
+                
     return modified_pos
 
 
-# Check the dependency that file already exists and is open, eg. before writing to a file
+# Check the dependency that file already exists and is open
 def checkExistsDep(current_sequence, pos, modified_sequence, modified_pos, open_dir_map, open_file_map, file_length_map):
     file_names = current_sequence[pos][1]
     if isinstance(file_names, basestring):
@@ -631,21 +535,17 @@ def checkExistsDep(current_sequence, pos, modified_sequence, modified_pos, open_
         if file_name not in open_dir_map:
             modified_sequence.insert(modified_pos, insertMkdir(file_name, open_dir_map, open_file_map, file_length_map, modified_pos))
             modified_pos += 1
-        
-        if file_name in open_dir_map and open_dir_map[file_name] == 0:
-            modified_sequence.insert(modified_pos, insertOpen(file_name, open_dir_map, open_file_map, file_length_map, modified_pos))
-            modified_pos += 1
-
-
-    if file_name in FileOptions or file_name in SecondFileOptions:
-        if file_name not in open_file_map or open_file_map[file_name] == 0:
-        #Insert dependency - open before the command
-            modified_sequence.insert(modified_pos, insertOpen(file_name, open_dir_map, open_file_map, file_length_map, modified_pos))
-            modified_pos += 1
     
+
+
+    if file_name not in open_file_map or open_file_map[file_name] == 0:
+        #Insert dependency - open before the command
+        modified_sequence.insert(modified_pos, insertOpen(file_name, open_dir_map, open_file_map, file_length_map, modified_pos))
+        modified_pos += 1
+            
     return modified_pos
 
-#Ensures that the file is closed. If not, closes it.
+
 def checkClosed(current_sequence, pos, modified_sequence, modified_pos, open_dir_map, open_file_map, file_length_map):
     
     file_names = current_sequence[pos][1]
@@ -663,7 +563,6 @@ def checkClosed(current_sequence, pos, modified_sequence, modified_pos, open_dir
         modified_pos += 1
     return modified_pos
 
-#If the op is remove xattr, we need to ensure, there's atleast one associated xattr to the file
 def checkXattr(current_sequence, pos, modified_sequence, modified_pos, open_dir_map, open_file_map, file_length_map):
     file_name = current_sequence[pos][1]
     if open_file_map[file_name] == 1:
@@ -671,7 +570,6 @@ def checkXattr(current_sequence, pos, modified_sequence, modified_pos, open_dir_
         modified_pos += 1
     return modified_pos
 
-# For overwrites ensure that the file is not empty.
 def checkFileLength(current_sequence, pos, modified_sequence, modified_pos, open_dir_map, open_file_map, file_length_map):
     
     file_names = current_sequence[pos][1]
@@ -687,7 +585,6 @@ def checkFileLength(current_sequence, pos, modified_sequence, modified_pos, open
     return modified_pos
 
 
-# Handles satisfying dependencies, for a given core FS op
 def satisfyDep(current_sequence, pos, modified_sequence, modified_pos, open_dir_map, open_file_map, file_length_map):
     if isinstance(current_sequence[pos], basestring):
         command = current_sequence[pos]
@@ -737,7 +634,6 @@ def satisfyDep(current_sequence, pos, modified_sequence, modified_pos, open_dir_
             if file not in file_length_map:
                 file_length_map[file] = 0
             file_length_map[file] += 1
-#       elif option == 'overlap_unaligned_start' or 'overlap_unaligned_end' or 'overlap_start' or 'overlap_end' or 'overlap_extend':
         elif option == 'overlap' or 'overlap_aligned' or 'overlap_unaligned':
             modified_pos = checkFileLength(current_sequence, pos, modified_sequence, modified_pos, open_dir_map, open_file_map, file_length_map)
 
@@ -849,7 +745,7 @@ def satisfyDep(current_sequence, pos, modified_sequence, modified_pos, open_dir_
 
     return modified_pos
 
-#Helper to merge lists
+
 def flatList(op_list):
     flat_list = list()
     if not isinstance(op_list, basestring):
@@ -865,7 +761,6 @@ def flatList(op_list):
     return flat_list
 
 
-# Creates the actual J-lang file.
 def buildJlang(op_list, length_map):
     flat_list = list()
     if not isinstance(op_list, basestring):
@@ -899,7 +794,6 @@ def buildJlang(op_list, length_map):
         file = flat_list[1]
         command_str = command_str + 'mknod ' + file.replace('/','') + ' TEST_FILE_PERMS|S_IFCHR|S_IFBLK' + ' 0'
 
-
     if command == 'falloc':
         file = flat_list[1]
         option = flat_list[2]
@@ -907,50 +801,40 @@ def buildJlang(op_list, length_map):
         command_str = command_str + 'falloc ' + file.replace('/','') + ' ' + str(option) + ' '
         if write_op == 'append':
             off = str(length_map[file])
-            lenn = '32768'
-            length_map[file] += 32768
-        elif write_op == 'overlap_unaligned_start':
+            len = '4096'
+            length_map[file] += 4096
+        elif write_op == 'overlap_aligned':
             off = '0'
-            lenn = '5000'
-        elif write_op == 'overlap_unaligned_end':
-            size = length_map[file]
-            off = str(size-5000)
-            lenn = '5000'
-        elif write_op == 'overlap_extend':
-            size = length_map[file]
-            off = str(size-2000)
-            lenn = '5000'
-            length_map[file] += 3000
-        
-        command_str = command_str + off + ' ' + lenn
+            len = '4096'
+        else:
+            off = '1000'
+            len = '3000'
+
+        command_str = command_str + off + ' ' + len
 
     if command == 'write':
         file = flat_list[1]
         write_op = flat_list[2]
         command_str = command_str + 'write ' + file.replace('/','') + ' '
         if write_op == 'append':
-            lenn = '32768'
+            len = '4096'
             if file not in length_map:
                 length_map[file] = 0
                 off = '0'
             else:
                 off = str(length_map[file])
             
-            length_map[file] += 32768
-        
-        elif write_op == 'overlap_unaligned_start':
+            length_map[file] += 4096
+
+        elif write_op == 'overlap_aligned':
             off = '0'
-            lenn = '5000'
-        elif write_op == 'overlap_unaligned_end':
-            size = length_map[file]
-            off = str(size-5000)
-            lenn = '5000'
-        elif write_op == 'overlap_extend':
-            size = length_map[file]
-            off = str(size-2000)
-            lenn = '5000'
-        
-        command_str = command_str + off + ' ' + lenn
+            len = '4096'
+
+        else:
+            off = '1000'
+            len = '3000'
+
+        command_str = command_str + off + ' ' + len
 
     if command == 'dwrite':
         file = flat_list[1]
@@ -958,24 +842,20 @@ def buildJlang(op_list, length_map):
         command_str = command_str + 'dwrite ' + file.replace('/','') + ' '
         
         if write_op == 'append':
-            lenn = '32768'
+            len = '4096'
             if file not in length_map:
                 length_map[file] = 0
                 off = '0'
             else:
                 off = str(length_map[file])
-            length_map[file] += 32768
-
-        elif write_op == 'overlap_start':
-            off = '0'
-            lenn = '8192'
-        elif write_op == 'overlap_end':
-            size = length_map[file]
-            off = str(size-8192)
-            lenn = '8192'
-
-        command_str = command_str + off + ' ' + lenn
+            length_map[file] += 4096
     
+        elif write_op == 'overlap':
+            off = '0'
+            len = '4096'
+
+        command_str = command_str + off + ' ' + len
+
     if command == 'mmapwrite':
         file = flat_list[1]
         write_op = flat_list[2]
@@ -983,25 +863,19 @@ def buildJlang(op_list, length_map):
         command_str = command_str + 'mmapwrite ' + file.replace('/','') + ' '
         
         if write_op == 'append':
-            lenn = '32768'
+            len = '4096'
             if file not in length_map:
                 length_map[file] = 0
                 off = '0'
             else:
                 off = str(length_map[file])
-            length_map[file] += 32768
-        
-        elif write_op == 'overlap_start':
-            off = '0'
-            lenn = '8192'
-        elif write_op == 'overlap_end':
-            size = length_map[file]
-            off = str(size-8192)
-            lenn = '8192'
-        
-        command_str = command_str + off + ' ' + lenn + '\ncheckpoint ' + ret
+            length_map[file] += 4096
 
-    
+        elif write_op == 'overlap':
+            off = '0'
+            len = '4096'
+        
+        command_str = command_str + off + ' ' + len + '\ncheckpoint ' + ret
 
     if command == 'link' or command =='rename' or command == 'symlink':
         file1 = flat_list[1]
@@ -1045,14 +919,12 @@ def buildJlang(op_list, length_map):
     return command_str
 
 
-# Main function that exhaustively generates combinations of ops.
+
 def doPermutation(perm):
     
     global global_count
     global parameterList
     global num_ops
-    global nested
-    global demo
     global syncPermutations
     global count
     global permutations
@@ -1060,59 +932,24 @@ def doPermutation(perm):
     global log_file_handle
     global count_param
     
-    dest_dir = 'seq'+num_ops
-    
-    if nested:
-        dest_dir += '_nested'
-    
-    if demo:
-        dest_dir += '_demo'
-
-    
-    # Hacks to reduce the workload set (#1):
-    # Eliminate workloads of seq-3 in which all three core-ops are write, because we have a write specific workload generator to explore these cases.
-    if int(num_ops)==3 and len(set(perm)) == 1 and list(set(perm))[0] == 'write':
+    #if our permutation is of the type (write, write, write - lets skip it.) We'll handle it in write intensive workload set
+    if len(set(perm)) == 1 and list(set(perm))[0] == 'write':
         return
 
     permutations.append(perm)
     log = ', '.join(perm);
     log = '\n' + `count` + ' : ' + log + '\n'
     count +=1
+#    global_count +=1
     log_file_handle.write(log)
         
-    #Now for each of this permutation of file-system operations, find all possible permutation of paramters
+    #Now for each of this permutation, find all possible permutation of paramters
     combination = list()
     for length in xrange(0,len(permutations[count-1])):
         combination.append(parameterList[permutations[count-1][length]])
-
     count_param = 0
-
-    # **PHASE 2** : Exhaustively populate parameters to the chosen skeleton in phase 1
-    for currentParameterOption in itertools.product(*combination):
-        
-        #files used so far
-        usedSofar = list()
-        intersect = list()
-        
-        # Hacks to reduce the workload set (#2):
-        # Allow this combination of parameters only if we reuse files across the chosen operations.
-        toSkip = False
-        for paramLength in xrange(0, int(num_ops)):
-            intersect = list(set(currentParameterOption[paramLength]) & set(usedSofar))
-            if currentParameterOption[paramLength][0] == 'A' or currentParameterOption[paramLength][0] == 'B' or currentParameterOption[paramLength][0] == 'AC':
-                intersect.append('A')
-            elif len(usedSofar) == 2 and (usedSofar[0] == 'A' or  usedSofar[0] == 'B' or usedSofar[0] == 'AC'):
-                intersect.append('A')
-            usedSofar = list(set(currentParameterOption[paramLength]) | set(usedSofar))
-            if len(intersect) == 0 and paramLength > 0 and int(num_ops) == 3:
-                #print 'Skip this option'
-                toSkip = True
-                continue
-
-        if toSkip:
-            continue
-
-        log = '{0}'.format(currentParameterOption)
+    for j in itertools.product(*combination):
+        log = '{0}'.format(j)
         log = '\t' + `count_param` + ' : ' + log + '\n'
         count_param += 1
         log_file_handle.write(log)
@@ -1120,38 +957,34 @@ def doPermutation(perm):
         #Let's insert fsync combinations here.
         count_sync = 0
         usedFiles = list()
-        flat_used_list = flatList(currentParameterOption)
+        flat_used_list = flatList(j)
         for file_len in xrange(0, len(flat_used_list)):
             if isinstance(flat_used_list[file_len], basestring):
                 usedFilesList = list(set(flat_used_list) & set(FileOptions + SecondFileOptions + DirOptions + SecondDirOptions + TestDirOptions))
                 usedFiles.append(tuple(usedFilesList))
-            #else:
-            #   usedFilesList = [filter(lambda x: x in list(FileOptions + SecondFileOptions + DirOptions + SecondDirOptions + TestDirOptions), sublist) for sublist in currentParameterOption]
-            #   usedFilesList = flatList(usedFilesList)
-            #   usedFiles = list(set(set(usedFilesList) | set(usedFiles)))
+            else:
+                usedFilesList = [filter(lambda x: x in list(FileOptions + SecondFileOptions + DirOptions + SecondDirOptions + TestDirOptions), sublist) for sublist in j]
+                usedFilesList = flatList(usedFilesList)
+#                usedFiles.append(list(itertools.chain.from_iterable(usedFiles)))
 
         usedFiles = flatList(set(usedFiles))
 
-        #For lower sequences, let's allow fsync on any related file - sibling/parent
-        if int(num_ops) < 3:
-            syncPermutationsCustom = buildCustomTuple(file_range(usedFiles))
-        else:
-            syncPermutationsCustom = buildCustomTuple(usedFiles)
+        #TODO: to generate remaining files, use the custom set
+#        syncPermutationsCustom = buildCustomTuple(file_range(usedFiles))
+        syncPermutationsCustom = buildCustomTuple(usedFiles)
+#        syncPermutationsCustom = [x for x in syncPermutationsCustomAll if x not in syncPermutationsCustomUsed]
 
-        # Logging the list of used files
         log = '\n\t\tUsed Files = {0}\n'.format(usedFiles)
         log = log + '\t\tFile range = {0}\n'.format(file_range(usedFiles))
         log_file_handle.write(log)
 
 
-        # Fdatasync could be used as a file-system op itself.
-        # So, we need to ensure that we don't insert an additional persistence point after it.
-        # Also, mmapwrite has msync attached to it. So we'll skip adding persistence point after mmapwrite as well.
-        isFadatasync = False
 
-        # **PHASE 3** : Insert all combinations of persistence ops to the generated phase-2 workloads.
+        isFadatasync = False
         for insSync in range(0, len(syncPermutationsCustom)):
-            if int(num_ops) < 4:
+            
+
+            if int(num_ops) == 1 or int(num_ops) == 2 or int(num_ops) == 3 or int(num_ops) == 4:
                 log = '{0}'.format(syncPermutationsCustom[insSync]);
                 log = '\n\t\tFile # ' + `global_count` + ' : ' + `count_sync` + ' : ' + log + '\n'
                 log_file_handle.write(log)
@@ -1169,11 +1002,11 @@ def doPermutation(perm):
                 else:
                     op.append(perm[length])
 
-                # Now merge parameters and add return value to the persistence point.
-                # A CM checkpoint() is added after persistence point, which has to return 1 if its the last persistence point in the workload, else 0. We handle this CM specific requirement here.
+                #Now merge parameters
                 if skip_sync:
+#                    fdatasync_op = list()
                     op.append(perm[length])
-                    op.append(currentParameterOption[length])
+                    op.append(j[length])
                     if length == len(perm)-1:
                         op.append('1')
                     else:
@@ -1181,7 +1014,7 @@ def doPermutation(perm):
                     op = tuple(flatList(op))
 
                 else:
-                    op.append(currentParameterOption[length])
+                    op.append(j[length])
                 
                 
                 seq.append(tuple(op))
@@ -1195,65 +1028,64 @@ def doPermutation(perm):
                         sync_op.append('0')
                     seq.append(tuple(flatList(sync_op)))
 
-            # Logging the skeleton of the workload, including persistence operations and paramters.
             log = '\t\t\tCurrent Sequence = {0}'.format(seq);
             log_file_handle.write(log)
 
-
-            #--------------Satisy dependencies now--------------------
-            # **PHASE 4** : Deterministic stage - satisfy dependencies for all ops in the list so far.
-            modified_pos = 0
-            modified_sequence = list(seq)
-            open_file_map = {}
-            file_length_map = {}
-            open_dir_map = {}
-
-            #test dir exists
-            open_dir_map['test'] = 0
-
-            # Go over the current sequence of operations and satisfy dependencies for each file-system op
-            for i in xrange(0, len(seq)):
-                modified_pos = satisfyDep(seq, i, modified_sequence, modified_pos, open_dir_map, open_file_map, file_length_map)
-                modified_pos += 1
-        
-            #now close all open files
-            for file_name in open_file_map:
-                if open_file_map[file_name] == 1:
-                    modified_sequence.insert(modified_pos, insertClose(file_name, open_dir_map, open_file_map, file_length_map, modified_pos))
-                    modified_pos += 1
-
-            #close all open directories
-            for file_name in open_dir_map:
-                if open_dir_map[file_name] == 1:
-                    modified_sequence.insert(modified_pos, insertClose(file_name, open_dir_map, open_file_map, file_length_map, modified_pos))
-                    modified_pos += 1
-
-            #--------------Now build the j-lang file-------------------
-            j_lang_file = 'j-lang' + str(global_count)
-            source_j_lang_file = 'code/tests/' + dest_dir + '/base-j-lang'
-            copyfile(source_j_lang_file, j_lang_file)
-            length_map = {}
-
-            with open(j_lang_file, 'a') as f:
-                run_line = '\n\n# run\n'
-                f.write(run_line)
-
-                for insert in xrange(0, len(modified_sequence)):
-                    cur_line = buildJlang(modified_sequence[insert], length_map)
-                    cur_line_log = '{0}'.format(cur_line) + '\n'
-                    f.write(cur_line_log)
-
-            f.close()
-
-            exec_command = 'python workload_seq2.py -b code/tests/' + dest_dir + '/base.cpp -t ' + j_lang_file + ' -p code/tests/' + dest_dir + '/ -o ' + str(global_count)
-            subprocess.call(exec_command, shell=True)
-
-
-            log = '\n\t\t\tModified sequence = {0}\n'.format(modified_sequence);
-            log_file_handle.write(log)
-
-            # Uncomment only if you want to match the generated workloads to the list of encoded workloads. It could slow down generation!
-            #isBugWorkload(permutations[count-1], j, syncPermutationsCustom[insSync])
+#
+##            #------Satisy dependencies now----------
+#
+#            modified_pos = 0
+#            modified_sequence = list(seq)
+#            open_file_map = {}
+#            file_length_map = {}
+#            open_dir_map = {}
+#            #test dir exists
+#            open_dir_map['test'] = 0
+#            
+#            for i in xrange(0, len(seq)):
+#                modified_pos = satisfyDep(seq, i, modified_sequence, modified_pos, open_dir_map, open_file_map, file_length_map)
+#                modified_pos += 1
+#        
+#            #now close all open files
+#            for file_name in open_file_map:
+#                if open_file_map[file_name] == 1:
+#                    modified_sequence.insert(modified_pos, insertClose(file_name, open_dir_map, open_file_map, file_length_map, modified_pos))
+#                    modified_pos += 1
+#
+#            for file_name in open_dir_map:
+#                if open_dir_map[file_name] == 1:
+#                    modified_sequence.insert(modified_pos, insertClose(file_name, open_dir_map, open_file_map, file_length_map, modified_pos))
+#                    modified_pos += 1
+#
+##            #------Satisy dependencies now----------
+#
+#             
+#             
+###             #Now build the j-lang file------------------------------------
+#            j_lang_file = 'j-lang' + str(global_count)
+#            copyfile('code/tests/seq3/base-j-lang', j_lang_file)
+#            length_map = {}
+#
+#            with open(j_lang_file, 'a') as f:
+#                run_line = '\n\n# run\n'
+#                f.write(run_line)
+#
+#                for insert in xrange(0, len(modified_sequence)):
+#                    cur_line = buildJlang(modified_sequence[insert], length_map)
+#                    cur_line_log = '{0}'.format(cur_line) + '\n'
+#                    f.write(cur_line_log)
+#
+#            f.close()
+#
+#            exec_command = 'python workload_seq2.py -b code/tests/seq3/base.cpp -t ' + j_lang_file + ' -p code/tests/seq3/ -o ' + str(global_count)
+#            subprocess.call(exec_command, shell=True)
+#            #Now build the j-lang file------------------------------------
+#
+##             
+#            log = '\n\t\t\tModified sequence = {0}\n'.format(modified_sequence);
+#            log_file_handle.write(log)
+##
+##            isBugWorkload(permutations[count-1], j, syncPermutationsCustom[insSync])
 
 
 
@@ -1261,8 +1093,6 @@ global_count = 0
 parameterList = {}
 SyncSet = list()
 num_ops = 0
-nested = False
-demo = False
 syncPermutations = []
 count = 0
 permutations = []
@@ -1276,15 +1106,10 @@ def main():
     global num_ops
     global syncPermutations
     global count
-    global nested
     global permutations
     global SyncSet
-    global demo
     global log_file_handle
     global count_param
-    global FileOptions
-    global SecondDirOptions
-    global OperationSet
     
     #open log file
     log_file = time.strftime('%Y%m%d_%H%M%S') + '-bugWorkloadGen.log'
@@ -1297,34 +1122,14 @@ def main():
     print_setup(parsed_args)
 
     num_ops = parsed_args.sequence_len
-    
-    if parsed_args.nested == ('True' or 'true'):
-        nested = True
-    
-    else:
-        nested = False
 
-    if parsed_args.demo == ('True' or 'true'):
-        demo = True
-        OperationSet = ['link','falloc']
-    
-    else:
-        demo = False
-
-    # In case the user requests for an additional level of nesting, add one nested dir A/C and one file within it A/C/foo.
-    if nested:
-        FileOptions = FileOptions + ['AC/foo']
-        SecondDirOptions = SecondDirOptions + ['AC']
-
-    # We just print all known bugs
-    #for i in xrange(0,len(expected_sequence)):
-    #   print 'Bug #', i+1
-    #   print expected_sequence[i]
-    #   print expected_sync_sequence[i]
-    #   print '\n'
+    for i in xrange(0,len(expected_sequence)):
+        print 'Bug #', i+1
+        print expected_sequence[i]
+        print expected_sync_sequence[i]
+        print '\n'
 
 
-    # This is basically the list of possible paramter options for each file-system operation. For example, if the fileset has 4 files and the op is creat, then there are 4 parameter options to creat. We log it just to get an estimate of the increase in the options as we expand the file set.
     for i in OperationSet:
         parameterList[i] = buildTuple(i)
         log = '{0}'.format(parameterList[i]);
@@ -1335,110 +1140,52 @@ def main():
     fsync = ('fsync',)
     sync = ('sync')
     none = ('none')
-    fdatasync = ('fdatasync',)
 
     for i in xrange(0, len(d)):
         tup = list(fsync)
         tup.append(d[i])
         SyncSet.append(tup)
 
-    for i in xrange(0, len(d)):
-        tup = list(fdatasync)
-        tup.append(d[i])
-        SyncSet.append(tup)
-
     SyncSet.append(sync)
     SyncSet.append(none)
     SyncSet = tuple(SyncSet)
+#    print SyncSet
 
 
-    dest_dir = 'seq'+num_ops
-    
-    if nested:
-        dest_dir += '_nested'
-
-    if demo:
-        dest_dir += '_demo'
-    
-
-    # Create a target directory for the final .cpp test files
-    # The corresponding high-level language file for each test case can be found wthin the directory j-lang-files in the same target directory.
-    target_path = 'code/tests/' + dest_dir + '/j-lang-files/'
-    if not os.path.exists(target_path):
-        os.makedirs(target_path)
-
-    #copy base files into this directory
-    # We assume that a directory ace-base exists with skeleton for the base j-lang and .cpp files. This has to be something pre-written according to the format required by your record-and-replay tool.
-    dest_j_lang_file = 'code/tests/' + dest_dir + '/base-j-lang'
-    source_j_lang_file = 'code/tests/ace-base/base-j-lang'
-    copyfile(source_j_lang_file, dest_j_lang_file)
-
-    dest_j_lang_cpp = 'code/tests/' + dest_dir + '/base.cpp'
-    source_j_lang_cpp = 'code/tests/ace-base/base.cpp'
-    copyfile(source_j_lang_cpp, dest_j_lang_cpp)
-
-    # Workloads can take really long to generate. SO let's create a progress bar.
-    
-    # Create all permutations of persistence ops  of given sequence length. This will be merged to the phase-2 workload.
     for i in itertools.product(SyncSet, repeat=int(num_ops)):
         syncPermutations.append(i)
+#        print i
 
 
-    # This is the number of input operations
-    log = 'Total file-system operations tested = ' +  `len(OperationSet)` + '\n'
-    print log
-    log_file_handle.write(log)
-
-
-
-    # Time workload generation
     start_time = time.time()
 
-    # **PHASE 1** : Create all permutations of file-system operations of given sequence lengt. ops can repeat.
-    # To create only permutations of ops with no repeptions allowed, use this
-    #for i in itertools.permutations(OperationSet, int(num_ops)):
-    totalOpCombinations = len(OperationSet) ** int(num_ops)
-    bar = FillingCirclesBar('Generating workloads.. ', max=totalOpCombinations, suffix='%(percent).0f%%  (Completed %(index)d/%(max)d)')
-
-    # This is the number of input operations
-    log = 'Total Phase-1 Skeletons = ' +  `totalOpCombinations` + '\n'
-    print log
-    log_file_handle.write(log)
-
-    bar.start()
     for i in itertools.product(OperationSet, repeat=int(num_ops)):
+#    for i in itertools.permutations(OperationSet, int(num_ops)):
         doPermutation(i)
-        bar.next()
+
+#    pool = Pool(processes = 4)
+#    pool.map(doPermutation, itertools.permutations(OperationSet, int(num_ops)))
+#    pool.close()
 
 
 
-    # To parallelize workload generation, we will need to modify how we number the workloads. If we enable this as it is, the threads will overwrite workloads, as they don't see the global_count.
-    #pool = Pool(processes = 4)
-    #pool.map(doPermutation, itertools.permutations(OperationSet, int(num_ops)))
-    #pool.close()
-
-
-    # End timer
     end_time = time.time()
-    bar.finish()
 
-
-    # This is the total number of workloads generated
-    log = '\nTotal workloads generated = '  + `global_count`  + '\n'
+    log = 'Total permutations of input op set = ' +  `count` + '\n'
     print log
     log_file_handle.write(log)
 
-    # Time to create the above workloads
-    log = 'Time taken to generate workloads = ' + `end_time-start_time` + 'seconds\n\n'
+    log = 'Total workloads inspected = '  + `global_count`  + '\n'
+    print log
+    log_file_handle.write(log)
+
+    log = 'Time taken to match workloads = ' + `end_time-start_time` + 'seconds\n\n'
     print log
     log_file_handle.write(log)
 
     log_file_handle.close()
 
-
-    # Move the resultant high-level lang files to target directory. We could choose to delete them too. But if we wanted to analyze the core-ops in a workload, looking at this file is an easier way of doing it. Also if you modify the adapter, you can simply supply the directory of j-lang files to convert to cpp. No need to go through the entire generation process.
-    target = 'mv j-lang* ' + target_path
-    subprocess.call(target, shell = True)
+#    subprocess.call('mv j-lang* code/tests/seq2/j-lang-files/', shell = True)
 
 
 if __name__ == '__main__':

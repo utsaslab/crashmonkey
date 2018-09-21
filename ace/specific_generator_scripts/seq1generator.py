@@ -54,9 +54,9 @@ TruncateOptions = ['aligned', 'unaligned']
 dWriteOptions = ['append', 'overlap']
 
 #removed setxattr
-#OperationSet = ['creat', 'mkdir', 'mknod', 'falloc', 'write', 'dwrite', 'link', 'unlink', 'remove', 'rename', 'symlink', 'removexattr', 'fdatasync', 'fsetxattr']
+OperationSet = ['creat', 'mkdir', 'mknod', 'falloc', 'write', 'dwrite', 'link', 'unlink', 'remove', 'rename', 'symlink', 'removexattr', 'fdatasync', 'fsetxattr']
 
-OperationSet = ['truncate', 'syncrange', 'mmapwrite']
+#OperationSet = ['truncate', 'syncrange', 'mmapwrite']
 
 #We are skipping 041, 336, 342, 343
 #The sequences we want to reach to
