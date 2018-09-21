@@ -52,6 +52,20 @@ CM_GEN_042_OUT = \
 		$(foreach TEST, $(CM_GEN_042), \
 			$(BUILD_DIR)/tests/generic_042/$(TEST))
 
+
+CM_SEQ1_EXCLUDE = base.cpp
+CM_SEQ1 = \
+		$(patsubst %.cpp, %.so, \
+			$(filter-out $(CM_SEQ1_EXCLUDE), \
+					$(notdir $(wildcard $(CURDIR)/tests/seq1/*.cpp))))
+CM_SEQ1_OUT = \
+		$(foreach TEST, $(CM_SEQ1), \
+			$(BUILD_DIR)/tests/seq1/$(TEST))
+
+CM_TESTS_EXCLUDE = BaseTestCase.cpp
+CM_TESTS = \
+
+
 CM_TESTS_EXCLUDE = BaseTestCase.cpp
 CM_TESTS = \
 		$(patsubst %.cpp, %.so, \
@@ -94,7 +108,8 @@ user_tools: \
 
 tests: \
 		$(foreach TEST, $(CM_TESTS), $(BUILD_DIR)/tests/$(TEST)) \
-		$(CM_GEN_042_OUT)
+		$(CM_GEN_042_OUT) \
+		$(CM_SEQ1_OUT)
 
 permuters: \
 		$(foreach PERMUTER, $(CM_PERMUTERS), $(BUILD_DIR)/permuter/$(PERMUTER))
@@ -142,12 +157,33 @@ $(BUILD_DIR)/tests/generic_042/%.o: %.cpp
 	mkdir -p $(@D)
 	$(GPP) $(GOPTS) -fPIC -c -o $@ $<
 
+
+$(BUILD_DIR)/tests/seq1/%.o: %.cpp
+	mkdir -p $(@D)
+	$(GPP) $(GOPTS) -fPIC -c -o $@ $<
+
 # For static pattern rules like the one below, the pattern and prereqs must be
 # separated by ' :' including the space!
 $(CM_GEN_042_OUT): $(BUILD_DIR)/tests/generic_042/%.so : \
 		tests/generic_042/%.cpp \
 		$(BUILD_DIR)/tests/BaseTestCase.o \
 		$(BUILD_DIR)/tests/generic_042/generic_042_base.o \
+		$(BUILD_DIR)/user_tools/src/actions.o \
+		$(BUILD_DIR)/user_tools/src/wrapper.o \
+		$(BUILD_DIR)/user_tools/src/workload.o \
+		$(BUILD_DIR)/utils/DiskMod.o \
+		$(BUILD_DIR)/utils/communication/BaseSocket.o \
+		$(BUILD_DIR)/utils/communication/ClientSocket.o \
+		$(BUILD_DIR)/utils/communication/ClientCommandSender.o \
+		$(BUILD_DIR)/results/DataTestResult.o
+	mkdir -p $(@D)
+	$(GPP) $(GOPTS) $(GOTPSSO) $(XATTR_DEF_FLAG) -Wl,-soname,$(notdir $@) \
+		-o $@ $^
+
+
+$(CM_SEQ1_OUT): $(BUILD_DIR)/tests/seq1/%.so : \
+		tests/seq1/%.cpp \
+		$(BUILD_DIR)/tests/BaseTestCase.o \
 		$(BUILD_DIR)/user_tools/src/actions.o \
 		$(BUILD_DIR)/user_tools/src/wrapper.o \
 		$(BUILD_DIR)/user_tools/src/workload.o \
