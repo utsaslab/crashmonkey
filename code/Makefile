@@ -42,6 +42,25 @@ ifeq ($(shell [ $(KERNEL_MAJ) -lt 3 -o \
 FALLOC_EXCLUDE := $(FALLOC_ZERO_RANGE_TESTS)
 endif
 
+# Used to pick the proper delay time for waiting for bios based on the kernel
+# version in use.
+DELAY_DEFINE := 
+ifeq ($(shell [ $(KERNEL_MAJ) -eq 3 -a $(KERNEL_MIN) -eq 13 ] && echo true), true)
+DELAY_DEFINE := -DTHREE_THIRTEEN
+endif
+ifeq ($(shell [ $(KERNEL_MAJ) -eq 4 -a $(KERNEL_MIN) -eq 4 ] && echo true), true)
+DELAY_DEFINE := -DFOUR_FOUR
+endif
+ifeq ($(shell [ $(KERNEL_MAJ) -eq 4 -a $(KERNEL_MIN) -eq 15 ] && echo true), true)
+DELAY_DEFINE := -DFOUR_FIFTEEN
+endif
+ifeq ($(shell [ $(KERNEL_MAJ) -eq 4 -a $(KERNEL_MIN) -eq 16 ] && echo true), true)
+DELAY_DEFINE := -DFOUR_SIXTEEN
+endif
+ifndef CM
+DELAY_DEFINE := -DTWO_SEC
+endif
+
 CM_GEN_042_EXCLUDE = generic_042_base.cpp
 CM_GEN_042 = \
 		$(patsubst %.cpp, %.so, \
@@ -128,7 +147,7 @@ $(BUILD_DIR)/Makefile:
 $(BUILD_DIR)/harness/%.o: \
 		harness/%.cpp
 	mkdir -p $(@D)
-	$(GPP) -std=c++11 $^ -c -o $@
+	$(GPP) -std=c++11 $^ $(DELAY_DEFINE) -c -o $@
 
 $(BUILD_DIR)/c_harness: \
 	    harness/DiskContents.cpp \
