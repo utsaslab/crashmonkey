@@ -1,6 +1,6 @@
 #!/usr/bin/env python
 
-#To run : python bugWorkloadGen.py -l <seq_length> -n <nested : True|False> -d <demo : True|False>
+#To run : python ace.py -l <seq_length> -n <nested : True|False> -d <demo : True|False>
 import os
 import re
 import sys
@@ -1255,7 +1255,11 @@ def doPermutation(perm):
             # Uncomment only if you want to match the generated workloads to the list of encoded workloads. It could slow down generation!
             #isBugWorkload(permutations[count-1], j, syncPermutationsCustom[insSync])
 
-
+class SlowBar(FillingCirclesBar):
+    suffix = '%(percent).0f%%  (Completed %(index)d skeletons with %(global_count)d workloads)'
+    @property
+    def global_count(self):
+        return global_count
 
 global_count = 0
 parameterList = {}
@@ -1398,7 +1402,8 @@ def main():
     # To create only permutations of ops with no repeptions allowed, use this
     #for i in itertools.permutations(OperationSet, int(num_ops)):
     totalOpCombinations = len(OperationSet) ** int(num_ops)
-    bar = FillingCirclesBar('Generating workloads.. ', max=totalOpCombinations, suffix='%(percent).0f%%  (Completed %(index)d/%(max)d)')
+    #bar = FillingCirclesBar('Generating workloads.. ', max=totalOpCombinations, suffix='%(percent).0f%%  (Completed %(index)d/%(global_count)d)')
+    bar = SlowBar('Generating workloads.. ', max=totalOpCombinations)
 
     # This is the number of input operations
     log = 'Total Phase-1 Skeletons = ' +  `totalOpCombinations` + '\n'

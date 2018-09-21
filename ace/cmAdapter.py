@@ -1,6 +1,6 @@
 #!/usr/bin/env python
 
-#To run : python workload.py -b code/tests/generic_039/base_test.cpp  -t code/tests/generic_039/generic_039 -p code/tests/generic_039
+#To run : python cmAdapter.py -b code/tests/generic_039/base_test.cpp  -t code/tests/generic_039/generic_039 -p code/tests/generic_039
 import os
 import re
 import sys
