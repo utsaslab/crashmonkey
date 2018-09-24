@@ -1287,6 +1287,7 @@ def main():
     global log_file_handle
     global count_param
     global FileOptions
+    global SecondFileOptions
     global SecondDirOptions
     global OperationSet
     global FallocOptions
@@ -1312,7 +1313,9 @@ def main():
     if parsed_args.demo == ('True' or 'true'):
         demo = True
         OperationSet = ['link','falloc']
-        FallocOptions = ['FALLOC_FL_ZERO_RANGE|FALLOC_FL_KEEP_SIZE','FALLOC_FL_KEEP_SIZE']
+        FallocOptions = ['FALLOC_FL_ZERO_RANGE|FALLOC_FL_KEEP_SIZE']
+        FileOptions = ['A/foo']
+        SecondFileOptions = ['A/bar']
     
     else:
         demo = False
