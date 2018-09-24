@@ -1314,8 +1314,8 @@ def main():
         demo = True
         OperationSet = ['link','falloc']
         FallocOptions = ['FALLOC_FL_ZERO_RANGE|FALLOC_FL_KEEP_SIZE']
-        FileOptions = ['A/foo']
-        SecondFileOptions = ['B/bar']
+        FileOptions = ['foo']
+        SecondFileOptions = ['A/bar']
     
     else:
         demo = False
