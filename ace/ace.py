@@ -1133,7 +1133,7 @@ def doPermutation(perm):
         usedFiles = flatList(set(usedFiles))
 
         #For lower sequences, let's allow fsync on any related file - sibling/parent
-        if int(num_ops) < 3:
+        if int(num_ops) < 3 and not demo:
             syncPermutationsCustom = buildCustomTuple(file_range(usedFiles))
         else:
             syncPermutationsCustom = buildCustomTuple(usedFiles)
@@ -1315,7 +1315,7 @@ def main():
         OperationSet = ['link','falloc']
         FallocOptions = ['FALLOC_FL_ZERO_RANGE|FALLOC_FL_KEEP_SIZE']
         FileOptions = ['A/foo']
-        SecondFileOptions = ['A/bar']
+        SecondFileOptions = ['B/bar']
     
     else:
         demo = False
@@ -1323,6 +1323,7 @@ def main():
     # In case the user requests for an additional level of nesting, add one nested dir A/C and one file within it A/C/foo.
     if nested:
         FileOptions = FileOptions + ['AC/foo']
+	SecondFileOptions = SecondFileOptions + ['AC/bar']
         SecondDirOptions = SecondDirOptions + ['AC']
 
     # We just print all known bugs

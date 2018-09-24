@@ -81,8 +81,15 @@ CM_SEQ1_OUT = \
 		$(foreach TEST, $(CM_SEQ1), \
 			$(BUILD_DIR)/tests/seq1/$(TEST))
 
-CM_TESTS_EXCLUDE = BaseTestCase.cpp
-CM_TESTS = \
+
+CM_GEN_EXCLUDE = base.cpp
+CM_GEN = \
+		$(patsubst %.cpp, %.so, \
+			$(filter-out $(CM_GEN_EXCLUDE), \
+					$(notdir $(wildcard $(CURDIR)/tests/generated_workloads/*.cpp))))
+CM_GEN_OUT = \
+		$(foreach TEST, $(CM_GEN), \
+			$(BUILD_DIR)/tests/generated_workloads/$(TEST))
 
 
 CM_TESTS_EXCLUDE = BaseTestCase.cpp
@@ -109,6 +116,7 @@ all: \
 		c_harness \
 		user_tools \
 		tests \
+		seq1 \
 		permuters
 
 modules: \
@@ -127,8 +135,13 @@ user_tools: \
 
 tests: \
 		$(foreach TEST, $(CM_TESTS), $(BUILD_DIR)/tests/$(TEST)) \
-		$(CM_GEN_042_OUT) \
+		$(CM_GEN_042_OUT) 
+
+seq1: \
 		$(CM_SEQ1_OUT)
+
+gentests: \
+		$(CM_GEN_OUT)
 
 permuters: \
 		$(foreach PERMUTER, $(CM_PERMUTERS), $(BUILD_DIR)/permuter/$(PERMUTER))
@@ -181,6 +194,12 @@ $(BUILD_DIR)/tests/seq1/%.o: %.cpp
 	mkdir -p $(@D)
 	$(GPP) $(GOPTS) -fPIC -c -o $@ $<
 
+
+$(BUILD_DIR)/tests/generated_workloads/%.o: %.cpp
+	mkdir -p $(@D)
+	$(GPP) $(GOPTS) -fPIC -c -o $@ $<
+
+
 # For static pattern rules like the one below, the pattern and prereqs must be
 # separated by ' :' including the space!
 $(CM_GEN_042_OUT): $(BUILD_DIR)/tests/generic_042/%.so : \
@@ -214,6 +233,23 @@ $(CM_SEQ1_OUT): $(BUILD_DIR)/tests/seq1/%.so : \
 	mkdir -p $(@D)
 	$(GPP) $(GOPTS) $(GOTPSSO) $(XATTR_DEF_FLAG) -Wl,-soname,$(notdir $@) \
 		-o $@ $^
+
+
+$(CM_GEN_OUT): $(BUILD_DIR)/tests/generated_workloads/%.so : \
+		tests/generated_workloads/%.cpp \
+		$(BUILD_DIR)/tests/BaseTestCase.o \
+		$(BUILD_DIR)/user_tools/src/actions.o \
+		$(BUILD_DIR)/user_tools/src/wrapper.o \
+		$(BUILD_DIR)/user_tools/src/workload.o \
+		$(BUILD_DIR)/utils/DiskMod.o \
+		$(BUILD_DIR)/utils/communication/BaseSocket.o \
+		$(BUILD_DIR)/utils/communication/ClientSocket.o \
+		$(BUILD_DIR)/utils/communication/ClientCommandSender.o \
+		$(BUILD_DIR)/results/DataTestResult.o
+	mkdir -p $(@D)
+	$(GPP) $(GOPTS) $(GOTPSSO) $(XATTR_DEF_FLAG) -Wl,-soname,$(notdir $@) \
+		-o $@ $^
+
 
 $(BUILD_DIR)/tests/%.so: \
 		tests/%.cpp \
