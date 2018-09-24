@@ -27,21 +27,17 @@ This will run all the 328 tests of seq-1 on `btrfs` filesystem of size `100MB`. 
 This tutorial walks you through the workflow of workload generation to testing, using a small bounded space of seq-1 workloads.
 
 1. **Select Bounds** :
-Let us generate workloads of sequence length 1, and test only two file-system operations, `link` and `fallocate`. Our file set consists of 2 directories, with 2 files each.
+Let us generate workloads of sequence length 1, and test only two file-system operations, `link` and `fallocate`. Our reduced file set consists of just two files.
 
 ```python
-FileOptions = ['B/foo', 'A/foo']
-SecondFileOptions = ['B/bar', 'A/bar']
-
-DirOptions = ['A']
-TestDirOptions = ['test']
-SecondDirOptions = ['B']
+FileOptions = ['foo']
+SecondFileOptions = ['A/bar']
 ```
 
-The link and fallocate system calls pick file arguments from the above list. Additionally fallocate allows several modes including `ZERO_RANGE`, `PUNCH_HOLE` etc. We pick two modes to bound the space here.
+The link and fallocate system calls pick file arguments from the above list. Additionally fallocate allows several modes including `ZERO_RANGE`, `PUNCH_HOLE` etc. We pick one of the modes to bound the space here.
 
 ```python
-FallocOptions = ['FALLOC_FL_ZERO_RANGE|FALLOC_FL_KEEP_SIZE','FALLOC_FL_KEEP_SIZE']
+FallocOptions = ['FALLOC_FL_ZERO_RANGE|FALLOC_FL_KEEP_SIZE']
 ```
 
 Fallocate system call also requires offset and length parameters which are chosen to be one among the following.
@@ -55,39 +51,88 @@ All these options are configurable in the [ace script](ace/ace.py).
 2. **Generate Workloads** :
 To generate workloads confining to the above mentioned bounds, run the following command in the `ace` directory  :
 ```python
+cd ace
 python ace.py -l 1 -n False -d True
 ```
 
 `-l` flag sets the length of the sequence to 1, `-n` is used to indicate if we want to include a nested directory to the file set and `-d` indicates the demo workload set, which appropriately sets the above mentioned bounds on system calls and their parameters.
 
-You fill find the generated workloads at `code/tests/seq1_demo`. Additionally, you can find the J-lang equivalent of these test files at `code/tests/seq1_demo/j-lang-files`
+This generates about 9 workloads in 0.6 seconds. You will find the generated workloads at `code/tests/seq1_demo`. Additionally, you can find the J-lang equivalent of these test files at `code/tests/seq1_demo/j-lang-files`
 
 3. **Compile Workloads** : In order to compile the test workloads into `.so` files to be run by CrashMonkey,
-  1. Copy the generated test files into `test` directory.
+  1. Copy the generated test files into `generated_workloads` directory.
   ```
-  cp code/tests/seq1_demo/j-lang*.cpp code/tests/
+  cd ..
+  cp code/tests/seq1_demo/j-lang*.cpp code/tests/generated_workloads/
   ```
-  2. Go to the root directory and type
+  2. Compile the new tests.
   ```
-  make tests
+  make gentests
   ```
 
-  This will compile all the new tests and place the `.so` files at `build/tests`
+  This will compile all the new tests and place the `.so` files at `build/tests/generated_workloads`
 
 5. **Run** : Now to test all these workloads using CrashMonkey, run the xfsMonkey script, which simply runs CrashMonkey in a loop testing one workload at a time.
 
 For example, let's run the generated tests on `btrfs` file system, on a `100MB` image.
 
 ```python
-python xfsMonkey.py -f /dev/sda -d /dev/cow_ram0 -t btrfs -e 102400 -u build/tests/ > outfile
+python xfsMonkey.py -f /dev/sda -d /dev/cow_ram0 -t btrfs -e 102400 -u build/tests/generated_workloads/ > outfile
 ```
 
 6. **Bug Reports** : The generated bug reports can be found at `diff_results`. If the test file j-lang<n>.cpp triggered a bug, you will find a bug report with the same name in this directory.
 
-For example, j-lang--.cpp will result in a crash-consistency bug on btrfs, on kernel 4.16. The corresponding bug report will be as follows.
+For example, j-lang1.cpp will result in a crash-consistency bug on btrfs, as on kernel 4.16 ([Bug #7](newBugs.md)). The corresponding bug report will be as follows.
+
+```
+automated check_test:
+                failed: 1
+
+DIFF: Content Mismatch /A/foo
+
+Actual (/mnt/snapshot/A/foo):
+---File Stat Atrributes---
+Inode     : 258
+TotalSize : 0
+BlockSize : 4096
+#Blocks   : 0
+#HardLinks: 1
+
+
+Expected (/mnt/cow_ram_snapshot2_0/A/foo):
+---File Stat Atrributes---
+Inode     : 258
+TotalSize : 0
+BlockSize : 4096
+#Blocks   : 0
+#HardLinks: 2
 
 ```
 
+Similarly, j-lang4.cpp results in the incorrect block count bug ([bug #8](newBugs.md)) on btrfs as of kernel 4.16. The corresponding bug report is as shown below.
+
+```
+automated check_test:
+                failed: 1
+
+DIFF: Content Mismatch /A/foo
+
+Actual (/mnt/snapshot/A/foo):
+---File Stat Atrributes---
+Inode     : 257
+TotalSize : 32768
+BlockSize : 4096
+#Blocks   : 64
+#HardLinks: 1
+
+
+Expected (/mnt/cow_ram_snapshot2_0/A/foo):
+---File Stat Atrributes---
+Inode     : 257
+TotalSize : 32768
+BlockSize : 4096
+#Blocks   : 128
+#HardLinks: 1
 ```
 
 ### Research that uses our tools ###
