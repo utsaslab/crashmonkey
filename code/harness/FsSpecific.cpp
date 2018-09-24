@@ -76,7 +76,7 @@ string ExtFsSpecific::GetFsckCommand(const string &fs_path) {
   return string(kFsckCommand) + fs_type_ + " " + fs_path + " -- -y";
 }
 
-string ExtFsSpecific::GetNewUUIDCommand(const std::string &disk_path){
+string ExtFsSpecific::GetNewUUIDCommand(const string &disk_path) {
   return string(kExtNewUUIDCommand) + disk_path;
 }
 

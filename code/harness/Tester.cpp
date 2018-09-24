@@ -232,7 +232,7 @@ int Tester::getNewDiskClone(int checkpoint) {
   string new_snapshot_path;
   string path(SNAPSHOT_PATH);
   string device_number = path.substr(path.rfind('_'));
-  string snapshot_number = to_string(checkpoint+2);
+  string snapshot_number = to_string(checkpoint + 2);
   new_snapshot_path = "/dev/cow_ram_snapshot";
   new_snapshot_path += snapshot_number;
   new_snapshot_path += device_number;

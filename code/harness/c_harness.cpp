@@ -727,12 +727,12 @@ int main(int argc, char** argv) {
                 last_checkpoint = true;
               } else if (WEXITSTATUS(status) == 0) {
                 if (checkpoint == 0) {
-                  std::cout << "Completely executed run process" << std::endl;
+                  cout << "Completely executed run process" << endl;
                 } else {
-                  std::cout << "Run process hit checkpoint " << checkpoint << std::endl;
+                  cout << "Run process hit checkpoint " << checkpoint << endl;
                 }
               } else {
-                cerr << "Error in test run, exits with status: " << status << std::endl;
+                cerr << "Error in test run, exits with status: " << status << endl;
                 test_harness.cleanup_harness();
                 return -1;
               }

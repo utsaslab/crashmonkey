@@ -1,5 +1,9 @@
 #include "DiskContents.h"
+
 using std::endl;
+using std::cout;
+using std::string;
+using std::ofstream;
 
 namespace fs_testing {
 
@@ -40,14 +44,14 @@ void fileAttributes::set_stat_attr(struct stat* a) {
   stat_attr->st_blocks = a->st_blocks;
 }
 
-void fileAttributes::set_md5sum(std::string file_path) {
+void fileAttributes::set_md5sum(string file_path) {
   FILE *fp;
-  std::string command = "md5sum " + file_path;
+  string command = "md5sum " + file_path;
   char md5[100];
   fp = popen(command.c_str(), "r");
   fscanf(fp, "%s", md5);
   fclose(fp);
-  std::string md5_str(md5);
+  string md5_str(md5);
   md5sum = md5_str;
 }
 
@@ -83,7 +87,7 @@ bool fileAttributes::compare_stat_attr(struct stat *a) {
     (stat_attr->st_blocks == a->st_blocks));
 }
 
-bool fileAttributes::compare_md5sum(std::string a) {
+bool fileAttributes::compare_md5sum(string a) {
   return md5sum.compare(a);
 }
 
@@ -91,29 +95,29 @@ bool fileAttributes::is_regular_file() {
   return S_ISREG(stat_attr->st_mode);
 }
 
-std::ofstream& operator<< (std::ofstream& os, fileAttributes& a) {
+ofstream& operator<< (ofstream& os, fileAttributes& a) {
   // print dir_attr
   if (a.dir_attr != NULL) {
-    os << "---Directory Atrributes---" << std::endl;
-    os << "Name   : " << (a.dir_attr)->d_name << std::endl;
-    os << "Inode  : " << (a.dir_attr)->d_ino << std::endl;
-    os << "Offset : " << (a.dir_attr)->d_off << std::endl;
-    os << "Length : " << (a.dir_attr)->d_reclen << std::endl;
-    os << "Type   : " << (a.dir_attr)->d_type << std::endl;
+    os << "---Directory Atrributes---" << endl;
+    os << "Name   : " << (a.dir_attr)->d_name << endl;
+    os << "Inode  : " << (a.dir_attr)->d_ino << endl;
+    os << "Offset : " << (a.dir_attr)->d_off << endl;
+    os << "Length : " << (a.dir_attr)->d_reclen << endl;
+    os << "Type   : " << (a.dir_attr)->d_type << endl;
   }
   // print stat_attr
   if (a.stat_attr != NULL) {
-    os << "---File Stat Atrributes---" << std::endl;
-    os << "Inode     : " << (a.stat_attr)->st_ino << std::endl;
-    os << "TotalSize : " << (a.stat_attr)->st_size << std::endl;
-    os << "BlockSize : " << (a.stat_attr)->st_blksize << std::endl;
-    os << "#Blocks   : " << (a.stat_attr)->st_blocks << std::endl;
-    os << "#HardLinks: " << (a.stat_attr)->st_nlink << std::endl;
-    os << "Mode      : " << (a.stat_attr)->st_mode << std::endl;
-    os << "User ID   : " << (a.stat_attr)->st_uid << std::endl;
-    os << "Group ID  : " << (a.stat_attr)->st_gid << std::endl;
-    os << "Device ID : " << (a.stat_attr)->st_rdev << std::endl;
-    os << "RootDev ID: " << (a.stat_attr)->st_dev << std::endl;
+    os << "---File Stat Atrributes---" << endl;
+    os << "Inode     : " << (a.stat_attr)->st_ino << endl;
+    os << "TotalSize : " << (a.stat_attr)->st_size << endl;
+    os << "BlockSize : " << (a.stat_attr)->st_blksize << endl;
+    os << "#Blocks   : " << (a.stat_attr)->st_blocks << endl;
+    os << "#HardLinks: " << (a.stat_attr)->st_nlink << endl;
+    os << "Mode      : " << (a.stat_attr)->st_mode << endl;
+    os << "User ID   : " << (a.stat_attr)->st_uid << endl;
+    os << "Group ID  : " << (a.stat_attr)->st_gid << endl;
+    os << "Device ID : " << (a.stat_attr)->st_rdev << endl;
+    os << "RootDev ID: " << (a.stat_attr)->st_dev << endl;
   }
 }
 
@@ -140,7 +144,7 @@ int DiskContents::mount_disk() {
   // and with read/search permissions for others.
   int ret = mkdir(mount_point, S_IRWXU | S_IRWXG | S_IROTH | S_IXOTH);
   if (ret == -1 && errno != EEXIST) {
-    std::cout << "creating mountpoint failed" << std::endl;
+    cout << "creating mountpoint failed" << endl;
     return -1;
   }
   // Mount the disk
@@ -161,7 +165,7 @@ int DiskContents::unmount_and_delete_mount_point() {
   // umount till successful
   int umount_res;
   int err;
-  std::string command = "umount ";
+  string command = "umount ";
   command += mount_point;
   system(command.c_str());
   do {
@@ -180,7 +184,7 @@ int DiskContents::unmount_and_delete_mount_point() {
   return 0;
 }
 
-void DiskContents::set_mount_point(std::string path) {
+void DiskContents::set_mount_point(string path) {
   strcpy(mount_point, path.c_str());
 }
 
@@ -197,10 +201,10 @@ void DiskContents::get_contents(const char* path) {
     return;
   }
   do {
-    std::string parent_path(path);
-    std::string filename(dir_entry->d_name);
-    std::string current_path = parent_path + "/" + filename;
-    std::string relative_path = current_path;
+    string parent_path(path);
+    string filename(dir_entry->d_name);
+    string current_path = parent_path + "/" + filename;
+    string relative_path = current_path;
     relative_path.erase(0, strlen(mount_point));
     struct stat statbuf;
     fileAttributes fa;
@@ -240,38 +244,38 @@ const char* DiskContents::get_mount_point() {
   return mount_point;
 }
 
-bool DiskContents::compare_disk_contents(DiskContents &compare_disk, std::ofstream &diff_file) {
+bool DiskContents::compare_disk_contents(DiskContents &compare_disk, ofstream &diff_file) {
   bool retValue = true;
 
   if (strcmp(disk_path, compare_disk.disk_path) == 0) {
     return retValue;
   }
 
-  std::string base_path = "/mnt/snapshot";
+  string base_path = "/mnt/snapshot";
   get_contents(base_path.c_str());
 
   if (compare_disk.mount_disk() != 0) {
-    std::cout << "Mounting " << compare_disk.disk_path << " failed" << std::endl;
+    cout << "Mounting " << compare_disk.disk_path << " failed" << endl;
   }
 
   compare_disk.get_contents(compare_disk.get_mount_point());
 
   // Compare the size of contents
   if (contents.size() != compare_disk.contents.size()) {
-    diff_file << "DIFF: Mismatch" << std::endl;
+    diff_file << "DIFF: Mismatch" << endl;
     diff_file << "Unequal #entries in " << disk_path << ", " << compare_disk.disk_path;
-    diff_file << std::endl << std::endl;
-    diff_file << disk_path << " contains:" << std::endl;
+    diff_file << endl << endl;
+    diff_file << disk_path << " contains:" << endl;
     for (auto i : contents) {
-      diff_file << i.first << std::endl;
+      diff_file << i.first << endl;
     }
-    diff_file << std::endl;
+    diff_file << endl;
 
-    diff_file << compare_disk.disk_path << " contains:" << std::endl;
+    diff_file << compare_disk.disk_path << " contains:" << endl;
     for (auto i : compare_disk.contents) {
-      diff_file << i.first << std::endl;
+      diff_file << i.first << endl;
     }
-    diff_file << std::endl;
+    diff_file << endl;
     retValue = false;
   }
 
@@ -279,8 +283,8 @@ bool DiskContents::compare_disk_contents(DiskContents &compare_disk, std::ofstre
   for (auto i : contents) {
     fileAttributes i_fa = i.second;
     if (compare_disk.contents.find((i.first)) == compare_disk.contents.end()) {
-      diff_file << "DIFF: Missing " << i.first << std::endl;
-      diff_file << "Found in " << disk_path << " only" << std::endl;
+      diff_file << "DIFF: Missing " << i.first << endl;
+      diff_file << "Found in " << disk_path << " only" << endl;
       diff_file << i_fa << endl << endl;
       retValue = false;
       continue;
@@ -288,10 +292,10 @@ bool DiskContents::compare_disk_contents(DiskContents &compare_disk, std::ofstre
     fileAttributes j_fa = compare_disk.contents[(i.first)];
     if (!(i_fa.compare_dir_attr(j_fa.dir_attr)) ||
           !(i_fa.compare_stat_attr(j_fa.stat_attr))) {
-        diff_file << "DIFF: Content Mismatch " << i.first << std::endl << std::endl;
-        diff_file << disk_path << ":" << std::endl;
+        diff_file << "DIFF: Content Mismatch " << i.first << endl << endl;
+        diff_file << disk_path << ":" << endl;
         diff_file << i_fa << endl << endl;
-        diff_file << compare_disk.disk_path << ":" << std::endl;
+        diff_file << compare_disk.disk_path << ":" << endl;
         diff_file << j_fa << endl << endl;
         retValue = false;
         continue;
@@ -300,10 +304,10 @@ bool DiskContents::compare_disk_contents(DiskContents &compare_disk, std::ofstre
     if (i_fa.is_regular_file()) {
       // check md5sum of the file contents
       if (i_fa.compare_md5sum(j_fa.md5sum) != 0) {
-        diff_file << "DIFF : Data Mismatch of " << (i.first) << std::endl;
-        diff_file << disk_path << " has md5sum " << i_fa.md5sum << std::endl;
+        diff_file << "DIFF : Data Mismatch of " << (i.first) << endl;
+        diff_file << disk_path << " has md5sum " << i_fa.md5sum << endl;
         diff_file << compare_disk.disk_path << " has md5sum " << j_fa.md5sum;
-        diff_file << std::endl << std::endl;
+        diff_file << endl << endl;
         retValue = false;
       }
     }
@@ -315,31 +319,31 @@ bool DiskContents::compare_disk_contents(DiskContents &compare_disk, std::ofstre
 
 // TODO(P.S.) Cleanup the code and pull out redundant code into separate functions
 bool DiskContents::compare_entries_at_path(DiskContents &compare_disk,
-  std::string path, std::ofstream &diff_file) {
+  string path, ofstream &diff_file) {
   bool retValue = true;
 
   if (strcmp(disk_path, compare_disk.disk_path) == 0) {
     return retValue;
   }
 
-  std::string base_path = "/mnt/snapshot" + path;
+  string base_path = "/mnt/snapshot" + path;
 
   if (compare_disk.mount_disk() != 0) {
-    std::cout << "Mounting " << compare_disk.disk_path << " failed" << std::endl;
+    cout << "Mounting " << compare_disk.disk_path << " failed" << endl;
   }
 
-  std::string compare_disk_mount_point(compare_disk.get_mount_point());
-  std::string compare_path = compare_disk_mount_point + path;
+  string compare_disk_mount_point(compare_disk.get_mount_point());
+  string compare_path = compare_disk_mount_point + path;
 
   fileAttributes base_fa, compare_fa;
   bool failed_stat = false;
   struct stat base_statbuf, compare_statbuf;
   if (stat(base_path.c_str(), &base_statbuf) == -1) {
-    diff_file << "Failed stating the file " << base_path << std::endl;
+    diff_file << "Failed stating the file " << base_path << endl;
     failed_stat = true;
   }
   if (stat(compare_path.c_str(), &compare_statbuf) == -1) {
-    diff_file << "Failed stating the file " << compare_path << std::endl;
+    diff_file << "Failed stating the file " << compare_path << endl;
     failed_stat = true;
   }
 
@@ -351,10 +355,10 @@ bool DiskContents::compare_entries_at_path(DiskContents &compare_disk,
   base_fa.set_stat_attr(&base_statbuf);
   compare_fa.set_stat_attr(&compare_statbuf);
   if (!(base_fa.compare_stat_attr(compare_fa.stat_attr))) {
-    diff_file << "DIFF: Content Mismatch " << path << std::endl << std::endl;
-    diff_file << base_path << ":" << std::endl;
+    diff_file << "DIFF: Content Mismatch " << path << endl << endl;
+    diff_file << base_path << ":" << endl;
     diff_file << base_fa << endl << endl;
-    diff_file << compare_path << ":" << std::endl;
+    diff_file << compare_path << ":" << endl;
     diff_file << compare_fa << endl << endl;
     compare_disk.unmount_and_delete_mount_point();
     return false;
@@ -364,10 +368,10 @@ bool DiskContents::compare_entries_at_path(DiskContents &compare_disk,
     base_fa.set_md5sum(base_path);
     compare_fa.set_md5sum(compare_path);
     if (base_fa.compare_md5sum(compare_fa.md5sum) != 0) {
-      diff_file << "DIFF : Data Mismatch of " << path << std::endl;
-      diff_file << base_path << " has md5sum " << base_fa.md5sum << std::endl;
+      diff_file << "DIFF : Data Mismatch of " << path << endl;
+      diff_file << base_path << " has md5sum " << base_fa.md5sum << endl;
       diff_file << compare_path << " has md5sum " << compare_fa.md5sum;
-      diff_file << std::endl << std::endl;
+      diff_file << endl << endl;
       compare_disk.unmount_and_delete_mount_point();
       return false;
     }
@@ -378,30 +382,30 @@ bool DiskContents::compare_entries_at_path(DiskContents &compare_disk,
   return retValue;
 }
 
-bool DiskContents::compare_file_contents(DiskContents &compare_disk, std::string path,
-    int offset, int length, std::ofstream &diff_file) {
+bool DiskContents::compare_file_contents(DiskContents &compare_disk, string path,
+    int offset, int length, ofstream &diff_file) {
   bool retValue = true;
   if (strcmp(disk_path, compare_disk.disk_path) == 0) {
     return retValue;
   }
 
-  std::string base_path = "/mnt/snapshot" + path;
+  string base_path = "/mnt/snapshot" + path;
   if (compare_disk.mount_disk() != 0) {
-    std::cout << "Mounting " << compare_disk.disk_path << " failed" << std::endl;
+    cout << "Mounting " << compare_disk.disk_path << " failed" << endl;
     return false;
   }
-  std::string compare_disk_mount_point(compare_disk.get_mount_point());
-  std::string compare_path = compare_disk_mount_point + path;
+  string compare_disk_mount_point(compare_disk.get_mount_point());
+  string compare_path = compare_disk_mount_point + path;
 
   fileAttributes base_fa, compare_fa;
   bool failed_stat = false;
   struct stat base_statbuf, compare_statbuf;
   if (stat(base_path.c_str(), &base_statbuf) == -1) {
-    diff_file << "Failed stating the file " << base_path << std::endl;
+    diff_file << "Failed stating the file " << base_path << endl;
     failed_stat = true;
   }
   if (stat(compare_path.c_str(), &compare_statbuf) == -1) {
-    diff_file << "Failed stating the file " << compare_path << std::endl;
+    diff_file << "Failed stating the file " << compare_path << endl;
     failed_stat = true;
   }
 
@@ -414,8 +418,8 @@ bool DiskContents::compare_file_contents(DiskContents &compare_disk, std::string
   std::ifstream f2(compare_path, std::ios::binary);
 
   if (!f1 || !f2) {
-    std::cout << "Error opening input file streams " << base_path  << " and ";
-    std::cout << compare_path << std::endl;
+    cout << "Error opening input file streams " << base_path  << " and ";
+    cout << compare_path << endl;
     compare_disk.unmount_and_delete_mount_point();
     return false;
   }
@@ -439,7 +443,7 @@ bool DiskContents::compare_file_contents(DiskContents &compare_disk, std::string
     return true;
   }
 
-  diff_file << __func__ << " failed" << std::endl;
+  diff_file << __func__ << " failed" << endl;
   diff_file << "Content Mismatch of file " << path << " from ";
   diff_file << offset << " of length " << length << endl;
   diff_file << base_path << " has " << buffer_f1 << endl;
@@ -448,7 +452,7 @@ bool DiskContents::compare_file_contents(DiskContents &compare_disk, std::string
   return false;
 }
 
-bool isEmptyDirOrFile(std::string path) {
+bool isEmptyDirOrFile(string path) {
   DIR *directory = opendir(path.c_str());
   if (directory == NULL) {
     return true;
@@ -468,10 +472,10 @@ bool isEmptyDirOrFile(std::string path) {
   return false;
 }
 
-bool isFile(std::string path) {
+bool isFile(string path) {
   struct stat sb;
   if (stat(path.c_str(), &sb) < 0) {
-    std::cout << __func__ << ": Failed stating " << path << std::endl;
+    cout << __func__ << ": Failed stating " << path << endl;
     return false;
   }
   if (S_ISDIR(sb.st_mode)) {
@@ -480,7 +484,7 @@ bool isFile(std::string path) {
   return true;
 }
 
-bool DiskContents::deleteFiles(std::string path, std::ofstream &diff_file) {
+bool DiskContents::deleteFiles(string path, ofstream &diff_file) {
   if (path.empty()) {
     return true;
   }
@@ -498,8 +502,8 @@ bool DiskContents::deleteFiles(std::string path, std::ofstream &diff_file) {
 
   DIR *directory = opendir(path.c_str());
   if (directory == NULL) {
-    std::cout << "Couldn't open the directory " << path << std::endl;
-    diff_file << "Couldn't open the directory " << path << std::endl;
+    cout << "Couldn't open the directory " << path << endl;
+    diff_file << "Couldn't open the directory " << path << endl;
     return false;
   }
 
@@ -510,20 +514,20 @@ bool DiskContents::deleteFiles(std::string path, std::ofstream &diff_file) {
       continue;
     }
 
-    std::string subpath = path + "/" + std::string(dir_entry->d_name);
+    string subpath = path + "/" + string(dir_entry->d_name);
     bool subpathIsFile = isFile(subpath);
     bool res = deleteFiles(subpath, diff_file);
     if (!res) {
       closedir(directory);
       diff_file << "Couldn't remove directory " << subpath << " " << strerror(errno) << endl;
-      std::cout << "Couldn't remove directory " << subpath << " " << strerror(errno) << endl;
+      cout << "Couldn't remove directory " << subpath << " " << strerror(errno) << endl;
       return res;
     }
 
     if (!subpathIsFile) {
       if (rmdir(subpath.c_str()) < 0) {
         diff_file << "Couldn't remove directory " << subpath << " "  << strerror(errno) << endl;
-        std::cout << "Couldn't remove directory " << subpath << " " << strerror(errno) << endl;
+        cout << "Couldn't remove directory " << subpath << " " << strerror(errno) << endl;
         return false;
       }
     }
@@ -532,15 +536,15 @@ bool DiskContents::deleteFiles(std::string path, std::ofstream &diff_file) {
   return true;
 }
 
-bool DiskContents::makeFiles(std::string base_path, std::ofstream &diff_file) {
+bool DiskContents::makeFiles(string base_path, ofstream &diff_file) {
   get_contents(base_path.c_str());
   for (auto &i : contents) {
     if (S_ISDIR((i.second).stat_attr->st_mode)) {
-      std::string filepath = base_path + i.first + "/" + "_dummy";
+      string filepath = base_path + i.first + "/" + "_dummy";
       int fd = open(filepath.c_str(), O_CREAT|O_RDWR);
       if (fd < 0) {
         diff_file <<  "Couldn't create file " << filepath << endl;
-        std::cout <<  "Couldn't create file " << filepath << endl;
+        cout <<  "Couldn't create file " << filepath << endl;
         return false;
       }
       close(fd);
@@ -549,22 +553,22 @@ bool DiskContents::makeFiles(std::string base_path, std::ofstream &diff_file) {
   return true;
 }
 
-bool DiskContents::sanity_checks(std::ofstream &diff_file) {
-  std::cout << __func__ << std::endl;
-  std::string base_path = "/mnt/snapshot";
+bool DiskContents::sanity_checks(ofstream &diff_file) {
+  cout << __func__ << endl;
+  string base_path = "/mnt/snapshot";
   if (!makeFiles(base_path, diff_file)) {
-    std::cout << "Failed: Couldn't create files in all directories" << std::endl;
-    diff_file << "Failed: Couldn't create files in all directories" << std::endl;
+    cout << "Failed: Couldn't create files in all directories" << endl;
+    diff_file << "Failed: Couldn't create files in all directories" << endl;
     return false;
   }
 
   if (!deleteFiles(base_path, diff_file)) {
-    std::cout << "Failed: Couldn't delete all the existing directories" << std::endl;
-    diff_file << "Failed: Couldn't delete all the existing directories" << std::endl;
+    cout << "Failed: Couldn't delete all the existing directories" << endl;
+    diff_file << "Failed: Couldn't delete all the existing directories" << endl;
     return false;
   }
 
-  std::cout << "Passed sanity checks" << std::endl;
+  cout << "Passed sanity checks" << endl;
   return true;
 }
 
