@@ -7,7 +7,8 @@ CrashMonkey is a file-system agnostic testing framework for file-system consiste
 1. user space test harness which coordinates everything
 1. user space, user defined, test cases which specify the workload to be tested and, optionally, data consistency tests to run on each generated crash state.
 
-The HotStorage'17 paper *CrashMonkey: A Framework to Automatically Test File-System Crash Consistency* has a more detailed explanation of the internals of CrashMonkey. [Paper PDF]( http://www.cs.utexas.edu/~vijay/papers/hotstorage17-crashmonkey.pdf), [Slides](http://www.cs.utexas.edu/~vijay/papers/hotstorage17-crashmonkey-slides.pdf), [Bibtex](http://www.cs.utexas.edu/~vijay/bibtex/hotstorage17-crashmonkey.bib)  
+The HotStorage'17 paper *CrashMonkey: A Framework to Automatically Test File-System Crash Consistency* has a more detailed explanation of the internals of CrashMonkey. <br>
+[[Paper PDF]( http://www.cs.utexas.edu/~vijay/papers/hotstorage17-crashmonkey.pdf)] [[Slides](http://www.cs.utexas.edu/~vijay/papers/hotstorage17-crashmonkey-slides.pdf)] [[Bibtex](http://www.cs.utexas.edu/~vijay/bibtex/hotstorage17-crashmonkey.bib)]
 
 CrashMonkey also makes use of common Linux file system checker and repair programs like `fsck`.
 
@@ -68,7 +69,7 @@ least provide the following:
 To run your own CrashMonkey, use: `./c_harness <flags> <user defined workload>`
 from the `build` directory.
 
-**Examples.** 
+**Examples.**
 1. **Rename Workload**. You can run
 `./c_harness -f /dev/vda -d /dev/cow_ram0 -t ext2 tests/rename_root_to_sub.so`
 to run a test on an ext2 file system that tries to move a file between
@@ -118,7 +119,7 @@ Again, a full list of flags for CrashMonkey can be found in
 named `<date_fimestamp-<test name>.log`
 
 ### XFSMonkey ###
-XFSMonkey is a file-system crash consistency test suite that uses CrashMonkey. XFSMonkey reproduces the crash-consistency tests reported on [xfstests](https://github.com/kdave/xfstests) and linux-kernel mailing lists. It does not require setting up the xfstest suite. 
+XFSMonkey is a file-system crash consistency test suite that uses CrashMonkey. XFSMonkey reproduces the crash-consistency tests reported on [xfstests](https://github.com/kdave/xfstests) and linux-kernel mailing lists. It does not require setting up the xfstest suite.
 
 #### Running XFSMonkey ####
 To run XFSMonkey, first get CrashMonkey up and working. XFSMonkey accepts the same parameters as CrashMonkey standalone tests. To get a list of all supported flags and their default setting, run `python xfsMonkey.py -h` in the root directory of CrashMonkey repository. You can kickstart the XFSMonkey test suite on `ext4` filesystem with default configurations (disk size of 200MB and 1000 iterations per test) by running `python xfsMonkey.py -t ext4`. The test summary can be found in a log file `<date_timestamp>-xfsMonkey.log`. In addition, each test case that was run has a detailed log file `<date_timestamp>-test_name.log`, that can be found in the `build` directory.

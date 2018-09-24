@@ -43,12 +43,12 @@ SecondDirOptions = ['B']
 #Start = 4-16K , append = 16K-20K, overlap = 8000 - 12096, prepend = 0-4K
 
 #Append should append to file size, and overwrites should be possible
-#WriteOptions = ['append', 'overlap_aligned', 'overlap_unaligned']
+#WriteOptions = ['append', 'overlap_unaligned_start', 'overlap_extend', 'overlap_unaligned_end']
 WriteOptions = ['append', 'overlap_unaligned_start', 'overlap_extend'] # 'overlap_unaligned_end'
 
 
 #d_overlap = 8K-12K (has to be aligned)
-#dWriteOptions = ['append', 'overlap']
+#dWriteOptions = ['append', 'overlap_start', 'overlap_end']
 dWriteOptions = ['append', 'overlap_start'] # 'overlap_end'
 
 #Truncate file options 'aligned'
@@ -285,8 +285,8 @@ def buildTuple(command):
             d.append(i)
     elif command == 'link' or command == 'symlink':
         d_tmp = list()
-        d_tmp.append(FileOptions)
-        d_tmp.append(SecondFileOptions + FileOptions)
+        d_tmp.append(FileOptions + SecondFileOptions)
+        d_tmp.append(SecondFileOptions)
         d = list()
         for i in itertools.product(*d_tmp):
             if len(set(i)) == 2:
@@ -1289,6 +1289,7 @@ def main():
     global FileOptions
     global SecondDirOptions
     global OperationSet
+    global FallocOptions
     
     #open log file
     log_file = time.strftime('%Y%m%d_%H%M%S') + '-bugWorkloadGen.log'
@@ -1311,6 +1312,7 @@ def main():
     if parsed_args.demo == ('True' or 'true'):
         demo = True
         OperationSet = ['link','falloc']
+        FallocOptions = ['FALLOC_FL_ZERO_RANGE|FALLOC_FL_KEEP_SIZE','FALLOC_FL_KEEP_SIZE']
     
     else:
         demo = False
