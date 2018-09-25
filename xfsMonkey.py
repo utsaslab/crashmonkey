@@ -90,7 +90,7 @@ def main():
 	#Assign a test num
 	test_num = 0
 	
-    #This is the directory that contains the bug reports from this xfsMonkey run
+	#This is the directory that contains the bug reports from this xfsMonkey run
 	subprocess.call('mkdir diff_results', shell=True)
     
 	#Get the relative path to test directory
@@ -145,7 +145,7 @@ def main():
 					if retry == 4 and p_status != 0 :
 						print get_time_string(), 'Could not run test : ', filename.replace('.so', '')
 					else:
-						print res_final	
+						log_file_handle.write(res_final)	
 					break
 				else:
 					error = re.sub(r'(?s).*error', '\nError', output, flags=re.I)
