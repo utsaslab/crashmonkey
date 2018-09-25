@@ -9,7 +9,7 @@ reset=`tput sgr0`
 bold=`tput bold`
 
 stat_diff="DIFF: Content Mismatch"
-file_missing="DIFF: Failed Stating"
+file_missing="Failed stating"
 print_all=0
 stat=0
 index=0
@@ -49,6 +49,7 @@ then
 			stat=1
 		elif echo $line | grep -q "$file_missing"
 		then
+			echo $line
 			print_all=1
 
 		elif [ $stat -eq 1 ]
@@ -73,7 +74,7 @@ then
 				:
 			fi
 			
-		elif [$print_all -eq 1]
+		elif [ $print_all -eq 1 ]
 		then
 			echo $line
 
@@ -111,12 +112,12 @@ then
 			echo -e "\tExpected Link Count = ${Links[1]}\n\tActual Link Count = ${Links[0]}"
 		
 		else			
-			missing=$(( $missing + 1))
-			echo $missing > $num_missing
-
+			:
 		fi
-	else
-		:
+	else	
+		missing=$(( $missing + 1))
+		echo $missing > $num_missing
+
 	fi
 fi
 

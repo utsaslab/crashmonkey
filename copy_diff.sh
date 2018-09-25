@@ -7,6 +7,7 @@ _demo=${3:-0}
 red=`tput setaf 1`
 green=`tput setaf 2`
 bgcolor=`tput setab 7`
+yellow=`tput setaf 3`
 reset=`tput sgr0`
 bold=`tput bold`
 
@@ -23,6 +24,11 @@ then
 	fi
 	rm build/diff*
 else
-   	rm build/diff*
-	echo -e "${green}${bold} : Passed test${reset}"
+	if [ -e build/diff* ]
+	then
+   		rm build/diff*
+		echo -e "${green}${bold} : Passed test${reset}"
+	else	
+		echo -e "${yellow}${bold} : Could not run test${reset}"
+	fi
 fi

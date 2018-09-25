@@ -1,12 +1,11 @@
 #!/bin/bash
 
-if [ "$#" -ne 2 ]; then
-	echo "Usage : ./demo.sh <FS> <outfile>"
+if [ "$#" -ne 1 ]; then
+	echo "Usage : ./demo.sh <FS>"
 	exit 1
 fi
 
 FS=$1
-outfile=$2
 WORKLOAD_DIR="code/tests/seq1_demo"
 TARGET_DIR="code/tests/generated_workloads"
 TARGET_BUILD_DIR="build/tests/generated_workloads/"
@@ -48,7 +47,7 @@ echo 0 > others
 
 echo -e "\nCompleted compilation. Testing workloads on $FS.."
 if [ -d "$REPORT_DIR" ]; then rm -rf $REPORT_DIR; fi
-python xfsMonkey.py -f /dev/sda -d /dev/cow_ram0 -t $FS -e 102400 -u $TARGET_BUILD_DIR | tee $outfile
+python xfsMonkey.py -f /dev/sda -d /dev/cow_ram0 -t $FS -e 102400 -u $TARGET_BUILD_DIR
 
 end=`date +%s.%3N`
 run_time=$( echo "$end - $start" | bc -l)

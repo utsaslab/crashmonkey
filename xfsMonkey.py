@@ -147,22 +147,22 @@ def main():
 				retry += 1
 				if (p_status == 0 or retry == 4):
 					if retry == 4 and p_status != 0 :
-						print get_time_string(), 'Could not run test : ', filename.replace('.so', '')
+						log_file_handle.write(get_time_string() + 'Could not run test : ' + filename.replace('.so', ''))
 					else:
 						log_file_handle.write(res_final)	
 					break
 				else:
 					error = re.sub(r'(?s).*error', '\nError', output, flags=re.I)
-					print get_time_string(), error
-					print get_time_string(), 'Running cm_cleanup script..'
-					os.system('bash vm_scripts/cm_cleanup.sh')
-					print get_time_string(), 'Retry running ' ,filename.replace('.so', ''), '\n', get_time_string(), 'Running... '	 
+					log_file_handle.write(get_time_string() +  error)
+					#os.system('bash vm_scripts/cm_cleanup.sh')
+					cleanup()
+					log_file_handle.write(get_time_string() + 'Retry running ' + filename.replace('.so', '') + '\n' + get_time_string() + 'Running... ')	 
 			file = filename.replace('.so', '')			
 			#diff_command = 'tail -vn +1 build/diff* >> diff_results/' + file  + '; rm build/diff*' 
 			#subprocess.call('cat build/diff* > out', shell=True)
             
 			#Get the last numbered diff file if present, and clean up diffs
-			subprocess.call('cat build/$(ls build/ | grep diff | tail -n -1) > out', shell=True)
+			subprocess.call('cat build/$(ls build/ | grep diff | tail -n -1) > out 2>/dev/null', shell=True)
 			diff_command = './copy_diff.sh out ' + file + ' 1'
 			#subprocess.call('tail -vn +1 build/diff*', shell=True)
 			subprocess.call(diff_command, shell=True)
