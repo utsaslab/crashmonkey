@@ -19,7 +19,7 @@ then
 	cat $_file >> diff_results/$_target
 	if [ $_demo -eq 1 ]
 	then
-		./find_diff.sh $_file
+		source find_diff.sh $_file
 	fi
 	rm build/diff*
 else

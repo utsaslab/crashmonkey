@@ -21,6 +21,20 @@ declare -a Links
 
 tput setaf 1
 
+num_bugs="bugs"
+num_missing="missing"
+num_stat="stat"
+
+#To output bug summary, let's just echo bug counts into appropriate files
+bugs=`cat $num_bugs`
+missing=`cat $num_missing`
+mismatch=`cat $num_stat`
+
+#If we reached this point, it means we encountered a bug. So increment bug count
+bugs=$(( $bugs + 1))
+echo $bugs > $num_bugs
+
+
 #Let's read the diff file line by line and see where it differs
 [ $# -eq 0 ] && { echo "Usage: $0 filename"; exit 1; }
 [ ! -f "$_file" ] && { echo "Error: $0 file not found."; exit 2; }
@@ -72,6 +86,10 @@ then
 	
 	if [ $stat -eq 1 ]
 	then
+	
+		mismatch=$(( $mismatch + 1))
+		echo $mismatch > $num_stat
+
 		if [[ "${Inode[0]}" -ne "${Inode[1]}" ]]
 		then
 			echo -e "\tExpected Inode Number = ${Inode[1]}\n\tActual Inode Number = ${Inode[0]}"
@@ -92,8 +110,10 @@ then
 		then
 			echo -e "\tExpected Link Count = ${Links[1]}\n\tActual Link Count = ${Links[0]}"
 		
-		else
-			:
+		else			
+			missing=$(( $missing + 1))
+			echo $missing > $num_missing
+
 		fi
 	else
 		:

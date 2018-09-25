@@ -29,8 +29,8 @@ FsyncOptions = ['fsync','fdatasync', 'sync']
 #This should take care of file name/ dir name
 #Default option : test, test/A [foo, bar] , test/B [foo, bar]
 # We have seperated it out into two sets, first and second, in order to eliminate duplicate workloads that differ just in terms of file names.
-FileOptions = ['B/foo', 'A/foo']
-SecondFileOptions = ['B/bar', 'A/bar']
+FileOptions = ['foo', 'A/foo'] #foo
+SecondFileOptions = ['bar', 'A/bar'] #bar
 
 #A,B are  subdirectories under test
 # test directory(root) is under a separate list because we don't want to try to create/remove it in the workload. But we should be able to fsync it.
@@ -1413,7 +1413,8 @@ def main():
 
     # This is the number of input operations
     log = 'Total Phase-1 Skeletons = ' +  `totalOpCombinations` + '\n'
-    print log
+    if not demo:
+	print log
     log_file_handle.write(log)
 
     bar.start()
@@ -1440,12 +1441,13 @@ def main():
     log_file_handle.write(log)
 
     # Time to create the above workloads
-    log = 'Time taken to generate workloads = ' + `end_time-start_time` + ' seconds\n'
-    print log
+    log = 'Time taken to generate workloads = ' + `round(end_time-start_time,2)` + ' seconds\n'
+    if not demo:
+	print log
     log_file_handle.write(log)
 
     # Print target directory
-    log = 'Generated workloads can be found at ../code/tests/' + dest_dir + '\n\n'
+    log = 'Generated workloads can be found at ../code/tests/' + dest_dir + '\n'
     print log
     log_file_handle.write(log)
 

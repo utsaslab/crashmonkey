@@ -63,8 +63,8 @@ def get_time_from_epoch(epoch_secs):
     return time.strftime('%Y-%m-%d %H:%M:%S', time.localtime(epoch_secs))
 
 def print_setup(parsed_args):
-	print(get_time_string() + 'Starting xfsMonkey run..')
-	print '\n{: ^50s}'.format('XFSMonkey\n')
+	#print(get_time_string() + 'Starting xfsMonkey run..')
+	#print '\n{: ^50s}'.format('XFSMonkey\n')
 	print '='*20, 'Setup' , '='*20, '\n'
 	print '{0:20}  {1}'.format('Filesystem type', parsed_args.fs_type)
 	print '{0:20}  {1}'.format('Disk size (MB)', parsed_args.disk_size/1024)
@@ -118,7 +118,7 @@ def main():
 
 			#Print the test number
 			test_num+=1
-			log = '\n' + '-'*20 + 'Test #' + `test_num` +  '-'*20
+			log = '\n' + '-'*20 + 'Test #' + `test_num` +  '-'*20 + '\n'
 			log_file_handle.write(log)
 
 			#Run the test now
@@ -167,10 +167,11 @@ def main():
 			#subprocess.call('tail -vn +1 build/diff*', shell=True)
 			subprocess.call(diff_command, shell=True)
 			
+	log_file_handle.write('\n'+ get_time_string() + ': Test completed. See ' + log_file + ' for test summary\n')
 	#Stop logging
 	sys.stdout = original
 	log_file_handle.close()
-	print get_time_string(), ': xfsMonkey test completed. See ', log_file ,' for test summary\n'
+	print "\nTesting complete...\n"
 
 if __name__ == '__main__':
 	main()
