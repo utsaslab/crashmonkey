@@ -44,7 +44,7 @@ def cleanup():
 	p=subprocess.Popen(command, stdout=subprocess.PIPE, stderr=subprocess.PIPE, shell=True)
 	(out, err) = p.communicate()
 	p.wait()
-	print 'Done cleaning up test harness'
+	#print 'Done cleaning up test harness'
 
 def get_current_epoch_micros():
     return int(time.time() * 1000)
@@ -68,7 +68,7 @@ def print_setup(parsed_args):
 	print '='*20, 'Setup' , '='*20, '\n'
 	print '{0:20}  {1}'.format('Filesystem type', parsed_args.fs_type)
 	print '{0:20}  {1}'.format('Disk size (MB)', parsed_args.disk_size/1024)
-	print '{0:20}  {1}'.format('Iterations per test', parsed_args.iterations)
+	#print '{0:20}  {1}'.format('Iterations per test', parsed_args.iterations)
 	print '{0:20}  {1}'.format('Test device', parsed_args.test_dev)	
 	print '{0:20}  {1}'.format('Flags device', parsed_args.flag_dev)	
 	print '{0:20}  {1}'.format('Test path', parsed_args.test_path)	
@@ -118,10 +118,14 @@ def main():
 
 			#Print the test number
 			test_num+=1
-			print get_time_string(), '\n', '-'*20, 'Test #',test_num, '-'*20
+			log = '\n' + '-'*20 + 'Test #' + `test_num` +  '-'*20
+			log_file_handle.write(log)
 
 			#Run the test now
-			print get_time_string(), 'Running test : ', filename.replace('.so', ''), 'as Crashmonkey standalone \n', get_time_string(), 'Running...'
+			log =  get_time_string() + 'Running test : '+ filename.replace('.so', '') + 'as Crashmonkey standalone \n'
+			log_file_handle.write(log)
+			sys.stdout.write('Running test #' + str(test_num) + ' : ' + filename.replace('.so', '')) 
+			#get_time_string(), 'Running...'
 			
 			#Sometimes we face an error connecting to socket. So let's retry one more time
 			#if CM throws a error for a particular test.
@@ -159,14 +163,14 @@ def main():
             
 			#Get the last numbered diff file if present, and clean up diffs
 			subprocess.call('cat build/$(ls build/ | grep diff | tail -n -1) > out', shell=True)
-			diff_command = './copy_diff.sh out ' + file
-			subprocess.call('tail -vn +1 build/diff*', shell=True)
+			diff_command = './copy_diff.sh out ' + file + ' 1'
+			#subprocess.call('tail -vn +1 build/diff*', shell=True)
 			subprocess.call(diff_command, shell=True)
 			
 	#Stop logging
 	sys.stdout = original
 	log_file_handle.close()
-	print get_time_string(), 'xfsMonkey test completed. See ', log_file ,' for test summary\n\n'
+	print get_time_string(), ': xfsMonkey test completed. See ', log_file ,' for test summary\n'
 
 if __name__ == '__main__':
 	main()

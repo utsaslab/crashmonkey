@@ -19,9 +19,10 @@ echo "Cleaning up the target workload directory"
 if [ -d "$WORKLOAD_DIR" ]; then rm -rf $WORKLOAD_DIR; fi
 
 echo "Starting workload generation.."
-start=$SECONDS
+start=`date +%s.%3N`
 python ace.py -l 1 -n False -d True
 
+end_gen=`date +%s.%3N`
 # Now let's compile the generated tests
 cd ..
 
@@ -29,9 +30,10 @@ cd ..
 if [ -d "$TARGET_DIR" ]; then rm -rf $TARGET_DIR/*; fi
 cp $WORKLOAD_DIR/j-lang*.cpp $TARGET_DIR/
 
-# Start compilation 
 echo "Workload generation complete. Compiling workloads.."
 make gentests > out_compile 2>&1
+
+end_compile=`date +%s.%3N`
 
 # The workloads are now compiled and placed under TARGET_BUILD_DIR. 
 # Run the workloads
@@ -39,7 +41,19 @@ echo -e "\nCompleted compilation. Testing workloads on $FS.."
 if [ -d "$REPORT_DIR" ]; then rm -rf $REPORT_DIR; fi
 python xfsMonkey.py -f /dev/sda -d /dev/cow_ram0 -t $FS -e 102400 -u $TARGET_BUILD_DIR | tee $outfile
 
-end=$(( SECONDS - start ))
+end=`date +%s.%3N`
+run_time=$( echo "$end - $start" | bc -l)
 
-echo -e "\nDemo Completed in $end seconds \n See run log at $outfile and bug reports at diff-results/"
+echo -e "====================================\n"
+printf "Demo Completed in %.2f seconds\n" $run_time
+gen_time=$( echo "$end_gen - $start" | bc -l )
+compile_time=$( echo "$end_compile - $end_gen" | bc -l )
+test_time=$( echo "$end - $end_compile" | bc -l )
+
+echo -e "------------------------"
+printf "Generation   \t %.2f s" $gen_time
+printf "\nCompilation\t %.2f s" $compile_time
+printf "\nTesting    \t %.2f s" $test_time 
+echo -e "\n------------------------\n"
+echo -e "See complete bug reports at diff-results/\n"
 
