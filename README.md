@@ -52,35 +52,35 @@ This tutorial walks you through the workflow of workload generation to testing, 
 1. **Select Bounds** :
 Let us generate workloads of sequence length 1, and test only two file-system operations, `link` and `fallocate`. Our reduced file set consists of just two files.
 
-  ```python
-  FileOptions = ['foo']
-  SecondFileOptions = ['A/bar']
-  ```
+    ```python
+    FileOptions = ['foo']
+    SecondFileOptions = ['A/bar']
+    ```
 
-  The link and fallocate system calls pick file arguments from the above list. Additionally fallocate allows several modes including `ZERO_RANGE`, `PUNCH_HOLE` etc. We pick one of the modes to bound the space here.
+    The link and fallocate system calls pick file arguments from the above list. Additionally fallocate allows several modes including `ZERO_RANGE`, `PUNCH_HOLE` etc. We pick one of the modes to bound the space here.
 
-  ```python
-  FallocOptions = ['FALLOC_FL_ZERO_RANGE|FALLOC_FL_KEEP_SIZE']
-  ```
+    ```python
+    FallocOptions = ['FALLOC_FL_ZERO_RANGE|FALLOC_FL_KEEP_SIZE']
+    ```
 
-  Fallocate system call also requires offset and length parameters which are chosen to be one among the following.
-  ```python
-  WriteOptions = ['append', 'overlap_unaligned_start', 'overlap_extend']
-  ```
+    Fallocate system call also requires offset and length parameters which are chosen to be one among the following.
+    ```python
+    WriteOptions = ['append', 'overlap_unaligned_start', 'overlap_extend']
+    ```
 
-  All these options are configurable in the [ace script](ace/ace.py).
+    All these options are configurable in the [ace script](ace/ace.py).
 
 
 2. **Generate Workloads** :
 To generate workloads confining to the above mentioned bounds, run the following command in the `ace` directory  :
-  ```python
-  cd ace
-  python ace.py -l 1 -n False -d True
-  ```
+    ```python
+    cd ace
+    python ace.py -l 1 -n False -d True
+    ```
 
-  `-l` flag sets the length of the sequence to 1, `-n` is used to indicate if we want to include a nested directory to the file set and `-d` indicates the demo workload set, which appropriately sets the above mentioned bounds on system calls and their parameters.
+    `-l` flag sets the length of the sequence to 1, `-n` is used to indicate if we want to include a nested directory to the file set and `-d` indicates the demo workload set, which appropriately sets the above mentioned bounds on system calls and their parameters.
 
-  This generates about 9 workloads in about a second. You will find the generated workloads at `code/tests/seq1_demo`. Additionally, you can find the J-lang equivalent of these test files at `code/tests/seq1_demo/j-lang-files`
+    This generates about 9 workloads in about a second. You will find the generated workloads at `code/tests/seq1_demo`. Additionally, you can find the J-lang equivalent of these test files at `code/tests/seq1_demo/j-lang-files`
 
 3. **Compile Workloads** : In order to compile the test workloads into `.so` files to be run by CrashMonkey
 
@@ -94,19 +94,19 @@ To generate workloads confining to the above mentioned bounds, run the following
     make gentests
     ```
 
-  This will compile all the new tests and place the `.so` files at `build/tests/generated_workloads`
+    This will compile all the new tests and place the `.so` files at `build/tests/generated_workloads`
 
 4. **Run** : Now its time to test all these workloads using CrashMonkey. Run the xfsMonkey script, which simply invokes CrashMonkey in a loop, testing one workload at a time.
 
-  For example, let's run the generated tests on `btrfs` file system, on a `100MB` image.
+    For example, let's run the generated tests on `btrfs` file system, on a `100MB` image.
 
-  ```python
-  python xfsMonkey.py -f /dev/sda -d /dev/cow_ram0 -t btrfs -e 102400 -u build/tests/generated_workloads/ > outfile
-  ```
+    ```python
+    python xfsMonkey.py -f /dev/sda -d /dev/cow_ram0 -t btrfs -e 102400 -u build/tests/generated_workloads/ > outfile
+    ```
 
 5. **Bug Reports** : The generated bug reports can be found at `diff_results`. If the test file "x" triggered a bug, you will find a bug report with the same name in this directory.
 
-  For example, j-lang1.cpp will result in a crash-consistency bug on btrfs, as on kernel 4.16 ([Bug #7](newBugs.md)). The corresponding bug report will be as follows.
+    For example, j-lang1.cpp will result in a crash-consistency bug on btrfs, as on kernel 4.16 ([Bug #7](newBugs.md)). The corresponding bug report will be as follows.
 
 
       automated check_test:
@@ -130,6 +130,7 @@ To generate workloads confining to the above mentioned bounds, run the following
       BlockSize : 4096
       #Blocks   : 0
       #HardLinks: 2
+
 
 
   Similarly, j-lang4.cpp results in the incorrect block count bug ([bug #8](newBugs.md)) on btrfs as of kernel 4.16. The corresponding bug report is as shown below.
