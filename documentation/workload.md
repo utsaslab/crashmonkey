@@ -73,28 +73,31 @@ virtual int setup() override {
         return errno;
     }
 
-    // create a file
-    int fd_Afoo = cm_->CmOpen(Afoo_path.c_str() , O_RDWR|O_CREAT , 0777);
+    // create the file
+    int fd_Afoo = open(Afoo_path.c_str() , O_RDWR|O_CREAT , 0777);
     if ( fd_Afoo < 0 ) {
-      cm_->CmClose( fd_Afoo);
+      close( fd_Afoo);
       return errno;
     }
 
-    cm_->CmSync();
+    sync();
 
-    //close open files
-    if ( cm_->CmClose ( fd_Afoo ) < 0 ) {
+    //close the file decriptor.
+    if ( close ( fd_Afoo ) < 0 ) {
         return errno;
     }
+
     return 0;
 }
 ```
 
-So, you would have noticed that the only difference between this and a normal C++ code is the wrapper function around system calls. CrashMonkey profiles the workload to be able to track the list of files and directories being persisted by the workload. This information is necessary to enable automatic testing.
+So, as you notice, it's just normal C++ code. There are no wrapper function calls in the setup phase, because we do not record IO resulting from this phase. The interesting part is yet to come!
 
 #### Run ####
 
-Similar to the setup phase, you can write the corresponding system calls in the run method. The important aspect of run method is **Checkpoint**. CrashMonkey defines an optional Checkpoint flag to be inserted in the block IO sequence to indicate the completion of some operation. For example, in this workload, we should be able to check if `B/foo` is correctly recovered if a crash happened after the `fsync(A/foo)`. The auto-checker compulsorily requires that any persistence operation be followed by a checkpoint, because crashes are simulated only at these points. Let's see how to insert checkpoint in the run method.
+Unlike the setup phase, you need wrappers around system calls in the run method. This is because, CrashMonkey profiles the workload to be able to track the list of files and directories being persisted. This information is necessary to enable automatic testing. Wrapping the system call is simple. For example, `open` is replaced by `cm_->CmOpen`. Similarly, `rename` is replaced by `cm_->CmRename`.  Currently, CrashMonkey requires that you wrap `open, close, rename, fsync, fdatasync, sync, msync` system calls for the correctness of auto-checker.
+
+Another important aspect of run method is **Checkpoint**. CrashMonkey defines an optional Checkpoint flag to be inserted in the block IO sequence to indicate the completion of some operation. For example, in this workload, we should be able to check if `B/foo` is correctly recovered if a crash happened after the `fsync(A/foo)`. The auto-checker compulsorily requires that any persistence operation be followed by a checkpoint, because crashes are simulated only at these points. Let's see how to insert checkpoint in the run method.
 
 ```c++
 virtual int run( int checkpoint ) override {
@@ -102,6 +105,12 @@ virtual int run( int checkpoint ) override {
   int local_checkpoint = 0 ;
 
   < some workload >
+
+  int fd_Afoo = cm_->CmOpen(Afoo_path.c_str() , O_RDWR|O_CREAT , 0777);
+  if ( fd_Afoo < 0 ) {
+    cm_->CmClose( fd_Afoo);
+    return errno;
+  }
 
   < PERSISTENCE OP 1 >
 

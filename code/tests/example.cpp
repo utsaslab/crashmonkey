@@ -39,17 +39,17 @@ namespace fs_testing {
                       return errno;
                   }
 
-                  // get the directory handle
-                  int fd_Afoo = cm_->CmOpen(Afoo_path.c_str() , O_RDWR|O_CREAT , 0777);
+                  // create the file
+                  int fd_Afoo = open(Afoo_path.c_str() , O_RDWR|O_CREAT , 0777);
                   if ( fd_Afoo < 0 ) {
-                    cm_->CmClose( fd_Afoo);
+                    close( fd_Afoo);
                     return errno;
                   }
 
-                  cm_->CmSync();
+                  sync();
 
                   //close the file decriptor.
-                  if ( cm_->CmClose ( fd_Afoo ) < 0 ) {
+                  if ( close ( fd_Afoo ) < 0 ) {
                       return errno;
                   }
 
@@ -68,7 +68,14 @@ namespace fs_testing {
                     return errno;
                 }
 
+                //link files
                 if ( link( Afoo_path.c_str() , Bfoo_path.c_str() ) < 0 ) {
+                  return errno;
+                }
+
+                int fd_Afoo = cm_->CmOpen(Afoo_path.c_str() , O_RDWR|O_CREAT , 0777);
+                if ( fd_Afoo < 0 ) {
+                  cm_->CmClose( fd_Afoo);
                   return errno;
                 }
 
