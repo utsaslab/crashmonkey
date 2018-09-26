@@ -88,3 +88,30 @@ However, by default, we only use directory A, B, and the files under them. To in
 5. **Fileset for persistence operations** : Ideally, the file set for persistence operations should be the same as the above defined file set. However, there is no point persisting a file that was not touched by any of the system calls in the workload. Hence, we reduce the space of workloads further by restricting the fileset for persistence operations:
       1. Range of used files : In this mode, in addition to the files/directories involved in the workload, we allow persisting sibling files and parent directory. This is the default for seq-1 and seq-2.
       2. Strictly used files : In this mode, only files/directories acted upon by the workload can be persisted. We default to this mode in seq-3, to restrict the workload set.
+
+___
+### Generating workloads with Ace ###
+
+Generating workloads with Ace is a two-step process.
+
+  1. Set the bounds that you wish to explore, using the guidelines and advices in the [previous](#bounds-used-by-ace) section.
+
+  2. Start workload generation.
+
+      ```python
+      cd ace
+      python ace.py -l <seq_length> -n <True|False> -d<True|False>
+      ```
+For example, to generate seq-2 workloads with no additional nested directory, run :
+      ```python
+      python ace.py -l 2 -n False -d false
+      ```
+
+      **Flags:**
+
+      * `-l` - Sequence length of the workload, i.e., the number of core file-system operations in the workload.
+      * `-n` - If True, provides an additional level of nesting to the file set. Adds a directory `A/C` and two files `A/C/foo` and `A/C/bar` to the set of files.
+      * `-d` - Demo workload. If true, simply restricts the workload space to test two file-system operations `link` and `fallocate`, allowing the persistence of used files only. The file set is also restricted to just `foo` and `A/bar`
+
+___
+### Generalizing Ace ###

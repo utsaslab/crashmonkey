@@ -21,7 +21,9 @@ Here is a checklist of dependencies to get CrashMonkey and Ace up and running on
 * You need a Linux machine to get started. We recommend spinning up a Ubuntu 14.04 or Ubuntu 16.04 VM with one of the supported kernel versions mentioned above. 20GB disk space and 2-4GB of RAM is recommended, if you plan on running large tests.
 * Install dependencies.
 
-  `apt-get install git make gcc g++ libattr1-dev btrfs-tools f2fs-tools xfsprogs libelf-dev python`
+  `apt-get install git make gcc g++ libattr1-dev btrfs-tools f2fs-tools xfsprogs libelf-dev linux-headers-$(uname -r) python`
+
+  `sudo apt-get install linux-headers-$(uname -r)`
 
   `pip install progress progressbar`
 
@@ -29,9 +31,9 @@ Here is a checklist of dependencies to get CrashMonkey and Ace up and running on
 
     `git clone https://github.com/utsaslab/crashmonkey.git`
 
-* Compile CrashMonkey and the kernel modules. Initial compile will take quite some time (2-5 minutes), as we have to compile a test suite of seq-1 workloads (workloads with 1 file-system operation).
+* Compile CrashMonkey's test harness, kernel modules and the test suite of seq-1 workloads (workloads with 1 file-system operation). The initial compile should take a minute or lesser.
 
-  `cd crashmonkey; make`
+  `cd crashmonkey; make -j4`
 
 * Create a directory for the test harness to mount devices to.
 
