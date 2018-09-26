@@ -160,7 +160,6 @@ virtual int check_test( unsigned int last_checkpoint, DataTestResult *test_resul
 }
 ```
 
-___
 
 Now that completes our test case! [See the complete test case](../code/tests/example.cpp).
 
@@ -171,23 +170,23 @@ ___
 There are two types of testing you could perform.
 1. **Test with user-defined consistency checks** : In this setting, CrashMonkey will profile the workload, generate crash states, and on the recovered file system image, it runs the **check_test** method you defined. There are two ways in which you could choose to generate crash states in this setting.
 
-  * **Permuted replay** : By default, 10000 crash states are tested here. To generate a crash state, the recorded bios are permuted, respecting the barrier operations. However, this method is not efficient in understanding checkpoints, as these checkpoints bios could be re-ordered across checkpoints if they appear within two barrier operations. You can test the workload we just wrote, in this setting by running the following command in the `build` directory, after you compiled the test. The results of this mode of test appear under *Reordering Test* summary at test completion.
+    * **Permuted replay** : By default, 10000 crash states are tested here. To generate a crash state, the recorded bios are permuted, respecting the barrier operations. However, this method is not efficient in understanding checkpoints, as these checkpoints bios could be re-ordered across checkpoints if they appear within two barrier operations. You can test the workload we just wrote, in this setting by running the following command in the `build` directory, after you compiled the test. The results of this mode of test appear under *Reordering Test* summary at test completion.
 
-    `./c_harness -v -f /dev/sda -d /dev/cow_ram0 -t btrfs -e 102400 tests/example.so`
+      `./c_harness -v -f /dev/sda -d /dev/cow_ram0 -t btrfs -e 102400 tests/example.so`
 
-   * **In-order replay** : This mode does not permute the bios, it instead replays them in order until a checkpoint is reached. If a workload has *n* checkpoints, then *n* crash states are generated in this mode. The results of this mode of test are represented as *Timing Test* summary at the end of the test. You can run this mode, by simply adding a `-P` flag.
+    * **In-order replay** : This mode does not permute the bios, it instead replays them in order until a checkpoint is reached. If a workload has *n* checkpoints, then *n* crash states are generated in this mode. The results of this mode of test are represented as *Timing Test* summary at the end of the test. You can run this mode, by simply adding a `-P` flag.
 
-       `./c_harness -v -P -f /dev/sda -d /dev/cow_ram0 -t btrfs -e 102400 tests/example.so`
+        `./c_harness -v -P -f /dev/sda -d /dev/cow_ram0 -t btrfs -e 102400 tests/example.so`
 
 2. **Test with auto-checker** : In this setting, CrashMonkey requires the -P flag to perform in-order replay. However, to enable automatic testing, snapshots are captured at each crash point, to create an oracle representing expected state after crash. This mode does not require you to write up the check_test function. As you wrote this example test case, you would have realized that it's tedious to handcraft the checker. Especially if you have multiple checkpoints, you have to appropriately check the data and metadata of files modified between each checkpoint. Auto-checker relieves you of this manual effort. To run in this mode, use `-c flag` in addition to `-P`.
 
-       `./c_harness -v -c -P -f /dev/sda -d /dev/cow_ram0 -t btrfs -e 102400 tests/example.so`
+`./c_harness -v -c -P -f /dev/sda -d /dev/cow_ram0 -t btrfs -e 102400 tests/example.so`
 
 
 The log containing the recorded block IOs, the crash states tested and result at each crash state will be available at `build/<timestamp>-example.log`
 
-
-#### Result ####
+___
+### Result ###
 
 The result of running the above example workload on `btrfs` filesystem on any kernel <= 4.16 is as follows.
 
@@ -262,4 +261,4 @@ BlockSize : 4096
 What this tells you is that, the link count of A/foo is 1, while it should have been 2. This is in turn because the link file B/foo is missing.
 
 ___
-As you would have noticed by now, the workload we just wrote and tested is the [link count bug](../newBugs.md/#bug-7-:-fsync-of-file-does-not-persist-all-its-names).
+As you would have noticed by now, the workload we just wrote and tested is the [link count bug](../newBugs.md/#bug-7--fsync-of-file-does-not-persist-all-its-names). This bug was found by our tools, by automatic workload generation and testing.
