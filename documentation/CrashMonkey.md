@@ -1,7 +1,7 @@
 # CrashMonkey #
 ### Overview ###
 
-CrashMonkey is a file-system agnostic testing framework for file-system consistency. It is meant to explore many crash states that are possible when a computer crashes in the middle of a file-system operation. CrashMonkey is made up of 4 main parts:
+CrashMonkey is a file-system agnostic testing framework for file-system consistency. It is meant to explore many crash states that are possible when a computer crashes in the middle of a file-system operation. CrashMonkey is made up of 3 main parts:
 
 1. File-system agnostic kernel modules for bio logging and disk snapshotting
 3. An auto-checker that tests if the recovered filesystem state is consistent
@@ -22,7 +22,7 @@ The easiest (and recommended) way to start working on (or using) CrashMonkey is 
  **CrashMonkey is known to work on kernel versions 3.13.0-121-generic, 4.4.0-62-generic, 4.15.0-041500-generic, and 4.16.0-041600rc7-generic.**
 
 #### Dependencies and Build ####
-Before you begin compilation, ensure you have satisfied all dependencies mentioned in the [setup guide](../README/#setup)
+Before you begin compilation, ensure you have satisfied all dependencies mentioned in the [setup guide](../README.md/#setup)
 
 #### Compiling CrashMonkey ####
 CrashMonkey can be built simply by running `make` in the root directory of the repository. This will build all the needed kernel modules, tests, and test harness components needed to run CrashMonkey.
