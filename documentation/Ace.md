@@ -115,3 +115,23 @@ For example, to generate seq-2 workloads with no additional nested directory, ru
 
 ___
 ### Generalizing Ace ###
+You can extend Ace to generate workloads of larger sequences, expand the set of files and directories acted upon, or support new file system operations. Let's see what changes are required to do so.
+
+#### Generating workloads of larger sequences ####
+
+There is nothing preventing Ace from generating workloads of length > 3. You could simply say `-l 4` to generate sequence 4 workloads. One bit of dependency that you should add in for sequences 5 and above is, is the insertion of persistence operations.
+
+```python
+if int(num_ops) == 4:
+    for i in itertools.product(SyncSetCustom, SyncSetCustom, SyncSetCustom, SyncSetNoneCustom):
+        syncPermutationsCustom.append(i)
+```
+This piece of code ensures that the last persistence op is never `None`. We need to generalize this in [ace](../ace/ace.py), to handle higher sequences.
+
+#### Adding more files and directories ####
+
+Workload generation is Ace is somewhat closely coupled to the set of files and directories available. While we aim to make it general enough to handle any user-defined file, it currently requires quite a few modifications in [ace](../ace/ace.py) to support new files. You need to ensure that the methods `SiblingOf(file)` and `Parent(file)` return appropriate values for the new file you are adding. The functions to check dependencies are also tied to our pre-defined list of files. For example, we need to generalize `checkDirDep` and `checkParentExistsDep` to include the new file. In future, we aim to generalize these functions to understand this layout of files and directories.
+
+#### Supporting new file-system operations ####
+
+Supporting new file-system operations requires additions to both [ace](../ace/ace.py) and [adapter](../ace/cmAdapter.py). First, add the new system call to the `buildTuple` function, with appropriate argument list to this operation. Next, ensure that all the dependencies arising due to this system call are addressed in the `satisfyDep` function. Finally, add the new system call to the `buildJlang` function, in a format you would like to see it in the high-level language test file. Now for the adapter, add the new system call to the `insertFunctions` method, and write an appropriate `insert<NewSysCall>` method that handles the conversion of high-level language description to C++ equivalent code.
