@@ -14,7 +14,7 @@ CrashMonkey combined with Ace, provides an automated testing framework for file 
 
 CrashMonkey and Ace can be used out of the box on any Linux filesystem that implements POSIX API. Our tools have been tested to work with ext2, ext3, ext4, xfs, F2FS, and btrfs, across Linux kernel versions - 3.12, 3.13, 3.16, 4.1, 4.4, 4.15, and 4.16.
 
----
+
 ## Setup ##
 
 Here is a checklist of dependencies to get CrashMonkey and Ace up and running on your system.
@@ -37,7 +37,7 @@ Here is a checklist of dependencies to get CrashMonkey and Ace up and running on
 
   `mkdir /mnt/snapshot`
 
----
+
 ## Push-button testing for seq-1 workloads ##
 
 This repository contains a pre-generated suite of 328 seq-1 workloads (workloads with 1 file-system operation) [here](code/tests/seq1/). Once you have [set up](#setup) CrashMonkey on your machine (or VM), you can simply run :
@@ -161,14 +161,14 @@ BlockSize : 4096
 #HardLinks: 1
 ```
 
----
+
 ## Demo ##
 All these steps have been assembled for you in the script [here](demo.sh). The link to the demo video is [here](). Try out the demo by running `./demo.sh btrfs`
 
----
+
 ## Research that uses our tools ##
 1. *Barrier-Enabled IO Stack for Flash Storage*. Youjip Won, Hanyang University; Jaemin Jung, Texas A&M University; Gyeongyeol Choi, Joontaek Oh, and Seongbae Son, Hanyang University; Jooyoung Hwang and Sangyeun Cho, Samsung Electronics. Proceedings of the 16th USENIX Conference on File and Storage Technologies (FAST 18). [Link](https://www.usenix.org/conference/fast18/presentation/won)
 
----
+
 ## Contact Info ##
 Please contact us at vijay@cs.utexas.edu with any questions. Drop us a note if you are using or plan to use CrashMonkey or Ace to test your file system.
