@@ -35,6 +35,8 @@ namespace fs_testing {
 				A_path = mnt_dir_ + "/A";
 				AC_path = mnt_dir_ + "/A/C";
 				B_path = mnt_dir_ + "/B";
+				foo_path = mnt_dir_ + "/foo";
+				bar_path = mnt_dir_ + "/bar";
 				Afoo_path = mnt_dir_ + "/A/foo";
 				Abar_path = mnt_dir_ + "/A/bar";
 				Bfoo_path = mnt_dir_ + "/B/foo";
@@ -50,6 +52,8 @@ namespace fs_testing {
 				A_path =  mnt_dir_ + "/A";
 				AC_path =  mnt_dir_ + "/A/C";
 				B_path =  mnt_dir_ + "/B";
+				foo_path =  mnt_dir_ + "/foo";
+				bar_path =  mnt_dir_ + "/bar";
 				Afoo_path =  mnt_dir_ + "/A/foo";
 				Abar_path =  mnt_dir_ + "/A/bar";
 				Bfoo_path =  mnt_dir_ + "/B/foo";
@@ -120,6 +124,8 @@ namespace fs_testing {
 				A_path =  mnt_dir_ + "/A";
 				AC_path =  mnt_dir_ + "/A/C";
 				B_path =  mnt_dir_ + "/B";
+				foo_path =  mnt_dir_ + "/foo";
+				bar_path =  mnt_dir_ + "/bar";
 				Afoo_path =  mnt_dir_ + "/A/foo";
 				Abar_path =  mnt_dir_ + "/A/bar";
 				Bfoo_path =  mnt_dir_ + "/B/foo";
@@ -135,6 +141,8 @@ namespace fs_testing {
 			 string A_path; 
 			 string AC_path; 
 			 string B_path; 
+			 string foo_path; 
+			 string bar_path; 
 			 string Afoo_path; 
 			 string Abar_path; 
 			 string Bfoo_path; 

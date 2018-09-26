@@ -35,6 +35,8 @@ namespace fs_testing {
 				A_path = mnt_dir_ + "/A";
 				AC_path = mnt_dir_ + "/A/C";
 				B_path = mnt_dir_ + "/B";
+				foo_path = mnt_dir_ + "/foo";
+				bar_path = mnt_dir_ + "/bar";
 				Afoo_path = mnt_dir_ + "/A/foo";
 				Abar_path = mnt_dir_ + "/A/bar";
 				Bfoo_path = mnt_dir_ + "/B/foo";
@@ -50,6 +52,8 @@ namespace fs_testing {
 				A_path =  mnt_dir_ + "/A";
 				AC_path =  mnt_dir_ + "/A/C";
 				B_path =  mnt_dir_ + "/B";
+				foo_path =  mnt_dir_ + "/foo";
+				bar_path =  mnt_dir_ + "/bar";
 				Afoo_path =  mnt_dir_ + "/A/foo";
 				Abar_path =  mnt_dir_ + "/A/bar";
 				Bfoo_path =  mnt_dir_ + "/B/foo";
@@ -63,11 +67,6 @@ namespace fs_testing {
 				}
 
 
-				if ( mkdir(B_path.c_str() , 0777) < 0){ 
-					return errno;
-				}
-
-
 				int fd_Afoo = cm_->CmOpen(Afoo_path.c_str() , O_RDWR|O_CREAT , 0777); 
 				if ( fd_Afoo < 0 ) { 
 					cm_->CmClose( fd_Afoo); 
@@ -75,19 +74,12 @@ namespace fs_testing {
 				}
 
 
-				if ( link(Afoo_path.c_str() , Bbar_path.c_str() ) < 0){ 
+				if ( link(Afoo_path.c_str() , Abar_path.c_str() ) < 0){ 
 					return errno;
 				}
 
 
-				int fd_Bfoo = cm_->CmOpen(Bfoo_path.c_str() , O_RDWR|O_CREAT , 0777); 
-				if ( fd_Bfoo < 0 ) { 
-					cm_->CmClose( fd_Bfoo); 
-					return errno;
-				}
-
-
-				if ( cm_->CmFsync( fd_Bfoo) < 0){ 
+				if ( cm_->CmFsync( fd_Afoo) < 0){ 
 					return errno;
 				}
 
@@ -105,11 +97,6 @@ namespace fs_testing {
 					return errno;
 				}
 
-
-				if ( cm_->CmClose ( fd_Bfoo) < 0){ 
-					return errno;
-				}
-
                 return 0;
             }
             
@@ -119,6 +106,8 @@ namespace fs_testing {
 				A_path =  mnt_dir_ + "/A";
 				AC_path =  mnt_dir_ + "/A/C";
 				B_path =  mnt_dir_ + "/B";
+				foo_path =  mnt_dir_ + "/foo";
+				bar_path =  mnt_dir_ + "/bar";
 				Afoo_path =  mnt_dir_ + "/A/foo";
 				Abar_path =  mnt_dir_ + "/A/bar";
 				Bfoo_path =  mnt_dir_ + "/B/foo";
@@ -134,6 +123,8 @@ namespace fs_testing {
 			 string A_path; 
 			 string AC_path; 
 			 string B_path; 
+			 string foo_path; 
+			 string bar_path; 
 			 string Afoo_path; 
 			 string Abar_path; 
 			 string Bfoo_path; 

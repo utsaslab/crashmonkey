@@ -35,6 +35,8 @@ namespace fs_testing {
 				A_path = mnt_dir_ + "/A";
 				AC_path = mnt_dir_ + "/A/C";
 				B_path = mnt_dir_ + "/B";
+				foo_path = mnt_dir_ + "/foo";
+				bar_path = mnt_dir_ + "/bar";
 				Afoo_path = mnt_dir_ + "/A/foo";
 				Abar_path = mnt_dir_ + "/A/bar";
 				Bfoo_path = mnt_dir_ + "/B/foo";
@@ -50,6 +52,8 @@ namespace fs_testing {
 				A_path =  mnt_dir_ + "/A";
 				AC_path =  mnt_dir_ + "/A/C";
 				B_path =  mnt_dir_ + "/B";
+				foo_path =  mnt_dir_ + "/foo";
+				bar_path =  mnt_dir_ + "/bar";
 				Afoo_path =  mnt_dir_ + "/A/foo";
 				Abar_path =  mnt_dir_ + "/A/bar";
 				Bfoo_path =  mnt_dir_ + "/B/foo";
@@ -58,38 +62,33 @@ namespace fs_testing {
 				ACbar_path =  mnt_dir_ + "/A/C/bar";
 				int local_checkpoint = 0 ;
 
-				if ( mkdir(B_path.c_str() , 0777) < 0){ 
+				int fd_foo = cm_->CmOpen(foo_path.c_str() , O_RDWR|O_CREAT , 0777); 
+				if ( fd_foo < 0 ) { 
+					cm_->CmClose( fd_foo); 
 					return errno;
 				}
 
 
-				int fd_Bfoo = cm_->CmOpen(Bfoo_path.c_str() , O_RDWR|O_CREAT , 0777); 
-				if ( fd_Bfoo < 0 ) { 
-					cm_->CmClose( fd_Bfoo); 
+				if ( WriteData ( fd_foo, 0, 32768) < 0){ 
+					cm_->CmClose( fd_foo); 
 					return errno;
 				}
 
 
-				if ( WriteData ( fd_Bfoo, 0, 32768) < 0){ 
-					cm_->CmClose( fd_Bfoo); 
+				if ( WriteData ( fd_foo, 30768, 5000) < 0){ 
+					cm_->CmClose( fd_foo); 
 					return errno;
 				}
 
 
-				if ( WriteData ( fd_Bfoo, 30768, 5000) < 0){ 
-					cm_->CmClose( fd_Bfoo); 
+				int fd_test = cm_->CmOpen(test_path.c_str() , O_DIRECTORY , 0777); 
+				if ( fd_test < 0 ) { 
+					cm_->CmClose( fd_test); 
 					return errno;
 				}
 
 
-				int fd_Bbar = cm_->CmOpen(Bbar_path.c_str() , O_RDWR|O_CREAT , 0777); 
-				if ( fd_Bbar < 0 ) { 
-					cm_->CmClose( fd_Bbar); 
-					return errno;
-				}
-
-
-				if ( cm_->CmFsync( fd_Bbar) < 0){ 
+				if ( cm_->CmFsync( fd_test) < 0){ 
 					return errno;
 				}
 
@@ -103,12 +102,12 @@ namespace fs_testing {
 				}
 
 
-				if ( cm_->CmClose ( fd_Bbar) < 0){ 
+				if ( cm_->CmClose ( fd_foo) < 0){ 
 					return errno;
 				}
 
 
-				if ( cm_->CmClose ( fd_Bfoo) < 0){ 
+				if ( cm_->CmClose ( fd_test) < 0){ 
 					return errno;
 				}
 
@@ -121,6 +120,8 @@ namespace fs_testing {
 				A_path =  mnt_dir_ + "/A";
 				AC_path =  mnt_dir_ + "/A/C";
 				B_path =  mnt_dir_ + "/B";
+				foo_path =  mnt_dir_ + "/foo";
+				bar_path =  mnt_dir_ + "/bar";
 				Afoo_path =  mnt_dir_ + "/A/foo";
 				Abar_path =  mnt_dir_ + "/A/bar";
 				Bfoo_path =  mnt_dir_ + "/B/foo";
@@ -136,6 +137,8 @@ namespace fs_testing {
 			 string A_path; 
 			 string AC_path; 
 			 string B_path; 
+			 string foo_path; 
+			 string bar_path; 
 			 string Afoo_path; 
 			 string Abar_path; 
 			 string Bfoo_path; 

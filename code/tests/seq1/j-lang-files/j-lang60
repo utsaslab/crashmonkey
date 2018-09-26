@@ -3,6 +3,8 @@ test
 A
 A/C
 B
+foo
+bar
 A/foo
 A/bar
 B/foo
@@ -15,11 +17,11 @@ local_checkpoint
 
 # setup
 
+
 # run
-mkdir B 0777
-open Bfoo O_RDWR|O_CREAT 0777
-write Bfoo 0 32768
-falloc Bfoo FALLOC_FL_KEEP_SIZE 30768 5000
+open foo O_RDWR|O_CREAT 0777
+write foo 0 32768
+falloc foo FALLOC_FL_KEEP_SIZE 30768 5000
 sync
 checkpoint 1
-close Bfoo
+close foo

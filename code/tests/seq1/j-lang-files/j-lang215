@@ -3,6 +3,8 @@ test
 A
 A/C
 B
+foo
+bar
 A/foo
 A/bar
 B/foo
@@ -15,10 +17,13 @@ local_checkpoint
 
 # setup
 
+
 # run
 mkdir A 0777
-open Afoo O_RDWR|O_CREAT 0777
-link Afoo Abar
-fsync Afoo
+open bar O_RDWR|O_CREAT 0777
+link bar Abar
+opendir test 0777
+fsync test
 checkpoint 1
-close Afoo
+close bar
+close test

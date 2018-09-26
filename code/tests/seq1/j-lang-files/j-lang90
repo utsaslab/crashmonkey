@@ -3,6 +3,8 @@ test
 A
 A/C
 B
+foo
+bar
 A/foo
 A/bar
 B/foo
@@ -14,6 +16,7 @@ A/C/bar
 local_checkpoint
 
 # setup
+
 
 # run
 mkdir A 0777
