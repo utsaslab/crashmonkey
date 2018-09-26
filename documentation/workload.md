@@ -153,7 +153,7 @@ virtual int check_test( unsigned int last_checkpoint, DataTestResult *test_resul
   int res_Bfoo = stat(Bfoo_path.c_str(), &stats);
   if ( last_checkpoint == 1 && res_Bfoo < 0 ) {
       test_result->SetError(DataTestResult::kFileMissing);
-      test_result->error_description = " : Missing file " + Bfoo_path.c_str();
+      test_result->error_description = " : Missing file " + Bfoo_path;
       return 0;
   }
   return 0;

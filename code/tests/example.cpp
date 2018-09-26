@@ -112,7 +112,7 @@ namespace fs_testing {
               int res_Afoo = stat(Afoo_path.c_str(), &stats);
               if (res_Afoo < 0) {
                   test_result->SetError(DataTestResult::kFileMissing);
-                  test_result->error_description = " : Missing file " + Afoo_path.c_str();
+                  test_result->error_description = " : Missing file " + Afoo_path;
                   return 0;
               }
 
@@ -124,7 +124,7 @@ namespace fs_testing {
               int res_Bfoo = stat(Bfoo_path.c_str(), &stats);
               if ( last_checkpoint == 1 && res_Bfoo < 0 ) {
                   test_result->SetError(DataTestResult::kFileMissing);
-                  test_result->error_description = " : Missing file " + Bfoo_path.c_str();
+                  test_result->error_description = " : Missing file " + Bfoo_path;
                   return 0;
               }
 
