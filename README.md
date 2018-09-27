@@ -29,17 +29,17 @@ CrashMonkey and Ace can be used out of the box on any Linux filesystem that impl
 #### Advanced Documentation ####
 
 1. VM Setup and Deployment
-  * [Setting up a VM](docs/vmsetup.md)
-  * [Deploying CrashMonkey on a Cluster](docs/deploy.md)
-    - [Deployment on the Chameleon Cloud](docs/chameleon.md)
+    * [Setting up a VM](docs/vmsetup.md)
+    * [Deploying CrashMonkey on a Cluster](docs/deploy.md)
+        - [Deployment on the Chameleon Cloud](docs/chameleon.md)
 2. [CrashMonkey](docs/CrashMonkey.md)
-  * [Running CrashMonkey as a Standalone](docs/CrashMonkey.md#running-as-a-standalone-program)
-  * [Running CrashMonkey as a Background Process](docs/CrashMonkey.md#running-as-a-background-process)
-  * [XfsMonkey](docs/xfsMonkey.md)
+    * [Running CrashMonkey as a Standalone](docs/CrashMonkey.md#running-as-a-standalone-program)
+    * [Running CrashMonkey as a Background Process](docs/CrashMonkey.md#running-as-a-background-process)
+    * [XfsMonkey](docs/xfsMonkey.md)
 3. [Ace](docs/Ace.md)
-  * [Bounds used by Ace](docs/Ace.md#bounds-used-by-ace)
-  * [Generating Workloads with Ace](docs/Ace.md#generating-workloads-with-ace)
-  * [Generalizing Ace](docs/Ace.md#generalizing-ace)
+    * [Bounds used by Ace](docs/Ace.md#bounds-used-by-ace)
+    * [Generating Workloads with Ace](docs/Ace.md#generating-workloads-with-ace)
+    * [Generalizing Ace](docs/Ace.md#generalizing-ace)
 
 
 ## Setup ##
