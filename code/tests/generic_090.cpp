@@ -66,7 +66,9 @@ class Generic090: public BaseTestCase {
     return 0;
   }
 
-  virtual int run() override {
+  virtual int run(int checkpoint) override {
+
+	int local_checkpoint = 0;
 
 	init_paths();
   
@@ -114,6 +116,11 @@ class Generic090: public BaseTestCase {
     // Make a user checkpoint here. Beyond this point, contents of foo and foo_backup must match.
     if (Checkpoint() < 0){
       return -4;
+    }
+
+    local_checkpoint += 1;
+    if (local_checkpoint == checkpoint){
+	return 1;
     }
 
     //Close open files  

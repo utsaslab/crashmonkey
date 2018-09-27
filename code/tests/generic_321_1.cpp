@@ -43,9 +43,11 @@ class Generic321_1: public BaseTestCase {
     return 0;
   }
 
-  virtual int run() override {
+  virtual int run(int checkpoint) override {
 
 	init_paths();
+
+  int local_checkpoint = 0;
 
 	// Create test directory A.
 	int res = mkdir(dir_path.c_str(), 0777);
@@ -64,12 +66,17 @@ class Generic321_1: public BaseTestCase {
 	}
 
 	if (Checkpoint() < 0){
-      return -5;
-    }
-
-	close(dir);
-    return 0;
+    return -5;
   }
+	close(dir);
+  
+  local_checkpoint += 1;
+  if (local_checkpoint == checkpoint) {
+    return 1;
+  }
+
+  return 0;
+}
 
   virtual int check_test(unsigned int last_checkpoint,
       DataTestResult *test_result) override {

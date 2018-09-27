@@ -57,6 +57,9 @@ ostream& operator<<(ostream& os, DataTestResult::ErrorType err) {
     case DataTestResult::kOther:
       os << "other_error";
       break;
+    case DataTestResult::kAutoCheckFailed:
+      os << "auto_check_test_failed";
+      break;
     default:
       os.setstate(std::ios_base::failbit);
   }

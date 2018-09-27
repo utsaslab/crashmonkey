@@ -44,7 +44,7 @@ endif
 
 # Used to pick the proper delay time for waiting for bios based on the kernel
 # version in use.
-DELAY_DEFINE :=
+DELAY_DEFINE := 
 ifeq ($(shell [ $(KERNEL_MAJ) -eq 3 -a $(KERNEL_MIN) -eq 13 ] && echo true), true)
 DELAY_DEFINE := -DTHREE_THIRTEEN
 endif
@@ -57,6 +57,9 @@ endif
 ifeq ($(shell [ $(KERNEL_MAJ) -eq 4 -a $(KERNEL_MIN) -eq 16 ] && echo true), true)
 DELAY_DEFINE := -DFOUR_SIXTEEN
 endif
+ifndef CM
+DELAY_DEFINE := -DTWO_SEC
+endif
 
 CM_GEN_042_EXCLUDE = generic_042_base.cpp
 CM_GEN_042 = \
@@ -67,6 +70,27 @@ CM_GEN_042 = \
 CM_GEN_042_OUT = \
 		$(foreach TEST, $(CM_GEN_042), \
 			$(BUILD_DIR)/tests/generic_042/$(TEST))
+
+
+CM_SEQ1_EXCLUDE = base.cpp
+CM_SEQ1 = \
+		$(patsubst %.cpp, %.so, \
+			$(filter-out $(CM_SEQ1_EXCLUDE), \
+					$(notdir $(wildcard $(CURDIR)/tests/seq1/*.cpp))))
+CM_SEQ1_OUT = \
+		$(foreach TEST, $(CM_SEQ1), \
+			$(BUILD_DIR)/tests/seq1/$(TEST))
+
+
+CM_GEN_EXCLUDE = base.cpp
+CM_GEN = \
+		$(patsubst %.cpp, %.so, \
+			$(filter-out $(CM_GEN_EXCLUDE), \
+					$(notdir $(wildcard $(CURDIR)/tests/generated_workloads/*.cpp))))
+CM_GEN_OUT = \
+		$(foreach TEST, $(CM_GEN), \
+			$(BUILD_DIR)/tests/generated_workloads/$(TEST))
+
 
 CM_TESTS_EXCLUDE = BaseTestCase.cpp
 CM_TESTS = \
@@ -92,6 +116,7 @@ all: \
 		c_harness \
 		user_tools \
 		tests \
+		seq1 \
 		permuters
 
 modules: \
@@ -110,7 +135,13 @@ user_tools: \
 
 tests: \
 		$(foreach TEST, $(CM_TESTS), $(BUILD_DIR)/tests/$(TEST)) \
-		$(CM_GEN_042_OUT)
+		$(CM_GEN_042_OUT) 
+
+seq1: \
+		$(CM_SEQ1_OUT)
+
+gentests: \
+		$(CM_GEN_OUT)
 
 permuters: \
 		$(foreach PERMUTER, $(CM_PERMUTERS), $(BUILD_DIR)/permuter/$(PERMUTER))
@@ -132,10 +163,14 @@ $(BUILD_DIR)/harness/%.o: \
 	$(GPP) -std=c++11 $^ $(DELAY_DEFINE) -c -o $@
 
 $(BUILD_DIR)/c_harness: \
+	    	harness/DiskContents.cpp \
 		harness/c_harness.cpp \
 		harness/Tester.cpp \
 		$(BUILD_DIR)/harness/FsSpecific.o \
 		$(BUILD_DIR)/utils/utils.o \
+		$(BUILD_DIR)/utils/DiskMod.o \
+		$(BUILD_DIR)/utils/communication/ClientCommandSender.o \
+		$(BUILD_DIR)/utils/communication/ClientSocket.o \
 		$(BUILD_DIR)/utils/communication/ServerSocket.o \
 		$(BUILD_DIR)/utils/communication/BaseSocket.o \
 		$(BUILD_DIR)/permuter/Permuter.o \
@@ -143,13 +178,27 @@ $(BUILD_DIR)/c_harness: \
 		$(BUILD_DIR)/results/SingleTestInfo.o \
 		$(BUILD_DIR)/results/FileSystemTestResult.o \
 		$(BUILD_DIR)/results/DataTestResult.o \
-		$(BUILD_DIR)/results/PermuteTestResult.o
+		$(BUILD_DIR)/results/PermuteTestResult.o \
+		$(BUILD_DIR)/tests/BaseTestCase.o \
+		$(BUILD_DIR)/user_tools/src/actions.o \
+		$(BUILD_DIR)/user_tools/src/wrapper.o
 	mkdir -p $(@D)
 	$(GPP) $(GOPTS) $^ -ldl -o $@
 
 $(BUILD_DIR)/tests/generic_042/%.o: %.cpp
 	mkdir -p $(@D)
 	$(GPP) $(GOPTS) -fPIC -c -o $@ $<
+
+
+$(BUILD_DIR)/tests/seq1/%.o: %.cpp
+	mkdir -p $(@D)
+	$(GPP) $(GOPTS) -fPIC -c -o $@ $<
+
+
+$(BUILD_DIR)/tests/generated_workloads/%.o: %.cpp
+	mkdir -p $(@D)
+	$(GPP) $(GOPTS) -fPIC -c -o $@ $<
+
 
 # For static pattern rules like the one below, the pattern and prereqs must be
 # separated by ' :' including the space!
@@ -158,7 +207,9 @@ $(CM_GEN_042_OUT): $(BUILD_DIR)/tests/generic_042/%.so : \
 		$(BUILD_DIR)/tests/BaseTestCase.o \
 		$(BUILD_DIR)/tests/generic_042/generic_042_base.o \
 		$(BUILD_DIR)/user_tools/src/actions.o \
+		$(BUILD_DIR)/user_tools/src/wrapper.o \
 		$(BUILD_DIR)/user_tools/src/workload.o \
+		$(BUILD_DIR)/utils/DiskMod.o \
 		$(BUILD_DIR)/utils/communication/BaseSocket.o \
 		$(BUILD_DIR)/utils/communication/ClientSocket.o \
 		$(BUILD_DIR)/utils/communication/ClientCommandSender.o \
@@ -167,11 +218,46 @@ $(CM_GEN_042_OUT): $(BUILD_DIR)/tests/generic_042/%.so : \
 	$(GPP) $(GOPTS) $(GOTPSSO) $(XATTR_DEF_FLAG) -Wl,-soname,$(notdir $@) \
 		-o $@ $^
 
+
+$(CM_SEQ1_OUT): $(BUILD_DIR)/tests/seq1/%.so : \
+		tests/seq1/%.cpp \
+		$(BUILD_DIR)/tests/BaseTestCase.o \
+		$(BUILD_DIR)/user_tools/src/actions.o \
+		$(BUILD_DIR)/user_tools/src/wrapper.o \
+		$(BUILD_DIR)/user_tools/src/workload.o \
+		$(BUILD_DIR)/utils/DiskMod.o \
+		$(BUILD_DIR)/utils/communication/BaseSocket.o \
+		$(BUILD_DIR)/utils/communication/ClientSocket.o \
+		$(BUILD_DIR)/utils/communication/ClientCommandSender.o \
+		$(BUILD_DIR)/results/DataTestResult.o
+	mkdir -p $(@D)
+	$(GPP) $(GOPTS) $(GOTPSSO) $(XATTR_DEF_FLAG) -Wl,-soname,$(notdir $@) \
+		-o $@ $^
+
+
+$(CM_GEN_OUT): $(BUILD_DIR)/tests/generated_workloads/%.so : \
+		tests/generated_workloads/%.cpp \
+		$(BUILD_DIR)/tests/BaseTestCase.o \
+		$(BUILD_DIR)/user_tools/src/actions.o \
+		$(BUILD_DIR)/user_tools/src/wrapper.o \
+		$(BUILD_DIR)/user_tools/src/workload.o \
+		$(BUILD_DIR)/utils/DiskMod.o \
+		$(BUILD_DIR)/utils/communication/BaseSocket.o \
+		$(BUILD_DIR)/utils/communication/ClientSocket.o \
+		$(BUILD_DIR)/utils/communication/ClientCommandSender.o \
+		$(BUILD_DIR)/results/DataTestResult.o
+	mkdir -p $(@D)
+	$(GPP) $(GOPTS) $(GOTPSSO) $(XATTR_DEF_FLAG) -Wl,-soname,$(notdir $@) \
+		-o $@ $^
+
+
 $(BUILD_DIR)/tests/%.so: \
 		tests/%.cpp \
 		$(BUILD_DIR)/tests/BaseTestCase.o \
 		$(BUILD_DIR)/user_tools/src/actions.o \
 		$(BUILD_DIR)/user_tools/src/workload.o \
+		$(BUILD_DIR)/user_tools/src/wrapper.o \
+		$(BUILD_DIR)/utils/DiskMod.o \
 		$(BUILD_DIR)/utils/communication/BaseSocket.o \
 		$(BUILD_DIR)/utils/communication/ClientSocket.o \
 		$(BUILD_DIR)/utils/communication/ClientCommandSender.o \
@@ -203,8 +289,8 @@ $(BUILD_DIR)/permuter/%.so: \
 	$(GPP) $(GOPTS) $(GOTPSSO) -Wl,-soname,RandomPermuter.so \
 		-o $@ $^
 
-$(BUILD_DIR)/utils/utils.o: \
-		utils/utils.cpp
+$(BUILD_DIR)/utils/%.o: \
+		utils/%.cpp
 	mkdir -p $(@D)
 	$(GPP) $(GOPTS) -fPIC -c -o $@ $<
 
@@ -219,11 +305,6 @@ $(BUILD_DIR)/user_tools/%: \
 
 $(BUILD_DIR)/user_tools/src/%.o: \
 		user_tools/src/%.cpp
-	mkdir -p $(@D)
-	$(GPP) -c $(GOPTS) -fPIC -o $@ $<
-
-$(BUILD_DIR)/utils/communication/%.o: \
-		utils/communication/%.cpp
 	mkdir -p $(@D)
 	$(GPP) -c $(GOPTS) -fPIC -o $@ $<
 

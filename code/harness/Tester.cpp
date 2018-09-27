@@ -1,3 +1,4 @@
+#include <endian.h>
 #include <errno.h>
 #include <fcntl.h>
 #include <string.h>
@@ -23,6 +24,7 @@
 #include "FsSpecific.h"
 #include "Tester.h"
 #include "../disk_wrapper_ioctl.h"
+#include "DiskContents.h"
 
 #define TEST_CLASS_FACTORY        "test_case_get_instance"
 #define TEST_CLASS_DEFACTORY      "test_case_delete_instance"
@@ -57,8 +59,7 @@
 #define COW_BRD_INSMOD3      " disk_size="
 #define COW_BRD_RMMOD       "rmmod " COW_BRD_MODULE_NAME
 #define NUM_DISKS           "1"
-#define NUM_SNAPSHOTS       "1"
-#define SNAPSHOT_PATH       "/dev/cow_ram_snapshot1_0"
+#define NUM_SNAPSHOTS       "20"
 #define COW_BRD_PATH        "/dev/cow_ram0"
 
 #define DEV_SECTORS_PATH    "/sys/block/"
@@ -94,11 +95,15 @@ using fs_testing::permuter::Permuter;
 using fs_testing::permuter::permuter_create_t;
 using fs_testing::permuter::permuter_destroy_t;
 using fs_testing::utils::disk_write;
+using fs_testing::utils::DiskMod;
 using fs_testing::utils::DiskWriteData;
 
 Tester::Tester(const unsigned int dev_size, const unsigned int sector_size,
     const bool verbosity)
-  : device_size(dev_size), sector_size_(sector_size), verbose(verbosity) {}
+  : device_size(dev_size), sector_size_(sector_size), verbose(verbosity) {
+  SNAPSHOT_PATH = (char *) malloc(sizeof(char)*30);
+  strcpy(SNAPSHOT_PATH, "/dev/cow_ram_snapshot1_0");
+}
 
 Tester::~Tester() {
   if (fs_specific_ops_ != NULL) {
@@ -196,6 +201,50 @@ int Tester::umount_device() {
   }
   disk_mounted = false;
   return SUCCESS;
+}
+
+int Tester::mount_snapshot() {
+  if (mount(SNAPSHOT_PATH, MNT_MNT_POINT, fs_type.c_str(), 0, NULL) < 0) {
+    return MNT_MNT_ERR;
+  }
+  return SUCCESS;
+}
+
+int Tester::umount_snapshot() {
+  if (umount(MNT_MNT_POINT) < 0) {
+    return MNT_UMNT_ERR;
+  }
+  return SUCCESS;
+}
+
+int Tester::mapCheckpointToSnapshot(int checkpoint) {
+  if (checkpointToSnapshot_.find(checkpoint) != checkpointToSnapshot_.end()) {
+    return -1;
+  }
+  std::string snapshot(SNAPSHOT_PATH);
+  checkpointToSnapshot_[checkpoint] = (char *) malloc(sizeof(char)*30);
+  strcpy(checkpointToSnapshot_[checkpoint], snapshot.c_str());
+  std::cout << "Mapping " << SNAPSHOT_PATH << " to checkpoint " << checkpoint << std::endl;
+  return 0;
+}
+
+int Tester::getNewDiskClone(int checkpoint) {
+  string new_snapshot_path;
+  string path(SNAPSHOT_PATH);
+  string device_number = path.substr(path.rfind('_'));
+  string snapshot_number = to_string(checkpoint + 2);
+  new_snapshot_path = "/dev/cow_ram_snapshot";
+  new_snapshot_path += snapshot_number;
+  new_snapshot_path += device_number;
+  // Finally set SNAPSHOT_PATH to the new snapshot path
+  strcpy(SNAPSHOT_PATH, new_snapshot_path.c_str());
+  string command = fs_specific_ops_->GetNewUUIDCommand(new_snapshot_path);
+  system(command.c_str());
+  return 0;
+}
+
+void Tester::getCompleteRunDiskClone() {
+  SNAPSHOT_PATH = checkpointToSnapshot_[0];
 }
 
 int Tester::insert_cow_brd() {
@@ -356,6 +405,59 @@ void Tester::clear_wrapper_log() {
   }
 }
 
+int Tester::GetChangeData(const int fd) {
+  // Need to read a 64-bit value, switch it to big endian to figure out how much
+  // we need to read, read that new data amount, and add it all to a buffer.
+  while (true) {
+    // Get the next DiskMod size.
+    uint64_t buf;
+    const int read_res = read(fd, (void *) &buf, sizeof(uint64_t));
+    if (read_res < 0) {
+      return read_res;
+    } else if (read_res == 0) {
+      // No more data to read.
+      break;
+    }
+
+    uint64_t next_chunk_size = be64toh(buf);
+
+    // Read the next DiskMod.
+    shared_ptr<char> data(new char[next_chunk_size], [](char *c) {delete[] c;});
+    memcpy(data.get(), (void *) &buf, sizeof(uint64_t));
+    unsigned long long int read_data = sizeof(uint64_t);
+    while (read_data < next_chunk_size) {
+      const int res = read(fd, data.get() + read_data,
+          next_chunk_size - read_data);
+      if (res <= 0) {
+        // We shouldn't find a size for a DiskMod without the rest of the
+        // DiskMod.
+        return -1;
+      }
+      read_data += res;
+    }
+
+    DiskMod mod;
+    const int res = DiskMod::Deserialize(data, mod);
+    if (res < 0) {
+      return res;
+    }
+
+    if (mod.mod_type == DiskMod::kCheckpointMod) {
+      // We found a checkpoint, so switch to a new set of DiskMods.
+      mods_.push_back(vector<DiskMod>());
+    } else {
+      if (mods_.empty()) {
+        // We're just starting, so give us a place to put the mods.
+        mods_.push_back(vector<DiskMod>());
+      }
+      // Just append this DiskMod to the end of the last set of DiskMods.
+      mods_.back().push_back(mod);
+    }
+  }
+
+  return SUCCESS;
+}
+
 int Tester::CreateCheckpoint() {
   if (ioctl_fd == -1) {
     return WRAPPER_DATA_ERR;
@@ -485,8 +587,8 @@ int Tester::test_init_values(string mount_dir, long filesys_size) {
   return test_loader.get_instance()->init_values(mount_dir, filesys_size);
 }
 
-int Tester::test_run() {
-  return test_loader.get_instance()->run();
+int Tester::test_run(const int change_fd, const int checkpoint) {
+  return test_loader.get_instance()->Run(change_fd, checkpoint);
 }
 
 /*
@@ -506,7 +608,7 @@ int Tester::test_run() {
  */
 vector<milliseconds> Tester::test_fsck_and_user_test(
     const string device_path, const unsigned int last_checkpoint,
-    SingleTestInfo &test_info) {
+    SingleTestInfo &test_info, bool automate_check_test) {
   vector<milliseconds> res(3, duration<int, std::milli>(-1));
   // Try mounting the file system so that the kernel can clean up orphan lists
   // and anything else it may need to so that fsck does a better job later if
@@ -581,9 +683,17 @@ vector<milliseconds> Tester::test_fsck_and_user_test(
 
   // Begin test case timing.
   time_point<steady_clock> test_case_start_time = steady_clock::now();
-  const int test_check_res =
-      test_loader.get_instance()->check_test(last_checkpoint,
-                                             &test_info.data_test);
+  if (automate_check_test) {
+    bool retVal = check_disk_and_snapshot_contents(SNAPSHOT_PATH, last_checkpoint);
+    if (!retVal) {
+      test_info.data_test.SetError(
+        fs_testing::tests::DataTestResult::kAutoCheckFailed);
+    }
+  } else {
+    const int test_check_res =
+    test_loader.get_instance()->check_test(last_checkpoint,
+                                            &test_info.data_test);
+  }
   time_point<steady_clock> test_case_end_time = steady_clock::now();
   res.at(1) = duration_cast<milliseconds>(
       test_case_end_time - test_case_start_time);
@@ -607,6 +717,66 @@ vector<milliseconds> Tester::test_fsck_and_user_test(
   res.at(2) += duration_cast<milliseconds>(mount_end_time - mount_start_time);
 
   return res;
+}
+
+bool Tester::check_disk_and_snapshot_contents(char* disk_path, int last_checkpoint) {
+
+  if (checkpointToSnapshot_.find(last_checkpoint) == checkpointToSnapshot_.end()) {
+    std::cout << "ERROR: no saved snapshot at checkpoint " << last_checkpoint << endl;
+    return false;
+  }
+
+  char* snapshot_path = (char *) malloc(sizeof(char)*30);
+  strcpy(snapshot_path, checkpointToSnapshot_[last_checkpoint]);
+  ofstream diff_file;
+  diff_file.open("diff-at-check" + to_string(last_checkpoint),
+    std::fstream::out | std::fstream::app);
+  const char* type = fs_type.c_str();
+
+  DiskContents disk1(disk_path, type), disk2(snapshot_path, type);
+  disk1.set_mount_point("/mnt/snapshot");
+
+  assert(last_checkpoint < mods_.size());
+  for (auto i : mods_.at(last_checkpoint-1)) {
+    if (i.mod_type == DiskMod::kFsyncMod) {
+      string path(i.path);
+      path.erase(0, 13);
+      std::cout << path << std::endl;
+      bool ret = disk1.compare_entries_at_path(disk2, path, diff_file);
+      if (ret && (last_checkpoint == mods_.size()-1)) {
+        if (disk1.sanity_checks(diff_file) == false) {
+          std::cout << "Failed: Sanity checks on " << disk_path << endl;
+          return false;
+        }
+      }
+      return ret;
+    } else if (i.mod_type == DiskMod::kSyncMod) {
+      bool retVal = disk1.compare_disk_contents(disk2, diff_file);
+      if (retVal && (last_checkpoint == mods_.size()-1)) {
+        if (disk1.sanity_checks(diff_file) == false) {
+          std::cout << "Failed: Sanity checks on " << disk_path << endl;
+          return false;
+        }
+      }
+      return retVal;
+    } else if (i.mod_type == DiskMod::kDataMod ||
+        i.mod_type == DiskMod::kSyncFileRangeMod) {
+      string path(i.path);
+      path.erase(0, 13);
+      bool retVal = disk1.compare_file_contents(disk2, path, i.file_mod_location,
+        i.file_mod_len, diff_file);
+      if (retVal && (last_checkpoint == mods_.size()-1)) {
+        if (disk1.sanity_checks(diff_file) == false) {
+          std::cout << "Failed: Sanity checks on " << disk_path << endl;
+          return false;
+        }
+      }
+      return retVal;
+    }
+  }
+
+  std::cout << "ERROR: " << __func__ << std::endl;
+  return false;
 }
 
 int Tester::test_check_random_permutations(bool full_bio_replay,
@@ -687,7 +857,7 @@ int Tester::test_check_random_permutations(bool full_bio_replay,
 
     // Test the crash state that was just written out.
     vector<milliseconds> check_res = test_fsck_and_user_test(SNAPSHOT_PATH,
-        test_info.permute_data.last_checkpoint, test_info);
+        test_info.permute_data.last_checkpoint, test_info, false);
     test_info.PrintResults(log);
     current_test_suite_->TallyReorderingResult(test_info);
 
@@ -729,7 +899,7 @@ int Tester::test_check_random_permutations(bool full_bio_replay,
  * instead of disk_write so that we can have the same test_write_data function
  * for this and for the replays created by the permuters.
  */
-int Tester::test_check_log_replay(std::ofstream& log) {
+int Tester::test_check_log_replay(std::ofstream& log, bool automate_check_test) {
   assert(current_test_suite_ != NULL);
 
   // A single entry in the log data would just be the leading Checkpoint in the
@@ -814,11 +984,13 @@ int Tester::test_check_log_replay(std::ofstream& log) {
 
     // 3. Check the resulting disk image with fsck and the user test. For now,
     // just ignore the timing data that we can get from this function.
-    test_fsck_and_user_test(SNAPSHOT_PATH,
-        test_info.permute_data.last_checkpoint, test_info);
+    if (log_iter->is_checkpoint()) {
+      test_fsck_and_user_test(SNAPSHOT_PATH,
+          test_info.permute_data.last_checkpoint, test_info, automate_check_test);
 
-    test_info.PrintResults(log);
-    current_test_suite_->TallyTimingResult(test_info);
+      test_info.PrintResults(log);
+      current_test_suite_->TallyTimingResult(test_info);
+    }
 
     // Exit loop after doing final test.
     if (log_iter == log_data.end()) {

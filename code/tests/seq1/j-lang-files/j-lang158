@@ -1,0 +1,27 @@
+# define
+test
+A
+A/C
+B
+foo
+bar
+A/foo
+A/bar
+B/foo
+B/bar
+A/C/foo
+A/C/bar
+
+# declare
+local_checkpoint
+
+# setup
+
+
+# run
+open foo O_RDWR|O_CREAT 0777
+dwrite foo 0 32768
+open foo O_RDWR|O_CREAT 0777
+fsync foo
+checkpoint 1
+close foo

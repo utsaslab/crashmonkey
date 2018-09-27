@@ -76,8 +76,9 @@ class Generic104: public BaseTestCase {
     return 0;
   }
 
-  virtual int run() override {
+  virtual int run(int checkpoint) override {
 
+    int local_checkpoint = 0;
     init_paths();
 
 
@@ -103,6 +104,11 @@ class Generic104: public BaseTestCase {
     // Make a user checkpoint here
     if (Checkpoint() < 0){
       return -7;
+    }
+
+    local_checkpoint += 1;
+    if (local_checkpoint == checkpoint){
+	return 1;
     }
 
     //Close open files  

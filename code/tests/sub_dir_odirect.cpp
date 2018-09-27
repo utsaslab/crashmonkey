@@ -66,7 +66,7 @@ class sub_dir_odirect : public BaseTestCase {
     return 0;
   }
 
-  virtual int run() override {
+  virtual int run(int checkpoint) override {
     void* data;
     if (posix_memalign(&data, BLOCK_SIZE, TEST_TEXT_SIZE) < 0) {
       return -1;
@@ -98,7 +98,7 @@ class sub_dir_odirect : public BaseTestCase {
       close(fd);
     }
     free(data);
-    return 0;
+    return 1;
   }
 
   virtual int check_test(unsigned int last_checkpoint,

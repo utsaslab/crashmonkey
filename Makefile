@@ -10,6 +10,12 @@ all: $(SUBDIRS)
 tests:
 	$(MAKE) -C $(CODEDIR) tests
 
+seq1:
+	$(MAKE) -C $(CODEDIR) seq1
+
+gentests:
+	$(MAKE) -C $(CODEDIR) gentests
+
 permuters:
 	$(MAKE) -C $(CODEDIR) permuters
 

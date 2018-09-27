@@ -82,10 +82,12 @@ class Generic322: public BaseTestCase {
     return 0;
   }
 
-  virtual int run() override {
+  virtual int run(int checkpoint) override {
 
 	init_paths();
-	// Rename the foo to bar
+	
+    int local_checkpoint = 0;
+    // Rename the foo to bar
 	if (rename(foo_path.c_str(), bar_path.c_str()) != 0) {
 		return -2;
 	}
@@ -100,6 +102,10 @@ class Generic322: public BaseTestCase {
 
     if (Checkpoint() < 0){
       return -5;
+    }
+    local_checkpoint += 1;
+    if (local_checkpoint == checkpoint) {
+      return 1;
     }
 
     //Close open files  

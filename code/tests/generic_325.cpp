@@ -113,8 +113,9 @@ class Generic325: public BaseTestCase {
     return 0;
   }
 
-  virtual int run() override {
+  virtual int run(int checkpoint) override {
 
+	int local_checkpoint = 0;
 	init_paths();
 
     const int fd_Afoo = open(foo_path.c_str(), O_RDWR | O_CREAT, TEST_FILE_PERMS);
@@ -175,10 +176,12 @@ class Generic325: public BaseTestCase {
      if (Checkpoint() < 0)
         return -1;
 
+    local_checkpoint += 1;
+    if (local_checkpoint == checkpoint){
+	return 1;
+    }
+
     close(fd_Afoo);
-
-
-
 
     return 0;
   }

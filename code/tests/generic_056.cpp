@@ -77,9 +77,11 @@ class Generic056: public BaseTestCase {
     return 0;
   }
 
-  virtual int run() override {
+  virtual int run(int checkpoint) override {
 
 	init_paths();
+
+    int local_checkpoint = 0;
   
     const int fd_foo = open(foo_path.c_str(), O_RDWR | O_CREAT, TEST_FILE_PERMS);
     if (fd_foo < 0) {
@@ -117,6 +119,10 @@ class Generic056: public BaseTestCase {
     // Make a user checkpoint here
     if (Checkpoint() < 0){
       return -4;
+    }
+    local_checkpoint += 1;
+    if (local_checkpoint == checkpoint) {
+        return 1;
     }
 
     //Close open files  

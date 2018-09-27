@@ -65,7 +65,7 @@ class Generic106: public BaseTestCase {
     return 0;
   }
 
-  virtual int run() override {
+  virtual int run(int checkpoint) override {
 
     init_paths();
 
@@ -76,6 +76,7 @@ class Generic106: public BaseTestCase {
 
     sync();
   
+    int local_checkpoint = 0;
     // Unlink foo_link
     if(unlink(foo_link_path.c_str()) < 0){
       return -3;
@@ -98,6 +99,10 @@ class Generic106: public BaseTestCase {
     // Make a user checkpoint here
     if (Checkpoint() < 0){
       return -7;
+    }
+    local_checkpoint += 1;
+    if (local_checkpoint == checkpoint) {
+      return 1;
     }
 
     //Close open files  

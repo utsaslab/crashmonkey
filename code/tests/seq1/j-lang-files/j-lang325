@@ -1,0 +1,26 @@
+# define
+test
+A
+A/C
+B
+foo
+bar
+A/foo
+A/bar
+B/foo
+B/bar
+A/C/foo
+A/C/bar
+
+# declare
+local_checkpoint
+
+# setup
+
+
+# run
+mkdir A 0777
+open Afoo O_RDWR|O_CREAT 0777
+fdatasync Afoo
+checkpoint 1
+close Afoo

@@ -40,6 +40,12 @@ class FsSpecific {
   virtual std::string GetFsckCommand(const std::string &fs_path) = 0;
 
   /*
+   * Returns command to change the uuid of a disk-clone, taking the disk_path
+   * as an argument.
+   */
+  virtual std::string GetNewUUIDCommand(const std::string &disk_path) = 0;
+
+  /*
    * Returns an enum representing the exit status of the file system specific
    * file system checker used. Takes as an argument the return value that was
    * retrieved from the file system checker subprocess.
@@ -60,6 +66,7 @@ class ExtFsSpecific : public FsSpecific {
   virtual std::string GetMkfsCommand(std::string &device_path);
   virtual std::string GetPostReplayMntOpts();
   virtual std::string GetFsckCommand(const std::string &fs_path);
+  virtual std::string GetNewUUIDCommand(const std::string &disk_path);
   virtual fs_testing::FileSystemTestResult::ErrorType GetFsckReturn(
       int return_code);
   virtual unsigned int GetPostRunDelaySeconds() override;
@@ -76,7 +83,10 @@ class Ext2FsSpecific : public ExtFsSpecific {
  public:
   Ext2FsSpecific();
   static constexpr char kFsType[] = "ext2";
-#if THREE_THIRTEEN == 1 || FOUR_FOUR == 1 || FOUR_FIFTEEN == 1 || \
+
+#if TWO_SEC == 1
+  static const unsigned int kDelaySeconds = 2;
+#elif THREE_THIRTEEN == 1 || FOUR_FOUR == 1 || FOUR_FIFTEEN == 1 || \
     FOUR_SIXTEEN == 1
   static const unsigned int kDelaySeconds = 20;
 #else
@@ -88,7 +98,10 @@ class Ext3FsSpecific : public ExtFsSpecific {
  public:
   Ext3FsSpecific();
   static constexpr char kFsType[] = "ext3";
-#if THREE_THIRTEEN == 1 || FOUR_FOUR == 1 || FOUR_FIFTEEN == 1 || \
+
+#if TWO_SEC == 1
+  static const unsigned int kDelaySeconds = 2;
+#elif THREE_THIRTEEN == 1 || FOUR_FOUR == 1 || FOUR_FIFTEEN == 1 || \
     FOUR_SIXTEEN == 1
   static const unsigned int kDelaySeconds = 42;
 #else
@@ -100,7 +113,10 @@ class Ext4FsSpecific : public ExtFsSpecific {
  public:
   Ext4FsSpecific();
   static constexpr char kFsType[] = "ext4";
-#if THREE_THIRTEEN == 1 || FOUR_FOUR == 1 || FOUR_FIFTEEN == 1 ||\
+
+#if TWO_SEC == 1
+  static const unsigned int kDelaySeconds = 2;
+#elif THREE_THIRTEEN == 1 || FOUR_FOUR == 1 || FOUR_FIFTEEN == 1 ||\
     FOUR_SIXTEEN == 1
   static const unsigned int kDelaySeconds = 42;
 #else
@@ -114,12 +130,16 @@ class BtrfsFsSpecific : public FsSpecific {
   virtual std::string GetMkfsCommand(std::string &device_path);
   virtual std::string GetPostReplayMntOpts();
   virtual std::string GetFsckCommand(const std::string &fs_path);
+  virtual std::string GetNewUUIDCommand(const std::string &disk_path);
   virtual fs_testing::FileSystemTestResult::ErrorType GetFsckReturn(
       int return_code);
   virtual unsigned int GetPostRunDelaySeconds() override;
 
   static constexpr char kFsType[] = "btrfs";
-#if THREE_THIRTEEN == 1 || FOUR_FOUR == 1 || FOUR_FIFTEEN == 1 || \
+
+#if TWO_SEC == 1
+  static const unsigned int kDelaySeconds = 2;
+#elif THREE_THIRTEEN == 1 || FOUR_FOUR == 1 || FOUR_FIFTEEN == 1 || \
     FOUR_SIXTEEN == 1
   static const unsigned int kDelaySeconds = 40;
 #else
@@ -133,12 +153,16 @@ class F2fsFsSpecific : public FsSpecific {
   virtual std::string GetMkfsCommand(std::string &device_path);
   virtual std::string GetPostReplayMntOpts();
   virtual std::string GetFsckCommand(const std::string &fs_path);
+  virtual std::string GetNewUUIDCommand(const std::string &disk_path);
   virtual fs_testing::FileSystemTestResult::ErrorType GetFsckReturn(
       int return_code);
   virtual unsigned int GetPostRunDelaySeconds() override;
 
   static constexpr char kFsType[] = "f2fs";
-#if THREE_THIRTEEN == 1
+
+#if TWO_SEC == 1
+  static const unsigned int kDelaySeconds = 2;
+#elif THREE_THIRTEEN == 1
   static const unsigned int kDelaySeconds = 15;
 #elif FOUR_FOUR == 1
   static const unsigned int kDelaySeconds = 76;
@@ -155,12 +179,16 @@ class XfsFsSpecific : public FsSpecific {
   virtual std::string GetMkfsCommand(std::string &device_path);
   virtual std::string GetPostReplayMntOpts();
   virtual std::string GetFsckCommand(const std::string &fs_path);
+  virtual std::string GetNewUUIDCommand(const std::string &disk_path);
   virtual fs_testing::FileSystemTestResult::ErrorType GetFsckReturn(
       int return_code);
   virtual unsigned int GetPostRunDelaySeconds() override;
 
   static constexpr char kFsType[] = "xfs";
-#if FOUR_FIFTEEN == 1 || FOUR_SIXTEEN == 1
+
+#if TWO_SEC == 1
+  static const unsigned int kDelaySeconds = 2;
+#elif FOUR_FIFTEEN == 1 || FOUR_SIXTEEN == 1
   static const unsigned int kDelaySeconds = 97;
 #else
   static const unsigned int kDelaySeconds = 120;

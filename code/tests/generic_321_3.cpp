@@ -80,9 +80,11 @@ class Generic321_3: public BaseTestCase {
     return 0;
   }
 
-  virtual int run() override {
+  virtual int run(int checkpoint) override {
 
 	init_paths();
+
+  int local_checkpoint = 0;
 
 	// Move foo to directory A
 	if (rename(foo_path.c_str(), foo_moved_path.c_str()) != 0) {
@@ -120,6 +122,11 @@ class Generic321_3: public BaseTestCase {
 
     if (Checkpoint() < 0){
       return -5;
+    }
+
+    local_checkpoint += 1;
+    if (local_checkpoint == checkpoint) {
+      return 1;
     }
 
     return 0;

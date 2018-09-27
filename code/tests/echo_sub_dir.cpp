@@ -46,7 +46,8 @@ class echo_sub_dir : public BaseTestCase {
     return 0;
   }
 
-  virtual int run() override {
+  virtual int run(int checkpoint) override {
+    int local_checkpoint;
     const int old_umask = umask(0000);
     const int fd = open(TEST_MNT "/" TEST_DIR "/" TEST_FILE, O_RDWR | O_CREAT,
         TEST_FILE_PERMS);
@@ -66,7 +67,8 @@ class echo_sub_dir : public BaseTestCase {
     }
     fsync(fd);
     close(fd);
-    return 0;
+    // TODO (P.S.) check if returning 1 here is good
+    return 1;
 
    out:
     close(fd);

@@ -69,9 +69,11 @@ class Generic321_2: public BaseTestCase {
     return 0;
   }
 
-  virtual int run() override {
+  virtual int run(int checkpoint) override {
 
 	init_paths();
+
+  int local_checkpoint = 0;
 
 	int dir2 = open(dir2_path.c_str(), O_RDONLY, O_DIRECTORY);
 	if (dir2 < 0) {
@@ -102,12 +104,17 @@ class Generic321_2: public BaseTestCase {
 	}
 	fsync(dir2);
 
-	if (Checkpoint() < 0){
-      return -8;
-    }
-
+	if (Checkpoint() < 0) {
+    return -8;
+  }
 	close(dir2);
-    return 0;
+
+  local_checkpoint += 1;
+  if (local_checkpoint == checkpoint) {
+    return 1;
+  }
+
+  return 0;
   }
 
   virtual int check_test(unsigned int last_checkpoint,

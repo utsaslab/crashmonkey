@@ -22,6 +22,8 @@ struct ResultSet {
   unsigned int file_metadata_corrupted = 0;
   unsigned int incorrect_block_count = 0;
   unsigned int other = 0;
+
+  unsigned int auto_check_failed = 0;
 };
 
 class TestSuiteResult {

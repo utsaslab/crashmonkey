@@ -1,0 +1,28 @@
+# define
+test
+A
+A/C
+B
+foo
+bar
+A/foo
+A/bar
+B/foo
+B/bar
+A/C/foo
+A/C/bar
+
+# declare
+local_checkpoint
+
+# setup
+
+
+# run
+mkdir A 0777
+open Afoo O_RDWR|O_CREAT 0777
+write Afoo 0 32768
+write Afoo 30768 5000
+sync
+checkpoint 1
+close Afoo

@@ -93,8 +93,8 @@ class Generic059: public BaseTestCase {
     return 0;
   }
 
-  virtual int run() override {
-
+  virtual int run(int checkpoint) override {
+    int local_checkpoint = 0;
 
     //Open file foo
     const int fd_foo = open(foo_path.c_str(), O_RDWR);
@@ -121,6 +121,10 @@ class Generic059: public BaseTestCase {
     if (Checkpoint() < 0){
       close(fd_foo);
       return -4;
+    }
+    local_checkpoint += 1;
+    if (local_checkpoint == checkpoint) {
+      return 1;
     }
 
     //Close open files  

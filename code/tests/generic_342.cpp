@@ -81,15 +81,16 @@ class Generic342: public BaseTestCase {
     return 0;
   }
 
-  virtual int run() override {
+  virtual int run(int checkpoint) override {
 
+    int local_checkpoint = 0;
     //Rename foo to bar
     if (rename(foo_path.c_str(), bar_path.c_str()) < 0) {
       return -1;
     }
 
     // Open file foo
-    const int fd_foo = open(foo_path.c_str(), O_RDWR | O_CREAT, TEST_FILE_PERMS);
+    const int fd_foo = cm_->CmOpen(foo_path.c_str(), O_RDWR | O_CREAT, TEST_FILE_PERMS);
     if (fd_foo < 0) {
       return -2;
     }
@@ -101,14 +102,18 @@ class Generic342: public BaseTestCase {
     }
 
     //fsync file foo
-    int res = fsync(fd_foo);
+    int res = cm_->CmFsync(fd_foo);
     if (res < 0){
       return -4;
     }
 
     //Make a user checkpoint here. Checkpoint must be 1 beyond this point
-    if (Checkpoint() < 0){
+    if (cm_->CmCheckpoint() < 0){
       return -5;
+    }
+    local_checkpoint += 1;
+    if (local_checkpoint == checkpoint) {
+      return 1;
     }
 
     //Close open files  
