@@ -78,7 +78,7 @@ Ace currently generates workloads of sequence length 1, 2, and 3. We say a workl
           |__ dir : B (files: foo, bar)
     ```
 
-However, by default, we only use directory A, B, and the files under them. To include a level of nesting, add the files under test dir or C to the file set.
+    However, by default, we only use directory A, B, and the files under them. To include a level of nesting, add the files under test dir or C to the file set.
 
 4. **Persistence operations** : Ace supports four types of persistence operations to be included in the workload
 
@@ -102,7 +102,7 @@ Generating workloads with Ace is a two-step process.
       cd ace
       python ace.py -l <seq_length> -n <True|False> -d<True|False>
       ```
-For example, to generate seq-2 workloads with no additional nested directory, run :
+      For example, to generate seq-2 workloads with no additional nested directory, run :
       ```python
       python ace.py -l 2 -n False -d false
       ```
@@ -126,12 +126,12 @@ if int(num_ops) == 4:
     for i in itertools.product(SyncSetCustom, SyncSetCustom, SyncSetCustom, SyncSetNoneCustom):
         syncPermutationsCustom.append(i)
 ```
-This piece of code ensures that the last persistence op is never `None`. We need to generalize this in [ace](../ace/ace.py), to handle higher sequences.
+This piece of code ensures that the last persistence op is never `None`. We need to generalize this in [Ace](../ace/ace.py), to handle higher sequences.
 
 #### Adding more files and directories ####
 
-Workload generation is Ace is somewhat closely coupled to the set of files and directories available. While we aim to make it general enough to handle any user-defined file, it currently requires quite a few modifications in [ace](../ace/ace.py) to support new files. You need to ensure that the methods `SiblingOf(file)` and `Parent(file)` return appropriate values for the new file you are adding. The functions to check dependencies are also tied to our pre-defined list of files. For example, we need to generalize `checkDirDep` and `checkParentExistsDep` to include the new file. In future, we aim to generalize these functions to understand this layout of files and directories.
+Workload generation is Ace is somewhat closely coupled to the set of files and directories available. While we aim to make it general enough to handle any user-defined file, it currently requires quite a few modifications in [Ace](../ace/ace.py) to support new files. You need to ensure that the methods `SiblingOf(file)` and `Parent(file)` return appropriate values for the new file you are adding. The functions to check dependencies are also tied to our pre-defined list of files. For example, we need to generalize `checkDirDep` and `checkParentExistsDep` to include the new file. In future, we aim to generalize these functions to understand this layout of files and directories.
 
 #### Supporting new file-system operations ####
 
-Supporting new file-system operations requires additions to both [ace](../ace/ace.py) and [adapter](../ace/cmAdapter.py). First, add the new system call to the `buildTuple` function, with appropriate argument list to this operation. Next, ensure that all the dependencies arising due to this system call are addressed in the `satisfyDep` function. Finally, add the new system call to the `buildJlang` function, in a format you would like to see it in the high-level language test file. Now for the adapter, add the new system call to the `insertFunctions` method, and write an appropriate `insert<NewSysCall>` method that handles the conversion of high-level language description to C++ equivalent code.
+Supporting new file-system operations requires additions to both [Ace](../ace/ace.py) and [Adapter](../ace/cmAdapter.py). First, add the new system call to the `buildTuple` function, with appropriate argument list to this operation. Next, ensure that all the dependencies arising due to this system call are addressed in the `satisfyDep` function. Finally, add the new system call to the `buildJlang` function, in a format you would like to see it in the high-level language test file. Now for the adapter, add the new system call to the `insertFunctions` method, and write an appropriate `insert<NewSysCall>` method that handles the conversion of high-level language description to C++ equivalent code.

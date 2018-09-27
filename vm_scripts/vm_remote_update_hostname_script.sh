@@ -11,4 +11,3 @@ hostname='ubuntu16-vm'$num
 echo $hostname > /etc/hostname
 sed -i -e 's/ubuntu16-vm1/'$hostname'/g' /etc/hosts
 sudo hostname $hostname
-

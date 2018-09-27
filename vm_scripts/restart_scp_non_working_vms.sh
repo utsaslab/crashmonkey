@@ -5,7 +5,7 @@ port=3022
 i=1
 
 while [ $i -le $num_vms ]; do
-	timeout -s KILL 10 sshpass -p "alohomora" scp -o "StrictHostKeyChecking no" -P $port ~/vm_remote_* pandian@127.0.0.1:~/
+	timeout -s KILL 10 sshpass -p "password" scp -o "StrictHostKeyChecking no" -P $port ~/vm_remote_* user@127.0.0.1:~/
 	ex=$?
 
 	if [ $ex -ne 0 ];

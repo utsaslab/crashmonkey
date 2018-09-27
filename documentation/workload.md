@@ -180,7 +180,7 @@ There are two types of testing you could perform.
 
 2. **Test with auto-checker** : In this setting, CrashMonkey requires the -P flag to perform in-order replay. However, to enable automatic testing, snapshots are captured at each crash point, to create an oracle representing expected state after crash. This mode does not require you to write up the check_test function. As you wrote this example test case, you would have realized that it's tedious to handcraft the checker. Especially if you have multiple checkpoints, you have to appropriately check the data and metadata of files modified between each checkpoint. Auto-checker relieves you of this manual effort. To run in this mode, use `-c flag` in addition to `-P`.
 
-  `./c_harness -v -c -P -f /dev/sda -d /dev/cow_ram0 -t btrfs -e 102400 tests/example.so`
+    `./c_harness -v -c -P -f /dev/sda -d /dev/cow_ram0 -t btrfs -e 102400 tests/example.so`
 
 
 The log containing the recorded block IOs, the crash states tested and result at each crash state will be available at `build/<timestamp>-example.log`
@@ -191,74 +191,74 @@ ___
 The result of running the above example workload on `btrfs` filesystem on any kernel <= 4.16 is as follows.
 
 1. **Permuted Replay** : This mode, found no bugs with the user-defined check_test. This is because, the crash states could not understand that checkpoint 1 has been reached while checking if files A/foo and B/foo are present.
-  ```
-  Reordering tests ran 10000 tests with
-      passed cleanly: 10000
-      passed fixed: 0
-      fsck required: 0
-      failed: 0
-          old file persisted: 0
-          file missing: 0
-          file data corrupted: 0
-          file metadata corrupted: 0
-          incorrect block count: 0
-          other: 0
-  ```
+    ```
+    Reordering tests ran 10000 tests with
+        passed cleanly: 10000
+        passed fixed: 0
+        fsck required: 0
+        failed: 0
+            old file persisted: 0
+            file missing: 0
+            file data corrupted: 0
+            file metadata corrupted: 0
+            incorrect block count: 0
+            other: 0
+    ```
 
 2. **In-order replay** : This mode runs 1 test, because our workload has only one checkpoint. And tells you that there is some violation to the check_test you wrote. To know which check failed, open the log file.
-  ```
-  Timing tests ran 1 tests with
-      passed cleanly: 0
-      passed fixed: 0
-      fsck required: 0
-      failed: 1
-          old file persisted: 0
-          file missing: 1
-          file data corrupted: 0
-          file metadata corrupted: 0
-          incorrect block count: 0
-          other: 0
-  ```
+    ```
+    Timing tests ran 1 tests with
+        passed cleanly: 0
+        passed fixed: 0
+        fsck required: 0
+        failed: 1
+            old file persisted: 0
+            file missing: 1
+            file data corrupted: 0
+            file metadata corrupted: 0
+            incorrect block count: 0
+            other: 0
+    ```
 
-  In the log file, you will see the following :
-  ```
-  Writing data out to each Checkpoint and checking with fsck
-  Test #1: FAILED: file_missing : Missing file /mnt/snapshot/B/foo
-      crash state (6 bios/sectors): (1), (2), (3), (4), (5), (6)
-      last checkpoint: 1
-      fsck result: fsck_not_run
-      fsck output:
-  ```
-  This means, the second check in the check_test failed, and the link file B/foo is not persisted in the recovered file system image.
+    In the log file, you will see the following :
+    ```
+    Writing data out to each Checkpoint and checking with fsck
+    Test #1: FAILED: file_missing : Missing file /mnt/snapshot/B/foo
+        crash state (6 bios/sectors): (1), (2), (3), (4), (5), (6)
+        last checkpoint: 1
+        fsck result: fsck_not_run
+        fsck output:
+    ```
+    This means, the second check in the check_test failed, and the link file B/foo is not persisted in the recovered file system image.
 
 3. **Auto-check** : This mode also runs one test, but does not require user-defined checks. The summary block would be as follows.
-  ```
-  automated check_test:
-          failed: 1
-  ```
-  To see the bug report, open `build/diff-at-check1`. You will see something on these lines.
+      ```
+      automated check_test:
+              failed: 1
+      ```
+      To see the bug report, open `build/diff-at-check1`. You will see something on these lines.
 
-  ```
-  DIFF: Content Mismatch /A/foo
+      ```
+      DIFF: Content Mismatch /A/foo
 
-  /mnt/snapshot/A/foo:
-  ---File Stat Atrributes---
-  Inode     : 258
-  TotalSize : 0
-  BlockSize : 4096
-  #Blocks   : 0
-  #HardLinks: 1
+      /mnt/snapshot/A/foo:
+      ---File Stat Atrributes---
+      Inode     : 258
+      TotalSize : 0
+      BlockSize : 4096
+      #Blocks   : 0
+      #HardLinks: 1
 
-  /mnt/cow_ram_snapshot2_0/A/foo:
-  ---File Stat Atrributes---
-  Inode     : 258
-  TotalSize : 0
-  BlockSize : 4096
-  #Blocks   : 0
-  #HardLinks: 2
-  ```
+      /mnt/cow_ram_snapshot2_0/A/foo:
+      ---File Stat Atrributes---
+      Inode     : 258
+      TotalSize : 0
+      BlockSize : 4096
+      #Blocks   : 0
+      #HardLinks: 2
+      ```
 
-  What this tells you is that, the link count of A/foo is 1, while it should have been 2. This is in turn because the link file B/foo is missing.
+      What this tells you is that, the link count of A/foo is 1, while it should have been 2. This is in turn because the link file B/foo is missing.
 
 ___
-As you would have noticed by now, the workload we just wrote and tested is the [link count bug](../newBugs.md/#bug-7--fsync-of-file-does-not-persist-all-its-names). This bug was found by our tools, by automatic workload generation and testing.
+As you would have noticed by now, the workload we just wrote and tested triggers the [link count bug](../newBugs.md/#bug-7--fsync-of-file-does-not-persist-all-its-names). This bug was found by CrashMonkey and Ace, using automated workload generation and testing.

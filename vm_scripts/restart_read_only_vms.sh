@@ -5,9 +5,9 @@ port=3022
 i=1
 
 while [ $i -le $num_vms ]; do
-	res_raw=`timeout -s KILL 10 rsh -p $port pandian@127.0.0.1 "touch /home/pandian/a 2>&1; echo abc;"`
+	res_raw=`timeout -s KILL 10 rsh -p $port user@127.0.0.1 "touch /home/user/a 2>&1; echo abc;"`
 	res=`echo $res_raw | grep 'Read-only'`
-	
+
 	if [ -z $res_raw ] || [ ! -z "$res" ];
 	then
                 echo `date` 'VM '$i' is read-only. Restarting it.. '

@@ -1,4 +1,4 @@
 #!/bin/bash
 
-echo alohomora | sudo -S rm -r /home/pandian/projects/crashmonkey/build/snap_*
-echo alohomora | sudo -S rm -r /home/pandian/projects/crashmonkey/build/create_snap
+echo password | sudo -S rm -r /home/user/projects/crashmonkey/build/snap_*
+echo password | sudo -S rm -r /home/user/projects/crashmonkey/build/create_snap

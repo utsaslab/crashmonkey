@@ -1,4 +1,3 @@
 #!/bin/bash
 
-rm -r /home/pandian/projects/crashmonkey/diff_results/*
-
+rm -r /home/user/projects/crashmonkey/diff_results/*
