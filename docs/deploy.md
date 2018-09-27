@@ -8,7 +8,7 @@
 
 ### Triggering workloads in the VMs
 ### Segregating the workloads
-1. Given a list of cpp files, we need to evenly distribute them to all the VMs we have. Do a math of how many workloads need to be copied over per VM by dividing the total number of workloads by the number of VMs you have.  
+1. Given a list of cpp files, we need to evenly distribute them to all the VMs we have. Do a math of how many workloads need to be copied over per VM by dividing the total number of workloads by the number of VMs you have. All the scripts referenced below can be found [here](../vm_scripts/).
 2. Use the script `segregate_workloads.sh` to divide the workloads evenly into all the VMs. Run `./segregate_workloads.sh <num_per_vm> <start_workload_number> <max> <path_to_workload_files> <output_workload_path>` where `num_per_vm` is the approximate number of workloads per VM, `max` is the total number of workloads, and you provide the path to the workloads to segregate along with the path to the directory where you want to place the segregated files. Note that all the workload files will be of the format `j-lang<workload_num>.cpp`.  What you'll see after running this script, is a bunch of subdirectories within the output directory, each with equal number of test files. For each VM `j` in the instance `i` with IP `ip`, you will find the corresponding workloads in the directory. `<output_workload_path>/<node<i>>-<ip>/vm<j>`
 
 3. Now, we need to get these segregated workloads to the instances.
