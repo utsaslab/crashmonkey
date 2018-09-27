@@ -1,16 +1,18 @@
 # CrashMonkey and Ace #
 
-## CrashMonkey ##
+## Bounded Black-Box Crash Testing ##
+Bounded black-box crash testing is a new approach to testing file-system crash consistency. B<sup>3</sup> is a black-box testing approach which requires **no modification** to file-system code. B<sup>3</sup> exhaustively generates and tests workloads in a bounded space. We implement B<sup>3</sup> by building two tools - CrashMonkey and Ace. The OSDI'18 paper **Finding Crash-Consistency Bugs with Bounded Black-Box Crash Testing** has a detailed discussion of B<sup>3</sup>, CrashMonkey and Ace. <br>
+[[Paper PDF]()] [[Slides]()] [[Bibtex]()]  
+
+### CrashMonkey ###
 CrashMonkey is a file-system agnostic record-replay-and-test framework. Unlike existing tools like dm-log-writes which require a manual checker script, CrashMonkey automatically tests for data and metadata consistency of persisted files. CrashMonkey needs only one input to run - the workload to be tested. We have described the rules for writing a workload for CrashMonkey [here](documentation/workload.md). More details about the internals of CrashMonkey and its setup can be found [here](documentation/CrashMonkey.md).
 
 
-## Automatic Crash Explorer (Ace) ##
+### Automatic Crash Explorer (Ace) ###
 Ace is an automatic workload generator, that exhaustively generates sequences of file-system operations (workloads), given certain bounds. Ace consists of a workload synthesizer that generates workloads in a high-level language which we call J-lang. A CrashMonkey adapter that we built, converts these workloads into C++ test files that CrashMonkey can work with. More details on the current bounds imposed by Ace and guidelines on workload generation can be found [here](documentation/Ace.md).
 
 
-### Bounded Black-Box Crash Testing with CrashMonkey and Ace ###
-CrashMonkey combined with Ace, provides an automated testing framework for file system crash-consistency bugs. We call this, the Bounded Black-Box testing (B<sup>3</sup>). B<sup>3</sup> is a black-box testing approach which requires **no modification** to file-system code. B<sup>3</sup> exhaustively generates and tests workloads in a bounded space. The observations that enable an approach like B<sup>3</sup> is detailed in the OSDI'18 paper, *Finding Crash-Consistency Bugs with Bounded Black-Box Crash Testing* <br>
-[[Paper PDF]()] [[Slides]()] [[Bibtex]()]  
+
 
 CrashMonkey and Ace can be used out of the box on any Linux filesystem that implements POSIX API. Our tools have been tested to work with ext2, ext3, ext4, xfs, F2FS, and btrfs, across Linux kernel versions - 3.12, 3.13, 3.16, 4.1, 4.4, 4.15, and 4.16.
 
