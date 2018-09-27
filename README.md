@@ -1,15 +1,15 @@
 # CrashMonkey and Ace #
 
 ## Bounded Black-Box Crash Testing ##
-Bounded black-box crash testing is a new approach to testing file-system crash consistency. B<sup>3</sup> is a black-box testing approach which requires **no modification** to file-system code. B<sup>3</sup> exhaustively generates and tests workloads in a bounded space. We implement B<sup>3</sup> by building two tools - CrashMonkey and Ace. The OSDI'18 paper **Finding Crash-Consistency Bugs with Bounded Black-Box Crash Testing** has a detailed discussion of B<sup>3</sup>, CrashMonkey, and Ace. <br>
-[[Paper PDF]()] [[Slides]()] [[Bibtex]()]  
+Bounded black-box crash testing (B<sup>3</sup>) is a new approach to testing file-system crash consistency. B<sup>3</sup> is a black-box testing approach which requires **no modification** to file-system code. B<sup>3</sup> exhaustively generates and tests workloads in a bounded space. We implement B<sup>3</sup> by building two tools - CrashMonkey and Ace. The OSDI'18 paper **Finding Crash-Consistency Bugs with Bounded Black-Box Crash Testing** has a detailed discussion of B<sup>3</sup>, CrashMonkey, and Ace. <br>
+[[Paper PDF](https://www.cs.utexas.edu/~jaya/pdf/osdi18-B3.pdf)] [[Slides](https://www.cs.utexas.edu/~jaya/slides/osdi18-B3-slides.pdf)] [[Bibtex]()]  
 
 ### CrashMonkey ###
-CrashMonkey is a file-system agnostic record-replay-and-test framework. Unlike existing tools like dm-log-writes which require a manual checker script, CrashMonkey automatically tests for data and metadata consistency of persisted files. CrashMonkey needs only one input to run - the workload to be tested. We have described the rules for writing a workload for CrashMonkey [here](docs/workload.md). More details about the internals of CrashMonkey and its setup can be found [here](docs/CrashMonkey.md).
+CrashMonkey is a file-system agnostic record-replay-and-test framework. Unlike existing tools like dm-log-writes which require a manual checker script, CrashMonkey automatically tests for data and metadata consistency of persisted files. CrashMonkey needs only one input to run - the workload to be tested. We have described the rules for writing a workload for CrashMonkey [here](docs/workload.md). More details about the internals of CrashMonkey can be found [here](docs/CrashMonkey.md).
 
 
 ### Automatic Crash Explorer (Ace) ###
-Ace is an automatic workload generator, that exhaustively generates sequences of file-system operations (workloads), given certain bounds. Ace consists of a workload synthesizer that generates workloads in a high-level language which we call J-lang. A CrashMonkey adapter that we built, converts these workloads into C++ test files that CrashMonkey can work with. More details on the current bounds imposed by Ace and guidelines on workload generation can be found [here](docs/Ace.md).
+Ace is an automatic workload generator, that exhaustively generates sequences of file-system operations (workloads), given certain bounds. Ace consists of a workload synthesizer that generates workloads in a high-level language which we call J-lang. A CrashMonkey adapter that we built, converts these workloads into C++ test files that CrashMonkey can work with. More details on the current bounds imposed by Ace, and guidelines on workload generation can be found [here](docs/Ace.md).
 
 
 
@@ -23,8 +23,10 @@ CrashMonkey and Ace can be used out of the box on any Linux filesystem that impl
 3. [Tutorial on Workload Generation and Testing](#tutorial)
 4. [Demo](#demo)
    * [Video]()
-5. [Research That Uses Our Tools](#research-that-uses-our-tools)
-6. [Contact Info](#contact-info)
+5. [List of Bugs Reproduced by CrashMonkey and Ace](reproducedBugs.md)
+6. [List of New Bugs Found by CrashMonkey and Ace](newBugs.md)
+7. [Research That Uses Our Tools](#research-that-uses-our-tools)
+8. [Contact Info](#contact-info)
 
 #### Advanced Documentation ####
 
