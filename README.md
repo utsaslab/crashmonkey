@@ -22,7 +22,7 @@ CrashMonkey and Ace can be used out of the box on any Linux filesystem that impl
 2. [Push Button Testing for Seq-1 Workloads](#push-button-testing-for-seq-1-workloads)
 3. [Tutorial on Workload Generation and Testing](#tutorial)
 4. [Demo](#demo)
-   * [Video]()
+   * [Video](https://youtu.be/6fiomPVK8o0)
 5. [List of Bugs Reproduced by CrashMonkey and Ace](reproducedBugs.md)
 6. [List of New Bugs Found by CrashMonkey and Ace](newBugs.md)
 7. [Research That Uses Our Tools](#research-that-uses-our-tools)
@@ -194,7 +194,7 @@ BlockSize : 4096
 
 
 ## Demo ##
-All these steps have been assembled for you in the script [here](demo.sh). The link to the demo video is [here](). Try out the demo by running `./demo.sh btrfs`
+All these steps have been assembled for you in the script [here](demo.sh). The link to the demo video is [here](https://youtu.be/6fiomPVK8o0). Try out the demo by running `./demo.sh btrfs`
 
 
 ## Research that uses our tools ##
