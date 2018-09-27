@@ -25,7 +25,7 @@ The easiest (and recommended) way to start working on (or using) CrashMonkey is 
 Before you begin compilation, ensure you have satisfied all dependencies mentioned in the [setup guide](../README.md/#setup)
 
 #### Compiling CrashMonkey ####
-CrashMonkey can be built simply by running `make` in the root directory of the repository. This will build all the needed kernel modules, tests, and test harness components needed to run CrashMonkey.
+CrashMonkey can be built simply by running `make` in the root directory of the repository. This will build all the needed kernel modules, tests, and test harness components needed to run CrashMonkey. CrashMonkey is compiled to have a writeback delay of 2s by default. CrashMonkey waits for `writeback delay` amount of time, before unmounting the file system, to ensure pending writes (if any) are propagated to disk. This 2s delay works fine if you simulate crashes after persistence operations such as fsync(). However, if you want to test a workload by crashing at places other than persistence operations, then build using `CM=1 make`. This ensures that an appropriate [writeback delay](https://github.com/utsaslab/crashmonkey/blob/master/code/harness/FsSpecific.h) is set for each file system.
 
 #### Compiling User Defined Tests ####
 You can add user-defined tests in `code/tests` directory, conforming to the rules [here](workload.md). They can be compiled
