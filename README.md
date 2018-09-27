@@ -1,20 +1,45 @@
 # CrashMonkey and Ace #
 
 ## Bounded Black-Box Crash Testing ##
-Bounded black-box crash testing is a new approach to testing file-system crash consistency. B<sup>3</sup> is a black-box testing approach which requires **no modification** to file-system code. B<sup>3</sup> exhaustively generates and tests workloads in a bounded space. We implement B<sup>3</sup> by building two tools - CrashMonkey and Ace. The OSDI'18 paper **Finding Crash-Consistency Bugs with Bounded Black-Box Crash Testing** has a detailed discussion of B<sup>3</sup>, CrashMonkey and Ace. <br>
+Bounded black-box crash testing is a new approach to testing file-system crash consistency. B<sup>3</sup> is a black-box testing approach which requires **no modification** to file-system code. B<sup>3</sup> exhaustively generates and tests workloads in a bounded space. We implement B<sup>3</sup> by building two tools - CrashMonkey and Ace. The OSDI'18 paper **Finding Crash-Consistency Bugs with Bounded Black-Box Crash Testing** has a detailed discussion of B<sup>3</sup>, CrashMonkey, and Ace. <br>
 [[Paper PDF]()] [[Slides]()] [[Bibtex]()]  
 
 ### CrashMonkey ###
-CrashMonkey is a file-system agnostic record-replay-and-test framework. Unlike existing tools like dm-log-writes which require a manual checker script, CrashMonkey automatically tests for data and metadata consistency of persisted files. CrashMonkey needs only one input to run - the workload to be tested. We have described the rules for writing a workload for CrashMonkey [here](documentation/workload.md). More details about the internals of CrashMonkey and its setup can be found [here](documentation/CrashMonkey.md).
+CrashMonkey is a file-system agnostic record-replay-and-test framework. Unlike existing tools like dm-log-writes which require a manual checker script, CrashMonkey automatically tests for data and metadata consistency of persisted files. CrashMonkey needs only one input to run - the workload to be tested. We have described the rules for writing a workload for CrashMonkey [here](docs/workload.md). More details about the internals of CrashMonkey and its setup can be found [here](docs/CrashMonkey.md).
 
 
 ### Automatic Crash Explorer (Ace) ###
-Ace is an automatic workload generator, that exhaustively generates sequences of file-system operations (workloads), given certain bounds. Ace consists of a workload synthesizer that generates workloads in a high-level language which we call J-lang. A CrashMonkey adapter that we built, converts these workloads into C++ test files that CrashMonkey can work with. More details on the current bounds imposed by Ace and guidelines on workload generation can be found [here](documentation/Ace.md).
+Ace is an automatic workload generator, that exhaustively generates sequences of file-system operations (workloads), given certain bounds. Ace consists of a workload synthesizer that generates workloads in a high-level language which we call J-lang. A CrashMonkey adapter that we built, converts these workloads into C++ test files that CrashMonkey can work with. More details on the current bounds imposed by Ace and guidelines on workload generation can be found [here](docs/Ace.md).
 
 
 
 
 CrashMonkey and Ace can be used out of the box on any Linux filesystem that implements POSIX API. Our tools have been tested to work with ext2, ext3, ext4, xfs, F2FS, and btrfs, across Linux kernel versions - 3.12, 3.13, 3.16, 4.1, 4.4, 4.15, and 4.16.
+
+
+## Table Of Contents ##
+1. [Setup](#setup)
+2. [Push Button Testing for Seq-1 Workloads](#push-button-testing-for-seq-1-workloads)
+3. [Tutorial on Workload Generation and Testing](#tutorial)
+4. [Demo](#demo)
+   * [Video]()
+5. [Research That Uses Our Tools](#research-that-uses-our-tools)
+6. [Contact Info](#contact-info)
+
+#### Advanced Documentation ####
+
+1. VM Setup and Deployment
+  * [Setting up a VM](docs/vmsetup.md)
+  * [Deploying CrashMonkey on a Cluster](docs/deploy.md)
+    - [Deployment on the Chameleon Cloud](docs/chameleon.md)
+2. [CrashMonkey](docs/CrashMonkey.md)
+  * [Running CrashMonkey as a Standalone](docs/CrashMonkey.md#running-as-a-standalone-program)
+  * [Running CrashMonkey as a Background Process](docs/CrashMonkey.md#running-as-a-background-process)
+  * [XfsMonkey](docs/xfsMonkey.md)
+3. [Ace](docs/Ace.md)
+  * [Bounds used by Ace](docs/Ace.md#bounds-used-by-ace)
+  * [Generating Workloads with Ace](docs/Ace.md#generating-workloads-with-ace)
+  * [Generalizing Ace](docs/Ace.md#generalizing-ace)
 
 
 ## Setup ##
@@ -42,7 +67,7 @@ Here is a checklist of dependencies to get CrashMonkey and Ace up and running on
   `mkdir /mnt/snapshot`
 
 
-## Push-button testing for seq-1 workloads ##
+## Push Button Testing for Seq-1 Workloads ##
 
 This repository contains a pre-generated suite of 328 seq-1 workloads (workloads with 1 file-system operation) [here](code/tests/seq1/). Once you have [set up](#setup) CrashMonkey on your machine (or VM), you can simply run :
 
