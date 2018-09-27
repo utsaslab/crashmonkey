@@ -47,11 +47,10 @@ CrashMonkey and Ace can be used out of the box on any Linux filesystem that impl
 
 Here is a checklist of dependencies to get CrashMonkey and Ace up and running on your system.
 * You need a Linux machine to get started. We recommend spinning up a Ubuntu 14.04 or Ubuntu 16.04 VM with one of the supported kernel versions mentioned above. 20GB disk space and 2-4GB of RAM is recommended, if you plan on running large tests.
+* If you want to install kernel 4.16, we have a [script](vm_scripts/install-4.16.sh) to help you.
 * Install dependencies.
 
-  `apt-get install git make gcc g++ libattr1-dev btrfs-tools f2fs-tools xfsprogs libelf-dev linux-headers-$(uname -r) python`
-
-  `sudo apt-get install linux-headers-$(uname -r)`
+  `apt-get install git make gcc g++ libattr1-dev btrfs-tools f2fs-tools xfsprogs libelf-dev linux-headers-$(uname -r) python python-pip`
 
   `pip install progress progressbar`
 
