@@ -35,6 +35,7 @@ CrashMonkey and Ace can be used out of the box on any Linux filesystem that impl
 2. [CrashMonkey](docs/CrashMonkey.md)
     * [Running CrashMonkey as a Standalone](docs/CrashMonkey.md#running-as-a-standalone-program)
     * [Running CrashMonkey as a Background Process](docs/CrashMonkey.md#running-as-a-background-process)
+    * [Writing a workload for CrashMonkey](docs/workload.md)
     * [XfsMonkey](docs/xfsMonkey.md)
 3. [Ace](docs/Ace.md)
     * [Bounds used by Ace](docs/Ace.md#bounds-used-by-ace)
