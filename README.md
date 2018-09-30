@@ -3,11 +3,14 @@
 ![Status](https://img.shields.io/badge/Version-Experimental-brightgreen.svg)
 [![License](https://img.shields.io/badge/License-Apache%202.0-blue.svg)](https://opensource.org/licenses/Apache-2.0)
 
+This branch is intended to help you run CrashMonkey on verified filesystems. Currently, it is tested on [FSCQ](https://github.com/mit-pdos/fscq).
+
+
 ## Bounded Black-Box Crash Testing ##
 Bounded black-box crash testing (B<sup>3</sup>) is a new approach to testing file-system crash consistency. B<sup>3</sup> is a black-box testing approach which requires **no modification** to file-system code. B<sup>3</sup> exhaustively generates and tests workloads in a bounded space. We implement B<sup>3</sup> by building two tools - CrashMonkey and Ace. The OSDI'18 paper **Finding Crash-Consistency Bugs with Bounded Black-Box Crash Testing** has a detailed discussion of B<sup>3</sup>, CrashMonkey, and Ace. <br>
 [[Paper PDF](https://www.cs.utexas.edu/~jaya/pdf/osdi18-B3.pdf)] [[Slides](https://www.cs.utexas.edu/~jaya/slides/osdi18-B3-slides.pdf)] [[Bibtex]()]  
 
-CrashMonkey and Ace have found several long-standing bugs in widely-used file systems like btrfs and F2FS. The tools work out-of-the-box with any POSIX file system: no modification required to the file system. 
+CrashMonkey and Ace have found several long-standing bugs in widely-used file systems like btrfs and F2FS. The tools work out-of-the-box with any POSIX file system: no modification required to the file system.
 
 ### CrashMonkey ###
 CrashMonkey is a file-system agnostic record-replay-and-test framework. Unlike existing tools like dm-log-writes which require a manual checker script, CrashMonkey automatically tests for data and metadata consistency of persisted files. CrashMonkey needs only one input to run - the workload to be tested. We have described the rules for writing a workload for CrashMonkey [here](docs/workload.md). More details about the internals of CrashMonkey can be found [here](docs/CrashMonkey.md).
@@ -17,13 +20,12 @@ CrashMonkey is a file-system agnostic record-replay-and-test framework. Unlike e
 Ace is an automatic workload generator, that exhaustively generates sequences of file-system operations (workloads), given certain bounds. Ace consists of a workload synthesizer that generates workloads in a high-level language which we call J-lang. A CrashMonkey adapter that we built, converts these workloads into C++ test files that CrashMonkey can work with. More details on the current bounds imposed by Ace, and guidelines on workload generation can be found [here](docs/Ace.md).
 
 
-
-
 CrashMonkey and Ace can be used out of the box on any Linux filesystem that implements POSIX API. Our tools have been tested to work with ext2, ext3, ext4, xfs, F2FS, and btrfs, across Linux kernel versions - 3.12, 3.13, 3.16, 4.1, 4.4, 4.15, and 4.16.
 
 
 ## Table Of Contents ##
 1. [Setup](#setup)
+2. [Setup FSCQ](#fscq)
 2. [Push Button Testing for Seq-1 Workloads](#push-button-testing-for-seq-1-workloads)
 3. [Tutorial on Workload Generation and Testing](#tutorial)
 4. [Demo](#demo)
@@ -73,6 +75,65 @@ Here is a checklist of dependencies to get CrashMonkey and Ace up and running on
 
   `mkdir /mnt/snapshot`
 
+
+## Setup FSCQ ##
+FSCQ has a whole bunch of dependencies to be up and running. There is some useful instruction in [FSCQ Readme](https://github.com/mit-pdos/fscq/tree/master/src) and [here](https://github.com/mit-pdos/fscq/tree/master/builder). But below is a carefully listed sequence of commands to help you run FSCQ.
+
+Following installation procedure was tested on Ubuntu 16.04. I recommend at least a 20GB disk space on your VM before you start.
+
+1. `sudo dpkg-reconfigure tzdata`
+
+2. `sudo add-apt-repository ppa:hvr/ghc`
+
+3. `sudo apt-get update`
+
+4. `sudo apt-get dist-upgrade`
+
+5. `sudo apt-get install build-essential git ocaml ocaml-native-compilers camlp5 liblablgtksourceview2-ocaml-dev ghc haskell-platform-prof python3-pexpect nginx camlidl procmail libfuse-dev ghc-8.0.1-prof cabal-install-1.24`
+
+  This installs a whole lot of dependencies. Wait patiently.
+
+6. Next step : Proof assistant Coq.   
+  - `git clone https://github.com/coq/coq`
+
+  - `cd coq  && ./configure`.  
+    Just press Enter if it you asks where to install. By default it would select /usr/local
+
+  - `make -j4`
+    The make might fail at times. Looks like the only way out is to compile sequentially if that happens. So after a failed make, simply run `make` again.
+
+  - Now install Coq. `sudo make install`
+
+11. Now, the Haskell packages.
+    - `mkdir ~/.cabal`
+
+    - `echo 'library-profiling: True' >> ~/.cabal/config`
+
+    - `/opt/cabal/1.24/bin/cabal user-config update`
+
+    - `/opt/cabal/1.24/bin/cabal update`
+
+    - `PATH=/opt/ghc/8.0.1/bin:$PATH /opt/cabal/1.24/bin/cabal install cryptohash`
+
+    - `PATH=/opt/ghc/8.0.1/bin:$PATH /opt/cabal/1.24/bin/cabal install rdtsc`
+
+    - `PATH=/opt/ghc/8.0.1/bin:$PATH /opt/cabal/1.24/bin/cabal install digest`
+
+12. One last dependency, `apt-get install libextunix-ocaml-dev libzarith-ocaml-dev`  
+
+13. We are now all set to build FSCQ.
+
+    - `git clone https://github.com/mit-pdos/fscq.git`
+
+    - `cd src && make`. It should hopefully compile now.
+
+FSCQ file system is mounted using `src/mkfs` and `src/fscq` commands. CrashMonkey currently has hardcoded these paths in `code/harness/Tester.cpp`, `code/harness/DiskContents.cpp` and `code/harness/FsSpecific.cpp`. Be sure to modify these to set the right path, when running on your system.
+
+**Disk Size for FSCQ**
+
+FSCQ by default creates a ~520MB file system. So be sure to specify a disk size greater than this, while running CrashMonkey i.e. `-e 550000` should work.
+
+And to run tests on `FSCQ`, use `-t fscq`
 
 ## Push Button Testing for Seq-1 Workloads ##
 
