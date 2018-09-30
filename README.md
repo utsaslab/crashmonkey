@@ -25,7 +25,7 @@ CrashMonkey and Ace can be used out of the box on any Linux filesystem that impl
 
 ## Table Of Contents ##
 1. [Setup](#setup)
-2. [Setup FSCQ](#fscq)
+2. [Setup FSCQ](#setup-fscq)
 2. [Push Button Testing for Seq-1 Workloads](#push-button-testing-for-seq-1-workloads)
 3. [Tutorial on Workload Generation and Testing](#tutorial)
 4. [Demo](#demo)
@@ -79,7 +79,7 @@ Here is a checklist of dependencies to get CrashMonkey and Ace up and running on
 ## Setup FSCQ ##
 FSCQ has a whole bunch of dependencies to be up and running. There is some useful instruction in [FSCQ Readme](https://github.com/mit-pdos/fscq/tree/master/src) and [here](https://github.com/mit-pdos/fscq/tree/master/builder). But below is a carefully listed sequence of commands to help you run FSCQ.
 
-Following installation procedure was tested on Ubuntu 16.04. I recommend at least a 20GB disk space on your VM before you start.
+Following installation procedure was tested on Ubuntu 16.04. I recommend ensuring at least 20GB disk space on your VM before you start.
 
 1. `sudo dpkg-reconfigure tzdata`
 
@@ -94,15 +94,15 @@ Following installation procedure was tested on Ubuntu 16.04. I recommend at leas
   This installs a whole lot of dependencies. Wait patiently.
 
 6. Next step : Proof assistant Coq.   
-  - `git clone https://github.com/coq/coq`
+    - `git clone https://github.com/coq/coq`
 
-  - `cd coq  && ./configure`.  
-    Just press Enter if it you asks where to install. By default it would select /usr/local
+   - `cd coq  && ./configure`.  
+      Just press Enter if it you asks where to install. By default it would select /usr/local
 
-  - `make -j4`
-    The make might fail at times. Looks like the only way out is to compile sequentially if that happens. So after a failed make, simply run `make` again.
+    - `make -j4`
+      The make might fail at times. Looks like the only way out is to compile sequentially if that happens. So after a failed make, simply run `make` again.
 
-  - Now install Coq. `sudo make install`
+    - Now install Coq. `sudo make install`
 
 11. Now, the Haskell packages.
     - `mkdir ~/.cabal`
