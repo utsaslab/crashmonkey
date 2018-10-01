@@ -47,7 +47,7 @@ echo 0 > others
 
 echo -e "\nCompleted compilation. Testing workloads on $FS.."
 if [ -d "$REPORT_DIR" ]; then rm -rf $REPORT_DIR; fi
-python xfsMonkey.py -f /dev/sda -d /dev/cow_ram0 -t $FS -e 102400 -u $TARGET_BUILD_DIR
+python xfsMonkey.py -f /dev/sda -d /dev/cow_ram0 -t $FS -e 550400 -u $TARGET_BUILD_DIR
 
 end=`date +%s.%3N`
 run_time=$( echo "$end - $start" | bc -l)

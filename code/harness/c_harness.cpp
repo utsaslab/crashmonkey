@@ -462,6 +462,7 @@ int main(int argc, char** argv) {
       test_harness.cleanup_harness();
       return -1;
     }
+    
 
     // Create snapshot of disk for testing.
     cout << "Making new snapshot" << endl;
@@ -567,6 +568,7 @@ int main(int argc, char** argv) {
     cout << "Mounting wrapper file system" << endl;
     if (test_harness.mount_wrapper_device(mount_opts.c_str()) != SUCCESS) {
       cerr << "Error mounting wrapper file system" << endl;
+      cout << strerror(errno) << endl;
       test_harness.cleanup_harness();
       return -1;
     }

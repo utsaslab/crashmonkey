@@ -29,7 +29,7 @@ def build_parser():
     parser.add_argument('--fs_type', '-t', default='ext4', help='Filesystem on which you wish to run tests using XFSMonkey. Default = ext4')
 
     # crash monkey args
-    parser.add_argument('--disk_size', '-e', default=102400, type=int, help='Size of disk in KB. Default = 200MB')
+    parser.add_argument('--disk_size', '-e', default=550400, type=int, help='Size of disk in KB. Default = 500MB')
     parser.add_argument('--iterations', '-s', default=10000, type=int, help='Number of random crash states to test on. Default = 1000')
     parser.add_argument('--test_dev', '-d', default='/dev/cow_ram0', help='Test device. Default = /dev/cow_ram0')
     parser.add_argument('--flag_dev', '-f', default='/dev/sda', help='Flag device. Default = /dev/sda')
@@ -40,7 +40,7 @@ def build_parser():
 
 def cleanup():
 	#clean up umount and rmmod errors
-	command = 'umount /mnt/snapshot; rmmod ./build/disk_wrapper.ko; rmmod ./build/cow_brd.ko'
+	command = 'umount /mnt/snapshot; rm -rf /mnt/snapshot; mkdir /mnt/snapshot; umount /mnt/snapshot; rmmod ./build/disk_wrapper.ko; rmmod ./build/cow_brd.ko'
 	p=subprocess.Popen(command, stdout=subprocess.PIPE, stderr=subprocess.PIPE, shell=True)
 	(out, err) = p.communicate()
 	p.wait()

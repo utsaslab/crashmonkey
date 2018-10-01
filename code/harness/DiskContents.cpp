@@ -148,9 +148,20 @@ int DiskContents::mount_disk() {
     return -1;
   }
   // Mount the disk
-  if (mount(disk_path, mount_point, fs_type, MS_RDONLY, NULL) < 0) {
-    return -1;
+
+  if (string(fs_type).compare("fscq") == 0) {
+        string command = "sudo /home/jayashree/fscq/src/fscq " + string(disk_path) + " -o big_writes,atomic_o_trunc -f " + mount_point + " &";
+
+        cout << "COmmand for mount : " << command << endl;
+        system(command.c_str());
+        cout << "Sleeping for 2 sec after mount.." << endl;
+        sleep(2);
+  } else {
+        if (mount(disk_path, mount_point, fs_type, MS_RDONLY, NULL) < 0) {
+                return -1;
+        }
   }
+
   // sleep after mount
   unsigned int to_sleep = 1;
   do {
@@ -158,6 +169,8 @@ int DiskContents::mount_disk() {
   } while (to_sleep > 0);
 
   device_mounted = true;
+  string com = "tree " + string(mount_point);
+  system(com.c_str());
   return 0;
 }
 
@@ -165,16 +178,25 @@ int DiskContents::unmount_and_delete_mount_point() {
   // umount till successful
   int umount_res;
   int err;
-  string command = "umount ";
-  command += mount_point;
-  system(command.c_str());
-  do {
-    umount_res = umount(mount_point);
-    if (umount_res < 0) {
-      err = errno;
-      usleep(500);
-    }
-  } while (umount_res < 0 && err == EBUSY);
+
+        if (string(fs_type).compare("fscq") == 0) {
+                string command = "sudo fusermount -u " + string(mount_point);
+                cout << "Command for umount : " << command << endl;
+                system(command.c_str());
+                cout << "Sleeping for 2 sec after unmount" << endl;
+                sleep(2);
+        } else {
+		 string command = "umount ";
+  		command += mount_point;
+ 		 system(command.c_str());
+  		do {
+    			umount_res = umount(mount_point);
+    			if (umount_res < 0) {
+      				err = errno;
+      				usleep(500);
+    			}
+  		} while (umount_res < 0 && err == EBUSY);
+        }
 
   // Delete the mount directory
   if (unlink(mount_point) != 0) {

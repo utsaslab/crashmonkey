@@ -59,7 +59,7 @@
 #define COW_BRD_INSMOD3      " disk_size="
 #define COW_BRD_RMMOD       "rmmod " COW_BRD_MODULE_NAME
 #define NUM_DISKS           "1"
-#define NUM_SNAPSHOTS       "20"
+#define NUM_SNAPSHOTS       "3"
 #define COW_BRD_PATH        "/dev/cow_ram0"
 
 #define DEV_SECTORS_PATH    "/sys/block/"
@@ -184,9 +184,19 @@ int Tester::mount_wrapper_device(const char* opts) {
 }
 
 int Tester::mount_device(const char* dev, const char* opts) {
-  if (mount(dev, MNT_MNT_POINT, fs_type.c_str(), 0, (void*) opts) < 0) {
-    disk_mounted = false;
-    return MNT_MNT_ERR;
+
+  if (fs_type.compare("fscq") == 0) {
+	string command = "sudo /home/jayashree/fscq/src/fscq " + string(dev) + " -o big_writes,atomic_o_trunc -f "  MNT_MNT_POINT + " &";
+
+  	cout << "COmmand for mount : " << command << endl;
+	system(command.c_str());
+	cout << "Sleeping for 2 sec after mount.." << endl;
+	sleep(2);
+  } else {
+  	if (mount(dev, MNT_MNT_POINT, fs_type.c_str(), 0, (void*) opts) < 0) {
+    		disk_mounted = false;
+    		return MNT_MNT_ERR;
+  	}
   }
   disk_mounted = true;
   return SUCCESS;
@@ -194,26 +204,51 @@ int Tester::mount_device(const char* dev, const char* opts) {
 
 int Tester::umount_device() {
   if (disk_mounted) {
-    if (umount(MNT_MNT_POINT) < 0) {
-      disk_mounted = true;
-      return MNT_UMNT_ERR;
-    }
+	if (fs_type.compare("fscq") == 0) {	
+		string command = "sudo fusermount -u " MNT_MNT_POINT;
+		cout << "Command for umount : " << command << endl;
+		system(command.c_str());
+		cout << "Sleeping for 2 sec after unmount" << endl;
+		sleep(2);
+	} else {
+    		if (umount(MNT_MNT_POINT) < 0) {
+      			disk_mounted = true;
+     	 		return MNT_UMNT_ERR;
+  		}
+	}
   }
   disk_mounted = false;
   return SUCCESS;
 }
 
 int Tester::mount_snapshot() {
-  if (mount(SNAPSHOT_PATH, MNT_MNT_POINT, fs_type.c_str(), 0, NULL) < 0) {
-    return MNT_MNT_ERR;
+
+  if (fs_type.compare("fscq") == 0) {
+	string command = "sudo /home/jayashree/fscq/src/fscq " + string(SNAPSHOT_PATH) + " -o big_writes,atomic_o_trunc -f "  MNT_MNT_POINT + " &";
+  	cout << "COmmand for mount : " << command << endl;
+	system(command.c_str());
+	cout << "Sleeping for 2 sec after mount.." << endl;
+	sleep(2);
+  } else {
+  	if (mount(SNAPSHOT_PATH, MNT_MNT_POINT, fs_type.c_str(), 0, NULL) < 0) {
+    		return MNT_MNT_ERR;
+  	}
   }
   return SUCCESS;
 }
 
 int Tester::umount_snapshot() {
-  if (umount(MNT_MNT_POINT) < 0) {
-    return MNT_UMNT_ERR;
-  }
+	if (fs_type.compare("fscq") == 0) {
+		string command = "sudo fusermount -u "  MNT_MNT_POINT;
+		cout << "Command for umount : " << command << endl;
+		system(command.c_str());
+		cout << "Sleeping for 2 sec after unmount.." << endl;
+		sleep(2);
+	} else {
+    		if (umount(MNT_MNT_POINT) < 0) {
+     	 		return MNT_UMNT_ERR;
+  		}
+	}
   return SUCCESS;
 }
 
@@ -262,8 +297,12 @@ int Tester::insert_cow_brd() {
       cow_brd_fd = -1;
       return WRAPPER_INSERT_ERR;
     }
+
+  cout << "Insmod command = " << command << endl;
   }
   cow_brd_inserted = true;
+  //system("mknod /dev/cow_ram0 b 7 200");
+  //system("losetup /dev/cow_ram0 /dev/shm/disk.img");
   cow_brd_fd = open("/dev/cow_ram0", O_RDONLY);
   if (cow_brd_fd < 0) {
     if (system(COW_BRD_RMMOD) != 0) {
@@ -388,6 +427,7 @@ int Tester::get_wrapper_log() {
           break;
         } else {
           cerr << "Error getting next log entry\n";
+	  cout << strerror(errno) << endl;
           log_data.clear();
           break;
         }
@@ -573,6 +613,7 @@ int Tester::format_drive() {
   if (!verbose) {
     command += SILENT;
   }
+  cout << "Mkfs command : " << command << endl;
   if (system(command.c_str()) != 0) {
     return FMT_FMT_ERR;
   }

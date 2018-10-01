@@ -22,10 +22,13 @@ constexpr char kBtrfsFsckCommand[] = "yes | btrfs check ";
 
 constexpr char kXfsFsckCommand[] = "xfs_repair ";
 
+constexpr char kFscqFsckCommand[] = ":";
+
 constexpr char kExtNewUUIDCommand[] = "tune2fs -U random ";
 constexpr char kBtrfsNewUUIDCommand[] = "yes | btrfstune -u ";
 constexpr char kXfsNewUUIDCommand[] = "xfs_admin -U generate ";
 constexpr char kF2fsNewUUIDCommand[] = ":";
+constexpr char kFscqNewUUIDCommand[] = ":";
 }
 
 
@@ -43,6 +46,8 @@ FsSpecific* GetFsSpecific(std::string &fs_type) {
     return new F2fsFsSpecific();
   } else if (fs_type.compare(XfsFsSpecific::kFsType) == 0) {
     return new XfsFsSpecific();
+  } else if (fs_type.compare(FscqFsSpecific::kFsType) == 0) {
+    return new FscqFsSpecific();
   }
   return NULL;
 }
@@ -234,5 +239,49 @@ string XfsFsSpecific::GetFsTypeString() {
 unsigned int XfsFsSpecific::GetPostRunDelaySeconds() {
   return XfsFsSpecific::kDelaySeconds;
 }
+
+
+/******************************* Fscq ******************************************/
+constexpr char FscqFsSpecific::kFsType[];
+
+string FscqFsSpecific::GetMkfsCommand(string &device_path) {
+  //string mkfs = "sudo dd if=/dev/zero of=/dev/shm/disk.img bs=1G count=1;sudo mknod " + device_path  + " b 7 200; sudo losetup " + device_path + " /dev/shm/disk.img; sudo chmod 777 " + device_path + "; sudo dd if=/dev/zero of=" + device_path + " bs=4096 count=25600; /home/jayashree/fscq/src/mkfs " + device_path;
+  //return mkfs;
+//  string mkfs = "sudo dd if=/dev/zero of=/dev/shm/disk.img bs=1G count=1; sudo chmod 777 " + device_path + "; sudo dd if=/dev/zero of=" + device_path + " bs=4096 count=25600; /home/jayashree/fscq/src/mkfs " + device_path;
+  string mkfs = "/home/jayashree/fscq/src/mkfs " + device_path;
+  return mkfs;
+
+}
+
+string FscqFsSpecific::GetPostReplayMntOpts() {
+  return string();
+}
+
+string FscqFsSpecific::GetFsckCommand(const string &fs_path) {
+  return string(kFscqFsckCommand) + fs_path;
+}
+
+string FscqFsSpecific::GetNewUUIDCommand(const string &disk_path) {
+  return string(kFscqNewUUIDCommand) + disk_path;
+}
+
+FileSystemTestResult::ErrorType FscqFsSpecific::GetFsckReturn(
+    int return_code) {
+  if (return_code == 0) {
+    // Will always return 0 when running without the dry-run flag. Things have
+    // been fixed though.
+    return FileSystemTestResult::kFixed;
+  }
+  return FileSystemTestResult::kCheck;
+}
+
+string FscqFsSpecific::GetFsTypeString() {
+  return string(FscqFsSpecific::kFsType);
+}
+
+unsigned int FscqFsSpecific::GetPostRunDelaySeconds() {
+  return FscqFsSpecific::kDelaySeconds;
+}
+
 
 }  // namespace fs_testing
