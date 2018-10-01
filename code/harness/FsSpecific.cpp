@@ -23,12 +23,14 @@ constexpr char kBtrfsFsckCommand[] = "yes | btrfs check ";
 constexpr char kXfsFsckCommand[] = "xfs_repair ";
 
 constexpr char kFscqFsckCommand[] = ":";
+constexpr char kYxv6FsckCommand[] = ":";
 
 constexpr char kExtNewUUIDCommand[] = "tune2fs -U random ";
 constexpr char kBtrfsNewUUIDCommand[] = "yes | btrfstune -u ";
 constexpr char kXfsNewUUIDCommand[] = "xfs_admin -U generate ";
 constexpr char kF2fsNewUUIDCommand[] = ":";
 constexpr char kFscqNewUUIDCommand[] = ":";
+constexpr char kYxv6NewUUIDCommand[] = ":";
 }
 
 
@@ -48,6 +50,8 @@ FsSpecific* GetFsSpecific(std::string &fs_type) {
     return new XfsFsSpecific();
   } else if (fs_type.compare(FscqFsSpecific::kFsType) == 0) {
     return new FscqFsSpecific();
+  } else if (fs_type.compare(Yxv6FsSpecific::kFsType) == 0) {
+    return new Yxv6FsSpecific();
   }
   return NULL;
 }
@@ -283,5 +287,46 @@ unsigned int FscqFsSpecific::GetPostRunDelaySeconds() {
   return FscqFsSpecific::kDelaySeconds;
 }
 
+
+
+/******************************* Yxv6 ******************************************/
+constexpr char Yxv6FsSpecific::kFsType[];
+
+string Yxv6FsSpecific::GetMkfsCommand(string &device_path) {
+  string mkfs = " : ";
+  return mkfs;
+
+}
+
+string Yxv6FsSpecific::GetPostReplayMntOpts() {
+  return string();
+}
+
+string Yxv6FsSpecific::GetFsckCommand(const string &fs_path) {
+  return string(kYxv6FsckCommand) + fs_path;
+}
+
+string Yxv6FsSpecific::GetNewUUIDCommand(const string &disk_path) {
+  return string(kYxv6NewUUIDCommand) + disk_path;
+}
+
+FileSystemTestResult::ErrorType Yxv6FsSpecific::GetFsckReturn(
+    int return_code) {
+  if (return_code == 0) {
+
+    // Will always return 0 when running without the dry-run flag. Things have
+    // been fixed though.
+    return FileSystemTestResult::kFixed;
+  }
+  return FileSystemTestResult::kCheck;
+}
+
+string Yxv6FsSpecific::GetFsTypeString() {
+ return string(Yxv6FsSpecific::kFsType);
+}
+
+unsigned int Yxv6FsSpecific::GetPostRunDelaySeconds() {
+  return Yxv6FsSpecific::kDelaySeconds;
+}
 
 }  // namespace fs_testing

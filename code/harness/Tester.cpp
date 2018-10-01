@@ -192,6 +192,14 @@ int Tester::mount_device(const char* dev, const char* opts) {
 	system(command.c_str());
 	cout << "Sleeping for 2 sec after mount.." << endl;
 	sleep(2);
+  
+  } else if (fs_type.compare("yxv6") == 0) {
+        string command = "python /home/jayashree/yggdrasil/yav_xv6_main.py -o max_read=4096 -o max_write=4096 -s "  MNT_MNT_POINT  " -- --sync  " + string(dev)  + " &";
+
+        cout << "Command for mount : " << command << endl;
+        system(command.c_str());
+        cout << "Sleeping for 2 sec after mount.." << endl;
+	sleep(2);
   } else {
   	if (mount(dev, MNT_MNT_POINT, fs_type.c_str(), 0, (void*) opts) < 0) {
     		disk_mounted = false;
@@ -204,7 +212,7 @@ int Tester::mount_device(const char* dev, const char* opts) {
 
 int Tester::umount_device() {
   if (disk_mounted) {
-	if (fs_type.compare("fscq") == 0) {	
+	if (fs_type.compare("fscq") == 0 || fs_type.compare("yxv6") == 0) {	
 		string command = "sudo fusermount -u " MNT_MNT_POINT;
 		cout << "Command for umount : " << command << endl;
 		system(command.c_str());
@@ -224,12 +232,19 @@ int Tester::umount_device() {
 int Tester::mount_snapshot() {
 
   if (fs_type.compare("fscq") == 0) {
-	string command = "sudo /home/jayashree/fscq/src/fscq " + string(SNAPSHOT_PATH) + " -o big_writes,atomic_o_trunc -f "  MNT_MNT_POINT + " &";
+	string command = "sudo /home/jayashree/fscq/src/fscq " + string(SNAPSHOT_PATH) + " -o big_writes,atomic_o_trunc -f "  MNT_MNT_POINT  " &";
   	cout << "COmmand for mount : " << command << endl;
 	system(command.c_str());
 	cout << "Sleeping for 2 sec after mount.." << endl;
 	sleep(2);
-  } else {
+  } else if (fs_type.compare("yxv6") == 0) {
+        string command = "python /home/jayashree/yggdrasil/yav_xv6_main.py -o max_read=4096 -o max_write=4096 -s " MNT_MNT_POINT   " -- --sync  " + string(SNAPSHOT_PATH)  + " &";
+
+        cout << "Command for mount : " << command << endl;
+        system(command.c_str());
+        cout << "Sleeping for 2 sec after mount.." << endl;
+        sleep(2); 
+ } else {
   	if (mount(SNAPSHOT_PATH, MNT_MNT_POINT, fs_type.c_str(), 0, NULL) < 0) {
     		return MNT_MNT_ERR;
   	}
@@ -238,7 +253,7 @@ int Tester::mount_snapshot() {
 }
 
 int Tester::umount_snapshot() {
-	if (fs_type.compare("fscq") == 0) {
+	if (fs_type.compare("fscq") == 0 || fs_type.compare("yxv6") == 0) {
 		string command = "sudo fusermount -u "  MNT_MNT_POINT;
 		cout << "Command for umount : " << command << endl;
 		system(command.c_str());

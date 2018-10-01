@@ -61,7 +61,8 @@ bool fileAttributes::compare_dir_attr(struct dirent* a) {
   } else if (a == NULL || dir_attr == NULL) {
     return false;
   }
-  return ((dir_attr->d_ino == a->d_ino) &&
+  return (
+    (dir_attr->d_ino == a->d_ino) &&
     (dir_attr->d_off == a->d_off) &&
     (dir_attr->d_reclen == a->d_reclen) &&
     (dir_attr->d_type == a->d_type) &&
@@ -74,8 +75,9 @@ bool fileAttributes::compare_stat_attr(struct stat *a) {
   } else if (a == NULL || stat_attr == NULL) {
     return false;
   }
-
-  return ((stat_attr->st_ino == a->st_ino) &&
+  cout << stat_attr->st_size <<endl;
+  return (
+    (stat_attr->st_ino == a->st_ino) &&
     (stat_attr->st_mode == a->st_mode) &&
     (stat_attr->st_nlink == a->st_nlink) &&
     (stat_attr->st_uid == a->st_uid) &&
@@ -152,10 +154,16 @@ int DiskContents::mount_disk() {
   if (string(fs_type).compare("fscq") == 0) {
         string command = "sudo /home/jayashree/fscq/src/fscq " + string(disk_path) + " -o big_writes,atomic_o_trunc -f " + mount_point + " &";
 
-        cout << "COmmand for mount : " << command << endl;
+        cout << "Command for mount : " << command << endl;
         system(command.c_str());
         cout << "Sleeping for 2 sec after mount.." << endl;
         sleep(2);
+  } else if (string(fs_type).compare("yxv6") == 0) { 
+        string command = "python /home/jayashree/yggdrasil/yav_xv6_main.py -o max_read=4096 -o max_write=4096 -s " + string(mount_point) + " -- --sync  " + string(disk_path)  + " &";
+
+        cout << "Command for mount : " << command << endl;
+        system(command.c_str());
+        cout << "Sleeping for 2 sec after mount.." << endl;
   } else {
         if (mount(disk_path, mount_point, fs_type, MS_RDONLY, NULL) < 0) {
                 return -1;
@@ -179,7 +187,7 @@ int DiskContents::unmount_and_delete_mount_point() {
   int umount_res;
   int err;
 
-        if (string(fs_type).compare("fscq") == 0) {
+        if (string(fs_type).compare("fscq") == 0 || string(fs_type).compare("yxv6") == 0 ) {
                 string command = "sudo fusermount -u " + string(mount_point);
                 cout << "Command for umount : " << command << endl;
                 system(command.c_str());
