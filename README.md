@@ -26,6 +26,7 @@ CrashMonkey and Ace can be used out of the box on any Linux filesystem that impl
 ## Table Of Contents ##
 1. [Setup](#setup)
 2. [Setup FSCQ](#setup-fscq)
+2. [Setup Yxv6](#setup-yxv6)
 2. [Push Button Testing for Seq-1 Workloads](#push-button-testing-for-seq-1-workloads)
 3. [Tutorial on Workload Generation and Testing](#tutorial)
 4. [Demo](#demo)
@@ -134,6 +135,34 @@ FSCQ file system is mounted using `src/mkfs` and `src/fscq` commands. CrashMonke
 FSCQ by default creates a ~520MB file system. So be sure to specify a disk size greater than this, while running CrashMonkey i.e. `-e 550000` should work.
 
 And to run tests on `FSCQ`, use `-t fscq`
+
+## Setup Yxv6 ##
+
+The following documentation has been compiled from [Yxv6 docs](https://github.com/locore/yggdrasil/) and [Z3 docs](https://github.com/Z3Prover/z3), which is the theorem prover used by Yxv6.
+
+1. Python dependencies
+    - `apt-get install python`
+
+    - `python -m pip install cython==0.25.2`
+
+2. Setup the theorem prover, Z3.
+    - `git clone https://github.com/Z3Prover/z3.git`
+
+    - Looks like Yxv6 has been tested with this particular version of Z3. SO checkout the commit. `git checkout e3f0aff318b5873cfe858191b8e73ed716405b59`
+
+    - `python scripts/mk_make.py --python`
+
+    - `cd build && make -j4`
+
+    - `sudo make install`
+
+3. Finally, setup Yxv6
+
+    - `git clone https://github.com/locore/yggdrasil.git`
+
+    - If your system does not have python2, cython2, or cythonize2, edit these commands in the Makefile to `python`, `cython` and `cythonize` respectively.
+
+    - cd yggdrasil && make all prod
 
 ## Push Button Testing for Seq-1 Workloads ##
 
