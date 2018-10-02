@@ -1,0 +1,23 @@
+# Build matrix / environment variable are explained on:
+# http://about.travis-ci.org/docs/user/build-configuration/
+# This file can be validated on: http://lint.travis-ci.org/
+
+sudo: enabled
+dist: trusty
+language: cpp
+
+compiler:
+  - gcc
+
+os:
+  - linux
+
+before_install:
+  - sudo apt-get make gcc g++ libattr1-dev btrfs-tools f2fs-tools xfsprogs libelf-dev linux-headers-$(uname -r) python python-pip
+
+install: 
+  - pip install progress progressbar
+
+script:
+  - cd crashmonkey && make 
+
