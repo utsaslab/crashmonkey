@@ -1,3 +1,4 @@
+#define _GNU_SOURCE 
 #include "../api/wrapper.h"
 
 #include <linux/falloc.h>

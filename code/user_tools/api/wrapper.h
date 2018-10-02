@@ -1,6 +1,6 @@
 #ifndef USER_TOOLS_API_WRAPPER_H
 #define USER_TOOLS_API_WRAPPER_H
-
+#define _GNU_SOURCE 
 #include <linux/falloc.h>
 #include <fcntl.h>
 #include <stdio.h>
