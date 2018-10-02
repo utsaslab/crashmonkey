@@ -14,7 +14,7 @@ CrashMonkey is a file-system agnostic record-replay-and-test framework. Unlike e
 
 
 ### Automatic Crash Explorer (Ace) ###
-Ace is an automatic workload generator, that exhaustively generates sequences of file-system operations (workloads), given certain bounds. Ace consists of a workload synthesizer that generates workloads in a high-level language which we call J-lang. A CrashMonkey adapter that we built, converts these workloads into C++ test files that CrashMonkey can work with. More details on the current bounds imposed by Ace, and guidelines on workload generation can be found [here](docs/Ace.md).
+Ace is an automatic workload generator, that exhaustively generates sequences of file-system operations (workloads), given certain bounds. Ace consists of a workload synthesizer that generates workloads in a high-level language which we call J-lang. A CrashMonkey adapter, that we built, converts these workloads into C++ test files that CrashMonkey can work with. More details on the current bounds imposed by Ace, and guidelines on workload generation can be found [here](docs/Ace.md).
 
 
 
@@ -53,7 +53,7 @@ CrashMonkey and Ace can be used out of the box on any Linux filesystem that impl
 ## Setup ##
 
 Here is a checklist of dependencies to get CrashMonkey and Ace up and running on your system.
-* You need a Linux machine to get started. We recommend spinning up a Ubuntu 14.04 or Ubuntu 16.04 VM with one of the supported kernel versions mentioned above. 20GB disk space and 2-4GB of RAM is recommended, if you plan on running large tests.
+* You need a Linux machine to get started. We recommend spinning up a Ubuntu 14.04 or Ubuntu 16.04 VM with one of the supported kernel versions mentioned above. 20GB disk space and 2-4GB of RAM is recommended, especially if you plan on running large tests.
 * If you want to install kernel 4.16, we have a [script](vm_scripts/install-4.16.sh) to help you.
 * Install dependencies.
 
@@ -65,7 +65,7 @@ Here is a checklist of dependencies to get CrashMonkey and Ace up and running on
 
     `git clone https://github.com/utsaslab/crashmonkey.git`
 
-* Compile CrashMonkey's test harness, kernel modules and the test suite of seq-1 workloads (workloads with 1 file-system operation). The initial compile should take a minute or lesser.
+* Compile CrashMonkey's test harness, kernel modules and the test suite of seq-1 workloads (workloads with 1 file-system operation). The initial compile should take a minute or less.
 
   `cd crashmonkey; make -j4`
 
@@ -82,7 +82,7 @@ This repository contains a pre-generated suite of 328 seq-1 workloads (workloads
 python xfsMonkey.py -f /dev/sda -d /dev/cow_ram0 -t btrfs -e 102400 -u build/tests/seq1/ > outfile
 ```
 
-Sit back and relax. This is going to take about 35 minutes to complete if run on a single machine. This will run all the 328 tests of seq-1 on `btrfs` filesystem of size `100MB`. The bug reports can be found in the folder `diff_results`. The workloads are named j-lang<1-328>, and if any of these resulted in a bug, you will see a bug report with the same name as that of the workload, describing the difference between the expected and actual state.
+Sit back and relax. This is going to take about 35 minutes to complete if run on a single machine. This will run all the 328 tests of seq-1 on a `btrfs` file system `100MB` in size. The bug reports can be found in the folder `diff_results`. The workloads are named j-lang<1-328>, and, if any of these resulted in a bug, you will see a bug report with the same name as that of the workload, describing the difference between the expected and actual state.
 
 ## Tutorial ##
 This tutorial walks you through the workflow of workload generation to testing, using a small bounded space of seq-1 workloads. Generating and running the tests in this tutorial will take less than 2 minutes.
@@ -101,7 +101,7 @@ Let us generate workloads of sequence length 1, and test only two file-system op
     FallocOptions = ['FALLOC_FL_ZERO_RANGE|FALLOC_FL_KEEP_SIZE']
     ```
 
-    Fallocate system call also requires offset and length parameters which are chosen to be one among the following.
+    The fallocate system call also requires offset and length parameters which are chosen to be one of the following.
     ```python
     WriteOptions = ['append', 'overlap_unaligned_start', 'overlap_extend']
     ```
@@ -110,7 +110,7 @@ Let us generate workloads of sequence length 1, and test only two file-system op
 
 
 2. **Generate Workloads** :
-To generate workloads confining to the above mentioned bounds, run the following command in the `ace` directory  :
+To generate workloads conforming to the above mentioned bounds, run the following command in the `ace` directory  :
     ```python
     cd ace
     python ace.py -l 1 -n False -d True
@@ -136,7 +136,7 @@ To generate workloads confining to the above mentioned bounds, run the following
 
 4. **Run** : Now its time to test all these workloads using CrashMonkey. Run the xfsMonkey script, which simply invokes CrashMonkey in a loop, testing one workload at a time.
 
-    For example, let's run the generated tests on `btrfs` file system, on a `100MB` image.
+    For example, let's run the generated tests on the `btrfs` file system, on a `100MB` image.
 
     ```python
     python xfsMonkey.py -f /dev/sda -d /dev/cow_ram0 -t btrfs -e 102400 -u build/tests/generated_workloads/ > outfile
