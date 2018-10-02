@@ -1,17 +1,17 @@
 # CrashMonkey #
 ### Overview ###
 
-CrashMonkey is a file-system agnostic testing framework for file-system consistency. It is meant to explore many crash states that are possible when a computer crashes in the middle of a file-system operation. CrashMonkey is made up of 3 main parts:
+CrashMonkey is a file-system agnostic testing framework for file-system crash consistency. It is meant to explore many crash states that are possible when a computer crashes in the middle of a file-system operation. CrashMonkey is made up of 3 main parts:
 
 1. File-system agnostic kernel modules for bio logging and disk snapshotting
-3. An auto-checker that tests if the recovered filesystem state is consistent
+3. An auto-checker that tests if the recovered file-system state is consistent
 4. A user space test harness which coordinates everything
 
 
 The HotStorage'17 paper *CrashMonkey: A Framework to Automatically Test File-System Crash Consistency* has a more detailed explanation of the internals of CrashMonkey. <br>
 [[Paper PDF]( http://www.cs.utexas.edu/~vijay/papers/hotstorage17-crashmonkey.pdf)] [[Slides](http://www.cs.utexas.edu/~vijay/papers/hotstorage17-crashmonkey-slides.pdf)] [[Bibtex](http://www.cs.utexas.edu/~vijay/bibtex/hotstorage17-crashmonkey.bib)]
 
-CrashMonkey also makes use of common Linux file system checker and repair programs like `fsck` in cases where the recovered file system image is unmountable.
+CrashMonkey also makes use of common Linux file-system checker and repair programs like `fsck` in cases where the recovered file-system image is unmountable.
 
 ___
 ### Getting Setup ###
@@ -37,7 +37,7 @@ Some tests for CrashMonkey reside in the `test` directory of the repo. Tests lev
 ___
 ### Running CrashMonkey ###
 
-CrashMonkey can be run either as a standalone program or as a background program. When in standalone mode, Crashmonkey will automatically load and run the user defined C++ setup and workload methods. You can optionally provide user-defined consistency checks in this test file, or allow the auto-checker to validate persisted files in the workload. When run as a background process, the user is allowed to run setup and workload methods outside of CrashMonkey using a series of simple stub programs to communicate with CrashMonkey. In both modes of operation, command line flags have the same meaning.
+CrashMonkey can be run either as a standalone program or as a background program. When in standalone mode, CrashMonkey will automatically load and run the user defined C++ setup and workload methods. You can optionally provide user-defined consistency checks in this test file, or allow the auto-checker to validate persisted files in the workload. When run as a background process, the user is allowed to run setup and workload methods outside of CrashMonkey using a series of simple stub programs to communicate with CrashMonkey. In both modes of operation, command line flags have the same meaning.
 
 
 #### Running as a Standalone Program ####
@@ -74,8 +74,8 @@ to run a test on an ext2 file system that tries to move a file between
 directories. Once the test completes, open up the `<date_timestamp>-rename_root_to_sub.log`
 file to see a printout of what tests failed and why.
 
-2. **Creates and Deletes Workload**. To run a workload that creates, writes to and deletes files(default set to 10 files), on ext4 filesystem, use the following command:
-`./c_harness -f /dev/vda -d /dev/cow_ram0 -t ext4 -e 10240 -l create -v tests/create_delete.so` This sets the size of the filesystem to 10MB (with a block size of 1024), and saves the snapshot to a log file named create. To load this snapshot and rerun the test, simply run:
+2. **Creates and Deletes Workload**. To run a workload that creates, writes to and deletes files(default set to 10 files), on the ext4 file system, use the following command:
+`./c_harness -f /dev/vda -d /dev/cow_ram0 -t ext4 -e 10240 -l create -v tests/create_delete.so` This sets the size of the file system to 10MB (with a block size of 1024), and saves the snapshot to a log file named create. To load this snapshot and rerun the test, simply run:
 `./c_harness -f /dev/vda -d /dev/cow_ram0 -t ext4 -e 10240 -r create -v tests/create_delete.so` This is useful in cases where you modify the check_test method in the workload to add additional checks for each crash state (in this example - crashmonkey/code/tests/create_delete.cpp). As long as the bio sequence during profiling does not change, it is safe to rerun the tests by loading the saved profile with -r option.
 
 #### Running as a Background Process ####
