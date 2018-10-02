@@ -1,15 +1,17 @@
 #include "../api/wrapper.h"
 #include <assert.h>
+#include <fcntl.h>
 #include <errno.h>
 #include <string.h>
 #include <utility>
 #include <iostream>
 #include "../api/actions.h"
 
-#define FALLOC_FL_KEEP_SIZE	0x01 /* default is extend size */
-#define FALLOC_FL_PUNCH_HOLE	0x02 /* de-allocates range */
-#define FALLOC_FL_NO_HIDE_STALE	0x04 /* reserved codepoint */
-#define FALLOC_FL_ZERO_RANGE	0x08 /* zero range */
+#define FALLOC_FL_KEEP_SIZE 0x01
+#define FALLOC_FL_PUNCH_HOLE 0x02
+#define FALLOC_FL_COLLAPSE_RANGE 0x08
+#define FALLOC_FL_ZERO_RANGE 0x10
+#define FALLOC_FL_INSERT_RANGE 0x20
 
 namespace fs_testing {
 namespace user_tools {
