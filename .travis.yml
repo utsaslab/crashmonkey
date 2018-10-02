@@ -13,7 +13,8 @@ os:
   - linux
 
 before_install:
-  - sudo apt-get install make gcc g++ libattr1-dev btrfs-tools f2fs-tools xfsprogs libelf-dev linux-headers-$(uname -r) python python-pip
+  - sudo apt-get update && sudo apt-get dist-upgrade
+  - sudo apt-get install make gcc g++ yum libattr1-dev btrfs-tools f2fs-tools xfsprogs libelf-dev linux-headers-$(uname -r) python python-pip
 
 install: 
   - sudo pip install progress progressbar
