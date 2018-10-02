@@ -16,7 +16,7 @@ before_install:
   - sudo apt-get install make gcc g++ libattr1-dev btrfs-tools f2fs-tools xfsprogs libelf-dev linux-headers-$(uname -r) python python-pip
 
 install: 
-  - pip install progress progressbar
+  - sudo pip install progress progressbar
 
 script:
   - cd crashmonkey && make 
