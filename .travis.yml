@@ -17,7 +17,7 @@ before_install:
 
 install: 
   - sudo pip install progress progressbar
-  - yum -y update glibc
+  - sudo yum -y update glibc
 
 script:
   - make 
