@@ -1,7 +1,5 @@
-#define _GNU_SOURCE 
-#include "../api/wrapper.h"
-
 #include <linux/falloc.h>
+#include "../api/wrapper.h"
 #include <assert.h>
 #include <errno.h>
 #include <fcntl.h>
