@@ -1,5 +1,5 @@
-#include <linux/falloc.h>
-#include <fcntl.h>
+//#include <linux/falloc.h>
+//#include <fcntl.h>
 #include <stdio.h>
 #include <sys/mman.h>
 #include <sys/stat.h>
