@@ -136,7 +136,7 @@ virtual int run( int checkpoint ) override {
 }
 ```
 
-CrashMonkey snapshots disk images at each checkpoint to create oracle for testing. Therefore, it is necessary to indicate the last checkpoint in the workload. To do so, all the checkpoints in the workload except the last one, returns 0. The last checkpoint must return 1.
+CrashMonkey snapshots disk images at each checkpoint to create an oracle for testing. Therefore, it is necessary to indicate the last checkpoint in the workload. To do so, all the checkpoints in the workload except the last one, return 0. The last checkpoint must return 1.
 
 #### Check_Test ####
 
@@ -168,7 +168,7 @@ ___
 ### Testing the workload you wrote ###
 
 There are two types of testing you could perform.
-1. **Test with user-defined consistency checks** : In this setting, CrashMonkey will profile the workload, generate crash states, and on the recovered file system image, it runs the **check_test** method you defined. There are two ways in which you could choose to generate crash states in this setting.
+1. **Test with user-defined consistency checks** : In this setting, CrashMonkey will profile the workload, generate crash states, and on the recovered file-system image, run the **check_test** method you defined. There are two ways in which you could choose to generate crash states in this setting.
 
     * **Permuted replay** : By default, 10000 crash states are tested here. To generate a crash state, the recorded bios are permuted, respecting the barrier operations. However, this method is not efficient in understanding checkpoints, as these checkpoints bios could be re-ordered across checkpoints if they appear within two barrier operations. You can test the workload we just wrote, in this setting by running the following command in the `build` directory, after you compiled the test. The results of this mode of test appear under *Reordering Test* summary at test completion.
 
@@ -188,7 +188,7 @@ The log containing the recorded block IOs, the crash states tested and result at
 ___
 ### Result ###
 
-The result of running the above example workload on `btrfs` filesystem on any kernel <= 4.16 is as follows.
+The result of running the above example workload on the `btrfs` file system on any kernel <= 4.16 is as follows.
 
 1. **Permuted Replay** : This mode, found no bugs with the user-defined check_test. This is because, the crash states could not understand that checkpoint 1 has been reached while checking if files A/foo and B/foo are present.
     ```
@@ -229,7 +229,7 @@ The result of running the above example workload on `btrfs` filesystem on any ke
         fsck result: fsck_not_run
         fsck output:
     ```
-    This means, the second check in the check_test failed, and the link file B/foo is not persisted in the recovered file system image.
+    This means, the second check in the check_test failed, and the link file B/foo is not persisted in the recovered file-system image.
 
 3. **Auto-check** : This mode also runs one test, but does not require user-defined checks. The summary block would be as follows.
       ```
@@ -258,7 +258,7 @@ The result of running the above example workload on `btrfs` filesystem on any ke
       #HardLinks: 2
       ```
 
-      What this tells you is that, the link count of A/foo is 1, while it should have been 2. This is in turn because the link file B/foo is missing.
+      What this tells you is that, the link count of A/foo is 1, while it should have been 2. This is because the link file B/foo is missing.
 
 ___
 As you would have noticed by now, the workload we just wrote and tested triggers the [link count bug](../newBugs.md/#bug-7--fsync-of-file-does-not-persist-all-its-names). This bug was found by CrashMonkey and Ace, using automated workload generation and testing.
