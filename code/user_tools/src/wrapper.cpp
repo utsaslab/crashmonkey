@@ -1,18 +1,9 @@
-#include <linux/falloc.h>
 #include "../api/wrapper.h"
 #include <assert.h>
 #include <errno.h>
-#include <fcntl.h>
 #include <string.h>
-#include <sys/stat.h>
-#include <sys/types.h>
-#include <unistd.h>
-
 #include <utility>
-
-
 #include <iostream>
-
 #include "../api/actions.h"
 
 //#define FALLOC_FL_KEEP_SIZE	0x01 /* default is extend size */
