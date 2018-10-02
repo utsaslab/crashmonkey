@@ -1,5 +1,3 @@
-#ifndef USER_TOOLS_API_WRAPPER_H
-#define USER_TOOLS_API_WRAPPER_H
 #include <linux/falloc.h>
 #include <fcntl.h>
 #include <stdio.h>
@@ -258,4 +256,3 @@ class PassthroughCmFsOps : public CmFsOps {
 } // user_tools
 } // fs_testing
 
-#endif // USER_TOOLS_API_WRAPPER_H
