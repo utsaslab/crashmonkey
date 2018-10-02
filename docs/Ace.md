@@ -85,7 +85,7 @@ Ace currently generates workloads of sequence length 1, 2, and 3. We say a workl
     `sync, fsync, fdatasync, none`
     Since by default `fdatasync` is one of the file-system operations under test, it is excluded from the list of persistence operations. However you could add it to the persistence operation set in the ace script.
 
-5. **Fileset for persistence operations** : Ideally, the file set for persistence operations should be the same as the above defined file set. However, there is no point persisting a file that was not touched by any of the system calls in the workload. Hence, we reduce the space of workloads further by restricting the fileset for persistence operations:
+5. **Fileset for persistence operations** : Ideally, the file set for persistence operations should be the same as the above defined file set. However, there is no point persisting a file that was not touched by any of the system calls in the workload. Hence, we reduce the space of workloads further by restricting the file set for persistence operations:
       1. Range of used files : In this mode, in addition to the files/directories involved in the workload, we allow persisting sibling files and parent directory. This is the default for seq-1 and seq-2.
       2. Strictly used files : In this mode, only files/directories acted upon by the workload can be persisted. We default to this mode in seq-3, to restrict the workload set.
 
@@ -94,7 +94,7 @@ ___
 
 Generating workloads with Ace is a two-step process.
 
-  1. Set the bounds that you wish to explore, using the guidelines and advices in the [previous](#bounds-used-by-ace) section.
+  1. Set the bounds that you wish to explore, using the guidelines and advice in the [previous](#bounds-used-by-ace) section.
 
   2. Start workload generation.
 
@@ -115,7 +115,7 @@ Generating workloads with Ace is a two-step process.
 
 ___
 ### Generalizing Ace ###
-You can extend Ace to generate workloads of larger sequences, expand the set of files and directories acted upon, or support new file system operations. Let's see what changes are required to do so.
+You can extend Ace to generate workloads of larger sequences, expand the set of files and directories acted upon, or support new file-system operations. Let's see what changes are required to do so.
 
 #### Generating workloads of larger sequences ####
 
