@@ -13,11 +13,14 @@ os:
   - linux
 
 before_install:
+  - sudo apt-get update
   - sudo apt-get install make gcc g++ yum libattr1-dev btrfs-tools f2fs-tools xfsprogs libelf-dev linux-headers-$(uname -r) python python-pip
+  - sudo apt-cache policy libc6
+  - ldd --version
+  - sudo apt-get install libc6
 
 install: 
   - sudo pip install progress progressbar
-  - sudo yum -y update glibc
 
 script:
   - make 
