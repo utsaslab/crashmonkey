@@ -19,5 +19,5 @@ install:
   - sudo pip install progress progressbar
 
 script:
-  - cd crashmonkey && make 
+  - make 
 
