@@ -150,9 +150,8 @@ int DiskContents::unmount_and_delete_mount_point() {
   int err;
   string command = "umount ";
   command += mount_point;
-  system(command.c_str());
   do {
-    umount_res = umount(mount_point.c_str());
+    umount_res = system(command.c_str());
     if (umount_res < 0) {
       err = errno;
       usleep(500);
