@@ -54,8 +54,7 @@ void fileAttributes::set_md5sum(string file_path) {
   fp = popen(command.c_str(), "r");
   fscanf(fp, "%s", md5);
   fclose(fp);
-  string md5_str(md5);
-  md5sum = md5_str;
+  md5sum = string(md5);
 }
 
 bool fileAttributes::compare_dir_attr(struct dirent a) {
