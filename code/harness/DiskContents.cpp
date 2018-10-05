@@ -32,23 +32,6 @@ void fileAttributes::set_stat_attr(string path, bool islstat) {
     stat(path.c_str(), &stat_attr);
   }
   return;
-  /*
-  stat_attr = (struct stat *) malloc(sizeof(struct stat));
-
-  stat_attr->st_dev = a->st_dev;
-  stat_attr->st_ino = a->st_ino;
-  stat_attr->st_mode = a->st_mode;
-  stat_attr->st_nlink = a->st_nlink;
-  stat_attr->st_uid = a->st_uid;
-  stat_attr->st_gid = a->st_gid;
-  stat_attr->st_rdev = a->st_rdev;
-  stat_attr->st_size = a->st_size;
-  stat_attr->st_atime = a->st_atime;
-  stat_attr->st_mtime = a->st_mtime;
-  stat_attr->st_ctime = a->st_ctime;
-  stat_attr->st_blksize = a->st_blksize;
-  stat_attr->st_blocks = a->st_blocks;
-  */
 }
 
 void fileAttributes::set_md5sum(string file_path) {
