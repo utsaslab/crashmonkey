@@ -681,7 +681,7 @@ vector<milliseconds> Tester::test_fsck_and_user_test(
   // Begin test case timing.
   time_point<steady_clock> test_case_start_time = steady_clock::now();
   if (automate_check_test) {
-    bool retVal = check_disk_and_snapshot_contents(SNAPSHOT_PATH.c_str(), last_checkpoint);
+    bool retVal = check_disk_and_snapshot_contents(SNAPSHOT_PATH, last_checkpoint);
     if (!retVal) {
       test_info.data_test.SetError(
         fs_testing::tests::DataTestResult::kAutoCheckFailed);
@@ -716,7 +716,7 @@ vector<milliseconds> Tester::test_fsck_and_user_test(
   return res;
 }
 
-bool Tester::check_disk_and_snapshot_contents(const char* disk_path, int last_checkpoint) {
+bool Tester::check_disk_and_snapshot_contents(string disk_path, int last_checkpoint) {
 
   if (checkpointToSnapshot_.find(last_checkpoint) == checkpointToSnapshot_.end()) {
     std::cout << "ERROR: no saved snapshot at checkpoint " << last_checkpoint << endl;
@@ -728,12 +728,11 @@ bool Tester::check_disk_and_snapshot_contents(const char* disk_path, int last_ch
   ofstream diff_file;
   diff_file.open("diff-at-check" + to_string(last_checkpoint),
     std::fstream::out | std::fstream::app);
-  const char* type = fs_type.c_str();
 
-  DiskContents disk1(disk_path, type), disk2(snapshot_path.c_str(), type);
+  DiskContents disk1(disk_path, fs_type), disk2(snapshot_path, fs_type);
   disk1.set_mount_point("/mnt/snapshot");
 
-  assert((last_checkpoint < mods_.size()) && (last_checkpoint > 0));
+  assert(last_checkpoint < mods_.size() && (last_checkpoint > 0));
   for (auto i : mods_.at(last_checkpoint-1)) {
     if (i.mod_type == DiskMod::kFsyncMod) {
       string path(i.path);

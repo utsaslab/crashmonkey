@@ -9,6 +9,21 @@ namespace fs_testing {
 
 fileAttributes::fileAttributes() {
   md5sum = "";
+  // Initialize dir_attr entries
+  dir_attr.d_ino = -1;
+  dir_attr.d_off = -1;
+  dir_attr.d_reclen = -1;
+  dir_attr.d_type = -1;
+  dir_attr.d_name[0] = '\0';
+  // Initialize stat_attr entried
+  stat_attr.st_ino == -1;
+  stat_attr.st_mode = -1;
+  stat_attr.st_nlink = -1;
+  stat_attr.st_uid = -1;
+  stat_attr.st_gid = -1;
+  stat_attr.st_size = -1;
+  stat_attr.st_blksize = -1;
+  stat_attr.st_blocks = -1;
 }
 
 fileAttributes::~fileAttributes() {
@@ -96,34 +111,28 @@ ofstream& operator<< (ofstream& os, fileAttributes& a) {
   os << "RootDev ID: " << (a.stat_attr).st_dev << endl;
 }
 
-DiskContents::DiskContents(const char* path, const char* type) {
-  disk_path = (char *) malloc(sizeof(char)*30);
-  mount_point = (char *) malloc(sizeof(char)*40);
-  fs_type = (char *) malloc(sizeof(char)*10);
-  strcpy(disk_path, path);
-  strcpy(fs_type, type);
+DiskContents::DiskContents(string path, string type) {
+  disk_path = path;
+  fs_type = type;
   device_mounted = false;
 }
 
 DiskContents::~DiskContents() {
-  free(disk_path);
-  free(mount_point);
-  free(fs_type);
 }
 
 int DiskContents::mount_disk() {
   // Construct and set mount_point
-  strcpy(mount_point, "/mnt/");
-  strcat(mount_point, (disk_path + 5));
+  mount_point = "/mnt/";
+  mount_point += disk_path.substr(5);
   // Create the mount directory with read/write/search permissions for owner and group, 
   // and with read/search permissions for others.
-  int ret = mkdir(mount_point, S_IRWXU | S_IRWXG | S_IROTH | S_IXOTH);
+  int ret = mkdir(mount_point.c_str(), S_IRWXU | S_IRWXG | S_IROTH | S_IXOTH);
   if (ret == -1 && errno != EEXIST) {
     cout << "creating mountpoint failed" << endl;
     return -1;
   }
   // Mount the disk
-  if (mount(disk_path, mount_point, fs_type, MS_RDONLY, NULL) < 0) {
+  if (mount(disk_path.c_str(), mount_point.c_str(), fs_type.c_str(), MS_RDONLY, NULL) < 0) {
     return -1;
   }
   // sleep after mount
@@ -144,7 +153,7 @@ int DiskContents::unmount_and_delete_mount_point() {
   command += mount_point;
   system(command.c_str());
   do {
-    umount_res = umount(mount_point);
+    umount_res = umount(mount_point.c_str());
     if (umount_res < 0) {
       err = errno;
       usleep(500);
@@ -152,7 +161,7 @@ int DiskContents::unmount_and_delete_mount_point() {
   } while (umount_res < 0 && err == EBUSY);
 
   // Delete the mount directory
-  if (unlink(mount_point) != 0) {
+  if (unlink(mount_point.c_str()) != 0) {
     return -1;
   }
   device_mounted = false;
@@ -160,7 +169,7 @@ int DiskContents::unmount_and_delete_mount_point() {
 }
 
 void DiskContents::set_mount_point(string path) {
-  strcpy(mount_point, path.c_str());
+  mount_point = path;
 }
 
 void DiskContents::get_contents(const char* path) {
@@ -180,7 +189,7 @@ void DiskContents::get_contents(const char* path) {
     string filename(dir_entry->d_name);
     string current_path = parent_path + "/" + filename;
     string relative_path = current_path;
-    relative_path.erase(0, strlen(mount_point));
+    relative_path.erase(0, mount_point.length());
     struct stat statbuf;
     fileAttributes fa;
     if (stat(current_path.c_str(), &statbuf) == -1) {
@@ -215,14 +224,14 @@ void DiskContents::get_contents(const char* path) {
   closedir(directory);
 }
 
-const char* DiskContents::get_mount_point() {
+string DiskContents::get_mount_point() {
   return mount_point;
 }
 
 bool DiskContents::compare_disk_contents(DiskContents &compare_disk, ofstream &diff_file) {
   bool retValue = true;
 
-  if (strcmp(disk_path, compare_disk.disk_path) == 0) {
+  if (disk_path.compare(compare_disk.disk_path) == 0) {
     return retValue;
   }
 
@@ -233,7 +242,7 @@ bool DiskContents::compare_disk_contents(DiskContents &compare_disk, ofstream &d
     cout << "Mounting " << compare_disk.disk_path << " failed" << endl;
   }
 
-  compare_disk.get_contents(compare_disk.get_mount_point());
+  compare_disk.get_contents(compare_disk.get_mount_point().c_str());
 
   // Compare the size of contents
   if (contents.size() != compare_disk.contents.size()) {
@@ -296,7 +305,7 @@ bool DiskContents::compare_entries_at_path(DiskContents &compare_disk,
   string &path, ofstream &diff_file) {
   bool retValue = true;
 
-  if (strcmp(disk_path, compare_disk.disk_path) == 0) {
+  if (disk_path.compare(compare_disk.disk_path) == 0) {
     return retValue;
   }
 
@@ -358,7 +367,7 @@ bool DiskContents::compare_entries_at_path(DiskContents &compare_disk,
 bool DiskContents::compare_file_contents(DiskContents &compare_disk, string path,
     int offset, int length, ofstream &diff_file) {
   bool retValue = true;
-  if (strcmp(disk_path, compare_disk.disk_path) == 0) {
+  if (disk_path.compare(compare_disk.disk_path) == 0) {
     return retValue;
   }
 
