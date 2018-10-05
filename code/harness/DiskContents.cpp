@@ -363,6 +363,8 @@ bool DiskContents::compare_entries_at_path(DiskContents &compare_disk,
   return retValue;
 }
 
+// TODO[P.S]: Compare fixed sized segments of files,
+// to support comparing very large files.
 bool DiskContents::compare_file_contents(DiskContents &compare_disk, string path,
     int offset, int length, ofstream &diff_file) {
   bool retValue = true;
