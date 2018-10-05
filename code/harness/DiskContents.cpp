@@ -8,7 +8,6 @@ using std::ofstream;
 namespace fs_testing {
 
 fileAttributes::fileAttributes() {
-  dir_attr = NULL;
   md5sum = "";
 }
 
@@ -16,13 +15,12 @@ fileAttributes::~fileAttributes() {
 }
 
 void fileAttributes::set_dir_attr(struct dirent* a) {
-  dir_attr = (struct dirent *) malloc(sizeof(struct dirent));
-  dir_attr->d_ino = a->d_ino;
-  dir_attr->d_off = a->d_off;
-  dir_attr->d_reclen = a->d_reclen;
-  dir_attr->d_type = a->d_type;
-  strncpy(dir_attr->d_name, a->d_name, sizeof(a->d_name));
-  dir_attr->d_name[sizeof(a->d_name) - 1] = '\0';
+  dir_attr.d_ino = a->d_ino;
+  dir_attr.d_off = a->d_off;
+  dir_attr.d_reclen = a->d_reclen;
+  dir_attr.d_type = a->d_type;
+  strncpy(dir_attr.d_name, a->d_name, sizeof(a->d_name));
+  dir_attr.d_name[sizeof(a->d_name) - 1] = '\0';
 }
 
 void fileAttributes::set_stat_attr(string path, bool islstat) {
@@ -45,17 +43,13 @@ void fileAttributes::set_md5sum(string file_path) {
   md5sum = md5_str;
 }
 
-bool fileAttributes::compare_dir_attr(struct dirent* a) {
-  if (a == NULL && dir_attr == NULL) {
-    return true;
-  } else if (a == NULL || dir_attr == NULL) {
-    return false;
-  }
-  return ((dir_attr->d_ino == a->d_ino) &&
-    (dir_attr->d_off == a->d_off) &&
-    (dir_attr->d_reclen == a->d_reclen) &&
-    (dir_attr->d_type == a->d_type) &&
-    (strcmp(dir_attr->d_name, a->d_name) == 0));
+bool fileAttributes::compare_dir_attr(struct dirent a) {
+
+  return ((dir_attr.d_ino == a.d_ino) &&
+    (dir_attr.d_off == a.d_off) &&
+    (dir_attr.d_reclen == a.d_reclen) &&
+    (dir_attr.d_type == a.d_type) &&
+    (strcmp(dir_attr.d_name, a.d_name) == 0));
 }
 
 bool fileAttributes::compare_stat_attr(struct stat a) {
@@ -82,14 +76,12 @@ bool fileAttributes::is_regular_file() {
 
 ofstream& operator<< (ofstream& os, fileAttributes& a) {
   // print dir_attr
-  if (a.dir_attr != NULL) {
-    os << "---Directory Atrributes---" << endl;
-    os << "Name   : " << (a.dir_attr)->d_name << endl;
-    os << "Inode  : " << (a.dir_attr)->d_ino << endl;
-    os << "Offset : " << (a.dir_attr)->d_off << endl;
-    os << "Length : " << (a.dir_attr)->d_reclen << endl;
-    os << "Type   : " << (a.dir_attr)->d_type << endl;
-  }
+  os << "---Directory Atrributes---" << endl;
+  os << "Name   : " << (a.dir_attr).d_name << endl;
+  os << "Inode  : " << (a.dir_attr).d_ino << endl;
+  os << "Offset : " << (a.dir_attr).d_off << endl;
+  os << "Length : " << (a.dir_attr).d_reclen << endl;
+  os << "Type   : " << (a.dir_attr).d_type << endl;
   // print stat_attr
   os << "---File Stat Atrributes---" << endl;
   os << "Inode     : " << (a.stat_attr).st_ino << endl;

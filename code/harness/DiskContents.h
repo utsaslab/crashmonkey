@@ -21,7 +21,7 @@ namespace fs_testing {
 
 class fileAttributes {
 public:
-  struct dirent* dir_attr;
+  struct dirent dir_attr;
   struct stat stat_attr;
   std::string md5sum;
 
@@ -31,7 +31,7 @@ public:
   void set_dir_attr(struct dirent* a);
   void set_stat_attr(std::string path, bool islstat);
   void set_md5sum(std::string filepath);
-  bool compare_dir_attr(struct dirent* a);
+  bool compare_dir_attr(struct dirent a);
   bool compare_stat_attr(struct stat a);
   bool compare_md5sum(std::string a);
   bool is_regular_file();
