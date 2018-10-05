@@ -101,8 +101,7 @@ using fs_testing::utils::DiskWriteData;
 Tester::Tester(const unsigned int dev_size, const unsigned int sector_size,
     const bool verbosity)
   : device_size(dev_size), sector_size_(sector_size), verbose(verbosity) {
-  SNAPSHOT_PATH = (char *) malloc(sizeof(char)*30);
-  strcpy(SNAPSHOT_PATH, "/dev/cow_ram_snapshot1_0");
+  SNAPSHOT_PATH = "/dev/cow_ram_snapshot1_0";
 }
 
 Tester::~Tester() {
@@ -204,7 +203,7 @@ int Tester::umount_device() {
 }
 
 int Tester::mount_snapshot() {
-  if (mount(SNAPSHOT_PATH, MNT_MNT_POINT, fs_type.c_str(), 0, NULL) < 0) {
+  if (mount(SNAPSHOT_PATH.c_str(), MNT_MNT_POINT, fs_type.c_str(), 0, NULL) < 0) {
     return MNT_MNT_ERR;
   }
   return SUCCESS;
@@ -221,9 +220,7 @@ int Tester::mapCheckpointToSnapshot(int checkpoint) {
   if (checkpointToSnapshot_.find(checkpoint) != checkpointToSnapshot_.end()) {
     return -1;
   }
-  std::string snapshot(SNAPSHOT_PATH);
-  checkpointToSnapshot_[checkpoint] = (char *) malloc(sizeof(char)*30);
-  strcpy(checkpointToSnapshot_[checkpoint], snapshot.c_str());
+  checkpointToSnapshot_[checkpoint] = SNAPSHOT_PATH;
   std::cout << "Mapping " << SNAPSHOT_PATH << " to checkpoint " << checkpoint << std::endl;
   return 0;
 }
@@ -237,7 +234,7 @@ int Tester::getNewDiskClone(int checkpoint) {
   new_snapshot_path += snapshot_number;
   new_snapshot_path += device_number;
   // Finally set SNAPSHOT_PATH to the new snapshot path
-  strcpy(SNAPSHOT_PATH, new_snapshot_path.c_str());
+  SNAPSHOT_PATH = new_snapshot_path;
   string command = fs_specific_ops_->GetNewUUIDCommand(new_snapshot_path);
   system(command.c_str());
   return 0;
@@ -684,7 +681,7 @@ vector<milliseconds> Tester::test_fsck_and_user_test(
   // Begin test case timing.
   time_point<steady_clock> test_case_start_time = steady_clock::now();
   if (automate_check_test) {
-    bool retVal = check_disk_and_snapshot_contents(SNAPSHOT_PATH, last_checkpoint);
+    bool retVal = check_disk_and_snapshot_contents(SNAPSHOT_PATH.c_str(), last_checkpoint);
     if (!retVal) {
       test_info.data_test.SetError(
         fs_testing::tests::DataTestResult::kAutoCheckFailed);
@@ -719,24 +716,24 @@ vector<milliseconds> Tester::test_fsck_and_user_test(
   return res;
 }
 
-bool Tester::check_disk_and_snapshot_contents(char* disk_path, int last_checkpoint) {
+bool Tester::check_disk_and_snapshot_contents(const char* disk_path, int last_checkpoint) {
 
   if (checkpointToSnapshot_.find(last_checkpoint) == checkpointToSnapshot_.end()) {
     std::cout << "ERROR: no saved snapshot at checkpoint " << last_checkpoint << endl;
     return false;
   }
 
-  char* snapshot_path = (char *) malloc(sizeof(char)*30);
-  strcpy(snapshot_path, checkpointToSnapshot_[last_checkpoint]);
+  string snapshot_path;
+  snapshot_path = checkpointToSnapshot_[last_checkpoint];
   ofstream diff_file;
   diff_file.open("diff-at-check" + to_string(last_checkpoint),
     std::fstream::out | std::fstream::app);
   const char* type = fs_type.c_str();
 
-  DiskContents disk1(disk_path, type), disk2(snapshot_path, type);
+  DiskContents disk1(disk_path, type), disk2(snapshot_path.c_str(), type);
   disk1.set_mount_point("/mnt/snapshot");
 
-  assert(last_checkpoint < mods_.size());
+  assert((last_checkpoint < mods_.size()) && (last_checkpoint > 0));
   for (auto i : mods_.at(last_checkpoint-1)) {
     if (i.mod_type == DiskMod::kFsyncMod) {
       string path(i.path);
@@ -818,7 +815,7 @@ int Tester::test_check_random_permutations(bool full_bio_replay,
     }
 
     // Restore disk clone.
-    int cow_brd_snapshot_fd = open(SNAPSHOT_PATH, O_WRONLY);
+    int cow_brd_snapshot_fd = open(SNAPSHOT_PATH.c_str(), O_WRONLY);
     if (cow_brd_snapshot_fd < 0) {
       test_info.fs_test.SetError(FileSystemTestResult::kSnapshotRestore);
       test_info.PrintResults(log);
@@ -952,7 +949,7 @@ int Tester::test_check_log_replay(std::ofstream& log, bool automate_check_test) 
     test_info.test_num = test_num++;
 
     // 1. Restore disk clone.
-    int cow_brd_snapshot_fd = open(SNAPSHOT_PATH, O_WRONLY);
+    int cow_brd_snapshot_fd = open(SNAPSHOT_PATH.c_str(), O_WRONLY);
     if (cow_brd_snapshot_fd < 0) {
       test_info.fs_test.SetError(FileSystemTestResult::kSnapshotRestore);
       test_info.PrintResults(log);

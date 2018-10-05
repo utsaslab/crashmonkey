@@ -22,17 +22,17 @@ namespace fs_testing {
 class fileAttributes {
 public:
   struct dirent* dir_attr;
-  struct stat* stat_attr;
+  struct stat stat_attr;
   std::string md5sum;
 
   fileAttributes();
   ~fileAttributes();
 
   void set_dir_attr(struct dirent* a);
-  void set_stat_attr(struct stat* a);
+  void set_stat_attr(std::string path, bool islstat);
   void set_md5sum(std::string filepath);
   bool compare_dir_attr(struct dirent* a);
-  bool compare_stat_attr(struct stat *a);
+  bool compare_stat_attr(struct stat a);
   bool compare_md5sum(std::string a);
   bool is_regular_file();
 };
@@ -40,7 +40,7 @@ public:
 class DiskContents {
 public:
   // Constructor and Destructor
-  DiskContents(char* path, const char* type);
+  DiskContents(const char* path, const char* type);
   ~DiskContents();
   
   int mount_disk();
@@ -48,7 +48,7 @@ public:
   void set_mount_point(std::string path);
   int unmount_and_delete_mount_point();
   bool compare_disk_contents(DiskContents &compare_disk, std::ofstream &diff_file);
-  bool compare_entries_at_path(DiskContents &compare_disk, std::string path,
+  bool compare_entries_at_path(DiskContents &compare_disk, std::string &path,
     std::ofstream &diff_file);
   bool compare_file_contents(DiskContents &compare_disk, std::string path,
     int offset, int length, std::ofstream &diff_file);

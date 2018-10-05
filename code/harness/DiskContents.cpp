@@ -9,7 +9,6 @@ namespace fs_testing {
 
 fileAttributes::fileAttributes() {
   dir_attr = NULL;
-  stat_attr = NULL;
   md5sum = "";
 }
 
@@ -26,7 +25,14 @@ void fileAttributes::set_dir_attr(struct dirent* a) {
   dir_attr->d_name[sizeof(a->d_name) - 1] = '\0';
 }
 
-void fileAttributes::set_stat_attr(struct stat* a) {
+void fileAttributes::set_stat_attr(string path, bool islstat) {
+  if (islstat) {
+    lstat(path.c_str(), &stat_attr);
+  } else {
+    stat(path.c_str(), &stat_attr);
+  }
+  return;
+  /*
   stat_attr = (struct stat *) malloc(sizeof(struct stat));
 
   stat_attr->st_dev = a->st_dev;
@@ -42,6 +48,7 @@ void fileAttributes::set_stat_attr(struct stat* a) {
   stat_attr->st_ctime = a->st_ctime;
   stat_attr->st_blksize = a->st_blksize;
   stat_attr->st_blocks = a->st_blocks;
+  */
 }
 
 void fileAttributes::set_md5sum(string file_path) {
@@ -68,23 +75,18 @@ bool fileAttributes::compare_dir_attr(struct dirent* a) {
     (strcmp(dir_attr->d_name, a->d_name) == 0));
 }
 
-bool fileAttributes::compare_stat_attr(struct stat *a) {
-  if (a == NULL && stat_attr == NULL) {
-    return true;
-  } else if (a == NULL || stat_attr == NULL) {
-    return false;
-  }
+bool fileAttributes::compare_stat_attr(struct stat a) {
 
-  return ((stat_attr->st_ino == a->st_ino) &&
-    (stat_attr->st_mode == a->st_mode) &&
-    (stat_attr->st_nlink == a->st_nlink) &&
-    (stat_attr->st_uid == a->st_uid) &&
-    (stat_attr->st_gid == a->st_gid) &&
-    // (stat_attr->st_rdev == a->st_rdev) &&
-    // (stat_attr->st_dev == a->st_dev) &&
-    (stat_attr->st_size == a->st_size) &&
-    (stat_attr->st_blksize == a->st_blksize) &&
-    (stat_attr->st_blocks == a->st_blocks));
+  return ((stat_attr.st_ino == a.st_ino) &&
+    (stat_attr.st_mode == a.st_mode) &&
+    (stat_attr.st_nlink == a.st_nlink) &&
+    (stat_attr.st_uid == a.st_uid) &&
+    (stat_attr.st_gid == a.st_gid) &&
+    // (stat_attr.st_rdev == a.st_rdev) &&
+    // (stat_attr.st_dev == a.st_dev) &&
+    (stat_attr.st_size == a.st_size) &&
+    (stat_attr.st_blksize == a.st_blksize) &&
+    (stat_attr.st_blocks == a.st_blocks));
 }
 
 bool fileAttributes::compare_md5sum(string a) {
@@ -92,7 +94,7 @@ bool fileAttributes::compare_md5sum(string a) {
 }
 
 bool fileAttributes::is_regular_file() {
-  return S_ISREG(stat_attr->st_mode);
+  return S_ISREG(stat_attr.st_mode);
 }
 
 ofstream& operator<< (ofstream& os, fileAttributes& a) {
@@ -106,22 +108,20 @@ ofstream& operator<< (ofstream& os, fileAttributes& a) {
     os << "Type   : " << (a.dir_attr)->d_type << endl;
   }
   // print stat_attr
-  if (a.stat_attr != NULL) {
-    os << "---File Stat Atrributes---" << endl;
-    os << "Inode     : " << (a.stat_attr)->st_ino << endl;
-    os << "TotalSize : " << (a.stat_attr)->st_size << endl;
-    os << "BlockSize : " << (a.stat_attr)->st_blksize << endl;
-    os << "#Blocks   : " << (a.stat_attr)->st_blocks << endl;
-    os << "#HardLinks: " << (a.stat_attr)->st_nlink << endl;
-    os << "Mode      : " << (a.stat_attr)->st_mode << endl;
-    os << "User ID   : " << (a.stat_attr)->st_uid << endl;
-    os << "Group ID  : " << (a.stat_attr)->st_gid << endl;
-    os << "Device ID : " << (a.stat_attr)->st_rdev << endl;
-    os << "RootDev ID: " << (a.stat_attr)->st_dev << endl;
-  }
+  os << "---File Stat Atrributes---" << endl;
+  os << "Inode     : " << (a.stat_attr).st_ino << endl;
+  os << "TotalSize : " << (a.stat_attr).st_size << endl;
+  os << "BlockSize : " << (a.stat_attr).st_blksize << endl;
+  os << "#Blocks   : " << (a.stat_attr).st_blocks << endl;
+  os << "#HardLinks: " << (a.stat_attr).st_nlink << endl;
+  os << "Mode      : " << (a.stat_attr).st_mode << endl;
+  os << "User ID   : " << (a.stat_attr).st_uid << endl;
+  os << "Group ID  : " << (a.stat_attr).st_gid << endl;
+  os << "Device ID : " << (a.stat_attr).st_rdev << endl;
+  os << "RootDev ID: " << (a.stat_attr).st_dev << endl;
 }
 
-DiskContents::DiskContents(char* path, const char* type) {
+DiskContents::DiskContents(const char* path, const char* type) {
   disk_path = (char *) malloc(sizeof(char)*30);
   mount_point = (char *) malloc(sizeof(char)*40);
   fs_type = (char *) malloc(sizeof(char)*10);
@@ -131,9 +131,9 @@ DiskContents::DiskContents(char* path, const char* type) {
 }
 
 DiskContents::~DiskContents() {
-  // free(disk_path);
-  // free(mount_point);
-  // free(fs_type);
+  free(disk_path);
+  free(mount_point);
+  free(fs_type);
 }
 
 int DiskContents::mount_disk() {
@@ -216,7 +216,7 @@ void DiskContents::get_contents(const char* path) {
         continue;
       }
       fa.set_dir_attr(dir_entry);
-      fa.set_stat_attr(&statbuf);
+      fa.set_stat_attr(current_path, false);
       contents[relative_path] = fa;
       // If the entry is a directory and not . or .. make a recursive call
       get_contents(current_path.c_str());
@@ -226,14 +226,14 @@ void DiskContents::get_contents(const char* path) {
       if (lstat(current_path.c_str(), &lstatbuf) == -1) {
         continue;
       }
-      fa.set_stat_attr(&lstatbuf);
+      fa.set_stat_attr(current_path, true);
       contents[relative_path] = fa;
     } else if (dir_entry->d_type == DT_REG) {
       fa.set_md5sum(current_path);
-      fa.set_stat_attr(&statbuf);
+      fa.set_stat_attr(current_path, false);
       contents[relative_path] = fa;
     } else {
-      fa.set_stat_attr(&statbuf);
+      fa.set_stat_attr(current_path, false);
       contents[relative_path] = fa;
     }
   } while (dir_entry = readdir(directory));
@@ -266,13 +266,13 @@ bool DiskContents::compare_disk_contents(DiskContents &compare_disk, ofstream &d
     diff_file << "Unequal #entries in " << disk_path << ", " << compare_disk.disk_path;
     diff_file << endl << endl;
     diff_file << disk_path << " contains:" << endl;
-    for (auto i : contents) {
+    for (auto &i : contents) {
       diff_file << i.first << endl;
     }
     diff_file << endl;
 
     diff_file << compare_disk.disk_path << " contains:" << endl;
-    for (auto i : compare_disk.contents) {
+    for (auto &i : compare_disk.contents) {
       diff_file << i.first << endl;
     }
     diff_file << endl;
@@ -280,7 +280,7 @@ bool DiskContents::compare_disk_contents(DiskContents &compare_disk, ofstream &d
   }
 
   // entry-wise comparision
-  for (auto i : contents) {
+  for (auto &i : contents) {
     fileAttributes i_fa = i.second;
     if (compare_disk.contents.find((i.first)) == compare_disk.contents.end()) {
       diff_file << "DIFF: Missing " << i.first << endl;
@@ -312,14 +312,13 @@ bool DiskContents::compare_disk_contents(DiskContents &compare_disk, ofstream &d
       }
     }
   }
-  // TODO(P.S.) Fix the unmount issue and uncomment the function below.
   compare_disk.unmount_and_delete_mount_point();
   return retValue;
 }
 
 // TODO(P.S.) Cleanup the code and pull out redundant code into separate functions
 bool DiskContents::compare_entries_at_path(DiskContents &compare_disk,
-  string path, ofstream &diff_file) {
+  string &path, ofstream &diff_file) {
   bool retValue = true;
 
   if (strcmp(disk_path, compare_disk.disk_path) == 0) {
@@ -352,8 +351,8 @@ bool DiskContents::compare_entries_at_path(DiskContents &compare_disk,
     return false;
   }
 
-  base_fa.set_stat_attr(&base_statbuf);
-  compare_fa.set_stat_attr(&compare_statbuf);
+  base_fa.set_stat_attr(base_path, false);
+  compare_fa.set_stat_attr(compare_path, false);
   if (!(base_fa.compare_stat_attr(compare_fa.stat_attr))) {
     diff_file << "DIFF: Content Mismatch " << path << endl << endl;
     diff_file << base_path << ":" << endl;
@@ -377,7 +376,6 @@ bool DiskContents::compare_entries_at_path(DiskContents &compare_disk,
     }
   }
 
-  // TODO(P.S.) Fix the unmount issue and uncomment the function below.
   compare_disk.unmount_and_delete_mount_point();
   return retValue;
 }
@@ -539,7 +537,7 @@ bool DiskContents::deleteFiles(string path, ofstream &diff_file) {
 bool DiskContents::makeFiles(string base_path, ofstream &diff_file) {
   get_contents(base_path.c_str());
   for (auto &i : contents) {
-    if (S_ISDIR((i.second).stat_attr->st_mode)) {
+    if (S_ISDIR((i.second).stat_attr.st_mode)) {
       string filepath = base_path + i.first + "/" + "_dummy";
       int fd = open(filepath.c_str(), O_CREAT|O_RDWR);
       if (fd < 0) {
