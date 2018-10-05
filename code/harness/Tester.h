@@ -17,8 +17,6 @@
 #include "../utils/DiskMod.h"
 #include "../utils/utils.h"
 
-using std::string;
-
 #define SUCCESS                  0
 #define DRIVE_CLONE_ERR          -1
 #define DRIVE_CLONE_RESTORE_ERR  -2
@@ -70,9 +68,9 @@ class Tester {
       const bool verbosity);
   ~Tester();
   const bool verbose = false;
-  void set_fs_type(const string type);
-  void set_device(const string device_path);
-  void set_flag_device(const string device_path);
+  void set_fs_type(const std::string type);
+  void set_device(const std::string device_path);
+  void set_flag_device(const std::string device_path);
 
   const char* update_dirty_expire_time(const char* time);
 
@@ -88,7 +86,7 @@ class Tester {
   int test_load_class(const char* path);
   void test_unload_class();
   int test_setup();
-  int test_init_values(string mountDir, long filesysSize);
+  int test_init_values(std::string mountDir, long filesysSize);
   int test_run(const int change_fd, const int checkpoint);
   int test_check_random_permutations(const bool full_bio_replay,
       const int num_rounds, std::ofstream& log);
@@ -126,10 +124,10 @@ class Tester {
   void cleanup_harness();
   // TODO(ashmrtn): Save the fstype in the log file so that we don't
   // accidentally mix logs of one fs type with mount options for another?
-  int log_profile_save(string log_file);
-  int log_profile_load(string log_file);
-  int log_snapshot_save(string log_file);
-  int log_snapshot_load(string log_file);
+  int log_profile_save(std::string log_file);
+  int log_profile_load(std::string log_file);
+  int log_snapshot_save(std::string log_file);
+  int log_snapshot_load(std::string log_file);
   void log_disk_write_data(std::ostream &log);
 
   std::chrono::milliseconds get_timing_stat(time_stats timing_stat);
@@ -149,10 +147,10 @@ class Tester {
     permuter_loader;
 
   char dirty_expire_time[DIRTY_EXPIRE_TIME_SIZE];
-  string fs_type;
-  string device_raw;
-  string device_mount;
-  string flags_device;
+  std::string fs_type;
+  std::string device_raw;
+  std::string device_mount;
+  std::string flags_device;
 
   TestSuiteResult *current_test_suite_ = NULL;
 
@@ -180,17 +178,17 @@ class Tester {
       const std::vector<fs_testing::utils::DiskWriteData>::iterator &end);
 
   std::vector<std::chrono::milliseconds> test_fsck_and_user_test(
-      const string device_path, const unsigned int last_checkpoint,
+      const std::string device_path, const unsigned int last_checkpoint,
       SingleTestInfo &test_info, bool automate_check_test);
 
-  bool check_disk_and_snapshot_contents(string disk_path, int last_checkpoint);
+  bool check_disk_and_snapshot_contents(std::string disk_path, int last_checkpoint);
 
   std::vector<TestSuiteResult> test_results_;
   std::chrono::milliseconds timing_stats[NUM_TIME] =
       {std::chrono::milliseconds(0)};
 
-  std::map<int, string> checkpointToSnapshot_;
-  string SNAPSHOT_PATH;
+  std::map<int, std::string> checkpointToSnapshot_;
+  std::string snapshot_path_;
 
 };
 

@@ -17,53 +17,51 @@
 #include <vector>
 #include <map>
 
-using std::string;
-
 namespace fs_testing {
 
 class fileAttributes {
 public:
   struct dirent dir_attr;
   struct stat stat_attr;
-  string md5sum;
+  std::string md5sum;
 
   fileAttributes();
   ~fileAttributes();
 
   void set_dir_attr(struct dirent* a);
-  void set_stat_attr(string path, bool islstat);
-  void set_md5sum(string filepath);
+  void set_stat_attr(std::string path, bool islstat);
+  void set_md5sum(std::string filepath);
   bool compare_dir_attr(struct dirent a);
   bool compare_stat_attr(struct stat a);
-  bool compare_md5sum(string a);
+  bool compare_md5sum(std::string a);
   bool is_regular_file();
 };
 
 class DiskContents {
 public:
   // Constructor and Destructor
-  DiskContents(string path, string type);
+  DiskContents(std::string path, std::string type);
   ~DiskContents();
   
   int mount_disk();
-  string get_mount_point();
-  void set_mount_point(string path);
+  std::string get_mount_point();
+  void set_mount_point(std::string path);
   int unmount_and_delete_mount_point();
   bool compare_disk_contents(DiskContents &compare_disk, std::ofstream &diff_file);
-  bool compare_entries_at_path(DiskContents &compare_disk, string &path,
+  bool compare_entries_at_path(DiskContents &compare_disk, std::string &path,
     std::ofstream &diff_file);
-  bool compare_file_contents(DiskContents &compare_disk, string path,
+  bool compare_file_contents(DiskContents &compare_disk, std::string path,
     int offset, int length, std::ofstream &diff_file);
-  bool deleteFiles(string path, std::ofstream &diff_file);
-  bool makeFiles(string base_path, std::ofstream &diff_file);
+  bool deleteFiles(std::string path, std::ofstream &diff_file);
+  bool makeFiles(std::string base_path, std::ofstream &diff_file);
   bool sanity_checks(std::ofstream &diff_file);
 
 private:
   bool device_mounted;
-  string disk_path;
-  string mount_point;
-  string fs_type;
-  std::map<string, fileAttributes> contents;
+  std::string disk_path;
+  std::string mount_point;
+  std::string fs_type;
+  std::map<std::string, fileAttributes> contents;
   void compare_contents(DiskContents &compare_disk, std::ofstream &diff_file);
   void get_contents(const char* path);
 };
