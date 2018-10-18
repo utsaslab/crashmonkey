@@ -207,7 +207,7 @@ All these steps have been assembled for you in the script [here](demo.sh). The l
 
 ## Research that uses our tools ##
 1. *Barrier-Enabled IO Stack for Flash Storage*. Youjip Won, Hanyang University; Jaemin Jung, Texas A&M University; Gyeongyeol Choi, Joontaek Oh, and Seongbae Son, Hanyang University; Jooyoung Hwang and Sangyeun Cho, Samsung Electronics. Proceedings of the 16th USENIX Conference on File and Storage Technologies (FAST 18). [Link](https://www.usenix.org/conference/fast18/presentation/won)
-
+2. *Bringing Order to Chaos: Barrier-Enabled I/O Stack for Flash Storage*. Youjin Won, Joontaek Oh, Jaemin Jung, Gyeongyeol Choi, Seongbae Son, Jooyoung Hwang, and Sangyeun Cho. "Bringing Order to Chaos: Barrier-Enabled I/O Stack for Flash Storage." ACM Transactions on Storage (TOS) 14, no. 3 (2018): 24. 2018. ACM Transactions on Storage (TOS), 14(3), p.24. [Link](https://dl.acm.org/citation.cfm?id=3242091)
 
 ## Contact Info ##
 Please contact us at vijay@cs.utexas.edu with any questions. Drop us a note if you are using or plan to use CrashMonkey or Ace to test your file system.
