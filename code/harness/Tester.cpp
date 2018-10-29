@@ -273,16 +273,34 @@ int Tester::insert_cow_brd() {
 }
 
 int Tester::remove_cow_brd() {
+  // Sometimes the disk wrapper module takes time to unload.
+  // So retry cow-brd unload for upto a second.
+  milliseconds elapsed;
   if (cow_brd_inserted) {
     if (cow_brd_fd != -1) {
       close(cow_brd_fd);
       cow_brd_fd = -1;
       cow_brd_inserted = false;
     }
-    if (system(COW_BRD_RMMOD) != 0) {
-      cow_brd_inserted = true;
-      return WRAPPER_REMOVE_ERR;
-    }
+    int res, num_tries = 0;
+    string command = COW_BRD_RMMOD SILENT;
+    time_point<steady_clock> rmmod_start_time = steady_clock::now();
+    do {
+      res = system(command.c_str());
+      time_point<steady_clock> rmmod_end_time = steady_clock::now();
+      elapsed = duration_cast<milliseconds>(rmmod_end_time - rmmod_start_time);
+      if (res != 0) {
+	usleep(500);
+        num_tries ++;
+      }
+    } while (res != 0 && elapsed.count() < 1000);
+      
+     if (res != 0) {
+        cow_brd_inserted = true;
+        return WRAPPER_REMOVE_ERR;
+      }
+     
+     //cout << "Time to rmmod " << elapsed.count() << " num tries = " << num_tries << endl;
   }
   return SUCCESS;
 }
@@ -1116,7 +1134,16 @@ bool Tester::test_write_data(const int disk_fd,
 }
 
 void Tester::cleanup_harness() {
-  if (umount_device() != SUCCESS) {
+  int umount_res;
+  int err;
+  do {
+    umount_res = umount_device();
+    if (umount_res < 0) {
+      err = errno;
+      usleep(500);
+    }
+  } while (umount_res < 0 && err == EBUSY);
+  if (umount_res < 0) {
     cerr << "Unable to unmount device" << endl;
     permuter_unload_class();
     test_unload_class();
