@@ -325,11 +325,27 @@ int Tester::insert_wrapper() {
 }
 
 int Tester::remove_wrapper() {
+  milliseconds elapsed;
   if (wrapper_inserted) {
-    if (system(WRAPPER_RMMOD) != 0) {
-      wrapper_inserted = true;
-      return WRAPPER_REMOVE_ERR;
-    }
+    int res, num_tries = 0;
+    string command = WRAPPER_RMMOD SILENT;
+    time_point<steady_clock> rmmod_start_time = steady_clock::now();
+    do {
+      res = system(command.c_str());
+      time_point<steady_clock> rmmod_end_time = steady_clock::now();
+      elapsed = duration_cast<milliseconds>(rmmod_end_time - rmmod_start_time);
+      if (res != 0) {
+        usleep(500);
+        num_tries ++;
+      }
+    } while (res != 0 && elapsed.count() < 1000);
+
+     if (res != 0) {
+        wrapper_inserted = true;
+        return WRAPPER_REMOVE_ERR;
+      }
+
+     cout << "Time to rmmod " << elapsed.count() << " num tries = " << num_tries << endl;
   }
   wrapper_inserted = false;
   return SUCCESS;
