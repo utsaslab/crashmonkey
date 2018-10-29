@@ -92,7 +92,8 @@ def main():
 	
 	#This is the directory that contains the bug reports from this xfsMonkey run
 	subprocess.call('mkdir diff_results', shell=True)
-    
+	subprocess.call('echo 0 > missing; echo 0 > stat; echo 0 > bugs; echo 0 > others', shell=True)    
+
 	#Get the relative path to test directory
 	xfsMonkeyTestPath = './' + parsed_args.test_path
 
