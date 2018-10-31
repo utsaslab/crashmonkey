@@ -135,7 +135,7 @@ int DiskContents::mount_disk() {
     return -1;
   }
   // sleep after mount
-  unsigned int to_sleep = 1;
+  unsigned int to_sleep = 0;
   do {
     to_sleep = sleep(to_sleep);
   } while (to_sleep > 0);

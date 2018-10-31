@@ -572,12 +572,13 @@ int main(int argc, char** argv) {
     }
 
     // TODO(ashmrtn): Can probably remove this...
+    /*
     cout << "Sleeping after mount" << endl;
     unsigned int to_sleep = MOUNT_DELAY;
     do {
       to_sleep = sleep(to_sleep);
     } while (to_sleep > 0);
-
+    */
 
     /***************************************************************************
      * Run the actual workload that we will be testing.

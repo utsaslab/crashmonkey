@@ -85,7 +85,7 @@ class Ext2FsSpecific : public ExtFsSpecific {
   static constexpr char kFsType[] = "ext2";
 
 #if TWO_SEC == 1
-  static const unsigned int kDelaySeconds = 2;
+  static const unsigned int kDelaySeconds = 0;
 #elif THREE_THIRTEEN == 1 || FOUR_FOUR == 1 || FOUR_FIFTEEN == 1 || \
     FOUR_SIXTEEN == 1
   static const unsigned int kDelaySeconds = 20;
@@ -100,7 +100,7 @@ class Ext3FsSpecific : public ExtFsSpecific {
   static constexpr char kFsType[] = "ext3";
 
 #if TWO_SEC == 1
-  static const unsigned int kDelaySeconds = 2;
+  static const unsigned int kDelaySeconds = 0;
 #elif THREE_THIRTEEN == 1 || FOUR_FOUR == 1 || FOUR_FIFTEEN == 1 || \
     FOUR_SIXTEEN == 1
   static const unsigned int kDelaySeconds = 42;
@@ -115,7 +115,7 @@ class Ext4FsSpecific : public ExtFsSpecific {
   static constexpr char kFsType[] = "ext4";
 
 #if TWO_SEC == 1
-  static const unsigned int kDelaySeconds = 2;
+  static const unsigned int kDelaySeconds = 0;
 #elif THREE_THIRTEEN == 1 || FOUR_FOUR == 1 || FOUR_FIFTEEN == 1 ||\
     FOUR_SIXTEEN == 1
   static const unsigned int kDelaySeconds = 42;
@@ -138,7 +138,7 @@ class BtrfsFsSpecific : public FsSpecific {
   static constexpr char kFsType[] = "btrfs";
 
 #if TWO_SEC == 1
-  static const unsigned int kDelaySeconds = 2;
+  static const unsigned int kDelaySeconds = 0;
 #elif THREE_THIRTEEN == 1 || FOUR_FOUR == 1 || FOUR_FIFTEEN == 1 || \
     FOUR_SIXTEEN == 1
   static const unsigned int kDelaySeconds = 40;
@@ -161,7 +161,7 @@ class F2fsFsSpecific : public FsSpecific {
   static constexpr char kFsType[] = "f2fs";
 
 #if TWO_SEC == 1
-  static const unsigned int kDelaySeconds = 2;
+  static const unsigned int kDelaySeconds = 0;
 #elif THREE_THIRTEEN == 1
   static const unsigned int kDelaySeconds = 15;
 #elif FOUR_FOUR == 1
@@ -187,7 +187,7 @@ class XfsFsSpecific : public FsSpecific {
   static constexpr char kFsType[] = "xfs";
 
 #if TWO_SEC == 1
-  static const unsigned int kDelaySeconds = 2;
+  static const unsigned int kDelaySeconds = 0;
 #elif FOUR_FIFTEEN == 1 || FOUR_SIXTEEN == 1
   static const unsigned int kDelaySeconds = 97;
 #else
