@@ -24,7 +24,7 @@ then
 	fi
 	rm build/diff*
 else
-	if [ -e build/diff* ]
+	if [ -n "$(ls build | grep diff)" ]
 	then
    		rm build/diff*
 		echo -e "${green}${bold} : Passed test${reset}"
