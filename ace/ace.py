@@ -58,7 +58,6 @@ TruncateOptions = ['unaligned']
 # We currently support : creat, mkdir, falloc, write, dwrite, link, unlink, remove, rename, fsetxattr, removexattr, truncate, mmapwrite, symlink, fsync, fdatasync, sync
 OperationSet = ['creat', 'mkdir', 'falloc', 'write', 'dwrite','mmapwrite', 'link', 'unlink', 'remove', 'rename', 'fsetxattr', 'removexattr', 'truncate', 'fdatasync']
 
-
 #The sequences we want to reach to, to reproduce known bugs.
 expected_sequence = []
 expected_sync_sequence = []
@@ -86,6 +85,8 @@ def SiblingOf(file):
         return 'B'
     elif file == 'B':
         return 'A'
+    elif file == 'AC' :
+	return 'AC'
     elif file == 'test':
         return 'test'
 
