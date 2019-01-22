@@ -55,7 +55,9 @@ static struct hwm_device {
   (LINUX_VERSION_CODE >= KERNEL_VERSION(4, 1, 0) && \
     LINUX_VERSION_CODE < KERNEL_VERSION(4, 2, 0)) || \
   (LINUX_VERSION_CODE >= KERNEL_VERSION(4, 4, 0) && \
-    LINUX_VERSION_CODE < KERNEL_VERSION(4, 5, 0))
+    LINUX_VERSION_CODE < KERNEL_VERSION(4, 5, 0)) || \
+  (LINUX_VERSION_CODE >= KERNEL_VERSION(4, 9, 0) && \
+    LINUX_VERSION_CODE < KERNEL_VERSION(4, 10, 0))
   struct block_device* target_dev;
 #elif LINUX_VERSION_CODE >= KERNEL_VERSION(4, 15, 0) && \
     LINUX_VERSION_CODE < KERNEL_VERSION(4, 17, 0)
@@ -352,6 +354,115 @@ static unsigned long long convert_flags(unsigned long long flags) {
   if (flags & REQ_NO_TIMEOUT) {
     res |= HWM_NO_TIMEOUT_FLAG;
   }
+#elif LINUX_VERSION_CODE >= KERNEL_VERSION(4, 9, 0) && \
+    LINUX_VERSION_CODE < KERNEL_VERSION(4, 10, 0)
+  if ((flags >> BIO_OP_SHIFT) == REQ_OP_WRITE) {
+    res |= HWM_WRITE_FLAG;
+  }
+  if ((flags >> BIO_OP_SHIFT) == REQ_OP_DISCARD) {
+    res |= HWM_DISCARD_FLAG;
+  }
+  if ((flags >> BIO_OP_SHIFT) == REQ_OP_SECURE_ERASE) {
+    res |= HWM_SECURE_FLAG;
+  }
+  if ((flags >> BIO_OP_SHIFT) == REQ_OP_WRITE_SAME) {
+    res |= HWM_WRITE_SAME_FLAG;
+  }
+  if ((flags >> BIO_OP_SHIFT) == REQ_OP_FLUSH) {
+    res |= HWM_FLUSH_FLAG;
+  }
+  if (flags & REQ_FAILFAST_DEV) {
+    res |= HWM_FAILFAST_DEV_FLAG;
+  }
+  if (flags & REQ_FAILFAST_TRANSPORT) {
+    res |= HWM_FAILFAST_TRANSPORT_FLAG;
+  }
+  if (flags & REQ_FAILFAST_DRIVER) {
+    res |= HWM_FAILFAST_DRIVER_FLAG;
+  }
+  if (flags & REQ_SYNC) {
+    res |= HWM_SYNC_FLAG;
+  }
+  if (flags & REQ_META) {
+    res |= HWM_META_FLAG;
+  }
+  if (flags & REQ_PRIO) {
+    res |= HWM_PRIO_FLAG;
+  }
+  if (flags & REQ_NOIDLE) {
+    res |= HWM_NOIDLE_FLAG;
+  }
+  if (flags & REQ_FUA) {
+    res |= HWM_FUA_FLAG;
+  }
+  if (flags & REQ_PREFLUSH) {
+    res |= HWM_FLUSH_FLAG;
+  }
+  if (flags & REQ_RAHEAD) {
+    res |= HWM_READAHEAD_FLAG;
+  }
+  if (flags & REQ_THROTTLED) {
+    res |= HWM_THROTTLED_FLAG;
+  }
+  if (flags & REQ_SORTED) {
+    res |= HWM_SORTED_FLAG;
+  }
+  if (flags & REQ_SOFTBARRIER) {
+    res |= HWM_SOFTBARRIER_FLAG;
+  }
+  if (flags & REQ_NOMERGE) {
+    res |= HWM_NOMERGE_FLAG;
+  }
+  if (flags & REQ_STARTED) {
+    res |= HWM_STARTED_FLAG;
+  }
+  if (flags & REQ_DONTPREP) {
+    res |= HWM_DONTPREP_FLAG;
+  }
+  if (flags & REQ_QUEUED) {
+    res |= HWM_QUEUED_FLAG;
+  }
+  if (flags & REQ_ELVPRIV) {
+    res |= HWM_ELVPRIV_FLAG;
+  }
+  if (flags & REQ_FAILED) {
+    res |= HWM_FAILED_FLAG;
+  }
+  if (flags & REQ_QUIET) {
+    res |= HWM_QUIET_FLAG;
+  }
+  if (flags & REQ_PREEMPT) {
+    res |= HWM_PREEMPT_FLAG;
+  }
+  if (flags & REQ_ALLOCED) {
+    res |= HWM_ALLOCED_FLAG;
+  }
+  if (flags & REQ_COPY_USER) {
+    res |= HWM_COPY_USER_FLAG;
+  }
+  if (flags & REQ_FLUSH_SEQ) {
+    res |= HWM_FLUSH_SEQ_FLAG;
+  }
+  if (flags & REQ_IO_STAT) {
+    res |= HWM_IO_STAT_FLAG;
+  }
+  if (flags & REQ_MIXED_MERGE) {
+    res |= HWM_MIXED_MERGE_FLAG;
+  }
+  if (flags & REQ_PM) {
+    res |= HWM_PM_FLAG;
+  }
+  if (flags & REQ_INTEGRITY) {
+    res |= HWM_INTEGRITY_FLAG;
+  }
+  if (flags & REQ_HASHED) {
+    res |= HWM_HASHED_FLAG;
+  }
+  if (flags & REQ_MQ_INFLIGHT) {
+    res |= HWM_MQ_INFLIGHT_FLAG;
+  }
+
+
 #elif LINUX_VERSION_CODE >= KERNEL_VERSION(4, 15, 0) \
     && LINUX_VERSION_CODE < KERNEL_VERSION(4, 17, 0)
 
@@ -421,6 +532,13 @@ static bool should_log(struct bio *bio) {
     (bio->BI_RW & REQ_FLUSH || bio->BI_RW & REQ_FUA ||
      bio->BI_RW & REQ_FLUSH_SEQ || bio->BI_RW & REQ_WRITE ||
      bio->BI_RW & REQ_DISCARD);
+#elif (LINUX_VERSION_CODE >= KERNEL_VERSION(4, 9, 0) && \
+    LINUX_VERSION_CODE < KERNEL_VERSION(4, 10, 0))
+  return
+    ((bio_flags(bio) & REQ_FUA) || (bio_flags(bio) & REQ_PREFLUSH) ||
+     (bio_op(bio) == REQ_OP_FLUSH) || (bio_op(bio) == REQ_OP_WRITE) ||
+     (bio_op(bio) == REQ_OP_DISCARD) || (bio_op(bio) == REQ_OP_SECURE_ERASE) ||
+     (bio_op(bio) == REQ_OP_WRITE_SAME) || (bio_flags(bio) & BIO_DISCARD_FLAG));
 #elif (LINUX_VERSION_CODE >= KERNEL_VERSION(4, 15, 0) \
     && LINUX_VERSION_CODE < KERNEL_VERSION(4, 17, 0))
   // Other REQ_OP_xx functions are odd numbers, meaning they set the
@@ -469,7 +587,9 @@ static void print_rw_flags(unsigned long rw, unsigned long flags) {
   (LINUX_VERSION_CODE >= KERNEL_VERSION(4, 4, 0) && \
     LINUX_VERSION_CODE < KERNEL_VERSION(4, 5, 0))
 static void disk_wrapper_bio(struct request_queue* q, struct bio* bio) {
-#elif (LINUX_VERSION_CODE >= KERNEL_VERSION(4, 15, 0) && \
+#elif (LINUX_VERSION_CODE >= KERNEL_VERSION(4, 9, 0) && \
+    LINUX_VERSION_CODE < KERNEL_VERSION(4, 10, 0)) || \
+  (LINUX_VERSION_CODE >= KERNEL_VERSION(4, 15, 0) && \
     LINUX_VERSION_CODE < KERNEL_VERSION(4, 17, 0))
 static blk_qc_t disk_wrapper_bio(struct request_queue* q, struct bio* bio) {
 #else
@@ -582,6 +702,11 @@ static blk_qc_t disk_wrapper_bio(struct request_queue* q, struct bio* bio) {
     LINUX_VERSION_CODE < KERNEL_VERSION(4, 5, 0))
   bio->bi_bdev = hwm->target_dev;
   submit_bio(bio->BI_RW, bio);
+#elif (LINUX_VERSION_CODE >= KERNEL_VERSION(4, 9, 0) && \
+    LINUX_VERSION_CODE < KERNEL_VERSION(4, 10, 0))
+  bio->bi_bdev = hwm->target_dev;
+  submit_bio(bio);
+  return BLK_QC_T_NONE;
 #elif LINUX_VERSION_CODE >= KERNEL_VERSION(4, 15, 0) && \
     LINUX_VERSION_CODE < KERNEL_VERSION(4, 17, 0)
   bio->bi_disk = hwm->target_dev;
@@ -661,7 +786,9 @@ static int __init disk_wrapper_init(void) {
   (LINUX_VERSION_CODE >= KERNEL_VERSION(4, 1, 0) && \
     LINUX_VERSION_CODE < KERNEL_VERSION(4, 2, 0)) || \
   (LINUX_VERSION_CODE >= KERNEL_VERSION(4, 4, 0) && \
-    LINUX_VERSION_CODE < KERNEL_VERSION(4, 5, 0))
+    LINUX_VERSION_CODE < KERNEL_VERSION(4, 5, 0)) || \
+  (LINUX_VERSION_CODE >= KERNEL_VERSION(4, 9, 0) && \
+    LINUX_VERSION_CODE < KERNEL_VERSION(4, 10, 0))
   Device.target_dev = target_device;
 #elif LINUX_VERSION_CODE >= KERNEL_VERSION(4, 15, 0) && \
     LINUX_VERSION_CODE < KERNEL_VERSION(4, 17, 0)
@@ -766,7 +893,9 @@ static void __exit hello_cleanup(void) {
   (LINUX_VERSION_CODE >= KERNEL_VERSION(4, 1, 0) && \
     LINUX_VERSION_CODE < KERNEL_VERSION(4, 2, 0)) || \
   (LINUX_VERSION_CODE >= KERNEL_VERSION(4, 4, 0) && \
-    LINUX_VERSION_CODE < KERNEL_VERSION(4, 5, 0))
+    LINUX_VERSION_CODE < KERNEL_VERSION(4, 5, 0)) || \
+  (LINUX_VERSION_CODE >= KERNEL_VERSION(4, 9, 0) && \
+    LINUX_VERSION_CODE < KERNEL_VERSION(4, 10, 0))
   blkdev_put(Device.target_dev, FMODE_READ);
 #elif LINUX_VERSION_CODE >= KERNEL_VERSION(4, 15, 0) && \
     LINUX_VERSION_CODE < KERNEL_VERSION(4, 17, 0)

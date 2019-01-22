@@ -394,7 +394,7 @@ static blk_qc_t brd_make_request(struct request_queue *q, struct bio *bio) {
     goto out_err;
   }
 
-#if LINUX_VERSION_CODE < KERNEL_VERSION(4, 15, 0)
+#if LINUX_VERSION_CODE < KERNEL_VERSION(4, 9, 0)
   if (unlikely(bio->BI_RW & BIO_DISCARD_FLAG)) {
 #else
   if (unlikely(bio_op(bio) == BIO_DISCARD_FLAG)) {
