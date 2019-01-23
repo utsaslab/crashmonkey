@@ -19,7 +19,7 @@ ___
 #### Setting Up a VM ####
 The easiest (and recommended) way to start working on (or using) CrashMonkey is to setup a virtual machine and run everything in the VM. This is partly so that any bugs in the kernel module don't bring down your whole system and partly because it is easier. Take a look at our [VM setup guide](vmsetup.md) to get started.
 
- **CrashMonkey is known to work on kernel versions 3.13.0-121-generic, 4.4.0-62-generic, 4.15.0-041500-generic, and 4.16.0-041600rc7-generic.**
+ **CrashMonkey is known to work on kernel versions 3.13.0-121-generic, 4.4.0-62-generic, 4.9.0-040900rc8-generic, 4.15.0-041500-generic, and 4.16.0-041600rc7-generic.**
 
 #### Dependencies and Build ####
 Before you begin compilation, ensure you have satisfied all dependencies mentioned in the [setup guide](../README.md/#setup)
