@@ -819,7 +819,7 @@ static int __init disk_wrapper_init(void) {
     LINUX_VERSION_CODE < KERNEL_VERSION(4, 2, 0)) || \
   (LINUX_VERSION_CODE >= KERNEL_VERSION(4, 4, 0) && \
     LINUX_VERSION_CODE < KERNEL_VERSION(4, 5, 0))
-  // Field not present in kernel 4.15+.
+  // Field not present in kernel 4.9+.
   flush_flags = flags_device->bd_queue->flush_flags;
 #endif
   queue_flags = flags_device->bd_queue->queue_flags;
