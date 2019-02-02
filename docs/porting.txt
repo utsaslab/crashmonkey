@@ -1,0 +1,40 @@
+Document containing quick notes about changes made to port CrashMonkey to
+different kernel versions. If no specific kernel version is mentioned in a
+comment about changes, then the kernel being compared to is the previous kernel
+CrashMonkey was available on.
+
+~~ 3.12 ~~
+* No changes from 3.13 kernels in this respect
+
+~~ 3.13 ~~
+* Original version of CrashMonkey
+
+~~ 3.16 ~~
+* Move size and sector of data writes to bio iter instead of bio
+* Change to how bio segments are iterated over
+* Minor changes to flags in bio.bi_rw
+
+~~ 4.1 ~~
+* Minor changes to flags in bio.bi_rw
+
+~~ 4.4 ~~
+* Change in-kernel function calls to mark bios as done or having an error
+
+~~ 4.9 ~~
+* Change name of bio.bi_rw field to bio.bi_opf
+* Minor changes to flags and their helper methods in bio.bi_opf
+* Change return type of function that processes bios
+* Change in-kernel submit_bio function arguments
+* Remove request_queue.flush_flags field
+
+~~ 4.14 ~~
+* Reverse order of bit-fields in bio.bi_opf (actually made in 4.10)
+* Minor changes to flags and their helper methods in bio.bi_opf
+* Change name and type of disk and partition a bio should be routed to
+      (contained in old bi.bi_bdev field)
+
+~~ 4.15 ~~
+* No changes from 4.14 kernels in this respect
+
+~~ 4.16 ~~
+* Change kobj retrieval in cow_brd.c:brd_probe
