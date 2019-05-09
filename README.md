@@ -56,13 +56,15 @@ Ace and Crashmonkey have found 8 previously undiscovered bugs in btrfs, 2 in F2F
 ## Setup ##
 
 Here is a checklist of dependencies to get CrashMonkey and Ace up and running on your system.
-* You need a Linux machine to get started. We recommend spinning up a Ubuntu 14.04 or Ubuntu 16.04 VM with one of the supported kernel versions mentioned above. 20GB disk space and 2-4GB of RAM is recommended, especially if you plan on running large tests.
+* You need a Linux machine to get started. We recommend spinning up a Ubuntu 16.04 VM with one of the supported kernel versions mentioned above. 20GB disk space and 2-4GB of RAM is recommended, especially if you plan on running large tests.
 * If you want to install kernel 4.16, we have a [script](vm_scripts/install-4.16.sh) to help you.
 * Install dependencies.
 
   `apt-get install git make gcc g++ libattr1-dev btrfs-tools f2fs-tools xfsprogs libelf-dev linux-headers-$(uname -r) python python-pip`
 
   `pip install progress progressbar`
+  
+  ` Ensure your glibc version is 2.23 or above (Check using ldd --version)`
 
 *  Clone the repository.
 
