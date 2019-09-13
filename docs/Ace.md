@@ -54,7 +54,7 @@ virtual int run( int checkpoint ) override {
 }
 ```
 
-2. *XFSTest* : The XFSTest adapter translate the high-level language into a test file and expected output file to be run with [xfstest](https://github.com/kdave/xfstests). For example, the above workload would be converted the following code (excluding the xfstest initializiation and code and helper methods):
+2. *XFSTest* : The XFSTest adapter translates the high-level language into a test file and expected output file to be run with [xfstest](https://github.com/kdave/xfstests). For example, the above workload would be converted into the following code (excluding the xfstest initializiation and code and helper methods):
 	
 ```bash
 mkdir $SCRATCH_MNT/B -p -m 0777
