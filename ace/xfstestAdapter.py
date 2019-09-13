@@ -1,6 +1,13 @@
 #!/usr/bin/env python
 
-# To run : python xfstestAdapter.py -b base_xfstest.sh -t code/tests/generic_039/generic_039 -p code/tests/generic_039 -o 039
+# To run : python xfstestAdapter.py -b base_xfstest.sh -t <jlang-file> \
+#               -p <output_directory> -n <test_number>
+#
+# For example, with output_directory = "output" and test_number = "001",
+# the converted test files will be located at:
+#   - output/001
+#   - output/001.out
+
 import os
 import re
 import sys
