@@ -13,7 +13,7 @@ close Bfoo
 ```
 
 1. **Workload Adapter** : Workloads represented in the high-level language have to be converted into executables that can be run and verified. We support the following two formats:
-    a. *Crashmonkey* : The Crashmonkey adapter translates the high-level language into a [format](workload.md) that CrashMonkey understands. For example, the above workload is converted to the run method of CrashMonkey as follows.
+    1. *Crashmonkey* : The Crashmonkey adapter translates the high-level language into a [format](workload.md) that CrashMonkey understands. For example, the above workload is converted to the run method of CrashMonkey as follows.
 
 ```c++
 virtual int run( int checkpoint ) override {
@@ -54,7 +54,7 @@ virtual int run( int checkpoint ) override {
 }
 ```
 
-    b. *XFSTest* : The XFSTest adapter translate the high-level language into a test file and expected output file to be run with [xfstest](https://github.com/kdave/xfstests). For example, the above workload would be converted the following code (excluding the xfstest initializiation and code and helper methods):
+2. *XFSTest* : The XFSTest adapter translate the high-level language into a test file and expected output file to be run with [xfstest](https://github.com/kdave/xfstests). For example, the above workload would be converted the following code (excluding the xfstest initializiation and code and helper methods):
 	
 ```bash
 mkdir $SCRATCH_MNT/B -p -m 0777
@@ -65,9 +65,7 @@ check_consistency $SCRATCH_MNT/B/foo
 clean_dir
 ```
 
-The definition of `check_consistency` and `clean_dir` as well as all other helper functions can be found [here](../ace/base_xfstest.sh).
-
-For information explaining how to run the adapters directly, refer to the the beginning of the following files for [Crashmonkey](../ace/cmAdapter.py) and [xfstest](../ace/xfstestAdapter.py) respectively.
+The definition of `check_consistency` and `clean_dir` as well as all other helper functions can be found [here](../ace/base_xfstest.sh). For information explaining how to run the adapters directly, refer to the the beginning of the following files for [Crashmonkey](../ace/cmAdapter.py) and [xfstest](../ace/xfstestAdapter.py) respectively.
 
 ---
 ### Bounds used by Ace ###
