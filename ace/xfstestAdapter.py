@@ -425,7 +425,7 @@ def main():
             elif method in ['setup', 'run']: 
                 lines_to_translate.append(line)
 
-    # Translate lines into xfstest cformat.
+    # Translate lines into xfstest format.
     lines_to_add = ["_mount_flakey"]
     for line in lines_to_translate:
         lines_to_add.extend(translate_functions(line))
