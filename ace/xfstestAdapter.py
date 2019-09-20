@@ -103,7 +103,7 @@ def create_dir(dir_path):
     except OSError:
         if not os.path.isdir(dir_path):
             raise
-def translate_link(line, method):
+def translate_link(line):
     parts = line.split(" ")
     assert parts[0] == "link"
     assert len(parts) == 3, "Must have 2 args. Usage: link <src> <target>."
@@ -112,7 +112,7 @@ def translate_link(line, method):
     src, target = translate_filename(src), translate_filename(target)
     return ["ln {} {}".format(src, target)]
 
-def translate_symlink(line, method):
+def translate_symlink(line):
     parts = line.split(" ")
     assert parts[0] == "symlink"
     assert len(parts) == 3, "Must have 2 args. Usage: symlink <src> <target>."
@@ -121,7 +121,7 @@ def translate_symlink(line, method):
     src, target = translate_filename(src), translate_filename(target)
     return ["ln -s {} {}".format(src, target)]
 
-def translate_remove(line, method):
+def translate_remove(line):
     parts = line.split(" ")
     assert parts[0] == "remove" or parts[0] == "unlink"
     assert len(parts) == 2, "Must have 1 arg. Usage: remove/unlink <filename>."
@@ -131,7 +131,7 @@ def translate_remove(line, method):
 
     return ["rm {}".format(filename)]
 
-def translate_fsetxattr(line, method):
+def translate_fsetxattr(line):
     parts = line.split(" ")
     assert parts[0] == "fsetxattr"
     assert len(parts) == 2, "Must have 1 arg. Usage: fsetxattr <filename>."
@@ -142,7 +142,7 @@ def translate_fsetxattr(line, method):
     return ["attr -s {} -V {} {} > /dev/null".format(FILE_ATTR_KEY,
         FILE_ATTR_VALUE, filename)]
 
-def translate_removexattr(line, method):
+def translate_removexattr(line):
     parts = line.split(" ")
     assert parts[0] == "removexattr"
     assert len(parts) == 2, "Must have 1 arg. Usage: removexattr <filename>."
@@ -152,7 +152,7 @@ def translate_removexattr(line, method):
 
     return ["attr -r {} {}".format(FILE_ATTR_KEY, filename)]
 
-def translate_truncate(line, method):
+def translate_truncate(line):
     parts = line.split(" ")
     assert parts[0] == "truncate"
     assert len(parts) == 3, "Must have 2 args. Usage: truncate <filename> <new size>."
@@ -162,7 +162,7 @@ def translate_truncate(line, method):
 
     return ["truncate {} -s {}".format(filename, size)]
 
-def translate_dwrite(line, method):
+def translate_dwrite(line):
     parts = line.split(" ")
     assert parts[0] == "dwrite"
     assert len(parts) == 4, "Must have 3 args. Usage: dwrite <filename> <offset> <size>"
@@ -177,7 +177,7 @@ def translate_dwrite(line, method):
         size,
         filename)]
 
-def translate_write(line, method):
+def translate_write(line):
     parts = line.split(" ")
     assert parts[0] == "write"
     assert len(parts) == 4, "Must have 3 args. Usage: write <filename> <offset> <size>"
@@ -192,7 +192,7 @@ def translate_write(line, method):
         size,
         filename)]
 
-def translate_mmapwrite(line, method):
+def translate_mmapwrite(line):
     parts = line.split(" ")
     assert parts[0] == "mmapwrite"
     assert len(parts) == 4, "Must have 3 args. Usage: mmapwrite <filename> <offset> <size>"
@@ -216,7 +216,7 @@ def translate_mmapwrite(line, method):
                 filename),
             "check_consistency {}".format(filename)]
 
-def translate_open(line, method):
+def translate_open(line):
     parts = line.split(" ")
     assert parts[0] == "open"
     assert len(parts) == 4, "Must have 3 args. Usage: open <filename> <flags> <mode>."
@@ -231,7 +231,7 @@ def translate_open(line, method):
     return ["touch {}".format(filename), 
             "chmod {} {}".format(mode, filename)]
 
-def translate_mkdir(line, method):
+def translate_mkdir(line):
     parts = line.split(" ")
     assert parts[0] == "mkdir"
     assert len(parts) == 3, "Must have 2 args. Usage: mkdir <directory> <mode>."
@@ -240,7 +240,7 @@ def translate_mkdir(line, method):
     filename = translate_filename(filename)
     return ["mkdir {} -p -m {}".format(filename, umask)]
 
-def translate_opendir(line, method):
+def translate_opendir(line):
     parts = line.split(" ")
     assert parts[0] == "opendir"
     assert len(parts) == 3, "Must have 2 args. Usage: opendir <directory> <mode>."
@@ -249,7 +249,7 @@ def translate_opendir(line, method):
     filename = translate_filename(filename)
     return ["mkdir {} -p -m {}".format(filename, umask)]
 
-def translate_fsync(line, method):
+def translate_fsync(line):
     parts = line.split(" ")
     assert parts[0] == "fsync"
     assert len(parts) == 2, "Must have 1 arg. Usage: fsync <file or directory>."
@@ -259,7 +259,7 @@ def translate_fsync(line, method):
     return ["$XFS_IO_PROG -c \"fsync\" {}".format(filename),
             "check_consistency {}".format(filename)]
 
-def translate_fdatasync(line, method):
+def translate_fdatasync(line):
     parts = line.split(" ")
     assert parts[0] == "fdatasync"
     assert len(parts) == 2, "Must have 1 arg. Usage: fdatasync <file or directory>."
@@ -269,7 +269,7 @@ def translate_fdatasync(line, method):
     return ["$XFS_IO_PROG -c \"fdatasync\" {}".format(filename),
             "check_consistency --data-only {}".format(filename)]
 
-def translate_sync(line, method):
+def translate_sync(line):
     parts = line.split(" ")
     assert parts[0] == "sync"
     assert len(parts) == 1, "sync does not allow any arguments"
@@ -277,7 +277,7 @@ def translate_sync(line, method):
     return ["sync", "check_consistency " + " ".join(used_files)]
 
 
-def translate_rename(line, method):
+def translate_rename(line):
     parts = line.split(" ")
     assert parts[0] == "rename"
     assert len(parts) == 3, "Must have 2 args. Usage: rename <old name> <new name>."
@@ -285,9 +285,9 @@ def translate_rename(line, method):
     old, new = parts[1:]
     old, new = translate_filename(old), translate_filename(new)
 
-    return ["mv {} {}".format(old, new)]
+    return ["rename {} {}".format(old, new)]
 
-def translate_rmdir(line, method):
+def translate_rmdir(line):
     parts = line.split(" ")
     assert parts[0] == "rmdir"
     assert len(parts) == 2, "Must have 1 arg. Usage: rmdir <directory>."
@@ -297,7 +297,7 @@ def translate_rmdir(line, method):
 
     return ["rm -rf {}".format(directory)]
 
-def translate_falloc(line, method):
+def translate_falloc(line):
     parts = line.split(" ")
     assert parts[0] == "falloc"
     assert len(parts) == 5, "Must have 4 args. Usage: falloc <file> <mode> <offset> <length>."
@@ -309,57 +309,57 @@ def translate_falloc(line, method):
 
 # Translate a line of the high-level j-lang language
 # into a list of lines of bash for xfstest
-def translate_functions(line, method):
+def translate_functions(line):
     # Note that order is important here. Commands that are
     # prefixes of each other, i.e. open and opendir, must
     # have the longer string appear first.
 
     if line.startswith("mkdir"):
-        return translate_mkdir(line, method)
+        return translate_mkdir(line)
     elif line.startswith("opendir"):
-        return translate_opendir(line, method)
+        return translate_opendir(line)
     elif line.startswith("open"):
-        return translate_open(line, method)
+        return translate_open(line)
     elif line.startswith("fsync"):
-        return translate_fsync(line, method)
+        return translate_fsync(line)
     elif line.startswith("fdatasync"):
-        return translate_fdatasync(line, method)
+        return translate_fdatasync(line)
     elif line.startswith("sync"):
-        return translate_sync(line, method)
+        return translate_sync(line)
     elif line.startswith("rename"):
-        return translate_rename(line, method)
+        return translate_rename(line)
     elif line.startswith("falloc"):
-        return translate_falloc(line, method)
+        return translate_falloc(line)
     elif line.startswith("close"):
         return []
     elif line.startswith("rmdir"):
-        return translate_rmdir(line, method)
+        return translate_rmdir(line)
     elif line.startswith("truncate"):
-        return translate_truncate(line, method)
+        return translate_truncate(line)
     elif line.startswith("checkpoint"):
         return []
     elif line.startswith("fsetxattr"):
-        return translate_fsetxattr(line, method)
+        return translate_fsetxattr(line)
     elif line.startswith("removexattr"):
-        return translate_removexattr(line, method)
+        return translate_removexattr(line)
     elif line.startswith("remove"):
-        return translate_remove(line, method)
+        return translate_remove(line)
     elif line.startswith("unlink"):
-        return translate_remove(line, method)
+        return translate_remove(line)
     elif line.startswith("link"):
-        return translate_link(line, method)
+        return translate_link(line)
     elif line.startswith("symlink"):
-        return translate_symlink(line, method)
+        return translate_symlink(line)
     elif line.startswith("dwrite"):
-        return translate_dwrite(line, method)
+        return translate_dwrite(line)
     elif line.startswith("mmapwrite"):
-        return translate_mmapwrite(line, method)
+        return translate_mmapwrite(line)
     elif line.startswith("write"):
-        return translate_write(line, method)
+        return translate_write(line)
     elif line.startswith("none"):
         return []
     else:
-        raise ValueError("Unknown function", method, line)
+        raise ValueError("Unknown function", line)
 
 def main():
     # Parse input args
@@ -404,12 +404,11 @@ def main():
         base_contents = f.readlines()
         base_contents = list(map(filter_line, base_contents))
         test_cases_index = base_contents.index("# Test cases\n") + 1
-    f.close()
 
     copyfile(base_file, generated_test)
 
-    # Iterate through test file and create list of lines to add
-    lines_to_add = ["_mount_flakey"]
+    # Iterate through test file and get lines to translate.
+    lines_to_translate = []
     with open(test_file, 'r') as f:
         for line in f:
             # Ignore newlines
@@ -423,18 +422,16 @@ def main():
             # base file to populate so save it and skip this line
             if line.split(' ')[0] == '#' :
                 method = line.strip().split()[-1]
-                continue
-            
-            if method in ['declare', 'define']:
-                continue
-
             elif method in ['setup', 'run']: 
-                lines_to_add.extend(translate_functions(line, method))
-                #insertFunctions(line, new_file, new_index_map, method)
-    f.close()
+                lines_to_translate.append(line)
+
+    # Translate lines into xfstest cformat.
+    lines_to_add = ["_mount_flakey"]
+    for line in lines_to_translate:
+        lines_to_add.extend(translate_functions(line))
     lines_to_add.append("clean_dir")
 
-    # Write output files
+    # Insert lines into relevant location and write output files.
     lines_to_add = list(map(lambda x: x + "\n", lines_to_add))
     output_contents = base_contents[:test_cases_index] + lines_to_add + base_contents[test_cases_index:]
     with open(generated_test, 'w+') as f:

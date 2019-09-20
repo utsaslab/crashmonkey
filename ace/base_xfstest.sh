@@ -51,6 +51,13 @@ stat_opt='-c  %n - blocks: %b size: %s inode: %i links: %h'
 
 prepend() { while read line; do echo "$1$line"; done }
 
+# Rename wraps 'mv' except that 'rename A/ B/' 
+# would replace B, instead of creating A/B
+rename() { 
+    [ -d $1 ] && [ -d $2 ] && rm -rf $2
+    mv $1 $2
+}
+
 # Usage: general_stat [--data-only] file1 [file2] [file3 ...]
 # If the --data-only flag is passed then only the files' data
 # will be printed. This is to be used to verify fdatasync calls.
