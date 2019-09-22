@@ -48,30 +48,47 @@ DWRITE_VALUE = "0x44"
 # Because the filenaming convention in the high-level j-lang language 
 # seems to be arbitrary, we hard code the translation here to ensure
 # that any inconsistency will raise a clear, easy-to-debug error.
-jlang_files_to_xfs = {
-    "test"  : "test"   ,
-    "A"     : "A"      ,
-    "AC"    : "A/C"    ,
-    "B"     : "B"      ,
-    "foo"   : "foo"    , 
-    "bar"   : "bar"    ,
-    "Afoo"  : "A/foo"  , 
-    "Abar"  : "A/bar"  ,
-    "Bfoo"  : "B/foo"  , 
-    "Bbar"  : "B/bar"  ,
-    "ACfoo" : "A/C/foo",
-    "ACbar" : "A/C/bar"
-}
+# The format is:
+# <jlang filename> | <bash filename> | <parent jlang filename> | <file type>
+JLANG_FILES = [
+    ( ""      , ""        , ""  , "dir"  ),
+    ( "test"  , "test"    , ""  , "file" ), 
+    ( "A"     , "A"       , ""  , "dir"  ), 
+    ( "AC"    , "A/C"     , "A" , "dir"  ), 
+    ( "B"     , "B"       , ""  , "dir"  ), 
+    ( "foo"   , "foo"     , ""  , "file" ), 
+    ( "bar"   , "bar"     , ""  , "file" ), 
+    ( "Afoo"  , "A/foo"   , "A" , "file" ), 
+    ( "Abar"  , "A/bar"   , "A" , "file" ), 
+    ( "Bfoo"  , "B/foo"   , "B" , "file" ), 
+    ( "Bbar"  , "B/bar"   , "B" , "file" ), 
+    ( "ACfoo" , "A/C/foo" , "AC", "file" ), 
+    ( "ACbar" , "A/C/bar" , "AC", "file" )
+]
 
-used_files = set()
+prefix = "$SCRATCH_MNT/"
+
+def get_row_from_filename(filename):
+    # Strip prefix if present
+    if filename.startswith(prefix):
+        filename = filename[len(prefix):]
+
+    for row in JLANG_FILES:
+        if filename == row[0] or filename == row[1]:
+            return row
+
+    raise ValueError("filename")
 
 def translate_filename(filename):
-    global used_files
+    translated_filename = get_row_from_filename(filename)[1]
+    return prefix + translated_filename
 
-    filename = "$SCRATCH_MNT/" + jlang_files_to_xfs[filename]
+def parent(filename):
+    jlang_parent = get_row_from_filename(filename)[2]
+    return translate_filename(jlang_parent)
 
-    used_files.add(filename)
-    return filename
+def is_dir(filename):
+    get_row_from_filename(filename)[3] == "dir"
 
 def build_parser():
     parser = argparse.ArgumentParser(description='Workload Generator for XFSMonkey v1.0')
@@ -103,102 +120,254 @@ def create_dir(dir_path):
     except OSError:
         if not os.path.isdir(dir_path):
             raise
-def translate_link(line):
-    parts = line.split(" ")
+
+
+class State():
+    """
+    State contains two elements:
+    - opened_files is a set containing the currently modified
+      files that should be written back to disk upon a call
+      to 'sync'
+    - data_synced_files is a set that contains the files are 
+      currently synced with fdatasync
+    - synced_files is a strict subset of data_synced_files 
+      containing the files that should currently have their 
+      metadata synced and therefore be consistent through a 
+      crash
+    """
+
+    def __init__(self):
+        self.opened_files = set()
+        self.synced_files = set()
+        self.data_synced_files = set()
+
+    def _open_file(self, filename):
+        self.opened_files.add(filename)
+
+    def _unopen_file(self, filename):
+        if filename in self.opened_files:
+            self.opened_files.remove(filename)
+
+    def _sync_file(self, filename):
+        self.synced_files.add(filename)
+        self.data_synced_files.add(filename)
+
+    def _sync_file_data(self, filename):
+        self.data_synced_files.add(filename)
+
+    def _unsync_file(self, filename):
+        if filename in self.synced_files:
+            self.synced_files.remove(filename)
+
+        if filename in self.data_synced_files:
+            self.data_synced_files.remove(filename)
+
+    def _unsync_file_metadata(self, filename):
+        if filename in self.synced_files:
+            self.synced_files.remove(filename)
+
+    def _check_internal(self):
+        assert all([f in self.data_synced_files for f in self.synced_files])
+        assert all([f in self.opened_files for f in self.data_synced_files])
+
+    def modify_file(self, filename):
+        self._open_file(filename)
+        self._unsync_file(filename)
+        self._check_internal()
+
+    def modify_file_metadata(self, filename):
+        self._open_file(filename)
+        self._unsync_file_metadata(filename)
+        self._check_internal()
+
+    def remove_file(self, filename):
+        parent_dir = parent(filename)
+
+        self._unopen_file(filename)
+        self._unsync_file(filename)
+
+        self._open_file(parent_dir)
+        self._unsync_file(parent_dir)
+        self._check_internal()
+
+    def add_file(self, filename):
+        parent_dir = parent(filename)
+
+        self._open_file(filename)
+        self._unsync_file(filename)
+
+        self._open_file(parent_dir)
+        self._unsync_file(parent_dir)
+        self._check_internal()
+
+    def rename_file(self, old, new):
+        # Special case for A -> B
+        # TODO: Generalize this case.
+        jlang_names = get_row_from_filename(old)[0], get_row_from_filename(new)[0]
+        if jlang_names == ("A", "B"):
+            files_to_rename = [("A", "B"),
+                               ("Afoo", "Bfoo"),
+                               ("Abar", "Bbar")
+                              ]
+        elif jlang_names == ("B", "A"):
+            files_to_rename = [("B", "A"),
+                               ("Bfoo", "Afoo"),
+                               ("Bbar", "Abar")
+                              ]
+        else:
+            files_to_rename = [jlang_names]
+
+        for old, new in files_to_rename:
+            old, new = translate_filename(old), translate_filename(new)
+            if old in self.opened_files:
+                self.remove_file(old)
+                self.add_file(new)
+
+    def sync_file(self, filename):
+        self._sync_file(filename)
+        self._check_internal()
+
+    def sync_file_data(self, filename):
+        self._sync_file_data(filename)
+        self._check_internal()
+
+    def sync_all_files(self):
+        self.synced_files = self.synced_files.union(self.opened_files)
+        self.data_synced_files = self.data_synced_files.union(self.opened_files)
+        self._check_internal()
+        return list(self.opened_files)
+
+    def get_check_consistency_command(self):
+        command = "check_consistency"
+
+        for f in self.synced_files:
+            command += " " + f
+
+        for f in [f for f in self.data_synced_files if f not in self.synced_files]:
+            command += " --data-only " + f
+        return command
+
+
+## Functions for translating jlang instructions into bash
+
+def translate_link(line, state):
+    parts = line.split()
     assert parts[0] == "link"
     assert len(parts) == 3, "Must have 2 args. Usage: link <src> <target>."
 
     src, target = parts[1:]
     src, target = translate_filename(src), translate_filename(target)
-    return ["ln {} {}".format(src, target)]
 
-def translate_symlink(line):
-    parts = line.split(" ")
+    state.modify_file_metadata(src) 
+    state.add_file(target)
+
+    return ["ln {} {}".format(src, target)], state
+
+def translate_symlink(line, state):
+    parts = line.split()
     assert parts[0] == "symlink"
     assert len(parts) == 3, "Must have 2 args. Usage: symlink <src> <target>."
 
     src, target = parts[1:]
     src, target = translate_filename(src), translate_filename(target)
-    return ["ln -s {} {}".format(src, target)]
 
-def translate_remove(line):
-    parts = line.split(" ")
+    state.add_file(target)
+
+    return ["ln -s {} {}".format(src, target)], state
+
+def translate_remove(line, state):
+    parts = line.split()
     assert parts[0] == "remove" or parts[0] == "unlink"
     assert len(parts) == 2, "Must have 1 arg. Usage: remove/unlink <filename>."
 
     filename = parts[1]
     filename = translate_filename(filename)
 
-    return ["rm {}".format(filename)]
+    state.remove_file(filename)
 
-def translate_fsetxattr(line):
-    parts = line.split(" ")
+    return ["rm {}".format(filename)], state
+
+def translate_fsetxattr(line, state):
+    parts = line.split()
     assert parts[0] == "fsetxattr"
     assert len(parts) == 2, "Must have 1 arg. Usage: fsetxattr <filename>."
 
     filename = parts[1]
     filename = translate_filename(filename)
 
-    return ["attr -s {} -V {} {} > /dev/null".format(FILE_ATTR_KEY,
-        FILE_ATTR_VALUE, filename)]
+    state.modify_file(filename)
 
-def translate_removexattr(line):
-    parts = line.split(" ")
+    return ["attr -s {} -V {} {} > /dev/null".format(FILE_ATTR_KEY,
+        FILE_ATTR_VALUE, filename)], state
+
+def translate_removexattr(line, state):
+    parts = line.split()
     assert parts[0] == "removexattr"
     assert len(parts) == 2, "Must have 1 arg. Usage: removexattr <filename>."
 
     filename = parts[1]
     filename = translate_filename(filename)
 
-    return ["attr -r {} {}".format(FILE_ATTR_KEY, filename)]
+    state.modify_file(filename)
 
-def translate_truncate(line):
-    parts = line.split(" ")
+    return ["attr -r {} {}".format(FILE_ATTR_KEY, filename)], state
+
+def translate_truncate(line, state):
+    parts = line.split()
     assert parts[0] == "truncate"
     assert len(parts) == 3, "Must have 2 args. Usage: truncate <filename> <new size>."
 
     filename, size = parts[1:]
     filename = translate_filename(filename)
 
-    return ["truncate {} -s {}".format(filename, size)]
+    state.modify_file(filename)
 
-def translate_dwrite(line):
-    parts = line.split(" ")
+    return ["truncate {} -s {}".format(filename, size)], state
+
+def translate_dwrite(line, state):
+    parts = line.split()
     assert parts[0] == "dwrite"
     assert len(parts) == 4, "Must have 3 args. Usage: dwrite <filename> <offset> <size>"
 
     filename, offset, size = parts[1:]
     filename = translate_filename(filename)
 
+    state.modify_file(filename)
+
     # From common/rc in xfstest
     return ["_dwrite_byte {} {} {} {} \"\" > /dev/null".format(
         DWRITE_VALUE,
         offset,
         size,
-        filename)]
+        filename)], state
 
-def translate_write(line):
-    parts = line.split(" ")
+def translate_write(line, state):
+    parts = line.split()
     assert parts[0] == "write"
     assert len(parts) == 4, "Must have 3 args. Usage: write <filename> <offset> <size>"
 
     filename, offset, size = parts[1:]
     filename = translate_filename(filename)
 
+    state.modify_file(filename)
+
     # From common/rc in xfstest
     return ["_pwrite_byte {} {} {} {} \"\" > /dev/null".format(
         WRITE_VALUE,
         offset,
         size,
-        filename)]
+        filename)], state
 
-def translate_mmapwrite(line):
-    parts = line.split(" ")
+def translate_mmapwrite(line, state):
+    parts = line.split()
     assert parts[0] == "mmapwrite"
     assert len(parts) == 4, "Must have 3 args. Usage: mmapwrite <filename> <offset> <size>"
 
     filename, offset, size = parts[1:]
     filename = translate_filename(filename)
+
+    state.modify_file(filename)
+    state.sync_file(filename)
 
     mmap_offset = int(offset) + int(size)
 
@@ -213,11 +382,10 @@ def translate_mmapwrite(line):
                 offset,
                 size,
                 mmap_offset,
-                filename),
-            "check_consistency {}".format(filename)]
+                filename)], state
 
-def translate_open(line):
-    parts = line.split(" ")
+def translate_open(line, state):
+    parts = line.split()
     assert parts[0] == "open"
     assert len(parts) == 4, "Must have 3 args. Usage: open <filename> <flags> <mode>."
 
@@ -228,138 +396,150 @@ def translate_open(line):
     filename = translate_filename(filename)
     assert "O_CREAT" in flags, "flags must contain O_CREAT for open"
 
+    state.add_file(filename)
+
     return ["touch {}".format(filename), 
-            "chmod {} {}".format(mode, filename)]
+            "chmod {} {}".format(mode, filename)], state
 
-def translate_mkdir(line):
-    parts = line.split(" ")
-    assert parts[0] == "mkdir"
-    assert len(parts) == 3, "Must have 2 args. Usage: mkdir <directory> <mode>."
-
-    filename, umask = parts[1:]
-    filename = translate_filename(filename)
-    return ["mkdir {} -p -m {}".format(filename, umask)]
-
-def translate_opendir(line):
-    parts = line.split(" ")
-    assert parts[0] == "opendir"
-    assert len(parts) == 3, "Must have 2 args. Usage: opendir <directory> <mode>."
+def translate_mkdir(line, state):
+    parts = line.split()
+    assert parts[0] == "mkdir" or parts[0] == "opendir"
+    assert len(parts) == 3, "Must have 2 args. Usage: mkdir/opendir <directory> <mode>."
 
     filename, umask = parts[1:]
     filename = translate_filename(filename)
-    return ["mkdir {} -p -m {}".format(filename, umask)]
 
-def translate_fsync(line):
-    parts = line.split(" ")
+    state.add_file(filename)
+
+    return ["mkdir {} -p -m {}".format(filename, umask)], state
+
+def translate_fsync(line, state):
+    parts = line.split()
     assert parts[0] == "fsync"
     assert len(parts) == 2, "Must have 1 arg. Usage: fsync <file or directory>."
 
     filename = parts[1]
     filename = translate_filename(filename)
-    return ["$XFS_IO_PROG -c \"fsync\" {}".format(filename),
-            "check_consistency {}".format(filename)]
 
-def translate_fdatasync(line):
-    parts = line.split(" ")
+    state.sync_file(filename)
+
+    return ["$XFS_IO_PROG -c \"fsync\" {}".format(filename)], state
+
+def translate_fdatasync(line, state):
+    parts = line.split()
     assert parts[0] == "fdatasync"
     assert len(parts) == 2, "Must have 1 arg. Usage: fdatasync <file or directory>."
 
     filename = parts[1]
     filename = translate_filename(filename)
-    return ["$XFS_IO_PROG -c \"fdatasync\" {}".format(filename),
-            "check_consistency --data-only {}".format(filename)]
 
-def translate_sync(line):
-    parts = line.split(" ")
+    state.sync_file_data(filename)
+
+    return ["$XFS_IO_PROG -c \"fdatasync\" {}".format(filename)], state
+
+def translate_sync(line, state):
+    parts = line.split()
     assert parts[0] == "sync"
     assert len(parts) == 1, "sync does not allow any arguments"
 
-    return ["sync", "check_consistency " + " ".join(used_files)]
+    state.sync_all_files()
+
+    return ["sync"], state
 
 
-def translate_rename(line):
-    parts = line.split(" ")
+def translate_rename(line, state):
+    parts = line.split()
     assert parts[0] == "rename"
     assert len(parts) == 3, "Must have 2 args. Usage: rename <old name> <new name>."
 
     old, new = parts[1:]
     old, new = translate_filename(old), translate_filename(new)
 
-    return ["rename {} {}".format(old, new)]
+    state.rename_file(old, new)
 
-def translate_rmdir(line):
-    parts = line.split(" ")
+    return ["rename {} {}".format(old, new)], state
+
+def translate_rmdir(line, state):
+    parts = line.split()
     assert parts[0] == "rmdir"
     assert len(parts) == 2, "Must have 1 arg. Usage: rmdir <directory>."
 
     directory = parts[1]
     directory = translate_filename(directory)
 
-    return ["rm -rf {}".format(directory)]
+    state.remove_file(directory)
 
-def translate_falloc(line):
-    parts = line.split(" ")
+    return ["rm -rf {}".format(directory)], state
+
+def translate_falloc(line, state):
+    parts = line.split()
     assert parts[0] == "falloc"
     assert len(parts) == 5, "Must have 4 args. Usage: falloc <file> <mode> <offset> <length>."
 
     filename, mode, offset, length = parts[1:]
     filename = translate_filename(filename)
 
-    return [FallocOptions[mode].format(filename=filename, offset=offset, length=length)]
+    state.modify_file(filename)
+
+    return [FallocOptions[mode].format(filename=filename, offset=offset, length=length)], state
 
 # Translate a line of the high-level j-lang language
 # into a list of lines of bash for xfstest
-def translate_functions(line):
+def translate_functions(line, state):
     # Note that order is important here. Commands that are
     # prefixes of each other, i.e. open and opendir, must
     # have the longer string appear first.
 
     if line.startswith("mkdir"):
-        return translate_mkdir(line)
+        res = translate_mkdir(line, state)
     elif line.startswith("opendir"):
-        return translate_opendir(line)
+        res = translate_mkdir(line, state)
     elif line.startswith("open"):
-        return translate_open(line)
+        res = translate_open(line, state)
     elif line.startswith("fsync"):
-        return translate_fsync(line)
+        res = translate_fsync(line, state)
     elif line.startswith("fdatasync"):
-        return translate_fdatasync(line)
+        res = translate_fdatasync(line, state)
     elif line.startswith("sync"):
-        return translate_sync(line)
+        res = translate_sync(line, state)
     elif line.startswith("rename"):
-        return translate_rename(line)
+        res = translate_rename(line, state)
     elif line.startswith("falloc"):
-        return translate_falloc(line)
+        res = translate_falloc(line, state)
     elif line.startswith("close"):
-        return []
+        return [], state
     elif line.startswith("rmdir"):
-        return translate_rmdir(line)
+        res = translate_rmdir(line, state)
     elif line.startswith("truncate"):
-        return translate_truncate(line)
+        res = translate_truncate(line, state)
     elif line.startswith("checkpoint"):
-        return []
+        return [], state
     elif line.startswith("fsetxattr"):
-        return translate_fsetxattr(line)
+        res = translate_fsetxattr(line, state)
     elif line.startswith("removexattr"):
-        return translate_removexattr(line)
+        res = translate_removexattr(line, state)
     elif line.startswith("remove"):
-        return translate_remove(line)
+        res = translate_remove(line, state)
     elif line.startswith("unlink"):
-        return translate_remove(line)
+        res = translate_remove(line, state)
     elif line.startswith("link"):
-        return translate_link(line)
+        res = translate_link(line, state)
     elif line.startswith("symlink"):
-        return translate_symlink(line)
+        res = translate_symlink(line, state)
     elif line.startswith("dwrite"):
-        return translate_dwrite(line)
+        res = translate_dwrite(line, state)
     elif line.startswith("mmapwrite"):
-        return translate_mmapwrite(line)
+        res = translate_mmapwrite(line, state)
     elif line.startswith("write"):
-        return translate_write(line)
+        res = translate_write(line, state)
     elif line.startswith("none"):
-        return []
+        return [], state
     else:
         raise ValueError("Unknown function", line)
+
+    # Unpack tuple
+    line, state = res
+    return line, state
 
 def main():
     # Parse input args
@@ -427,8 +607,11 @@ def main():
 
     # Translate lines into xfstest format.
     lines_to_add = ["_mount_flakey"]
+    state = State()
     for line in lines_to_translate:
-        lines_to_add.extend(translate_functions(line))
+        new_line, state = translate_functions(line, state)
+        lines_to_add.extend(new_line)
+    lines_to_add.append(state.get_check_consistency_command())
     lines_to_add.append("clean_dir")
 
     # Insert lines into relevant location and write output files.
@@ -442,4 +625,4 @@ def main():
         f.writelines(out_lines)
 
 if __name__ == '__main__':
-	main()
+    main()

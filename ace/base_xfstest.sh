@@ -49,8 +49,6 @@ _init_flakey
 
 stat_opt='-c  %n - blocks: %b size: %s inode: %i links: %h'
 
-prepend() { while read line; do echo "$1$line"; done }
-
 # Rename wraps 'mv' except that 'rename A/ B/' 
 # would replace B, instead of creating A/B
 rename() { 
@@ -86,8 +84,8 @@ general_stat() {
 			# Directory with metadata and data
 			echo "Directory Metadata"
 			stat "$stat_opt" "$file"
-			echo "Directory Metadata + Child Metadata"
-			[[ -z "$(ls -A $file)" ]] || ls -1 "$file" | sort | prepend "$file/" | xargs stat "$stat_opt"
+			echo "Directory Data"
+			[[ -z "$(ls -A $file)" ]] || ls -1 "$file" | sort
 		else
 			# File with metadata and data
 			echo "File Metadata"
