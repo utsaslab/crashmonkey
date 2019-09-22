@@ -8,7 +8,7 @@
 #   - output/001
 #   - output/001.out
 
-import os
+import os 
 import re
 import sys
 import stat
@@ -201,27 +201,26 @@ class State():
         self._check_internal()
 
     def rename_file(self, old, new):
-        # Special case for A -> B
-        # TODO: Generalize this case.
-        jlang_names = get_row_from_filename(old)[0], get_row_from_filename(new)[0]
-        if jlang_names == ("A", "B"):
-            files_to_rename = [("A", "B"),
-                               ("Afoo", "Bfoo"),
-                               ("Abar", "Bbar")
-                              ]
-        elif jlang_names == ("B", "A"):
-            files_to_rename = [("B", "A"),
-                               ("Bfoo", "Afoo"),
-                               ("Bbar", "Abar")
-                              ]
-        else:
-            files_to_rename = [jlang_names]
+        self.remove_file(old)
+        self.add_file(new)
 
-        for old, new in files_to_rename:
-            old, new = translate_filename(old), translate_filename(new)
-            if old in self.opened_files:
-                self.remove_file(old)
-                self.add_file(new)
+        # Special case for directory renames: 
+        # If we rename A -> B, we must rename Afoo -> Bfoo
+        # TODO: Generalize this case.
+        jlang_old, jlang_new = get_row_from_filename(old)[0], get_row_from_filename(new)[0]
+
+        dirs = ["A", "B", "AC"]
+        files = ["foo", "bar"]
+
+        if jlang_old in dirs and jlang_new in dirs:
+            for child in files:
+                old_child = translate_filename(jlang_old + child)
+                new_child = translate_filename(jlang_new + child)
+
+                if old_child in self.opened_files:
+                    self._unopen_file(old_child) # special case where we don't want to open parent directory
+                    self._unsync_file(old_child)
+                    self.add_file(new_child)
 
     def sync_file(self, filename):
         self._sync_file(filename)
@@ -235,7 +234,6 @@ class State():
         self.synced_files = self.synced_files.union(self.opened_files)
         self.data_synced_files = self.data_synced_files.union(self.opened_files)
         self._check_internal()
-        return list(self.opened_files)
 
     def get_check_consistency_command(self):
         command = "check_consistency"
