@@ -8,7 +8,7 @@
 #   - output/001
 #   - output/001.out
 
-import os 
+import os
 import re
 import sys
 import stat
@@ -206,7 +206,6 @@ class State():
 
         # Special case for directory renames: 
         # If we rename A -> B, we must rename Afoo -> Bfoo
-        # TODO: Generalize this case.
         jlang_old, jlang_new = get_row_from_filename(old)[0], get_row_from_filename(new)[0]
 
         dirs = ["A", "B", "AC"]
