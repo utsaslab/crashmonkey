@@ -56,43 +56,46 @@ rename() {
     mv $1 $2
 }
 
-# Usage: general_stat [--data-only] file1 [file2] [file3 ...]
-# If the --data-only flag is passed then only the files' data
-# will be printed. This is to be used to verify fdatasync calls.
+# Usage: general_stat [--data-only] file1 [--data-only] [file2] ..
+# If the --data-only flag precedes a file, then only that file's
+# data will be printed.
 general_stat() {
-	# Parse --data-only flag
-	if [ "$1" = "--data-only" ]; then 
-		data_only="true" ; shift
-	else 
-		data_only="false"
-	fi
-
-	for file in "$@"
-	do
-		echo "-- $file --"
-		if [ ! -f "$file" ] && [ ! -d "$file" ]; then
-			echo "Doesn't exist!"
-		elif [ "$data_only" = "true" ] && [ -d "$file" ]; then
-			# Directory with --data-only
-			echo "Directory Data"
-			[[ -z "$(ls -A $file)" ]] || ls -1 "$file" | sort
-		elif [ "$data_only" = "true" ]; then
-			# File with --data-only
-			echo "File Data"
-			od "$file"
-		elif [ -d "$file" ]; then
-			# Directory with metadata and data
-			echo "Directory Metadata"
-			stat "$stat_opt" "$file"
-			echo "Directory Data"
-			[[ -z "$(ls -A $file)" ]] || ls -1 "$file" | sort
-		else
-			# File with metadata and data
-			echo "File Metadata"
-			stat "$stat_opt" "$file"
-			echo "File Data"
-			od "$file"
-		fi
+    data_only="false"
+    while (( "$#" )); do
+        case $1 in
+            --data-only)
+                data_only="true"
+                ;;
+            *)
+                local file="$1"
+                echo "-- $file --"
+                if [ ! -f "$file" ] && [ ! -d "$file" ]; then
+                    echo "Doesn't exist!"
+                elif [ "$data_only" = "true" ] && [ -d "$file" ]; then
+                    # Directory with --data-only
+                    echo "Directory Data"
+                    [[ -z "$(ls -A $file)" ]] || ls -1 "$file" | sort
+                elif [ "$data_only" = "true" ]; then
+                    # File with --data-only
+                    echo "File Data"
+                    od "$file"
+                elif [ -d "$file" ]; then
+                    # Directory with metadata and data
+                    echo "Directory Metadata"
+                    stat "$stat_opt" "$file"
+                    echo "Directory Data"
+                    [[ -z "$(ls -A $file)" ]] || ls -1 "$file" | sort
+                else
+                    # File with metadata and data
+                    echo "File Metadata"
+                    stat "$stat_opt" "$file"
+                    echo "File Data"
+                    od "$file"
+                fi
+                data_only="false"
+                ;;
+        esac
+        shift
 	done
 }
 
