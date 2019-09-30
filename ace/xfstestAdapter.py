@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 
 # To run : python xfstestAdapter.py -b base_xfstest.sh -t <jlang-file> \
-#               -p <output_directory> -n <test_number>
+#               -p <output_directory> -n <test_number> -f <filesystem type>
 #
 # For example, with output_directory = "output" and test_number = "001",
 # the converted test files will be located at:
@@ -101,6 +101,7 @@ def build_parser():
     parser.add_argument('--target_path', '-p', required=True, help='Directory to save the generated test files')
 
     parser.add_argument('--test_number', '-n', required=True, help='The test number following xfstest convention. Will generate <test_number> and <test_number>.out')
+    parser.add_argument('--filesystem_type', '-f', required=True, help='The filesystem type for the test (i.e. generic, ext4, btrfs, xfs, f2fs, etc.)')
     return parser
 
 
@@ -111,6 +112,7 @@ def print_setup(parsed_args):
     print '{0:20}  {1}'.format('Test skeleton', parsed_args.test_file)
     print '{0:20}  {1}'.format('Target directory', parsed_args.target_path)
     print '{0:20}  {1}'.format('Test number', parsed_args.test_number)
+    print '{0:20}  {1}'.format('Filesystem type', parsed_args.filesystem_type)
     print '\n', '='*48, '\n'
     
 
@@ -561,12 +563,14 @@ def main():
     base_file = parsed_args.base_file
     test_file = parsed_args.test_file
     test_number = parsed_args.test_number
+    filesystem_type = parsed_args.filesystem_type
     generated_test = os.path.join(parsed_args.target_path, test_number)
     generated_test_output = os.path.join(parsed_args.target_path, test_number + ".out")
     
     # Template parameters and helper functions for populating the base file
     template_params = [("$CURRENT_YEAR", str(datetime.datetime.now().year)),
-                       ("$TEST_NUMBER", test_number)]
+                       ("$TEST_NUMBER", test_number),
+                       ("$FILESYSTEM_TYPE", filesystem_type)]
 
     def filter_line(line):
         for param, value in template_params:

@@ -37,7 +37,7 @@ fssize=$((2**20 * 256))
 rm -f $seqres.full
 
 # real QA test starts here
-_supported_fs generic
+_supported_fs $FILESYSTEM_TYPE
 _supported_os Linux
 _require_scratch_nocheck
 _require_dm_target flakey
