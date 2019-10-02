@@ -1,6 +1,6 @@
 #!/usr/bin/env python
 
-#To run : python ace.py -l <seq_length> -n <nested : True|False> -d <demo : True|False>
+# To run : python ace.py -l <seq_length> -n <nested : True|False> -d <demo : True|False>
 import os
 import re
 import sys
@@ -20,50 +20,50 @@ from multiprocessing import Pool
 from progress.bar import *
 
 
-#All functions that has options go here
+# All functions that has options go here
 
 FallocOptions = ['FALLOC_FL_ZERO_RANGE', 'FALLOC_FL_ZERO_RANGE|FALLOC_FL_KEEP_SIZE','FALLOC_FL_PUNCH_HOLE|FALLOC_FL_KEEP_SIZE','FALLOC_FL_KEEP_SIZE', 0]
 
 FsyncOptions = ['fsync','fdatasync', 'sync']
 
-#This should take care of file name/ dir name
-#Default option : test, test/A [foo, bar] , test/B [foo, bar]
+# This should take care of file name/ dir name
+# Default option : test, test/A [foo, bar] , test/B [foo, bar]
 # We have seperated it out into two sets, first and second, in order to eliminate duplicate workloads that differ just in terms of file names.
-FileOptions = ['foo', 'A/foo'] #foo
-SecondFileOptions = ['bar', 'A/bar'] #bar
+FileOptions = ['foo', 'A/foo'] # foo
+SecondFileOptions = ['bar', 'A/bar'] # bar
 
-#A,B are  subdirectories under test
+# A,B are  subdirectories under test
 # test directory(root) is under a separate list because we don't want to try to create/remove it in the workload. But we should be able to fsync it.
 DirOptions = ['A']
 TestDirOptions = ['test']
 SecondDirOptions = ['B']
 
 
-#this will take care of offset + length combo
-#Start = 4-16K , append = 16K-20K, overlap = 8000 - 12096, prepend = 0-4K
+# this will take care of offset + length combo
+# Start = 4-16K , append = 16K-20K, overlap = 8000 - 12096, prepend = 0-4K
 
-#Append should append to file size, and overwrites should be possible
-#WriteOptions = ['append', 'overlap_unaligned_start', 'overlap_extend', 'overlap_unaligned_end']
+# Append should append to file size, and overwrites should be possible
+# WriteOptions = ['append', 'overlap_unaligned_start', 'overlap_extend', 'overlap_unaligned_end']
 WriteOptions = ['append', 'overlap_unaligned_start', 'overlap_extend'] # 'overlap_unaligned_end'
 
 
-#d_overlap = 8K-12K (has to be aligned)
-#dWriteOptions = ['append', 'overlap_start', 'overlap_end']
+# d_overlap = 8K-12K (has to be aligned)
+# dWriteOptions = ['append', 'overlap_start', 'overlap_end']
 dWriteOptions = ['append', 'overlap_start'] # 'overlap_end'
 
-#Truncate file options 'aligned'
+# Truncate file options 'aligned'
 TruncateOptions = ['unaligned']
 
-#Set of file-system operations to be used in test generation.
+# Set of file-system operations to be used in test generation.
 # We currently support : creat, mkdir, falloc, write, dwrite, link, unlink, remove, rename, fsetxattr, removexattr, truncate, mmapwrite, symlink, fsync, fdatasync, sync
 OperationSet = ['creat', 'mkdir', 'falloc', 'write', 'dwrite','mmapwrite', 'link', 'unlink', 'remove', 'rename', 'fsetxattr', 'removexattr', 'truncate', 'fdatasync']
 
-#The sequences we want to reach to, to reproduce known bugs.
+# The sequences we want to reach to, to reproduce known bugs.
 expected_sequence = []
 expected_sync_sequence = []
 
 
-#return sibling of a file/directory
+# return sibling of a file/directory
 def SiblingOf(file):
     if file == 'foo':
         return 'bar'
@@ -90,7 +90,7 @@ def SiblingOf(file):
     elif file == 'test':
         return 'test'
 
-#Return parent of a file/directory
+# Return parent of a file/directory
 def Parent(file):
     if file == 'foo' or file == 'bar':
         return 'test'
@@ -116,15 +116,15 @@ def file_range(file_list):
 
 #----------------------Known Bug summary-----------------------#
 
-#Length 1 = 3
-#Length 2 = 14
-#length 3 = 9
+# Length 1 = 3
+# Length 2 = 14
+# length 3 = 9
 
 # Total encoded = 26
 #--------------------------------------------------------------#
-#TODO: Update this list carefully.
-#If we don't allow dependency ops on same file, we'll miss this in seq2
-#This is actually seq 2 = [link foo-bar, 'sync', unlink bar, 'fsync-bar']
+# TODO: Update this list carefully.
+# If we don't allow dependency ops on same file, we'll miss this in seq2
+# This is actually seq 2 = [link foo-bar, 'sync', unlink bar, 'fsync-bar']
 # 1. btrfs_link_unlink 3 (yes finds in 2)
 expected_sequence.append([('link', ('foo', 'bar')), ('unlink', ('bar')), ('creat', ('bar'))])
 expected_sync_sequence.append([('sync'), ('none'), ('fsync', 'bar')])
@@ -142,7 +142,7 @@ expected_sync_sequence.append([('fsync', 'foo'), ('fsync', 'foo')])
 expected_sequence.append([('write', ('foo', 'append')), ('falloc', ('foo', 'FALLOC_FL_ZERO_RANGE|FALLOC_FL_KEEP_SIZE', 'append')), ('fdatasync', ('foo'))])
 expected_sync_sequence.append([('sync'), ('none'), ('none')])
 
-#We miss this in seq-2, because we disallow workloads of sort creat, creat
+# We miss this in seq-2, because we disallow workloads of sort creat, creat
 # 5. generic_034 2
 expected_sequence.append([('creat', ('A/foo')), ('creat', ('A/bar'))])
 expected_sync_sequence.append([('sync'), ('fsync', 'A')])
@@ -159,8 +159,8 @@ expected_sync_sequence.append([('sync'), ('fsync', 'foo')])
 expected_sequence.append([('fsetxattr', ('foo')), ('removexattr', ('foo'))])
 expected_sync_sequence.append([('sync'), ('fsync', 'foo')])
 
-#Reachable from current seq 2 generator  (#1360 : creat A/foo, rename A,B) (sync, fsync A)
-#We will miss this, if we restrict that op2 reuses files from op1
+# Reachable from current seq 2 generator  (#1360 : creat A/foo, rename A,B) (sync, fsync A)
+# We will miss this, if we restrict that op2 reuses files from op1
 # 9. generic_341 3 (Yes finds in 2)
 expected_sequence.append([('creat', ('A/foo')), ('rename', ('A', 'B')), ('mkdir', ('A'))])
 expected_sync_sequence.append([('sync'), ('none'), ('fsync', 'A')])
@@ -173,66 +173,67 @@ expected_sync_sequence.append([('fsync', 'A')])
 expected_sequence.append([('rename', ('foo', 'bar')), ('creat', ('foo'))])
 expected_sync_sequence.append([('none'), ('fsync', 'bar')])
 
-#Yes reachable from sseeq2 - (falloc (foo, append), fdatasync foo)
+# Yes reachable from sseeq2 - (falloc (foo, append), fdatasync foo)
 # 12. generic_468 3 (yes, finds in 2)
 expected_sequence.append([('write', ('foo', 'append')), ('falloc', ('foo', 'FALLOC_FL_KEEP_SIZE', 'append')), ('fdatasync', ('foo'))])
 expected_sync_sequence.append([('sync'), ('none'), ('none')])
 
-#We miss this if we sync only used file set - or we need an option 'none' to end the file with
+# We miss this if we sync only used file set - or we need an option 'none' to end the file with
 # 13. ext4_direct_write 2
 expected_sequence.append([('write', ('foo', 'append')), ('dwrite', ('foo', 'overlap'))])
 expected_sync_sequence.append([('none'), ('fsync', 'bar')])
 
 #14 btrfs_EEXIST (Seq 1)
-#creat foo, fsync foo
-#write foo 0-4K, fsync foo
+# creat foo, fsync foo
+# write foo 0-4K, fsync foo
 
-#btrfs use -O extref during mkfs
+# btrfs use -O extref during mkfs
 #15. generic 041 (If we consider the 3000 as setup, then seq length 3)
-#create 3000 link(foo, foo_i), sync, unlink(foo_0), link(foo, foo_3001), link(foo, foo_0), fsync foo
+# create 3000 link(foo, foo_i), sync, unlink(foo_0), link(foo, foo_3001), link(foo, foo_0), fsync foo
 
 #16. generic 056 (seq2)
-#write(foo, 0-4K), fsync foo, link(foo, bar), fsync some random file/dir
+# write(foo, 0-4K), fsync foo, link(foo, bar), fsync some random file/dir
 
-#requires that we allow repeated operations (check if mmap write works here)
+# requires that we allow repeated operations (check if mmap write works here)
 #17 generic 090 (seq3)
-#write(foo 0-4K), sync, link(foo, bar), sync, append(foo, 4K-8K), fsync foo
+# write(foo 0-4K), sync, link(foo, bar), sync, append(foo, 4K-8K), fsync foo
 
 #18 generic_104 (seq2) larger file set
-#link(foo, foo1), link(bar, bar1), fsync(bar)
+# link(foo, foo1), link(bar, bar1), fsync(bar)
 
 #19 generic 106 (seq 2)
-#link(foo, bar), sync, unlink(bar) *drop cache* fsync foo
+# link(foo, bar), sync, unlink(bar) *drop cache* fsync foo
 
 #20 generic 107 (seq 3)
-#link(foo, A/foo), link(foo, A/bar), sync, unlink(A/bar), fsync(foo)
+# link(foo, A/foo), link(foo, A/bar), sync, unlink(A/bar), fsync(foo)
 
 #21 generic 177
-#write(foo, 0-32K), sync, punch_hole(foo, 24K-32K), punch_hole(foo, 4K-64K) fsync foo
+# write(foo, 0-32K), sync, punch_hole(foo, 24K-32K), punch_hole(foo, 4K-64K) fsync foo
 
 #22 generic 321 2 fsyncs?
-#rename(foo, A/foo), fsync A, fsync A/foo
+# rename(foo, A/foo), fsync A, fsync A/foo
 
 #23 generic 322 (yes, seq1)
-#rename(A/foo, A/bar), fsync(A/bar)
+# rename(A/foo, A/bar), fsync(A/bar)
 
 #24 generic 335 (seq 2) but larger file set
-#rename(A/foo, foo), creat bar, fsync(test)
+# rename(A/foo, foo), creat bar, fsync(test)
 
 #25 generic 336 (seq 4)
-#link(A/foo, B/foo), creat B/bar, sync, unlink(B/foo), mv(B/bar, C/bar), fsync A/foo
+# link(A/foo, B/foo), creat B/bar, sync, unlink(B/foo), mv(B/bar, C/bar), fsync A/foo
 
 
 #26 generic 342 (seq 3)
 # write foo 0-4K, sync, rename(foo,bar), write(foo) fsync(foo)
 
 #27 generic 343 (seq 2)
-#link(A/foo, A/bar) , rename(B/foo_new, A/foo_new), fsync(A/foo)
+# link(A/foo, A/bar) , rename(B/foo_new, A/foo_new), fsync(A/foo)
 
 #28 generic 325 (seq3)
-#write,(foo, 0-256K), mmapwrite(0-4K), mmapwrite(252-256K), msync(0-64K), msync(192-256K)
+# write,(foo, 0-256K), mmapwrite(0-4K), mmapwrite(252-256K), msync(0-64K), msync(192-256K)
 
 
+VALID_TEST_TYPES = ['crashmonkey', 'xfstest']
 
 def build_parser():
     parser = argparse.ArgumentParser(description='Automatic Crash Explorer v0.1')
@@ -241,7 +242,8 @@ def build_parser():
     parser.add_argument('--sequence_len', '-l', default='3', help='Number of critical ops in the bugy workload')
     parser.add_argument('--nested', '-n', default='False', help='Add an extra level of nesting?')
     parser.add_argument('--demo', '-d', default='False', help='Create a demo workload set?')
-    parser.add_argument('--test-type', '-t', default='crashmonkey', required=False, help='Type of test to generate <crashmonkey/xfstest>. (Default: crashmonkey)')
+    parser.add_argument('--test-type', '-t', default='crashmonkey', required=False, 
+            help='Type of test to generate <{}>. (Default: crashmonkey)'.format("/".join(VALID_TEST_TYPES)))
 
     return parser
 
@@ -443,28 +445,28 @@ def insertWrite(file_name, open_dir_map, open_file_map, file_length_map, modifie
     return ('write', (file_name, 'append'))
 
 
-#Dependency checks : Creat - file should not exist. If it does, remove it.
+# Dependency checks : Creat - file should not exist. If it does, remove it.
 def checkCreatDep(current_sequence, pos, modified_sequence, modified_pos, open_dir_map, open_file_map, file_length_map):
     file_name = current_sequence[pos][1]
     
     
-    #Either open or closed doesn't matter. File should not exist at all
+    # Either open or closed doesn't matter. File should not exist at all
     if file_name in open_file_map:
-        #Insert dependency before the creat command
+        # Insert dependency before the creat command
         modified_sequence.insert(modified_pos, insertUnlink(file_name, open_dir_map, open_file_map, file_length_map, modified_pos))
         modified_pos += 1
     return modified_pos
 
-#Dependency checks : Mkdir
+# Dependency checks : Mkdir
 def checkDirDep(current_sequence, pos, modified_sequence, modified_pos, open_dir_map, open_file_map, file_length_map):
     file_name = current_sequence[pos][1]
     if file_name not in DirOptions and file_name not in SecondDirOptions:
         print 'Invalid param list for mkdir'
     
-    #Either open or closed doesn't matter. Directory should not exist at all
+    # Either open or closed doesn't matter. Directory should not exist at all
     # TODO : We heavily depend on the pre-defined file list. Need to generalize it at some point.
     if file_name in open_dir_map and file_name != 'test':
-        #if dir is A, remove contents within it too
+        # if dir is A, remove contents within it too
         if file_name == 'A':
             if 'A/foo' in open_file_map and open_file_map['A/foo'] == 1:
                 file = 'A/foo'
@@ -563,7 +565,7 @@ def checkDirDep(current_sequence, pos, modified_sequence, modified_pos, open_dir
                 modified_pos += 1
 
 
-        #Insert dependency before the creat command
+        # Insert dependency before the creat command
         modified_sequence.insert(modified_pos, insertRmdir(file_name, open_dir_map, open_file_map, file_length_map, modified_pos))
         modified_pos += 1
             
@@ -574,7 +576,7 @@ def checkParentExistsDep(current_sequence, pos, modified_sequence, modified_pos,
     file_names = current_sequence[pos][1]
     if isinstance(file_names, basestring):
         file_name = file_names
-        #Parent dir doesn't exist
+        # Parent dir doesn't exist
         if (Parent(file_name) == 'A' or Parent(file_name) == 'B')  and Parent(file_name) not in open_dir_map:
             modified_sequence.insert(modified_pos, insertMkdir(Parent(file_name), open_dir_map, open_file_map, file_length_map, modified_pos))
             modified_pos += 1
@@ -592,7 +594,7 @@ def checkParentExistsDep(current_sequence, pos, modified_sequence, modified_pos,
         file_name = file_names[0]
         file_name2 = file_names[1]
         
-        #Parent dir doesn't exist
+        # Parent dir doesn't exist
         if (Parent(file_name) == 'A' or Parent(file_name) == 'B')  and Parent(file_name) not in open_dir_map:
             modified_sequence.insert(modified_pos, insertMkdir(Parent(file_name), open_dir_map, open_file_map, file_length_map, modified_pos))
             modified_pos += 1
@@ -605,7 +607,7 @@ def checkParentExistsDep(current_sequence, pos, modified_sequence, modified_pos,
             modified_sequence.insert(modified_pos, insertMkdir(Parent(file_name), open_dir_map, open_file_map, file_length_map, modified_pos))
             modified_pos += 1
 
-        #Parent dir doesn't exist
+        # Parent dir doesn't exist
         if (Parent(file_name2) == 'A' or Parent(file_name2) == 'B')  and Parent(file_name2) not in open_dir_map:
             modified_sequence.insert(modified_pos, insertMkdir(Parent(file_name2), open_dir_map, open_file_map, file_length_map, modified_pos))
             modified_pos += 1
@@ -642,13 +644,13 @@ def checkExistsDep(current_sequence, pos, modified_sequence, modified_pos, open_
 
     if file_name in FileOptions or file_name in SecondFileOptions:
         if file_name not in open_file_map or open_file_map[file_name] == 0:
-        #Insert dependency - open before the command
+        # Insert dependency - open before the command
             modified_sequence.insert(modified_pos, insertOpen(file_name, open_dir_map, open_file_map, file_length_map, modified_pos))
             modified_pos += 1
     
     return modified_pos
 
-#Ensures that the file is closed. If not, closes it.
+# Ensures that the file is closed. If not, closes it.
 def checkClosed(current_sequence, pos, modified_sequence, modified_pos, open_dir_map, open_file_map, file_length_map):
     
     file_names = current_sequence[pos][1]
@@ -666,7 +668,7 @@ def checkClosed(current_sequence, pos, modified_sequence, modified_pos, open_dir
         modified_pos += 1
     return modified_pos
 
-#If the op is remove xattr, we need to ensure, there's atleast one associated xattr to the file
+# If the op is remove xattr, we need to ensure, there's atleast one associated xattr to the file
 def checkXattr(current_sequence, pos, modified_sequence, modified_pos, open_dir_map, open_file_map, file_length_map):
     file_name = current_sequence[pos][1]
     if open_file_map[file_name] == 1:
@@ -718,9 +720,9 @@ def satisfyDep(current_sequence, pos, modified_sequence, modified_pos, open_dir_
         
         modified_pos = checkParentExistsDep(current_sequence, pos, modified_sequence, modified_pos, open_dir_map, open_file_map, file_length_map)
         
-        #if file doesn't exist, has to be created and opened
+        # if file doesn't exist, has to be created and opened
         modified_pos = checkExistsDep(current_sequence, pos, modified_sequence, modified_pos, open_dir_map, open_file_map, file_length_map)
-        #Whatever the op is, let's ensure file size is non zero
+        # Whatever the op is, let's ensure file size is non zero
         modified_pos = checkFileLength(current_sequence, pos, modified_sequence, modified_pos, open_dir_map, open_file_map, file_length_map)
 
 
@@ -730,11 +732,11 @@ def satisfyDep(current_sequence, pos, modified_sequence, modified_pos, open_dir_
         
         modified_pos = checkParentExistsDep(current_sequence, pos, modified_sequence, modified_pos, open_dir_map, open_file_map, file_length_map)
         
-        #if file doesn't exist, has to be created and opened
+        # if file doesn't exist, has to be created and opened
         modified_pos = checkExistsDep(current_sequence, pos, modified_sequence, modified_pos, open_dir_map, open_file_map, file_length_map)
         
         
-        #if we chose to do an append, let's not care about the file size
+        # if we chose to do an append, let's not care about the file size
         # however if its an overwrite or unaligned write, then ensure file is atleast one page long
         if option == 'append':
             if file not in file_length_map:
@@ -744,7 +746,7 @@ def satisfyDep(current_sequence, pos, modified_sequence, modified_pos, open_dir_
         elif option == 'overlap' or 'overlap_aligned' or 'overlap_unaligned':
             modified_pos = checkFileLength(current_sequence, pos, modified_sequence, modified_pos, open_dir_map, open_file_map, file_length_map)
 
-        #If we do a dwrite, let's close the file after that
+        # If we do a dwrite, let's close the file after that
         if command == 'dwrite':
             if file in FileOptions or file in SecondFileOptions:
                 open_file_map[file] = 0
@@ -758,22 +760,22 @@ def satisfyDep(current_sequence, pos, modified_sequence, modified_pos, open_dir_
         modified_pos = checkExistsDep(current_sequence, pos, modified_sequence, modified_pos, open_dir_map, open_file_map, file_length_map)
         
         if second_file in open_file_map and open_file_map[second_file] == 1:
-        #Insert dependency - open before the command
+        # Insert dependency - open before the command
             modified_sequence.insert(modified_pos, insertClose(second_file, open_dir_map, open_file_map, file_length_map, modified_pos))
             modified_pos += 1
     
-        #if we have a closed file, remove it
+        # if we have a closed file, remove it
         if second_file in open_file_map and open_file_map[second_file] == 0:
-            #Insert dependency - open before the command
+            # Insert dependency - open before the command
             modified_sequence.insert(modified_pos, insertUnlink(second_file, open_dir_map, open_file_map, file_length_map, modified_pos))
             modified_pos += 1
         
         
-        #We have created a new file, but it isn't open yet
+        # We have created a new file, but it isn't open yet
         open_file_map[second_file] = 0
     
     elif command == 'rename':
-        #If the file was open during rename, does the handle now point to new file?
+        # If the file was open during rename, does the handle now point to new file?
         first_file = current_sequence[pos][1][0]
         second_file = current_sequence[pos][1][1]
         
@@ -781,15 +783,15 @@ def satisfyDep(current_sequence, pos, modified_sequence, modified_pos, open_dir_
         
         modified_pos = checkExistsDep(current_sequence, pos, modified_sequence, modified_pos, open_dir_map, open_file_map, file_length_map)
         
-        #Checks if first file is closed
+        # Checks if first file is closed
         modified_pos = checkClosed(current_sequence, pos, modified_sequence, modified_pos, open_dir_map, open_file_map, file_length_map)
         
         if second_file in open_file_map and open_file_map[second_file] == 1:
-            #Insert dependency - close the second file
+            # Insert dependency - close the second file
             modified_sequence.insert(modified_pos, insertClose(second_file, open_dir_map, open_file_map, file_length_map, modified_pos))
             modified_pos += 1
         
-        #We have removed the first file, and created a second file
+        # We have removed the first file, and created a second file
         if first_file in FileOptions or first_file in SecondFileOptions:
             open_file_map.pop(first_file, None)
             open_file_map[second_file] = 0
@@ -802,11 +804,11 @@ def satisfyDep(current_sequence, pos, modified_sequence, modified_pos, open_dir_
         
         modified_pos = checkParentExistsDep(current_sequence, pos, modified_sequence, modified_pos, open_dir_map, open_file_map, file_length_map)
         
-        #No dependency checks
+        # No dependency checks
         pass
     
     elif command == 'remove' or command == 'unlink':
-        #Close any open file handle and then unlink
+        # Close any open file handle and then unlink
         file = current_sequence[pos][1]
         
         modified_pos = checkParentExistsDep(current_sequence, pos, modified_sequence, modified_pos, open_dir_map, open_file_map, file_length_map)
@@ -814,16 +816,16 @@ def satisfyDep(current_sequence, pos, modified_sequence, modified_pos, open_dir_
         modified_pos = checkExistsDep(current_sequence, pos, modified_sequence, modified_pos,open_dir_map, open_file_map, file_length_map)
         modified_pos = checkClosed(current_sequence, pos, modified_sequence, modified_pos, open_dir_map, open_file_map, file_length_map)
         
-        #Remove file from map
+        # Remove file from map
         open_file_map.pop(file, None)
 
 
     elif command == 'removexattr':
-        #Check that file exists
+        # Check that file exists
         modified_pos = checkParentExistsDep(current_sequence, pos, modified_sequence, modified_pos, open_dir_map, open_file_map, file_length_map)
         
         modified_pos = checkExistsDep(current_sequence, pos, modified_sequence, modified_pos, open_dir_map, open_file_map, file_length_map)
-        #setxattr
+        # setxattr
         modified_pos = checkXattr(current_sequence, pos, modified_sequence, modified_pos, open_dir_map, open_file_map, file_length_map)
     
     elif command == 'fsync' or command == 'fdatasync' or command == 'fsetxattr':
@@ -852,7 +854,7 @@ def satisfyDep(current_sequence, pos, modified_sequence, modified_pos, open_dir_
 
     return modified_pos
 
-#Helper to merge lists
+# Helper to merge lists
 def flatList(op_list):
     flat_list = list()
     if not isinstance(op_list, basestring):
@@ -1083,7 +1085,7 @@ def doPermutation(perm, test_type):
     count +=1
     log_file_handle.write(log)
         
-    #Now for each of this permutation of file-system operations, find all possible permutation of paramters
+    # Now for each of this permutation of file-system operations, find all possible permutation of paramters
     combination = list()
     for length in xrange(0,len(permutations[count-1])):
         combination.append(parameterList[permutations[count-1][length]])
@@ -1093,7 +1095,7 @@ def doPermutation(perm, test_type):
     # **PHASE 2** : Exhaustively populate parameters to the chosen skeleton in phase 1
     for currentParameterOption in itertools.product(*combination):
         
-        #files used so far
+        # files used so far
         usedSofar = list()
         intersect = list()
         
@@ -1108,7 +1110,7 @@ def doPermutation(perm, test_type):
                 intersect.append('A')
             usedSofar = list(set(currentParameterOption[paramLength]) | set(usedSofar))
             if len(intersect) == 0 and paramLength > 0 and int(num_ops) == 3:
-                #print 'Skip this option'
+                # print 'Skip this option'
                 toSkip = True
                 continue
 
@@ -1120,7 +1122,7 @@ def doPermutation(perm, test_type):
         count_param += 1
         log_file_handle.write(log)
         
-        #Let's insert fsync combinations here.
+        # Let's insert fsync combinations here.
         count_sync = 0
         usedFiles = list()
         flat_used_list = flatList(currentParameterOption)
@@ -1128,14 +1130,14 @@ def doPermutation(perm, test_type):
             if isinstance(flat_used_list[file_len], basestring):
                 usedFilesList = list(set(flat_used_list) & set(FileOptions + SecondFileOptions + DirOptions + SecondDirOptions + TestDirOptions))
                 usedFiles.append(tuple(usedFilesList))
-            #else:
+            # else:
             #   usedFilesList = [filter(lambda x: x in list(FileOptions + SecondFileOptions + DirOptions + SecondDirOptions + TestDirOptions), sublist) for sublist in currentParameterOption]
             #   usedFilesList = flatList(usedFilesList)
             #   usedFiles = list(set(set(usedFilesList) | set(usedFiles)))
 
         usedFiles = flatList(set(usedFiles))
 
-        #For lower sequences, let's allow fsync on any related file - sibling/parent
+        # For lower sequences, let's allow fsync on any related file - sibling/parent
         if int(num_ops) < 3 and not demo:
             syncPermutationsCustom = buildCustomTuple(file_range(usedFiles))
         else:
@@ -1162,7 +1164,7 @@ def doPermutation(perm, test_type):
             count_sync+=1
             seq = []
             
-            #merge the lists here . Just check if perm has fdatasync. If so skip adding any sync:
+            # merge the lists here . Just check if perm has fdatasync. If so skip adding any sync:
             for length in xrange(0, len(perm)):
                 skip_sync = False
                 op = list()
@@ -1211,7 +1213,7 @@ def doPermutation(perm, test_type):
             file_length_map = {}
             open_dir_map = {}
 
-            #test dir exists
+            # test dir exists
             open_dir_map['test'] = 0
 
             # Go over the current sequence of operations and satisfy dependencies for each file-system op
@@ -1219,13 +1221,13 @@ def doPermutation(perm, test_type):
                 modified_pos = satisfyDep(seq, i, modified_sequence, modified_pos, open_dir_map, open_file_map, file_length_map)
                 modified_pos += 1
         
-            #now close all open files
+            # now close all open files
             for file_name in open_file_map:
                 if open_file_map[file_name] == 1:
                     modified_sequence.insert(modified_pos, insertClose(file_name, open_dir_map, open_file_map, file_length_map, modified_pos))
                     modified_pos += 1
 
-            #close all open directories
+            # close all open directories
             for file_name in open_dir_map:
                 if open_dir_map[file_name] == 1:
                     modified_sequence.insert(modified_pos, insertClose(file_name, open_dir_map, open_file_map, file_length_map, modified_pos))
@@ -1251,7 +1253,7 @@ def doPermutation(perm, test_type):
             if test_type == 'crashmonkey':
                 exec_command = 'python2 cmAdapter.py -b ../code/tests/' + dest_dir + '/base.cpp -t ' + j_lang_file + ' -p ../code/tests/' + dest_dir + '/ -o ' + str(global_count)
             elif test_type == 'xfstest':
-                exec_command = 'python2 xfstestAdapter.py -b base_xfstest.sh -t ' + j_lang_file + ' -p ../code/tests/' + dest_dir + '/ -n ' + str(global_count)
+                exec_command = 'python2 xfstestAdapter.py -b ../code/tests/' + dest_dir + '/base_xfstest.sh -t ' + j_lang_file + ' -p ../code/tests/' + dest_dir + '/ -n ' + str(global_count) + " -f generic"
             subprocess.call(exec_command, shell=True)
 
 
@@ -1259,7 +1261,7 @@ def doPermutation(perm, test_type):
             log_file_handle.write(log)
 
             # Uncomment only if you want to match the generated workloads to the list of encoded workloads. It could slow down generation!
-            #isBugWorkload(permutations[count-1], j, syncPermutationsCustom[insSync])
+            # isBugWorkload(permutations[count-1], j, syncPermutationsCustom[insSync])
 
 class SlowBar(FillingCirclesBar):
     suffix = '%(percent).0f%%  (Completed %(index)d skeletons with %(global_count)d workloads)'
@@ -1298,18 +1300,23 @@ def main():
     global OperationSet
     global FallocOptions
     
-    #open log file
+    # open log file
     log_file = time.strftime('%Y%m%d_%H%M%S') + '-bugWorkloadGen.log'
     log_file_handle = open(log_file, 'w')
     
-    #Parse input args
+    # Parse input args
     parsed_args = build_parser().parse_args()
     
-    #Print the test setup - just for sanity
+    # Print the test setup - just for sanity
     print_setup(parsed_args)
 
     num_ops = parsed_args.sequence_len
     test_type = parsed_args.test_type
+
+    if test_type not in VALID_TEST_TYPES:
+        print("Invalid test type '{}'\nTest type must be one of <{}>"
+                .format(test_type, "/".join(VALID_TEST_TYPES)))
+        sys.exit(1)
     
     if parsed_args.nested == ('True' or 'true'):
         nested = True
@@ -1334,7 +1341,7 @@ def main():
         SecondDirOptions = SecondDirOptions + ['AC']
 
     # We just print all known bugs
-    #for i in xrange(0,len(expected_sequence)):
+    # for i in xrange(0,len(expected_sequence)):
     #   print 'Bug #', i+1
     #   print expected_sequence[i]
     #   print expected_sync_sequence[i]
@@ -1384,42 +1391,46 @@ def main():
     if not os.path.exists(target_path):
         os.makedirs(target_path)
 
-    #copy base files into this directory
+    # copy base files into this directory
     # We assume that a directory ace-base exists with skeleton for the base j-lang and .cpp files. This has to be something pre-written according to the format required by your record-and-replay tool.
-    dest_j_lang_file = '../code/tests/' + dest_dir + '/base-j-lang'
-    source_j_lang_file = '../code/tests/ace-base/base-j-lang'
-    copyfile(source_j_lang_file, dest_j_lang_file)
+    if test_type == "crashmonkey" or test_type == "xfstest":
+        dest_j_lang_file = '../code/tests/' + dest_dir + '/base-j-lang'
+        source_j_lang_file = '../code/tests/ace-base/base-j-lang'
+        copyfile(source_j_lang_file, dest_j_lang_file)
 
-    dest_j_lang_cpp = '../code/tests/' + dest_dir + '/base.cpp'
-    source_j_lang_cpp = '../code/tests/ace-base/base.cpp'
-    copyfile(source_j_lang_cpp, dest_j_lang_cpp)
+    if test_type == "crashmonkey":
+        dest_j_lang_cpp = '../code/tests/' + dest_dir + '/base.cpp'
+        source_j_lang_cpp = '../code/tests/ace-base/base.cpp'
+        copyfile(source_j_lang_cpp, dest_j_lang_cpp)
 
-    # Workloads can take really long to generate. SO let's create a progress bar.
+    if test_type == "xfstest":
+        dest_j_lang_cpp = '../code/tests/' + dest_dir + '/base_xfstest.sh'
+        source_j_lang_cpp = '../code/tests/ace-base/base_xfstest.sh'
+        copyfile(source_j_lang_cpp, dest_j_lang_cpp)
+
     
     # Create all permutations of persistence ops  of given sequence length. This will be merged to the phase-2 workload.
     for i in itertools.product(SyncSet, repeat=int(num_ops)):
         syncPermutations.append(i)
-
 
     # This is the number of input operations
     log = 'Total file-system operations tested = ' +  `len(OperationSet)` + '\n'
     print log
     log_file_handle.write(log)
 
-
-
     # Time workload generation
     start_time = time.time()
 
     # **PHASE 1** : Create all permutations of file-system operations of given sequence lengt. ops can repeat.
     # To create only permutations of ops with no repeptions allowed, use this
-    #for i in itertools.permutations(OperationSet, int(num_ops)):
+    # for i in itertools.permutations(OperationSet, int(num_ops)):
     totalOpCombinations = len(OperationSet) ** int(num_ops)
-    #bar = FillingCirclesBar('Generating workloads.. ', max=totalOpCombinations, suffix='%(percent).0f%%  (Completed %(index)d/%(global_count)d)')
+    # Workloads can take really long to generate. So let's create a progress bar.
+    # bar = FillingCirclesBar('Generating workloads.. ', max=totalOpCombinations, suffix='%(percent).0f%%  (Completed %(index)d/%(global_count)d)')
     bar = SlowBar('Generating workloads.. ', max=totalOpCombinations)
 
     # This is the number of input operations
-    log = 'Total Phase-1 Skeletons = ' +  `totalOpCombinations` + '\n'
+    log = 'Total Phase-1 Skeletons = ' + `totalOpCombinations` + '\n'
     if not demo:
 	print log
     log_file_handle.write(log)
@@ -1429,18 +1440,14 @@ def main():
         doPermutation(i, test_type)
         bar.next()
 
-
-
     # To parallelize workload generation, we will need to modify how we number the workloads. If we enable this as it is, the threads will overwrite workloads, as they don't see the global_count.
-    #pool = Pool(processes = 4)
-    #pool.map(doPermutation, itertools.permutations(OperationSet, int(num_ops)))
-    #pool.close()
-
+    # pool = Pool(processes = 4)
+    # pool.map(doPermutation, itertools.permutations(OperationSet, int(num_ops)))
+    # pool.close()
 
     # End timer
     end_time = time.time()
     bar.finish()
-
 
     # This is the total number of workloads generated
     log = '\nTotal workloads generated = '  + `global_count`  + '\n'
