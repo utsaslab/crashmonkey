@@ -1251,7 +1251,7 @@ def doPermutation(perm, test_type):
             if test_type == 'crashmonkey':
                 exec_command = 'python2 cmAdapter.py -b ../code/tests/' + dest_dir + '/base.cpp -t ' + j_lang_file + ' -p ../code/tests/' + dest_dir + '/ -o ' + str(global_count)
             elif test_type == 'xfstest':
-                exec_command = 'python2 xfstestAdapter.py -b base_xfstest.sh -t ' + j_lang_file + ' -p ../code/tests/' + dest_dir + '/ -n ' + str(global_count)
+                exec_command = 'python2 xfstestAdapter.py -b base_xfstest.sh -t ' + j_lang_file + ' -p ../code/tests/' + dest_dir + '/ -n ' + str(global_count) + " -f generic"
             subprocess.call(exec_command, shell=True)
 
 
