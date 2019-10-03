@@ -233,7 +233,8 @@ expected_sync_sequence.append([('none'), ('fsync', 'bar')])
 # write,(foo, 0-256K), mmapwrite(0-4K), mmapwrite(252-256K), msync(0-64K), msync(192-256K)
 
 
-VALID_TEST_TYPES = ['crashmonkey', 'xfstest']
+# TODO: arvind give it a better name
+VALID_TEST_TYPES = ['crashmonkey', 'xfstest', 'xfstest2']
 
 def build_parser():
     parser = argparse.ArgumentParser(description='Automatic Crash Explorer v0.1')
@@ -1049,7 +1050,6 @@ def buildJlang(op_list, length_map):
 
     return command_str
 
-
 # Main function that exhaustively generates combinations of ops.
 def doPermutation(perm, test_type):
     
@@ -1260,8 +1260,106 @@ def doPermutation(perm, test_type):
             log = '\n\t\t\tModified sequence = {0}\n'.format(modified_sequence);
             log_file_handle.write(log)
 
-            # Uncomment only if you want to match the generated workloads to the list of encoded workloads. It could slow down generation!
-            # isBugWorkload(permutations[count-1], j, syncPermutationsCustom[insSync])
+# TODO: arvind better name
+# Exhaustively generates combinations of ops, but create j2-lang
+# files that allow the xfstest2 adapter to create more concise
+# tests.
+def doPermutationV2(perm):
+    
+    global global_count
+    global parameterList
+    global num_ops
+    global nested
+    global demo
+    global syncPermutations
+    global count
+    global permutations
+    global SyncSet
+    global log_file_handle
+    global count_param
+    
+    dest_dir = 'seq'+num_ops
+    
+    if nested:
+        dest_dir += '_nested'
+    
+    if demo:
+        dest_dir += '_demo'
+
+    
+    # TODO: verify this
+    # For now, we only support operations of length 1.
+    assert int(num_ops) <= 2
+
+    permutations.append(perm)
+    log = ', '.join(perm);
+    log = '\n' + `count` + ' : ' + log + '\n'
+    count +=1
+    log_file_handle.write(log)
+        
+    # Now for each of this permutation of file-system operations, find all possible parameters
+    parameter_options = []
+    for length in xrange(0,len(permutations[count-1])):
+        parameter_options.append(parameterList[permutations[count-1][length]])
+
+    # Let's insert fsync combinations here.
+    # usedFiles = list()
+    # flat_used_list = flatList(currentParameterOption)
+    # for file_len in xrange(0, len(flat_used_list)):
+    #     if isinstance(flat_used_list[file_len], basestring):
+    #         usedFilesList = list(set(flat_used_list) & set(FileOptions + SecondFileOptions + DirOptions + SecondDirOptions + TestDirOptions))
+    #         usedFiles.append(tuple(usedFilesList))
+    # usedFiles = flatList(set(usedFiles))
+
+
+    # For lower sequences, let's allow fsync on any related file - sibling/parent
+    # if int(num_ops) < 3 and not demo:
+    #     syncPermutationsCustom = buildCustomTuple(file_range(usedFiles))
+    # else:
+    #     syncPermutationsCustom = buildCustomTuple(usedFiles)
+
+    # Logging the list of used files
+    # log = '\n\t\tUsed Files = {0}\n'.format(usedFiles)
+    # log = log + '\t\tFile range = {0}\n'.format(file_range(usedFiles))
+    # log_file_handle.write(log)
+
+    # TODO: arvind its unclear how to find which files are "used" so that
+    # we can determine which files need to be synced. We can either write a 
+    # script in bash that can find sibling/parent. Or, we can sync everything.
+    # But then the test will take forever on num_ops > 1. Hmmm... for now,
+    # lets justinsert a 'sync' command below and let the adapter take care of it.
+
+    # Build the sequence of operations and the corresponding 
+    # files to perform those operations.
+    seq = zip(perm, parameter_options)
+
+    # Logging the skeleton of the workload, including persistence operations and paramters.
+    log = '\t\t\tCurrent Sequence = {0}'.format(seq);
+    log_file_handle.write(log)
+
+    #--------------Now build the j2-lang file-------------------#
+    global_count += 1
+    j2_lang_file = 'j2-lang' + str(global_count)
+
+    lines = []
+    for op, parameters in seq:
+        lines.append(op + "\n")
+
+        if isinstance(parameters, list):
+            for param in parameters:
+                lines.append(" ".join(list(map(str,param))) + "\n")
+            lines.append("\n")
+        else:
+            lines.append("\n".join(parameters) + "\n")
+            lines.append("\n")
+
+    with open(j2_lang_file, 'w') as f:
+        f.writelines(lines[:-1])
+
+    # TODO: arvind actually call the adapter
+    # exec_command = 'python2 xfstestAdapter.py -b ../code/tests/' + dest_dir + '/base_xfstest.sh -t ' + j_lang_file + ' -p ../code/tests/' + dest_dir + '/ -n ' + str(global_count) + " -f generic"
+    # subprocess.call(exec_command, shell=True)
+
 
 class SlowBar(FillingCirclesBar):
     suffix = '%(percent).0f%%  (Completed %(index)d skeletons with %(global_count)d workloads)'
@@ -1408,6 +1506,7 @@ def main():
         source_j_lang_cpp = '../code/tests/ace-base/base_xfstest.sh'
         copyfile(source_j_lang_cpp, dest_j_lang_cpp)
 
+    # TODO: arvind add base xfstest2 thing
     
     # Create all permutations of persistence ops  of given sequence length. This will be merged to the phase-2 workload.
     for i in itertools.product(SyncSet, repeat=int(num_ops)):
@@ -1437,7 +1536,11 @@ def main():
 
     bar.start()
     for i in itertools.product(OperationSet, repeat=int(num_ops)):
-        doPermutation(i, test_type)
+        # TODO: arvind better name
+        if test_type == "xfstest2":
+            doPermutationV2(i)
+        else:
+            doPermutation(i, test_type)
         bar.next()
 
     # To parallelize workload generation, we will need to modify how we number the workloads. If we enable this as it is, the threads will overwrite workloads, as they don't see the global_count.
@@ -1469,8 +1572,10 @@ def main():
 
 
     # Move the resultant high-level lang files to target directory. We could choose to delete them too. But if we wanted to analyze the core-ops in a workload, looking at this file is an easier way of doing it. Also if you modify the adapter, you can simply supply the directory of j-lang files to convert to cpp. No need to go through the entire generation process.
-    target = 'mv j-lang* ' + target_path
-    subprocess.call(target, shell = True)
+    # TODO: arvind change this
+    if test_type != "xfstest2":
+        target = 'mv j2-lang* {}' if test_type == "xfstest2" else 'mv j-lang* {}'
+        subprocess.call(target.format(target_path), shell = True)
 
 
 if __name__ == '__main__':
