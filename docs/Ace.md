@@ -65,7 +65,7 @@ check_consistency $SCRATCH_MNT/B/foo
 clean_dir
 ```
 
-The definition of `check_consistency` and `clean_dir` as well as all other helper functions can be found [here](../ace/base_xfstest.sh). For information explaining how to run the adapters directly, refer to the the beginning of the following files for [Crashmonkey](../ace/cmAdapter.py) and [xfstest](../ace/xfstestAdapter.py) respectively.
+The definition of `check_consistency` and `clean_dir` as well as all other helper functions can be found [here](../code/tests/ace-base/base_xfstest.sh). For information explaining how to run the adapters directly, refer to the the beginning of the following files for [Crashmonkey](../ace/cmAdapter.py) and [xfstest](../ace/xfstestAdapter.py) respectively.
 
 ---
 ### Bounds used by Ace ###
