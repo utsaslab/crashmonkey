@@ -77,7 +77,13 @@ The definition of `check_consistency` and `clean_dir` as well as all other helpe
                                                       (i.e. generic, ext4, btrfs, xfs, f2fs, etc.)
 ```
 
-Note that the base file for the XFSTest adapter can be found at `../ace/base_xfstest.sh`.
+For example, in running the following:
+
+```
+python2 xfstestAdapter.py -b ../ace/base_xfstest.sh -t <J-LANG FILE> -p output/ -n 001 -f generic
+```
+
+would create `output/001` and `output/001.out` from the given J-lang file.  Note that the base file at `../ace/base_xfstest.sh` should be used for every use of the XFSTest adapter.
 
 For more information explaining how to run the adapters directly, refer to the beginning of the following files for [Crashmonkey](../ace/cmAdapter.py) and [xfstest](../ace/xfstestAdapter.py) respectively.
 
