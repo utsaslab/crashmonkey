@@ -241,6 +241,7 @@ def build_parser():
     parser.add_argument('--sequence_len', '-l', default='3', help='Number of critical ops in the bugy workload')
     parser.add_argument('--nested', '-n', default='False', help='Add an extra level of nesting?')
     parser.add_argument('--demo', '-d', default='False', help='Create a demo workload set?')
+    parser.add_argument('--test-type', '-t', default='crashmonkey', required=False, help='Type of test to generate <crashmonkey/xfstest>. (Default: crashmonkey)')
 
     return parser
 
@@ -251,6 +252,7 @@ def print_setup(parsed_args):
     print '{0:20}  {1}'.format('Sequence length', parsed_args.sequence_len)
     print '{0:20}  {1}'.format('Nested', parsed_args.nested)
     print '{0:20}  {1}'.format('Demo', parsed_args.demo)
+    print '{0:20}  {1}'.format('Test Type', parsed_args.test_type)
     print '\n', '='*48, '\n'
 
 
@@ -1047,7 +1049,7 @@ def buildJlang(op_list, length_map):
 
 
 # Main function that exhaustively generates combinations of ops.
-def doPermutation(perm):
+def doPermutation(perm, test_type):
     
     global global_count
     global parameterList
@@ -1246,7 +1248,10 @@ def doPermutation(perm):
 
             f.close()
 
-            exec_command = 'python cmAdapter.py -b ../code/tests/' + dest_dir + '/base.cpp -t ' + j_lang_file + ' -p ../code/tests/' + dest_dir + '/ -o ' + str(global_count)
+            if test_type == 'crashmonkey':
+                exec_command = 'python2 cmAdapter.py -b ../code/tests/' + dest_dir + '/base.cpp -t ' + j_lang_file + ' -p ../code/tests/' + dest_dir + '/ -o ' + str(global_count)
+            elif test_type == 'xfstest':
+                exec_command = 'python2 xfstestAdapter.py -b base_xfstest.sh -t ' + j_lang_file + ' -p ../code/tests/' + dest_dir + '/ -n ' + str(global_count) + " -f generic"
             subprocess.call(exec_command, shell=True)
 
 
@@ -1304,6 +1309,7 @@ def main():
     print_setup(parsed_args)
 
     num_ops = parsed_args.sequence_len
+    test_type = parsed_args.test_type
     
     if parsed_args.nested == ('True' or 'true'):
         nested = True
@@ -1420,7 +1426,7 @@ def main():
 
     bar.start()
     for i in itertools.product(OperationSet, repeat=int(num_ops)):
-        doPermutation(i)
+        doPermutation(i, test_type)
         bar.next()
 
 
