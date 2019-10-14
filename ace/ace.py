@@ -1,5 +1,4 @@
 #!/usr/bin/env python
-
 # To run : python ace.py -l <seq_length> -n <nested : True|False> -d <demo : True|False>
 import os
 import re
@@ -260,7 +259,7 @@ def print_setup(parsed_args):
 
 
 # Helper to build all possible combination of parameters to a given file-system operation
-def buildTuple(command):
+def buildTuple(command, expand_combinations=True):
     if command == 'creat':
         d = tuple(FileOptions)
     elif command == 'mkdir' or command == 'rmdir':
@@ -272,6 +271,8 @@ def buildTuple(command):
         d_tmp.append(FileOptions)
         d_tmp.append(FallocOptions)
         d_tmp.append(WriteOptions)
+        if not expand_combinations: 
+            return d_tmp
         d = list()
         for i in itertools.product(*d_tmp):
             d.append(i)
@@ -279,6 +280,8 @@ def buildTuple(command):
         d_tmp = list()
         d_tmp.append(FileOptions)
         d_tmp.append(WriteOptions)
+        if not expand_combinations: 
+            return d_tmp
         d = list()
         for i in itertools.product(*d_tmp):
             d.append(i)
@@ -286,6 +289,8 @@ def buildTuple(command):
         d_tmp = list()
         d_tmp.append(FileOptions)
         d_tmp.append(dWriteOptions)
+        if not expand_combinations: 
+            return d_tmp
         d = list()
         for i in itertools.product(*d_tmp):
             d.append(i)
@@ -293,6 +298,8 @@ def buildTuple(command):
         d_tmp = list()
         d_tmp.append(FileOptions + SecondFileOptions)
         d_tmp.append(SecondFileOptions)
+        if not expand_combinations: 
+            return d_tmp
         d = list()
         for i in itertools.product(*d_tmp):
             if len(set(i)) == 2:
@@ -301,6 +308,8 @@ def buildTuple(command):
         d_tmp = list()
         d_tmp.append(FileOptions + SecondFileOptions)
         d_tmp.append(SecondFileOptions)
+        if not expand_combinations: 
+            return d_tmp
         d = list()
         for i in itertools.product(*d_tmp):
             if len(set(i)) == 2:
@@ -321,6 +330,8 @@ def buildTuple(command):
         d_tmp = list()
         d_tmp.append(FileOptions)
         d_tmp.append(TruncateOptions)
+        if not expand_combinations: 
+            return d_tmp
         d = list()
         for i in itertools.product(*d_tmp):
             d.append(i)
@@ -328,6 +339,8 @@ def buildTuple(command):
         d_tmp = list()
         d_tmp.append(FileOptions)
         d_tmp.append(dWriteOptions)
+        if not expand_combinations: 
+            return d_tmp
         d = list()
         for i in itertools.product(*d_tmp):
             d.append(i)
@@ -870,6 +883,78 @@ def flatList(op_list):
 
     return flat_list
 
+# Returns a list of lines to output into J2lang file.
+def buildJ2lang(sequence):
+    # Python2 does not support nonlocal variables,
+    # workaround by using dictionary.
+    d = dict(lines=[], file_num=1, options_num=1)
+
+    def add_line(line):
+        d['lines'].append(line + "\n")
+
+    def new_file(options):
+        fname = "file" + str(d['file_num'])
+        d['file_num'] += 1
+
+        options = list(map(lambda f: f.replace('/', ''), options))
+        add_line("{} {}".format(fname, " ".join(options)))
+        return fname
+
+    def new_option(options):
+        optname = "option" + str(d['options_num'])
+        d['options_num'] += 1
+
+        options = list(map(str, options))
+        add_line("{} {}".format(optname, " ".join(options)))
+        return optname
+
+    for op, parameters in sequence:
+        if op == "creat":
+            f1 = new_file(parameters[0])
+            add_line("open ${} O_RDWR|O_CREAT 0777".format(f1))
+        elif op == "mkdir":
+            f1 = new_file(parameters[0])
+            add_line("mkdir ${} 0777".format(f1))
+        elif op == "falloc":
+            f1 = new_file(parameters[0])
+            op1 = new_option(parameters[1])
+            op2 = new_option(parameters[2])
+
+            add_line("falloc ${} ${} ${}".format(f1, op1, op2))
+        elif op == "write":
+            f1 = new_file(parameters[0])
+            op1 = new_option(parameters[1])
+
+            add_line("write ${} ${}".format(f1, op1))
+        elif op == "dwrite":
+            f1 = new_file(parameters[0])
+            op1 = new_option(parameters[1])
+
+            add_line("dwrite ${} ${}".format(f1, op1))
+        elif op == "mmapwrite":
+            f1 = new_file(parameters[0])
+            op1 = new_option(parameters[1])
+
+            add_line("dwrite ${} ${}".format(f1, op1))
+        elif (op == "link" or op == "rename"):
+            f1, f2 = new_file(parameters[0]), new_file(parameters[1])
+            add_line("{} ${} ${}".format(op, f1, f2))
+        elif (op == "unlink" or op == "remove" or op == "fsetxattr" or op == "removexattr" or op == "fdatasync"):
+            f1 = new_file(parameters[0])
+            add_line("{} ${}".format(op, f1))
+        elif op == "truncate":
+            def map_truncate_option(opt):
+                if opt == "aligned": return "0"
+                else: return "2500"
+
+            f1 = new_file(parameters[0])
+            opt = new_option(list(map(map_truncate_option, parameters[1])))
+            add_line("truncate ${} ${}".format(f1, opt))
+        else:
+            raise ValueError("Operation '{}' with parameters {} is unsupported".format(op, parameters))
+
+    return d['lines']
+
 
 # Creates the actual J-lang file.
 def buildJlang(op_list, length_map):
@@ -1285,22 +1370,24 @@ def doPermutationV2(perm):
     
     if demo:
         dest_dir += '_demo'
-
     
     # TODO: verify this
-    # For now, we only support operations of length 1.
-    assert int(num_ops) <= 2
+    # For now, we only support operations of length 1.  
+    assert int(num_ops) == 1
 
     permutations.append(perm)
     log = ', '.join(perm);
     log = '\n' + `count` + ' : ' + log + '\n'
     count +=1
     log_file_handle.write(log)
-        
+
     # Now for each of this permutation of file-system operations, find all possible parameters
     parameter_options = []
-    for length in xrange(0,len(permutations[count-1])):
-        parameter_options.append(parameterList[permutations[count-1][length]])
+    for p in perm:
+        options = buildTuple(p, expand_combinations=False)
+        if isinstance(options, tuple):
+            options = [options]
+        parameter_options.append(options)
 
     # Let's insert fsync combinations here.
     # usedFiles = list()
@@ -1323,12 +1410,6 @@ def doPermutationV2(perm):
     # log = log + '\t\tFile range = {0}\n'.format(file_range(usedFiles))
     # log_file_handle.write(log)
 
-    # TODO: arvind its unclear how to find which files are "used" so that
-    # we can determine which files need to be synced. We can either write a 
-    # script in bash that can find sibling/parent. Or, we can sync everything.
-    # But then the test will take forever on num_ops > 1. Hmmm... for now,
-    # lets justinsert a 'sync' command below and let the adapter take care of it.
-
     # Build the sequence of operations and the corresponding 
     # files to perform those operations.
     seq = zip(perm, parameter_options)
@@ -1341,25 +1422,12 @@ def doPermutationV2(perm):
     global_count += 1
     j2_lang_file = 'j2-lang' + str(global_count)
 
-    lines = []
-    for op, parameters in seq:
-        lines.append(op + "\n")
-
-        if isinstance(parameters, list):
-            for param in parameters:
-                lines.append(" ".join(list(map(str,param))) + "\n")
-            lines.append("\n")
-        else:
-            lines.append("\n".join(parameters) + "\n")
-            lines.append("\n")
-
     with open(j2_lang_file, 'w') as f:
-        f.writelines(lines[:-1])
+        f.writelines(buildJ2lang(seq))
 
     # TODO: arvind actually call the adapter
     # exec_command = 'python2 xfstestAdapter.py -b ../code/tests/' + dest_dir + '/base_xfstest.sh -t ' + j_lang_file + ' -p ../code/tests/' + dest_dir + '/ -n ' + str(global_count) + " -f generic"
     # subprocess.call(exec_command, shell=True)
-
 
 class SlowBar(FillingCirclesBar):
     suffix = '%(percent).0f%%  (Completed %(index)d skeletons with %(global_count)d workloads)'
