@@ -65,7 +65,26 @@ check_consistency $SCRATCH_MNT/B/foo
 clean_dir
 ```
 
-The definition of `check_consistency` and `clean_dir` as well as all other helper functions can be found [here](../code/tests/ace-base/base_xfstest.sh). For information explaining how to run the adapters directly, refer to the the beginning of the following files for [Crashmonkey](../ace/cmAdapter.py) and [xfstest](../ace/xfstestAdapter.py) respectively.
+The definition of `check_consistency` and `clean_dir` as well as all other helper functions can be found [here](../code/tests/ace-base/base_xfstest.sh). The [XFSTest adapter](../ace/xfstestAdapter.py) itself can be run with the following required arguments:
+
+```
+--test_file TEST_FILE,             -t TEST_FILE       J lang test skeleton to generate workload
+--target_path TARGET_PATH,         -p TARGET_PATH     Directory to save the generated test files
+--test_number TEST_NUMBER,         -n TEST_NUMBER     The test number following xfstest convention. 
+                                                      Will generate <test_number> and <test_number>.out 
+--filesystem_type FILESYSTEM_TYPE, -f FILESYSTEM_TYPE The filesystem type for the test 
+                                                      (i.e. generic, ext4, btrfs, xfs, f2fs, etc.)
+```
+
+For example, in running the following:
+
+```
+python2 xfstestAdapter.py -t <J-LANG FILE> -p output/ -n 001 -f generic
+```
+
+would create `output/001` and `output/001.out` from the given J-lang file. 
+
+For more information explaining how to run the adapters directly, refer to the beginning of the following files for [Crashmonkey](../ace/cmAdapter.py) and [xfstest](../ace/xfstestAdapter.py) respectively.
 
 ---
 ### Bounds used by Ace ###
