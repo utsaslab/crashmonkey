@@ -101,7 +101,7 @@ def build_parser():
     parser.add_argument('--target_path', '-p', required=True, help='Directory to save the generated test files')
 
     parser.add_argument('--test_number', '-n', required=True, help='The test number following xfstest convention. Will generate <test_number> and <test_number>.out')
-    parser.add_argument('--filesystem_type', '-f', required=True, help='The filesystem type for the test (i.e. generic, ext4, btrfs, xfs, f2fs, etc.)')
+    parser.add_argument('--filesystem_type', '-f', default="generic", help='The filesystem type for the test (i.e. generic, ext4, btrfs, xfs, f2fs, etc.)')
     return parser
 
 
