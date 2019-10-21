@@ -90,11 +90,24 @@ def parent(filename):
 def is_dir(filename):
     get_row_from_filename(filename)[3] == "dir"
 
+def find_basefile():
+    cwd = os.path.dirname(os.path.realpath(__file__))
+    fname = "base_xfstest.sh"
+    possible_locs = ["../code/tests/ace-base",
+                     "."]
+
+    for loc in possible_locs:
+        f = os.path.join(cwd, os.path.join(loc, fname))
+        if os.path.exists(f):
+            return f
+            print("Found base file : '{}'".format(f))
+    print("Cannot find {} in any of {}".format(fname, possible_locs))
+    sys.exit(1)
+
 def build_parser():
     parser = argparse.ArgumentParser(description='Workload Generator for XFSMonkey v1.0')
 
     # global args
-    parser.add_argument('--base_file', '-b', required=True, help='Base test file to generate workload')
     parser.add_argument('--test_file', '-t', required=True, help='J lang test skeleton to generate workload')
 
     # crash monkey args
@@ -108,7 +121,6 @@ def build_parser():
 def print_setup(parsed_args):
     print '\n{: ^50s}'.format('XFSMonkey Workload generatorv0.1\n')
     print '='*20, 'Setup' , '='*20, '\n'
-    print '{0:20}  {1}'.format('Base test file', parsed_args.base_file)
     print '{0:20}  {1}'.format('Test skeleton', parsed_args.test_file)
     print '{0:20}  {1}'.format('Target directory', parsed_args.target_path)
     print '{0:20}  {1}'.format('Test number', parsed_args.test_number)
@@ -560,7 +572,7 @@ def main():
     # Create the target directory
     create_dir(parsed_args.target_path)
 
-    base_file = parsed_args.base_file
+    base_file = find_basefile()
     test_file = parsed_args.test_file
     test_number = parsed_args.test_number
     filesystem_type = parsed_args.filesystem_type
