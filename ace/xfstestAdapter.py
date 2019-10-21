@@ -552,26 +552,8 @@ def translate_functions(line, state):
     line, state = res
     return line, state
 
-def main():
-    # Parse input args
-    parsed_args = build_parser().parse_args()
-
-    # Print the test setup - just for sanity
-    #print_setup(parsed_args)
-    
-    # Check if test file exists
-    if not os.path.exists(parsed_args.test_file) or not os.path.isfile(parsed_args.test_file):
-        print parsed_args.test_file + ' : No such test file\n'
-        exit(1)
-
-    # Check that test number is a valid number/has no extension
-    if not parsed_args.test_number.isdigit():
-        print("'{}' is not a valid test number".format(parsed_args.test_number))
-        exit(1)
-    
-    # Create the target directory
-    create_dir(parsed_args.target_path)
-
+# Creates a test file for J-lang V1 files.
+def build_test_v1(parsed_args):
     base_file = find_basefile()
     test_file = parsed_args.test_file
     test_number = parsed_args.test_number
@@ -636,6 +618,121 @@ def main():
     out_lines = ["QA output created by {}\n".format(test_number), "Silence is golden\n"]
     with open(generated_test_output, 'w+') as f:
         f.writelines(out_lines)
+
+# Given a list of commands (i.e. "fsync ...", "dwrite ..."), create a function
+# name (i.e. 'fsync_dwrite_template').
+def function_name_from_commands(commands):
+    functions = [c.split(" ")[0] for c in commands]
+    return "{}_template".format("_".join(functions))
+
+def build_template_function(commands, args):
+
+    fname = function_name_from_commands(commands)
+    lines_to_add = ["function {}() {{".format(fname)]
+    for i, a in enumerate(args):
+        lines_to_add.append("\tlocal {}=\"${}\"".format(a, i+1))
+
+    for c in commands:
+        lines_to_add.append("\t{}".format(c))
+    lines_to_add.append("}\n")
+
+    return lines_to_add
+
+# Creates a test file for J-lang V2 files.
+def build_test_v2(parsed_args):
+    base_file = find_basefile()
+    test_file = parsed_args.test_file
+    test_number = parsed_args.test_number
+    filesystem_type = parsed_args.filesystem_type
+    generated_test = os.path.join(parsed_args.target_path, test_number)
+    generated_test_output = os.path.join(parsed_args.target_path, test_number + ".out")
+
+    # Template parameters and helper functions for populating the base file
+    template_params = [("$CURRENT_YEAR", str(datetime.datetime.now().year)),
+                       ("$TEST_NUMBER", test_number),
+                       ("$FILESYSTEM_TYPE", filesystem_type)]
+
+    def filter_line(line):
+        for param, value in template_params:
+            if param in line:
+                line = line.replace(param, value)
+        return line
+
+    # Find index to insert tests cases, this region is marked by
+    # a line containing the comment '# Test cases'. Also, replace
+    # template parameters.
+    with open(base_file, 'r') as f:
+        base_contents = f.readlines()
+        base_contents = list(map(filter_line, base_contents))
+        test_cases_index = base_contents.index("# Test cases\n") + 1
+
+    copyfile(base_file, generated_test)
+
+
+    # Iterate through test file and get lines to translate.
+    def translate_array(line):
+        elems = line.split(" ")
+        name = elems[0]
+        options = list(map(lambda x: "'{}'".format(x), elems[1:]))
+        
+        return "{}=({})".format(name, " ".join(options))
+
+    arrays = []
+    args = []
+    commands = []
+    with open(test_file, 'r') as f:
+        # Ignore first line
+        f.readline()
+
+        for line in f:
+            line = line.strip()
+
+            if line.startswith("file") or line.startswith("option"):
+                arrays.append(translate_array(line))
+                args.append(line.split(" ")[0])
+            else:
+                commands.append(line)
+
+    template_lines = build_template_function(commands, args)
+    lines_to_add = template_lines
+
+    # Insert lines into relevant location and write output files.
+    lines_to_add = list(map(lambda x: x + "\n", lines_to_add))
+    output_contents = base_contents[:test_cases_index] + lines_to_add + base_contents[test_cases_index:]
+    with open(generated_test, 'w+') as f:
+        f.writelines(output_contents)
+
+def main():
+    # Parse input args
+    parsed_args = build_parser().parse_args()
+
+    # Print the test setup - just for sanity
+    #print_setup(parsed_args)
+    
+    # Check if test file exists
+    if not os.path.exists(parsed_args.test_file) or not os.path.isfile(parsed_args.test_file):
+        print parsed_args.test_file + ' : No such test file\n'
+        exit(1)
+
+    # Get J-lang version number
+    jlang_version = 1
+    with open(parsed_args.test_file, "r") as f:
+        if "J2-Lang" in f.readline().strip():
+            jlang_version = 2
+
+    # Check that test number is a valid number/has no extension
+    if not parsed_args.test_number.isdigit():
+        print("'{}' is not a valid test number".format(parsed_args.test_number))
+        exit(1)
+    
+    # Create the target directory
+    create_dir(parsed_args.target_path)
+
+    if jlang_version == 1:
+        build_test_v1(parsed_args)
+    else:
+        build_test_v2(parsed_args)
+
 
 if __name__ == '__main__':
     main()

@@ -887,7 +887,7 @@ def flatList(op_list):
 def buildJ2lang(sequence):
     # Python2 does not support nonlocal variables,
     # workaround by using dictionary.
-    d = dict(lines=[], file_num=1, options_num=1)
+    d = dict(lines=["# J2-Lang\n"], file_num=1, options_num=1)
 
     def add_line(line):
         d['lines'].append(line + "\n")
@@ -1425,9 +1425,9 @@ def doPermutationV2(perm):
     with open(j2_lang_file, 'w') as f:
         f.writelines(buildJ2lang(seq))
 
-    # TODO: arvind actually call the adapter
-    # exec_command = 'python2 xfstestAdapter.py -b ../code/tests/' + dest_dir + '/base_xfstest.sh -t ' + j_lang_file + ' -p ../code/tests/' + dest_dir + '/ -n ' + str(global_count) + " -f generic"
-    # subprocess.call(exec_command, shell=True)
+    # exec_command = 'python2 xfstestAdapter.py -t ' + j2_lang_file + ' -p ../code/tests/' + dest_dir + '/ -n ' + str(global_count) + " -f generic"
+    exec_command = 'python2 xfstestAdapter.py -t ' + j2_lang_file + ' -p . -n ' + "{:03d}".format(global_count) + " -f generic"
+    subprocess.call(exec_command, shell=True)
 
 class SlowBar(FillingCirclesBar):
     suffix = '%(percent).0f%%  (Completed %(index)d skeletons with %(global_count)d workloads)'
