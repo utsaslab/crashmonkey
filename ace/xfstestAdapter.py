@@ -7,7 +7,6 @@
 # the converted test files will be located at:
 #   - output/001
 #   - output/001.out
-
 import os
 import re
 import sys
@@ -76,8 +75,11 @@ def get_row_from_filename(filename):
     for row in JLANG_FILES:
         if filename == row[0] or filename == row[1]:
             return row
+    return None
 
-    raise ValueError("filename")
+def is_file_or_dir(name):
+    return get_row_from_filename(name) != None
+
 
 def translate_filename(filename):
     translated_filename = get_row_from_filename(filename)[1]
@@ -90,9 +92,9 @@ def parent(filename):
 def is_dir(filename):
     get_row_from_filename(filename)[3] == "dir"
 
-def find_basefile():
+def find_basefile(version):
     cwd = os.path.dirname(os.path.realpath(__file__))
-    fname = "base_xfstest.sh"
+    fname = "base_xfstest.sh" if version == 1 else "base_xfstest_concise.sh"
     possible_locs = ["../code/tests/ace-base",
                      "."]
 
@@ -554,7 +556,7 @@ def translate_functions(line, state):
 
 # Creates a test file for J-lang V1 files.
 def build_test_v1(parsed_args):
-    base_file = find_basefile()
+    base_file = find_basefile(1)
     test_file = parsed_args.test_file
     test_number = parsed_args.test_number
     filesystem_type = parsed_args.filesystem_type
@@ -625,22 +627,130 @@ def function_name_from_commands(commands):
     functions = [c.split(" ")[0] for c in commands]
     return "{}_template".format("_".join(functions))
 
-def build_template_function(commands, args):
-
-    fname = function_name_from_commands(commands)
-    lines_to_add = ["function {}() {{".format(fname)]
+def build_template_function(commands, args, fname):
+    lines = ["function {}() {{".format(fname)]
     for i, a in enumerate(args):
-        lines_to_add.append("\tlocal {}=\"${}\"".format(a, i+1))
+        lines.append("\tlocal {}=\"${}\"".format(a[0], i+1))
+    lines.append("")
 
     for c in commands:
-        lines_to_add.append("\t{}".format(c))
-    lines_to_add.append("}\n")
+        lines.append("\t{}".format(c))
+    lines.append("}\n")
 
-    return lines_to_add
+    return lines
+
+def build_for_loops(args, fname):
+    lines, num_tabs = [], 0
+
+    for a in args:
+        lines.append('\t' * num_tabs + "for {0} in ${{{0}_options[@]}}; do".format(a[0]))
+        num_tabs += 1
+
+    function_call = fname + " " + " ".join(list(map(lambda a: "$" + a[0], args)))
+    lines.append('\t' * num_tabs + function_call)
+
+    while num_tabs != 0:
+        num_tabs -= 1
+        lines.append('\t' * num_tabs + 'done')
+    return lines
+
+
+def build_command_dependencies(commands):
+    lines = []
+
+    create_parent_dir = lambda f : "mkdir -p $(dirname {})".format(f)
+    create_file = lambda f : "touch " + f
+    ensure_file_size = lambda f : "ensure_file_size_one_block " + f
+    remove_if_exists = lambda f : "rm -rf " + f
+
+    for c in commands:
+        parts = c.split(" ")
+
+        if parts[0] == "open":
+            lines.append(create_parent_dir(parts[1]))
+            lines.append(create_file(parts[1]))
+            lines.append("chmod {} {}".format(parts[1], parts[2]))
+        elif parts[0] == "mkdir":
+            lines.append("mkdir {} -p -m {}".format(parts[1], parts[2]))
+        elif parts[0] == "falloc":
+            lines.append(create_parent_dir(parts[1]))
+            lines.append(create_file(parts[1]))
+            lines.append(ensure_file_size(parts[1]))
+            lines.append("do_falloc {} {} {}".format(parts[1], parts[2], parts[3]))
+        elif parts[0] == "write":
+            lines.append(create_parent_dir(parts[1]))
+            lines.append(create_file(parts[1]))
+            lines.append("[[ {} != 'append' ]] && ensure_file_size_one_block {}".format(
+                parts[2], 
+                parts[1]))
+            lines.append("_pwrite_byte {} $(translate_range {}) {}".format(
+                WRITE_VALUE,
+                parts[2],
+                parts[1]))
+        elif parts[0] == "dwrite":
+            lines.append(create_parent_dir(parts[1]))
+            lines.append(create_file(parts[1]))
+            lines.append("[[ {} != 'append' ]] && ensure_file_size_one_block {}".format(
+                parts[2], 
+                parts[1]))
+            lines.append("_dwrite_byte {} $(translate_range {}) {}".format(
+                DWRITE_VALUE,
+                parts[2],
+                parts[1]))
+        elif parts[0] == "mmapwrite":
+            lines.append(create_parent_dir(parts[1]))
+            lines.append(create_file(parts[1]))
+            lines.append("read offset size <<< $(translate_range {})".format(parts[2]))
+            lines.append("mmap_offset=$((offset + size))")
+            lines.append("$XFS_IO_PROG -f -c \"falloc 0 $mmap_offset\" " + parts[1])
+            lines.append("_mwrite_byte_and_msync {} $offset $size $mmap_offset {}".format(
+                MMAPWRITE_VALUE,
+                parts[1]))
+        elif parts[0] == "link" or parts[0] == "symlink":
+            lines.append(create_parent_dir(parts[1]))
+            lines.append(create_file(parts[1]))
+            lines.append(remove_if_exists(parts[2]))
+            lines.append("ln{} {} {}".format(
+                "" if parts[0] == "link" else " -s",
+                parts[1],
+                parts[2]))
+        elif parts[0] == "unlink" or parts[0] == "remove": 
+            lines.append(create_parent_dir(parts[1]))
+            lines.append(create_file(parts[1]))
+            lines.append("rm -rf " + parts[1])
+        elif parts[0] == "rename":
+            lines.append(create_parent_dir(parts[1]))
+            lines.append(create_file(parts[1]))
+            lines.append("rename {} {}".format(parts[1], parts[2]))
+        elif parts[0] == "fsetxattr":
+            lines.append(create_parent_dir(parts[1]))
+            lines.append(create_file(parts[1]))
+            lines.append("attr -s {} -V {} {} > /dev/null".format(
+                FILE_ATTR_KEY,
+                FILE_ATTR_VALUE,
+                parts[1]))
+        elif parts[0] == "removexattr":
+            lines.append(create_parent_dir(parts[1]))
+            lines.append(create_file(parts[1]))
+            lines.append("attr -s {} -V {} {} > /dev/null".format(
+                FILE_ATTR_KEY,
+                FILE_ATTR_VALUE,
+                parts[1]))
+            lines.append("attr -r {} {}".format(FILE_ATTR_KEY, parts[1]))
+        elif parts[0] == "truncate":
+            lines.append(create_parent_dir(parts[1]))
+            lines.append(create_file(parts[1]))
+            lines.append("truncate {} -s {}".format(parts[1], parts[2]))
+        elif parts[0] == "fdatasync":
+            lines.append(create_parent_dir(parts[1]))
+            lines.append(create_file(parts[1]))
+            lines.append(ensure_file_size(parts[1]))
+            lines.append("fdatasync " + parts[1])
+    return lines
 
 # Creates a test file for J-lang V2 files.
 def build_test_v2(parsed_args):
-    base_file = find_basefile()
+    base_file = find_basefile(2)
     test_file = parsed_args.test_file
     test_number = parsed_args.test_number
     filesystem_type = parsed_args.filesystem_type
@@ -668,16 +778,16 @@ def build_test_v2(parsed_args):
 
     copyfile(base_file, generated_test)
 
-
-    # Iterate through test file and get lines to translate.
     def translate_array(line):
         elems = line.split(" ")
         name = elems[0]
-        options = list(map(lambda x: "'{}'".format(x), elems[1:]))
+        options = list(map(lambda x: "'{}'".format(
+            translate_filename(x) if is_file_or_dir(x) else x), 
+            elems[1:]))
         
-        return "{}=({})".format(name, " ".join(options))
+        return "{}_options=({})".format(name, " ".join(options))
 
-    arrays = []
+    array_lines = []
     args = []
     commands = []
     with open(test_file, 'r') as f:
@@ -688,13 +798,18 @@ def build_test_v2(parsed_args):
             line = line.strip()
 
             if line.startswith("file") or line.startswith("option"):
-                arrays.append(translate_array(line))
-                args.append(line.split(" ")[0])
+                array_lines.append(translate_array(line))
+                args.append(line.split(" "))
             else:
                 commands.append(line)
+    array_lines.append("")
 
-    template_lines = build_template_function(commands, args)
-    lines_to_add = template_lines
+    fname = function_name_from_commands(commands)
+    commands = build_command_dependencies(commands)
+    template_lines = build_template_function(commands, args, fname)
+    loop_lines = build_for_loops(args, fname)
+
+    lines_to_add = template_lines + array_lines + loop_lines
 
     # Insert lines into relevant location and write output files.
     lines_to_add = list(map(lambda x: x + "\n", lines_to_add))
@@ -730,7 +845,7 @@ def main():
 
     if jlang_version == 1:
         build_test_v1(parsed_args)
-    else:
+    elif jlang_version == 2:
         build_test_v2(parsed_args)
 
 

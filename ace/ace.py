@@ -935,7 +935,7 @@ def buildJ2lang(sequence):
             f1 = new_file(parameters[0])
             op1 = new_option(parameters[1])
 
-            add_line("dwrite ${} ${}".format(f1, op1))
+            add_line("mmapwrite ${} ${}".format(f1, op1))
         elif (op == "link" or op == "rename"):
             f1, f2 = new_file(parameters[0]), new_file(parameters[1])
             add_line("{} ${} ${}".format(op, f1, f2))
@@ -1567,11 +1567,6 @@ def main():
     if test_type == "crashmonkey":
         dest_j_lang_cpp = '../code/tests/' + dest_dir + '/base.cpp'
         source_j_lang_cpp = '../code/tests/ace-base/base.cpp'
-        copyfile(source_j_lang_cpp, dest_j_lang_cpp)
-
-    if test_type == "xfstest":
-        dest_j_lang_cpp = '../code/tests/' + dest_dir + '/base_xfstest.sh'
-        source_j_lang_cpp = '../code/tests/ace-base/base_xfstest.sh'
         copyfile(source_j_lang_cpp, dest_j_lang_cpp)
 
     # TODO: arvind add base xfstest2 thing
