@@ -147,7 +147,7 @@ ensure_file_size_one_block() {
 
 translate_range() {
     size=$(stat -c %s $1)
-    case $1 in
+    case $2 in
         append)
             offset=$size
             length=$((offset + 32768))
@@ -174,7 +174,7 @@ do_falloc() {
     local range="$3"
 
     size=$(stat -c %s $file)
-    read offset length <<< $(translate_range $range)
+    read offset length <<< $(translate_range $file $range)
 
     case $mode in
         FALLOC_FL_ZERO_RANGE)

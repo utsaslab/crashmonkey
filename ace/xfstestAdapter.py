@@ -627,10 +627,14 @@ def function_name_from_commands(commands):
     functions = [c.split(" ")[0] for c in commands]
     return "{}_template".format("_".join(functions))
 
-def build_template_function(commands, args, fname):
+def build_template_function(commands, args, fname, do_fsync):
     lines = ["function {}() {{".format(fname)]
     for i, a in enumerate(args):
         lines.append("\tlocal {}=\"${}\"".format(a[0], i+1))
+
+    if do_fsync:
+        lines.append("\tlocal fsync_file=\"${}\"".format(len(args)+1))
+
     lines.append("")
 
     for c in commands:
@@ -646,7 +650,12 @@ def build_for_loops(args, fname):
         lines.append('\t' * num_tabs + "for {0} in ${{{0}_options[@]}}; do".format(a[0]))
         num_tabs += 1
 
+    # For fsync files
+    lines.append('\t' * num_tabs + "for fsync_file in ${fsync_options[@]}; do")
+    num_tabs += 1
+
     function_call = fname + " " + " ".join(list(map(lambda a: "$" + a[0], args)))
+    function_call += " $fsync_file"
     lines.append('\t' * num_tabs + function_call)
 
     while num_tabs != 0:
@@ -669,7 +678,7 @@ def build_command_dependencies(commands):
         if parts[0] == "open":
             lines.append(create_parent_dir(parts[1]))
             lines.append(create_file(parts[1]))
-            lines.append("chmod {} {}".format(parts[1], parts[2]))
+            lines.append("chmod {} {}".format(parts[1], parts[3]))
         elif parts[0] == "mkdir":
             lines.append("mkdir {} -p -m {}".format(parts[1], parts[2]))
         elif parts[0] == "falloc":
@@ -683,8 +692,9 @@ def build_command_dependencies(commands):
             lines.append("[[ {} != 'append' ]] && ensure_file_size_one_block {}".format(
                 parts[2], 
                 parts[1]))
-            lines.append("_pwrite_byte {} $(translate_range {}) {}".format(
+            lines.append("_pwrite_byte {} $(translate_range {} {}) {}".format(
                 WRITE_VALUE,
+                parts[1],
                 parts[2],
                 parts[1]))
         elif parts[0] == "dwrite":
@@ -693,14 +703,17 @@ def build_command_dependencies(commands):
             lines.append("[[ {} != 'append' ]] && ensure_file_size_one_block {}".format(
                 parts[2], 
                 parts[1]))
-            lines.append("_dwrite_byte {} $(translate_range {}) {}".format(
+            lines.append("_dwrite_byte {} $(translate_range {} {}) {}".format(
                 DWRITE_VALUE,
+                parts[1],
                 parts[2],
                 parts[1]))
         elif parts[0] == "mmapwrite":
             lines.append(create_parent_dir(parts[1]))
             lines.append(create_file(parts[1]))
-            lines.append("read offset size <<< $(translate_range {})".format(parts[2]))
+            lines.append("read offset size <<< $(translate_range {} {})".format(
+                parts[1],
+                parts[2]))
             lines.append("mmap_offset=$((offset + size))")
             lines.append("$XFS_IO_PROG -f -c \"falloc 0 $mmap_offset\" " + parts[1])
             lines.append("_mwrite_byte_and_msync {} $offset $size $mmap_offset {}".format(
@@ -748,6 +761,37 @@ def build_command_dependencies(commands):
             lines.append("fdatasync " + parts[1])
     return lines
 
+def build_array_lines(lines):
+    lines_to_add = []
+    all_files = set()
+    for elems in lines:
+        name = elems[0]
+        options = sorted(list(map(lambda x: "{}".format(
+            translate_filename(x) if is_file_or_dir(x) else x), 
+            elems[1:])))
+
+        if "file" in name:
+            all_files.update(options)
+    
+        lines_to_add.append("{}_options=('{}')".format(name, "' '".join(options)))
+    lines_to_add.append("fsync_options=('{}')\n".format(
+        "' '".join(sorted(list(all_files)))))
+    return lines_to_add
+
+def add_sync_check_consistency(commands_with_deps, commands, do_fsync):
+    if do_fsync:
+        fsync_file = "$fsync_file"
+    else:
+        elems = commands[0].split(" ")
+        # For mmapwrite and fdatasync, the file is the first argument.
+        fsync_file = elems[1]
+
+    if do_fsync:
+        commands_with_deps.append("$XFS_IO_PROG -c \"fsync\" " + fsync_file)
+    commands_with_deps.append("check_consistency " + fsync_file)
+    return commands_with_deps
+
+
 # Creates a test file for J-lang V2 files.
 def build_test_v2(parsed_args):
     base_file = find_basefile(2)
@@ -778,16 +822,7 @@ def build_test_v2(parsed_args):
 
     copyfile(base_file, generated_test)
 
-    def translate_array(line):
-        elems = line.split(" ")
-        name = elems[0]
-        options = list(map(lambda x: "'{}'".format(
-            translate_filename(x) if is_file_or_dir(x) else x), 
-            elems[1:]))
-        
-        return "{}_options=({})".format(name, " ".join(options))
 
-    array_lines = []
     args = []
     commands = []
     with open(test_file, 'r') as f:
@@ -798,16 +833,24 @@ def build_test_v2(parsed_args):
             line = line.strip()
 
             if line.startswith("file") or line.startswith("option"):
-                array_lines.append(translate_array(line))
                 args.append(line.split(" "))
             else:
                 commands.append(line)
-    array_lines.append("")
+
+    assert len(commands) == 1
+    do_fsync = commands[0].split(" ")[0] not in ['mmapwrite', 'fdatasync']
 
     fname = function_name_from_commands(commands)
-    commands = build_command_dependencies(commands)
-    template_lines = build_template_function(commands, args, fname)
+    commands_with_deps = build_command_dependencies(commands)
+    commands_with_deps = add_sync_check_consistency(commands_with_deps, commands, do_fsync)
+
+    template_lines = build_template_function(commands_with_deps, args, fname, do_fsync)
+    array_lines = build_array_lines(args)
     loop_lines = build_for_loops(args, fname)
+
+    print(args)
+    print(commands)
+    print(commands_with_deps)
 
     lines_to_add = template_lines + array_lines + loop_lines
 
@@ -816,6 +859,10 @@ def build_test_v2(parsed_args):
     output_contents = base_contents[:test_cases_index] + lines_to_add + base_contents[test_cases_index:]
     with open(generated_test, 'w+') as f:
         f.writelines(output_contents)
+
+    out_lines = ["QA output created by {}\n".format(test_number), "Silence is golden\n"]
+    with open(generated_test_output, 'w+') as f:
+        f.writelines(out_lines)
 
 def main():
     # Parse input args
