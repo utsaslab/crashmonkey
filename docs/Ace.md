@@ -86,6 +86,14 @@ would create `output/001` and `output/001.out` from the given J-lang file.
 
 For more information explaining how to run the adapters directly, refer to the beginning of the following files for [Crashmonkey](../ace/cmAdapter.py) and [xfstest](../ace/xfstestAdapter.py) respectively.
 
+3. *XFSTEST-Concise* : Ace can also generate J-lang version two files (or J2-lang files) which contain multiple tests wrapped into a single file. The *XFSTest* adapter automatically detects what version of J-lang file is passed in, and decides whether to generate a single test or a condensed test. The adapter can be run with the same arguments as described above, with J-lang files replaced by J2-lang files. For example, running:
+ 
+```
+python2 xfstestAdapter.py -t <J2-LANG FILE> -p output/ -n 001 -f generic
+```
+
+would create `output/001` and `output/001.out` from the given J2-lang file.
+
 ---
 ### Bounds used by Ace ###
 
@@ -145,7 +153,7 @@ Generating workloads with Ace is a two-step process.
       * `-l` - Sequence length of the workload, i.e., the number of core file-system operations in the workload.
       * `-n` - If True, provides an additional level of nesting to the file set. Adds a directory `A/C` and two files `A/C/foo` and `A/C/bar` to the set of files.
       * `-d` - Demo workload. If true, simply restricts the workload space to test two file-system operations `link` and `fallocate`, allowing the persistence of used files only. The file set is also restricted to just `foo` and `A/bar`
-			* `-t` - The type of test to generate. Should one of 'crashmonkey' and 'xfstest'. If unspecified, the adapter will default to 'crashmonkey'.
+			* `-t` - The type of test to generate. Should be one of 'crashmonkey', 'xfstest', and 'xfstest-concise'. If unspecified, the adapter will default to 'crashmonkey'.
 
 ___
 ### Generalizing Ace ###

@@ -232,8 +232,7 @@ expected_sync_sequence.append([('none'), ('fsync', 'bar')])
 # write,(foo, 0-256K), mmapwrite(0-4K), mmapwrite(252-256K), msync(0-64K), msync(192-256K)
 
 
-# TODO: arvind give it a better name
-VALID_TEST_TYPES = ['crashmonkey', 'xfstest', 'xfstest2']
+VALID_TEST_TYPES = ['crashmonkey', 'xfstest', 'xfstest-concise']
 
 def build_parser():
     parser = argparse.ArgumentParser(description='Automatic Crash Explorer v0.1')
@@ -1345,9 +1344,8 @@ def doPermutation(perm, test_type):
             log = '\n\t\t\tModified sequence = {0}\n'.format(modified_sequence);
             log_file_handle.write(log)
 
-# TODO: arvind better name
 # Exhaustively generates combinations of ops, but create j2-lang
-# files that allow the xfstest2 adapter to create more concise
+# files that allow the xfstest adapter to create more concise
 # tests.
 def doPermutationV2(perm):
     
@@ -1371,7 +1369,6 @@ def doPermutationV2(perm):
     if demo:
         dest_dir += '_demo'
     
-    # TODO: verify this
     # For now, we only support operations of length 1.  
     assert int(num_ops) == 1
 
@@ -1569,8 +1566,6 @@ def main():
         source_j_lang_cpp = '../code/tests/ace-base/base.cpp'
         copyfile(source_j_lang_cpp, dest_j_lang_cpp)
 
-    # TODO: arvind add base xfstest2 thing
-    
     # Create all permutations of persistence ops  of given sequence length. This will be merged to the phase-2 workload.
     for i in itertools.product(SyncSet, repeat=int(num_ops)):
         syncPermutations.append(i)
@@ -1599,8 +1594,7 @@ def main():
 
     bar.start()
     for i in itertools.product(OperationSet, repeat=int(num_ops)):
-        # TODO: arvind better name
-        if test_type == "xfstest2":
+        if test_type == "xfstest-concise":
             doPermutationV2(i)
         else:
             doPermutation(i, test_type)
@@ -1635,10 +1629,8 @@ def main():
 
 
     # Move the resultant high-level lang files to target directory. We could choose to delete them too. But if we wanted to analyze the core-ops in a workload, looking at this file is an easier way of doing it. Also if you modify the adapter, you can simply supply the directory of j-lang files to convert to cpp. No need to go through the entire generation process.
-    # TODO: arvind change this
-    if test_type != "xfstest2":
-        target = 'mv j2-lang* {}' if test_type == "xfstest2" else 'mv j-lang* {}'
-        subprocess.call(target.format(target_path), shell = True)
+    target = 'mv j2-lang* {}' if test_type == "xfstest-concise" else 'mv j-lang* {}'
+    subprocess.call(target.format(target_path), shell = True)
 
 
 if __name__ == '__main__':
