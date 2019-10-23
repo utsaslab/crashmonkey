@@ -848,10 +848,6 @@ def build_test_v2(parsed_args):
     array_lines = build_array_lines(args)
     loop_lines = build_for_loops(args, fname)
 
-    print(args)
-    print(commands)
-    print(commands_with_deps)
-
     lines_to_add = template_lines + array_lines + loop_lines
 
     # Insert lines into relevant location and write output files.
