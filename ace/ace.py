@@ -1386,29 +1386,6 @@ def doPermutationV2(perm):
             options = [options]
         parameter_options.append(options)
 
-    # Let's insert fsync combinations here.
-    # usedFiles = list()
-    # flat_used_list = flatList(currentParameterOption)
-    # for file_len in xrange(0, len(flat_used_list)):
-    #     if isinstance(flat_used_list[file_len], basestring):
-    #         usedFilesList = list(set(flat_used_list) & set(FileOptions + SecondFileOptions + DirOptions + SecondDirOptions + TestDirOptions))
-    #         usedFiles.append(tuple(usedFilesList))
-    # usedFiles = flatList(set(usedFiles))
-
-
-    # For lower sequences, let's allow fsync on any related file - sibling/parent
-    # if int(num_ops) < 3 and not demo:
-    #     syncPermutationsCustom = buildCustomTuple(file_range(usedFiles))
-    # else:
-    #     syncPermutationsCustom = buildCustomTuple(usedFiles)
-
-    # Logging the list of used files
-    # log = '\n\t\tUsed Files = {0}\n'.format(usedFiles)
-    # log = log + '\t\tFile range = {0}\n'.format(file_range(usedFiles))
-    # log_file_handle.write(log)
-
-    # Build the sequence of operations and the corresponding 
-    # files to perform those operations.
     seq = zip(perm, parameter_options)
 
     # Logging the skeleton of the workload, including persistence operations and paramters.
@@ -1422,8 +1399,7 @@ def doPermutationV2(perm):
     with open(j2_lang_file, 'w') as f:
         f.writelines(buildJ2lang(seq))
 
-    # exec_command = 'python2 xfstestAdapter.py -t ' + j2_lang_file + ' -p ../code/tests/' + dest_dir + '/ -n ' + str(global_count) + " -f generic"
-    exec_command = 'python2 xfstestAdapter.py -t ' + j2_lang_file + ' -p . -n ' + "{:03d}".format(global_count) + " -f generic"
+    exec_command = 'python2 xfstestAdapter.py -t ' + j2_lang_file + ' -p ../code/tests/' + dest_dir + ' -n ' + "{:03d}".format(global_count) + " -f generic"
     subprocess.call(exec_command, shell=True)
 
 class SlowBar(FillingCirclesBar):
