@@ -167,6 +167,7 @@ translate_range() {
         overlap_end)
             offset=$((size - 8192))
             length=8192
+        ;;
         overlap_extend)
             offset=$((size - 2000))
             length=5000
