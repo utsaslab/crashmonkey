@@ -107,7 +107,7 @@ _dwrite_byte() {
 	local file="$4"
 	local xfs_io_args="$5"
 
-	$XFS_IO_PROG $xfs_io_args -f -c "open -f -d -s $file" -c "pwrite -S $pattern $offset $len" "$file"
+	$XFS_IO_PROG $xfs_io_args -f -c "pwrite -S $pattern $offset $len" "$file"
 }
 
 _mwrite_byte_and_msync() {

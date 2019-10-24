@@ -107,7 +107,7 @@ _dwrite_byte() {
 	local file="$4"
 	local xfs_io_args="$5"
 
-	$XFS_IO_PROG $xfs_io_args -f -c "open -f -d -s $file" -c "pwrite -S $pattern $offset $len" "$file"
+	$XFS_IO_PROG $xfs_io_args -f -c "pwrite -S $pattern $offset $len" "$file"
 }
 
 _mwrite_byte_and_msync() {
@@ -160,6 +160,13 @@ translate_range() {
             offset=$((size - 5000))
             length=5000
         ;;
+        overlap_start)
+            offset=0
+            length=8192
+        ;;
+        overlap_end)
+            offset=$((size - 8192))
+            length=8192
         overlap_extend)
             offset=$((size - 2000))
             length=5000
@@ -178,7 +185,7 @@ do_falloc() {
 
     case $mode in
         FALLOC_FL_ZERO_RANGE)
-            $XFS_IO_PROG -f -c "fzero k $offset $length" $file
+            $XFS_IO_PROG -f -c "fzero $offset $length" $file
         ;;
         FALLOC_FL_ZERO_RANGE|FALLOC_FL_KEEP_SIZE)
             $XFS_IO_PROG -f -c "fzero -k $offset $length" $file
