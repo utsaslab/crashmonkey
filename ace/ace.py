@@ -51,7 +51,7 @@ WriteOptions = ['append', 'overlap_unaligned_start', 'overlap_extend'] # 'overla
 dWriteOptions = ['append', 'overlap_start'] # 'overlap_end'
 
 # Truncate file options 'aligned'
-TruncateOptions = ['unaligned']
+TruncateOptions = ['aligned', 'unaligned']
 
 # Set of file-system operations to be used in test generation.
 # We currently support : creat, mkdir, falloc, write, dwrite, link, unlink, remove, rename, fsetxattr, removexattr, truncate, mmapwrite, symlink, fsync, fdatasync, sync
