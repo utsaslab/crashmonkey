@@ -1370,7 +1370,9 @@ def doPermutationV2(perm):
         dest_dir += '_demo'
     
     # For now, we only support operations of length 1.  
-    assert int(num_ops) == 1
+    if num_ops != 1:
+        print("\nError - xfstest-concise current only supports operations of length 1!")
+        sys.exit(1)
 
     permutations.append(perm)
     log = ', '.join(perm);
