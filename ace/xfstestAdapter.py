@@ -627,18 +627,26 @@ def function_name_from_commands(commands):
     functions = [c.split(" ")[0] for c in commands]
     return "{}_template".format("_".join(functions))
 
-def build_template_function(commands, args, fname, do_fsync):
+def build_template_function(commands, commands_with_deps, args, fname, do_fsync):
     lines = ["function {}() {{".format(fname)]
     for i, a in enumerate(args):
         lines.append("\tlocal {}=\"${}\"".format(a[0], i+1))
 
+
     if do_fsync:
         lines.append("\tlocal fsync_file=\"${}\"".format(len(args)+1))
 
-    lines.append("")
+    # TODO: generalize this
+    # Hack for num_ops = 1, ignore link operations
+    if commands[0].split(" ")[0] in ["link", "rename"]:
+        lines.append("\t[[ $file1 == $file2 ]] && return")
 
-    for c in commands:
+    lines.append("\n\t_mount_flakey")
+
+    for c in commands_with_deps:
         lines.append("\t{}".format(c))
+
+    lines.append("\tclean_dir")
     lines.append("}\n")
 
     return lines
@@ -650,8 +658,12 @@ def build_for_loops(args, fname):
         lines.append('\t' * num_tabs + "for {0} in ${{{0}_options[@]}}; do".format(a[0]))
         num_tabs += 1
 
+    fsync_files = ["\"${0}\" \"$(dirname ${0})\"".format(a[0]) for a in args if "file" in a[0]]
+
     # For fsync files
-    lines.append('\t' * num_tabs + "for fsync_file in ${fsync_options[@]}; do")
+    lines.append('\t' * num_tabs + "fsync_files=({})".format(" ".join(fsync_files)))
+    lines.append('\t' * num_tabs + "uniques=($(for v in ${fsync_files[@]}; do echo $v; done | sort -u))")
+    lines.append('\t' * num_tabs + "for fsync_file in ${uniques[@]}; do")
     num_tabs += 1
 
     function_call = fname + " " + " ".join(list(map(lambda a: "$" + a[0], args)))
@@ -678,7 +690,7 @@ def build_command_dependencies(commands):
         if parts[0] == "open":
             lines.append(create_parent_dir(parts[1]))
             lines.append(create_file(parts[1]))
-            lines.append("chmod {} {}".format(parts[1], parts[3]))
+            lines.append("chmod {} {}".format(parts[3], parts[1]))
         elif parts[0] == "mkdir":
             lines.append("mkdir {} -p -m {}".format(parts[1], parts[2]))
         elif parts[0] == "falloc":
@@ -692,7 +704,7 @@ def build_command_dependencies(commands):
             lines.append("[[ {} != 'append' ]] && ensure_file_size_one_block {}".format(
                 parts[2], 
                 parts[1]))
-            lines.append("_pwrite_byte {} $(translate_range {} {}) {}".format(
+            lines.append("_pwrite_byte {} $(translate_range {} {}) {} > /dev/null".format(
                 WRITE_VALUE,
                 parts[1],
                 parts[2],
@@ -703,7 +715,7 @@ def build_command_dependencies(commands):
             lines.append("[[ {} != 'append' ]] && ensure_file_size_one_block {}".format(
                 parts[2], 
                 parts[1]))
-            lines.append("_dwrite_byte {} $(translate_range {} {}) {}".format(
+            lines.append("_dwrite_byte {} $(translate_range {} {}) {} > /dev/null".format(
                 DWRITE_VALUE,
                 parts[1],
                 parts[2],
@@ -716,12 +728,13 @@ def build_command_dependencies(commands):
                 parts[2]))
             lines.append("mmap_offset=$((offset + size))")
             lines.append("$XFS_IO_PROG -f -c \"falloc 0 $mmap_offset\" " + parts[1])
-            lines.append("_mwrite_byte_and_msync {} $offset $size $mmap_offset {}".format(
+            lines.append("_mwrite_byte_and_msync {} $offset $size $mmap_offset {} > /dev/null".format(
                 MMAPWRITE_VALUE,
                 parts[1]))
         elif parts[0] == "link" or parts[0] == "symlink":
             lines.append(create_parent_dir(parts[1]))
             lines.append(create_file(parts[1]))
+            lines.append(create_parent_dir(parts[2]))
             lines.append(remove_if_exists(parts[2]))
             lines.append("ln{} {} {}".format(
                 "" if parts[0] == "link" else " -s",
@@ -734,6 +747,7 @@ def build_command_dependencies(commands):
         elif parts[0] == "rename":
             lines.append(create_parent_dir(parts[1]))
             lines.append(create_file(parts[1]))
+            lines.append(create_parent_dir(parts[2]))
             lines.append("rename {} {}".format(parts[1], parts[2]))
         elif parts[0] == "fsetxattr":
             lines.append(create_parent_dir(parts[1]))
@@ -763,32 +777,22 @@ def build_command_dependencies(commands):
 
 def build_array_lines(lines):
     lines_to_add = []
-    all_files = set()
     for elems in lines:
         name = elems[0]
         options = sorted(list(map(lambda x: "{}".format(
             translate_filename(x) if is_file_or_dir(x) else x), 
             elems[1:])))
 
-        if "file" in name:
-            all_files.update(options)
-    
-        lines_to_add.append("{}_options=('{}')".format(name, "' '".join(options)))
-    lines_to_add.append("fsync_options=('{}')\n".format(
-        "' '".join(sorted(list(all_files)))))
+        lines_to_add.append("{}_options=(\"{}\")".format(name, "\" \"".join(options)))
     return lines_to_add
 
 def add_sync_check_consistency(commands_with_deps, commands, do_fsync):
     if do_fsync:
-        fsync_file = "$fsync_file"
+        commands_with_deps.append("do_fsync_check $fsync_file")
     else:
-        elems = commands[0].split(" ")
         # For mmapwrite and fdatasync, the file is the first argument.
-        fsync_file = elems[1]
-
-    if do_fsync:
-        commands_with_deps.append("$XFS_IO_PROG -c \"fsync\" " + fsync_file)
-    commands_with_deps.append("check_consistency " + fsync_file)
+        elems = commands[0].split(" ")
+        commands_with_deps.append("check_consistency " + elems[1])
     return commands_with_deps
 
 
@@ -844,7 +848,7 @@ def build_test_v2(parsed_args):
     commands_with_deps = build_command_dependencies(commands)
     commands_with_deps = add_sync_check_consistency(commands_with_deps, commands, do_fsync)
 
-    template_lines = build_template_function(commands_with_deps, args, fname, do_fsync)
+    template_lines = build_template_function(commands, commands_with_deps, args, fname, do_fsync)
     array_lines = build_array_lines(args)
     loop_lines = build_for_loops(args, fname)
 
