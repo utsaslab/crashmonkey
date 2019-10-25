@@ -203,6 +203,20 @@ do_falloc() {
     esac
 }
 
+do_fsync_check() { 
+    # If file does not exist (i.e. it was removed), fsync 
+    # the parent instead.
+
+    if [[ -e "$1" ]]; then
+        file="$1"
+    else
+        file="$(dirname $1)"
+    fi
+
+    $XFS_IO_PROG -c "fsync" $file
+    check_consistency $file
+}
+
 # Test cases
 
 
