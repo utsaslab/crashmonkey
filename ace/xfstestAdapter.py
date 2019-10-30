@@ -635,6 +635,7 @@ def build_template_function(commands, commands_with_deps, args, fname, do_fsync)
 
     if do_fsync:
         lines.append("\tlocal fsync_file=\"${}\"".format(len(args)+1))
+        lines.append("\tlocal fsync_command=\"${}\"".format(len(args)+2))
 
     # TODO: generalize this
     # Hack for num_ops = 1, ignore link operations
@@ -651,7 +652,7 @@ def build_template_function(commands, commands_with_deps, args, fname, do_fsync)
 
     return lines
 
-def build_for_loops(args, fname):
+def build_for_loops(args, fname, do_fsync):
     lines, num_tabs = [], 0
 
     for a in args:
@@ -666,8 +667,15 @@ def build_for_loops(args, fname):
     lines.append('\t' * num_tabs + "for fsync_file in ${uniques[@]}; do")
     num_tabs += 1
 
+    if do_fsync:
+        lines.append('\t' * num_tabs + "for fsync_command in fsync fdatasync; do")
+        num_tabs += 1
+
     function_call = fname + " " + " ".join(list(map(lambda a: "$" + a[0], args)))
-    function_call += " $fsync_file"
+
+    if do_fsync:
+        function_call += " $fsync_file $fsync_command"
+
     lines.append('\t' * num_tabs + function_call)
 
     while num_tabs != 0:
@@ -788,7 +796,7 @@ def build_array_lines(lines):
 
 def add_sync_check_consistency(commands_with_deps, commands, do_fsync):
     if do_fsync:
-        commands_with_deps.append("do_fsync_check $fsync_file")
+        commands_with_deps.append("do_fsync_check $fsync_file $fsync_command")
     else:
         # For mmapwrite and fdatasync, the file is the first argument.
         elems = commands[0].split(" ")
@@ -842,7 +850,7 @@ def build_test_v2(parsed_args):
                 commands.append(line)
 
     assert len(commands) == 1
-    do_fsync = commands[0].split(" ")[0] not in ['mmapwrite', 'fdatasync']
+    do_fsync = commands[0].split(" ")[0] != "mmapwrite"
 
     fname = function_name_from_commands(commands)
     commands_with_deps = build_command_dependencies(commands)
@@ -850,7 +858,7 @@ def build_test_v2(parsed_args):
 
     template_lines = build_template_function(commands, commands_with_deps, args, fname, do_fsync)
     array_lines = build_array_lines(args)
-    loop_lines = build_for_loops(args, fname)
+    loop_lines = build_for_loops(args, fname, do_fsync)
 
     lines_to_add = template_lines + array_lines + loop_lines
 

@@ -213,8 +213,13 @@ do_fsync_check() {
         file="$(dirname $1)"
     fi
 
-    $XFS_IO_PROG -c "fsync" $file
-    check_consistency $file
+    if [[ $2 == "fdatasync" ]]; then
+        $XFS_IO_PROG -c "fdatasync" $file
+        check_consistency --data-only $file
+    else
+        $XFS_IO_PROG -c "fsync" $file
+        check_consistency $file
+    fi
 }
 
 # Test cases
