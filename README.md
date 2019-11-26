@@ -5,7 +5,7 @@
 
 ## Bounded Black-Box Crash Testing ##
 Bounded black-box crash testing (B<sup>3</sup>) is a new approach to testing file-system crash consistency. B<sup>3</sup> is a black-box testing approach which requires **no modification** to file-system code. B<sup>3</sup> exhaustively generates and tests workloads in a bounded space. We implement B<sup>3</sup> by building two tools - CrashMonkey and Ace. The OSDI'18 paper **Finding Crash-Consistency Bugs with Bounded Black-Box Crash Testing** has a detailed discussion of B<sup>3</sup>, CrashMonkey, and Ace. <br>
-[[Paper PDF](https://www.cs.utexas.edu/~jaya/pdf/osdi18-B3.pdf)] [[Slides](https://www.cs.utexas.edu/~jaya/slides/osdi18-B3-slides.pdf)] [[Bibtex](https://www.cs.utexas.edu/~jaya/bibtex/mohan2018finding.bib)]  
+[[Paper PDF](https://www.cs.utexas.edu/~vijay/papers/osdi18-crashmonkey.pdf)] [[Slides](http://www.cs.utexas.edu/~vijay/papers/osdi18-crashmonkey-slides.pdf)] [[Bibtex](http://www.cs.utexas.edu/~vijay/bibtex/osdi18-crashmonkey.bib)]  
 
 CrashMonkey and Ace have found several long-standing bugs in widely-used file systems like btrfs and F2FS. The tools work out-of-the-box with any POSIX file system: no modification required to the file system. 
 
