@@ -119,6 +119,7 @@ _mwrite_byte_and_msync() {
 
 	$XFS_IO_PROG -f -c "mmap -rw 0 $mmap_len" -c "mwrite -S $pattern $offset $len" "$file" -c "msync -s"
 }
+
 check_consistency()
 {
 	before=$(general_stat "$@")
