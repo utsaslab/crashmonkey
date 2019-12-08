@@ -1,7 +1,6 @@
 #!/usr/bin/env python
 
-# To run : python xfstestAdapter.py -b ../code/tests/ace-base/base_xfstest.sh -t <jlang-file> \
-#               -p <output_directory> -n <test_number> -f <filesystem type>
+# To run : python xfstestAdapter.py -t <jlang-file> -p <output_directory> -n <test_number> -f <filesystem type>
 #
 # For example, with output_directory = "output" and test_number = "001",
 # the converted test files will be located at:
