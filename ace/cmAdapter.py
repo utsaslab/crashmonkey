@@ -10,7 +10,6 @@ import argparse
 import time
 import itertools
 from shutil import copyfile
-from string import maketrans
 
 
 #All functions that has options go here
@@ -41,13 +40,13 @@ def build_parser():
 
 
 def print_setup(parsed_args):
-    print '\n{: ^50s}'.format('XFSMonkey Workload generatorv0.1\n')
-    print '='*20, 'Setup' , '='*20, '\n'
-    print '{0:20}  {1}'.format('Base test file', parsed_args.base_file)
-    print '{0:20}  {1}'.format('Test skeleton', parsed_args.test_file)
-    print '{0:20}  {1}'.format('Target directory', parsed_args.target_path)
-    print '{0:20}  {1}'.format('Output file', parsed_args.output_name)
-    print '\n', '='*48, '\n'
+    print('\n{: ^50s}'.format('XFSMonkey Workload generatorv0.1\n'))
+    print('='*20, 'Setup' , '='*20, '\n')
+    print('{0:20}  {1}'.format('Base test file', parsed_args.base_file))
+    print('{0:20}  {1}'.format('Test skeleton', parsed_args.test_file))
+    print('{0:20}  {1}'.format('Target directory', parsed_args.target_path))
+    print('{0:20}  {1}'.format('Output file', parsed_args.output_name))
+    print('\n', '='*48, '\n')
     
 
 def create_dir(dir_path):
@@ -109,7 +108,7 @@ def insertDefine(line, file, index_map):
         updateSetupMap(index_map, 1)
         file_str = ''
         if len(line.split('/')) != 1 :
-            for i in xrange(0, len(line.split('/'))):
+            for i in range(0, len(line.split('/'))):
                 file_str += line.split('/')[i]
         else:
             file_str = line.split('/')[-1]
@@ -125,7 +124,7 @@ def insertDefine(line, file, index_map):
         updateRunMap(index_map, 1)
         file_str = ''
         if len(line.split('/')) != 1 :
-            for i in xrange(0, len(line.split('/'))):
+            for i in range(0, len(line.split('/'))):
                 file_str += line.split('/')[i]
         else:
             file_str = line.split('/')[-1]
@@ -140,7 +139,7 @@ def insertDefine(line, file, index_map):
         updateCheckMap(index_map, 1)
         file_str = ''
         if len(line.split('/')) != 1 :
-            for i in xrange(0, len(line.split('/'))):
+            for i in range(0, len(line.split('/'))):
                 file_str += line.split('/')[i]
         else:
             file_str = line.split('/')[-1]
@@ -156,7 +155,7 @@ def insertDefine(line, file, index_map):
         updateDefineMap(index_map, 1)
         file_str = ''
         if len(line.split('/')) != 1 :
-            for i in xrange(0, len(line.split('/'))):
+            for i in range(0, len(line.split('/'))):
                 file_str += line.split('/')[i]
         else:
             file_str = line.split('/')[-1]
@@ -609,7 +608,7 @@ def main():
     
     #check if test file exists
     if not os.path.exists(parsed_args.test_file) or not os.path.isfile(parsed_args.test_file):
-        print parsed_args.test_file + ' : No such test file\n'
+        print(parsed_args.test_file + ' : No such test file\n')
         exit(1)
     
     #Create the target directory

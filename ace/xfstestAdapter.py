@@ -17,7 +17,6 @@ import time
 import datetime
 import itertools
 from shutil import copyfile
-from string import maketrans
 
 from common import JLANG_FILES
 
@@ -94,13 +93,13 @@ def build_parser():
 
 
 def print_setup(parsed_args):
-    print '\n{: ^50s}'.format('XFSMonkey Workload generatorv0.1\n')
-    print '='*20, 'Setup' , '='*20, '\n'
-    print '{0:20}  {1}'.format('Test skeleton', parsed_args.test_file)
-    print '{0:20}  {1}'.format('Target directory', parsed_args.target_path)
-    print '{0:20}  {1}'.format('Test number', parsed_args.test_number)
-    print '{0:20}  {1}'.format('Filesystem type', parsed_args.filesystem_type)
-    print '\n', '='*48, '\n'
+    print('\n{: ^50s}'.format('XFSMonkey Workload generatorv0.1\n'))
+    print('='*20, 'Setup' , '='*20, '\n')
+    print('{0:20}  {1}'.format('Test skeleton', parsed_args.test_file))
+    print('{0:20}  {1}'.format('Target directory', parsed_args.target_path))
+    print('{0:20}  {1}'.format('Test number', parsed_args.test_number))
+    print('{0:20}  {1}'.format('Filesystem type', parsed_args.filesystem_type))
+    print('\n', '='*48, '\n')
     
 
 def create_dir(dir_path):
@@ -138,10 +137,12 @@ class State():
             self.opened_files.remove(filename)
 
     def _sync_file(self, filename):
+        self.opened_files.add(filename)
         self.synced_files.add(filename)
         self.data_synced_files.add(filename)
 
     def _sync_file_data(self, filename):
+        self.opened_files.add(filename)
         self.data_synced_files.add(filename)
 
     def _unsync_file(self, filename):
@@ -854,7 +855,7 @@ def main():
     
     # Check if test file exists
     if not os.path.exists(parsed_args.test_file) or not os.path.isfile(parsed_args.test_file):
-        print parsed_args.test_file + ' : No such test file\n'
+        print(parsed_args.test_file + ' : No such test file\n')
         exit(1)
 
     # Get J-lang version number
