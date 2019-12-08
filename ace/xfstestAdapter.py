@@ -19,9 +19,11 @@ import itertools
 from shutil import copyfile
 from string import maketrans
 
+from common import JLANG_FILES
+
 
 # All functions that has options go here
-FallocOptions = {
+FallocTranslate = {
     '0'                                       : '$XFS_IO_PROG -f -c \"falloc {offset} {length}\" {filename}',
     'FALLOC_FL_KEEP_SIZE'                     : '$XFS_IO_PROG -f -c \"falloc -k {offset} {length}\" {filename}',
     'FALLOC_FL_ZERO_RANGE'                    : '$XFS_IO_PROG -f -c \"fzero {offset} {length}\" {filename}',
@@ -29,41 +31,12 @@ FallocOptions = {
     'FALLOC_FL_PUNCH_HOLE|FALLOC_FL_KEEP_SIZE': '$XFS_IO_PROG -f -c \"fpunch {offset} {length}\" {filename}'
 }
 
-FsyncOptions = ['fsync','fdatasync']
-
-RemoveOptions = ['remove','unlink']
-
-LinkOptions = ['link','symlink']
-
-WriteOptions = ['WriteData','WriteDataMmap', 'pwrite']
-
 # Constants
 FILE_ATTR_KEY = "user.xattr1"
 FILE_ATTR_VALUE = "val1"
 WRITE_VALUE = "0x22"
 MMAPWRITE_VALUE = "0x33"
 DWRITE_VALUE = "0x44"
-
-# Because the filenaming convention in the high-level j-lang language 
-# seems to be arbitrary, we hard code the translation here to ensure
-# that any inconsistency will raise a clear, easy-to-debug error.
-# The format is:
-# <jlang filename> | <bash filename> | <parent jlang filename> | <file type>
-JLANG_FILES = [
-    ( ""      , ""        , ""  , "dir"  ),
-    ( "test"  , "test"    , ""  , "file" ), 
-    ( "A"     , "A"       , ""  , "dir"  ), 
-    ( "AC"    , "A/C"     , "A" , "dir"  ), 
-    ( "B"     , "B"       , ""  , "dir"  ), 
-    ( "foo"   , "foo"     , ""  , "file" ), 
-    ( "bar"   , "bar"     , ""  , "file" ), 
-    ( "Afoo"  , "A/foo"   , "A" , "file" ), 
-    ( "Abar"  , "A/bar"   , "A" , "file" ), 
-    ( "Bfoo"  , "B/foo"   , "B" , "file" ), 
-    ( "Bbar"  , "B/bar"   , "B" , "file" ), 
-    ( "ACfoo" , "A/C/foo" , "AC", "file" ), 
-    ( "ACbar" , "A/C/bar" , "AC", "file" )
-]
 
 prefix = "$SCRATCH_MNT/"
 
@@ -494,7 +467,7 @@ def translate_falloc(line, state):
 
     state.modify_file(filename)
 
-    return [FallocOptions[mode].format(filename=filename, offset=offset, length=length)], state
+    return [FallocTranslate[mode].format(filename=filename, offset=offset, length=length)], state
 
 # Translate a line of the high-level j-lang language
 # into a list of lines of bash for xfstest
