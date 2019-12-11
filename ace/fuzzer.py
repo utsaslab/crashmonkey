@@ -4,15 +4,16 @@
 
 import os
 import sys
+import ntpath
 import argparse
 import itertools
-import ntpath
+import subprocess
 from shutil import copyfile
 
 import common
 
 def log(msg, flush=False):
-    sys.stdout.write(msg)
+    sys.stdout.write(str(msg))
     if flush: sys.stdout.flush()
 
 def parse_jlang(filename):
@@ -90,27 +91,45 @@ def write_jlang_file(lines, filename, base_jlang):
         f.writelines(lines)
 
 def fuzz(instructions, test_file, output_dir):
-    basename = ntpath.basename(test_file)
+    test_name = ntpath.basename(test_file)
     base_jlang = os.path.join(output_dir, "base-j-lang")
-    num_created = 0
+    base_cm = os.path.join(output_dir, "base.cpp")
 
+    # Function to generate numbered filenames of the format:
+    #     <test_file>-fuzz<num>
+    num_created = 1
     def make_name():
         nonlocal num_created
 
+        name = "{}-fuzz{}".format(test_name, num_created)
         num_created += 1
-        base = "{}-fuzz{}".format(basename, num_created)
-        return os.path.join(output_dir, base)
+        return name
 
+    # TODO: improve this, for now just try manipulating the 
+    # options of each command.
     options = [get_permutations(i) for i in instructions]
-
     modified_instructions = instructions[:]
     for i, instr in enumerate(instructions):
         for option_i in options[i]:
             modified_instructions[i] = option_i
 
+            # Write the list of modified instructions to a j-lang file
             write_jlang_file(modified_instructions, make_name(), base_jlang)
 
         modified_instructions[i] = instr
+
+    # Convert the J-lang files to CrashMonkey files using the cmAdapter.
+    for i in range(1, num_created):
+        jlang_name = "{}-fuzz{}".format(test_name, i)
+
+        if not output_dir.endswith("/"):
+            output_dir += "/"
+        cmd = "python3 cmAdapter.py -b {} -t {} -p {}\n".format(base_cm, jlang_name, output_dir)
+        subprocess.call(cmd, shell=True)
+
+        # Move J-lang file to output folder.
+        os.rename(jlang_name, os.path.join(output_dir, jlang_name))
+
 
 def build_parser():
     parser = argparse.ArgumentParser(description='Workload Fuzzer for CrashMonkey v1.0')
@@ -141,6 +160,10 @@ def main():
     cwd = os.path.dirname(os.path.realpath(__file__))
     base_j_lang = os.path.join(cwd, "../code/tests/ace-base/base-j-lang")
     copyfile(base_j_lang, os.path.join(parsed_args.output_dir, "base-j-lang"))
+
+    # Copy base Crashmonkey file to outpt directory
+    base_cm = os.path.join(cwd, "../code/tests/ace-base/base.cpp")
+    copyfile(base_cm, os.path.join(parsed_args.output_dir, "base.cpp"))
 
     instructions = parse_jlang(parsed_args.test_file)
     fuzz(instructions, parsed_args.test_file, parsed_args.output_dir)
