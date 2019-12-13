@@ -40,9 +40,13 @@ def get_permutations(instruction):
     elif parts[0] == "opendir" or parts[0] == "mkdir":
         pass
     elif parts[0] == "link":
-        pass
+        r = parts[:]
+        r[0] = "symlink"
+        perms.append(" ".join(r))
     elif parts[0] == "symlink":
-        pass
+        r = parts[:]
+        r[0] = "link"
+        perms.append(" ".join(r))
     elif parts[0] == "remove" or parts[0] == "unlink":
         pass
     elif parts[0] == "fsetxattr":
@@ -52,15 +56,27 @@ def get_permutations(instruction):
     elif parts[0] == "truncate":
         pass
     elif parts[0] == "dwrite":
-        pass
+        r = parts[:]
+        for replace in ['write', 'mmapwrite']:
+            r[0] = replace
+            perms.append(" ".join(r))
     elif parts[0] == "write":
-        pass
+        r = parts[:]
+        for replace in ['dwrite', 'mmapwrite']:
+            r[0] = replace
+            perms.append(" ".join(r))
     elif parts[0] == "mmapwrite":
-        pass
+        r = parts[:]
+        for replace in ['dwrite', 'write']:
+            r[0] = replace
+            perms.append(" ".join(r))
     elif parts[0] == "fsync":
-        pass
+        perms.append("sync")
+
+        perms.append("fdatasync " + parts[1])
     elif parts[0] == "fdatasync":
-        pass
+        perms.append("sync")
+        perms.append("fsync " + parts[1])
     elif parts[0] == "sync":
         pass
     elif parts[0] == "rename":
