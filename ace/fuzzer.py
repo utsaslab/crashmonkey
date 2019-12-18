@@ -111,6 +111,9 @@ def fuzz(instructions, test_file, output_dir):
     base_jlang = os.path.join(output_dir, "base-j-lang")
     base_cm = os.path.join(output_dir, "base.cpp")
 
+    if not output_dir.endswith("/"):
+        output_dir += "/"
+
     # Function to generate numbered filenames of the format:
     #     <test_file>-fuzz<num>
     num_created = 1
@@ -134,12 +137,14 @@ def fuzz(instructions, test_file, output_dir):
 
         modified_instructions[i] = instr
 
-    # Convert the J-lang files to CrashMonkey files using the cmAdapter.
+    # Convert the original J-lang file using the Crashmonkey Adapter.
+    cmd = "python3 cmAdapter.py -b {} -t {} -p {}\n".format(base_cm, test_name, output_dir)
+    subprocess.call(cmd, shell=True)
+
+    # Convert the generated J-lang files.
     for i in range(1, num_created):
         jlang_name = "{}-fuzz{}".format(test_name, i)
 
-        if not output_dir.endswith("/"):
-            output_dir += "/"
         cmd = "python3 cmAdapter.py -b {} -t {} -p {}\n".format(base_cm, jlang_name, output_dir)
         subprocess.call(cmd, shell=True)
 
