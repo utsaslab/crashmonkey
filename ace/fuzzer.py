@@ -19,7 +19,7 @@ def log(msg, flush=False):
 def parse_jlang(filename):
     run_starts = False
 
-    ignore = ["checkpoint", "close", "none"]
+    ignore = ["none"]
     instructions = []
 
     for line in open(filename, "r"):
@@ -89,6 +89,8 @@ def get_permutations(instruction):
         for mode_i in common.FallocOptions:
             if mode != mode_i:
                 perms.append("falloc {} {} {} {}".format(filename, mode_i, offset, length))
+    elif parts[0] == "checkpoint" or parts[0] == "close":
+        pass
     else:
         print("Unknown instruction: {}".format(instruction))
         sys.exit(1)
