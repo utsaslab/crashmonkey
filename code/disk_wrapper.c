@@ -134,7 +134,11 @@ static int disk_wrapper_ioctl(struct block_device* bdev, fmode_t mode,
         printk(KERN_WARNING "hwm: no log entry here \n");
         return -ENODATA;
       }
+#if LINUX_VERSION_CODE == KERNEL_VERSION(5, 5, 2)
+      if (!access_ok((void*) arg,
+#else
       if (!access_ok(VERIFY_WRITE, (void*) arg,
+#endif
             sizeof(struct disk_write_op_meta))) {
         // TODO(ashmrtn): Find right error code.
         printk(KERN_WARNING "hwm: bad user land memory pointer in log entry"
@@ -155,7 +159,11 @@ static int disk_wrapper_ioctl(struct block_device* bdev, fmode_t mode,
         printk(KERN_WARNING "hwm: no log entries to report data for\n");
         return -ENODATA;
       }
+#if LINUX_VERSION_CODE == KERNEL_VERSION(5, 5, 2)
+      if (!access_ok((void*) arg,
+#else
       if (!access_ok(VERIFY_WRITE, (void*) arg,
+#endif
             Device.current_log_write->metadata.size)) {
         // TODO(ashmrtn): Find right error code.
         return -EFAULT;
