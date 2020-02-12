@@ -134,7 +134,7 @@ static int disk_wrapper_ioctl(struct block_device* bdev, fmode_t mode,
         printk(KERN_WARNING "hwm: no log entry here \n");
         return -ENODATA;
       }
-      if (!access_ok((void*) arg,
+      if (!access_ok(VERIFY_WRITE, (void*) arg,
             sizeof(struct disk_write_op_meta))) {
         // TODO(ashmrtn): Find right error code.
         printk(KERN_WARNING "hwm: bad user land memory pointer in log entry"
@@ -155,7 +155,7 @@ static int disk_wrapper_ioctl(struct block_device* bdev, fmode_t mode,
         printk(KERN_WARNING "hwm: no log entries to report data for\n");
         return -ENODATA;
       }
-      if (!access_ok((void*) arg,
+      if (!access_ok(VERIFY_WRITE, (void*) arg,
             Device.current_log_write->metadata.size)) {
         // TODO(ashmrtn): Find right error code.
         return -EFAULT;
