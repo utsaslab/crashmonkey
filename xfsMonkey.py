@@ -79,6 +79,9 @@ def validate_setup(parsed_args):
         print("Btrfs only supports Disk sizes >= 200 MB, but size is {} MB".format(
             parsed_args.disk_size/1024.0))
         sys.exit(1)
+    if not parsed_args.test_path.endswith("/"):
+        parsed_args.test_path += "/"
+
 
 def main():
 
@@ -91,8 +94,8 @@ def main():
 	parsed_args = build_parser().parse_args()
 
 	#Print the test setup
-	print_setup(parsed_args)
         validate_setup(parsed_args)
+	print_setup(parsed_args)
 
 	#Assign a test num
 	test_num = 0
