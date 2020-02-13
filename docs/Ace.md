@@ -153,7 +153,7 @@ Generating workloads with Ace is a two-step process.
 
       * `-l` - Sequence length of the workload, i.e., the number of core file-system operations in the workload.
       * `-n` - If True, provides an additional level of nesting to the file set. Adds a directory `A/C` and two files `A/C/foo` and `A/C/bar` to the set of files.
-      * `-d` - Demo workload. If true, simply restricts the workload space to test two file-system operations `link` and `fallocate`, allowing the persistence of used files only. The file set is also restricted to just `foo` and `A/bar`
+      * `-d` - Demo workload. If true, simply restricts the workload space to test two file-system operations `link` and `fallocate`, allowing the persistence of used files only. The file set is also restricted to just `foo` and `A/bar`.
 			* `-t` - The type of test to generate. Should be one of 'crashmonkey', 'xfstest', and 'xfstest-concise'. If unspecified, the adapter will default to 'crashmonkey'.
 
 ___
