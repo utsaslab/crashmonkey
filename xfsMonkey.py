@@ -30,7 +30,7 @@ def build_parser():
     parser.add_argument('--fs_type', '-t', default='ext4', help='Filesystem on which you wish to run tests using XFSMonkey. Default = ext4')
 
     # crash monkey args
-    parser.add_argument('--disk_size', '-e', default=102400, type=int, help='Size of disk in KB. Default = 200MB')
+    parser.add_argument('--disk_size', '-e', default=204800, type=int, help='Size of disk in KB. Default = 200MB')
     parser.add_argument('--iterations', '-s', default=10000, type=int, help='Number of random crash states to test on. Default = 1000')
     parser.add_argument('--test_dev', '-d', default='/dev/cow_ram0', help='Test device. Default = /dev/cow_ram0')
     parser.add_argument('--flag_dev', '-f', default='/dev/sda', help='Flag device. Default = /dev/sda')
@@ -75,6 +75,15 @@ def print_setup(parsed_args):
 	print('{0:20}  {1}'.format('Test path', parsed_args.test_path))
 	print('\n{}\n'.format('=' * 48))
 
+def validate_setup(parsed_args):
+    if parsed_args.fs_type.lower() == "btrfs" and parsed_args.disk_size < 204800:
+        print("Btrfs only supports Disk sizes >= 200 MB, but size is {} MB".format(
+            parsed_args.disk_size/1024.0))
+        sys.exit(1)
+    if not parsed_args.test_path.endswith("/"):
+        parsed_args.test_path += "/"
+
+
 def main():
 
 	# Open the log file
@@ -85,7 +94,8 @@ def main():
 
 	parsed_args = build_parser().parse_args()
 
-	#Print the test setup
+        #Print the test setup
+	validate_setup(parsed_args)
 	print_setup(parsed_args)
 
 	#Assign a test num
@@ -138,13 +148,14 @@ def main():
 				p_status=p.wait()
 				output = output.decode("utf-8")
 
+
 				# Printing the output on stdout seems too noisy. It's cleaner to have only the result
 				# of each test printed. However due to the long writeback delay, it seems as though
 				# the test case hung. 
 				# (TODO : Add a flag in c_harness to interactively print when we wait for writeback
 				# or start testing)
 				res = re.sub(r'(?s).*Reordering', '\nReordering', output, flags=re.I)
-				res_final = re.sub(r'==.*(?s)', '\n', res)
+				res_final = re.sub(r'==.*==', '\n', res).strip()
 
 				#print output
 				retry += 1
