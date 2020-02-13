@@ -117,7 +117,7 @@ def main():
 			snapshot = filename.replace('.so', '') + '_' + parsed_args.fs_type
 
 			#Get full test file path
-			test_file = xfsMonkeyTestPath.replace('./build/', '') + filename
+			test_file = os.path.join(xfsMonkeyTestPath.replace('./build/', ''), filename)
 
 			#Build command to run c_harness 
 			command = ('cd build; ./c_harness -v -c -P -f '+ parsed_args.flag_dev +' -d '+
