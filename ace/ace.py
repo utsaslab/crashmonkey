@@ -1,5 +1,5 @@
-#!/usr/bin/env python
-# To run : python ace.py -l <seq_length> -n <nested : True|False> -d <demo : True|False>
+#!/usr/bin/env python3
+# To run : python3 ace.py -l <seq_length> -n <nested : True|False> -d <demo : True|False>
 import os
 import re
 import sys
@@ -1364,7 +1364,7 @@ def doPermutationV2(perm):
     with open(j2_lang_file, 'w') as f:
         f.writelines(buildJ2lang(seq))
 
-    exec_command = 'python2 xfstestAdapter.py -t ' + j2_lang_file + ' -p ../code/tests/' + dest_dir + ' -n ' + "{:03d}".format(global_count) + " -f generic"
+    exec_command = 'python3 xfstestAdapter.py -t ' + j2_lang_file + ' -p ../code/tests/' + dest_dir + ' -n ' + "{:03d}".format(global_count) + " -f generic"
     subprocess.call(exec_command, shell=True)
 
 class SlowBar(FillingCirclesBar):

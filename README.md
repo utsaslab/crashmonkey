@@ -60,9 +60,9 @@ Here is a checklist of dependencies to get CrashMonkey and Ace up and running on
 * If you want to install kernel 4.16, we have a [script](vm_scripts/install-4.16.sh) to help you.
 * Install dependencies.
 
-  `apt-get install git make gcc g++ libattr1-dev btrfs-tools f2fs-tools xfsprogs libelf-dev linux-headers-$(uname -r) python python-pip`
+  `apt-get install git make gcc g++ libattr1-dev btrfs-tools f2fs-tools xfsprogs libelf-dev linux-headers-$(uname -r) python3 python3-pip`
 
-  `pip install progress progressbar`
+  `python3 -m pip install progress progressbar`
   
   ` Ensure your glibc version is 2.23 or above (Check using ldd --version)`
 

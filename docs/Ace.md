@@ -79,7 +79,7 @@ The definition of `check_consistency` and `clean_dir` as well as all other helpe
 For example, in running the following:
 
 ```
-python2 xfstestAdapter.py -t <J-LANG FILE> -p output/ -n 001 -f generic
+python3 xfstestAdapter.py -t <J-LANG FILE> -p output/ -n 001 -f generic
 ```
 
 would create `output/001` and `output/001.out` from the given J-lang file. 
@@ -87,7 +87,7 @@ would create `output/001` and `output/001.out` from the given J-lang file.
 3. *XFSTEST-Concise* : Ace can also generate J-lang version two files (or J2-lang files) which contain multiple tests wrapped into a single file. The *XFSTest* adapter automatically detects what version of J-lang file is passed in, and decides whether to generate a single test or a condensed test. The adapter can be run with the same arguments as described above, with J-lang files replaced by J2-lang files. For example, running:
  
 ```
-python2 xfstestAdapter.py -t <J2-LANG FILE> -p output/ -n 001 -f generic
+python3 xfstestAdapter.py -t <J2-LANG FILE> -p output/ -n 001 -f generic
 ```
 
 would create `output/001` and `output/001.out` from the given J2-lang file.
@@ -142,11 +142,11 @@ Generating workloads with Ace is a two-step process.
 
       ```python
       cd ace
-      python ace.py -l <seq_length> -n <True|False> -d<True|False>
+      python3 ace.py -l <seq_length> -n <True|False> -d<True|False>
       ```
       For example, to generate seq-2 workloads with no additional nested directory, run :
       ```python
-      python ace.py -l 2 -n False -d false
+      python3 ace.py -l 2 -n False -d false
       ```
 
       **Flags:**
