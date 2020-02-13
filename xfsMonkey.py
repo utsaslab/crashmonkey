@@ -94,8 +94,8 @@ def main():
 
 	parsed_args = build_parser().parse_args()
 
-	#Print the test setup
-        validate_setup(parsed_args)
+        #Print the test setup
+	validate_setup(parsed_args)
 	print_setup(parsed_args)
 
 	#Assign a test num
@@ -155,7 +155,7 @@ def main():
 				# (TODO : Add a flag in c_harness to interactively print when we wait for writeback
 				# or start testing)
 				res = re.sub(r'(?s).*Reordering', '\nReordering', output, flags=re.I)
-				res_final = re.sub(r'==.*(?s)', '\n', res)
+				res_final = re.sub(r'==.*==', '\n', res).strip()
 
 				#print output
 				retry += 1
