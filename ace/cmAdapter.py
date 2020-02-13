@@ -1,6 +1,6 @@
-#!/usr/bin/env python
+#!/usr/bin/env python3
 
-#To run : python cmAdapter.py -b code/tests/generic_039/base_test.cpp  -t code/tests/generic_039/generic_039 -p code/tests/generic_039
+#To run : python3 cmAdapter.py -b code/tests/generic_039/base_test.cpp  -t code/tests/generic_039/generic_039 -p code/tests/generic_039
 import os
 import re
 import sys
@@ -619,7 +619,7 @@ def main():
 
     #Copy base file to target path
     base_test = parsed_args.base_file
-    base_file = parsed_args.target_path + "/" + base_test.split('/')[-1]
+    base_file = os.path.join(parsed_args.target_path,base_test.split('/')[-1])
     # copyfile(base_test, base_file)
     test_file = parsed_args.test_file
 
@@ -651,7 +651,7 @@ def main():
 
     val = 0
     new_file = test_file  + ".cpp"
-    new_file = parsed_args.target_path + new_file
+    new_file = os.path.join(parsed_args.target_path, new_file)
     copyfile(base_file, new_file)
 
     new_index_map = index_map.copy()
