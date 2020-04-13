@@ -54,7 +54,7 @@ virtual int run( int checkpoint ) override {
 }
 ```
 
-2. *XFSTest* : The XFSTest adapter translates the high-level language into a test file and expected output file to be run with [xfstest](https://github.com/kdave/xfstests). For example, the above workload would be converted into the following code (excluding the xfstest initializiation and code and helper methods):
+2. **XFSTest** : The XFSTest adapter translates the high-level language into a test file and expected output file to be run with [xfstest](https://github.com/kdave/xfstests). For example, the above workload would be converted into the following code (excluding the xfstest initializiation and code and helper methods):
 	
 ```bash
 mkdir $SCRATCH_MNT/B -p -m 0777
@@ -84,7 +84,7 @@ python3 xfstestAdapter.py -t <J-LANG FILE> -p output/ -n 001 -f generic
 
 would create `output/001` and `output/001.out` from the given J-lang file. 
 
-3. *XFSTEST-Concise* : Ace can also generate J-lang version two files (or J2-lang files) which contain multiple tests wrapped into a single file. The *XFSTest* adapter automatically detects what version of J-lang file is passed in, and decides whether to generate a single test or a condensed test. The adapter can be run with the same arguments as described above, with J-lang files replaced by J2-lang files. For example, running:
+3. **XFSTEST-Concise** : Ace can also generate J-lang version two files (or J2-lang files) which contain multiple tests wrapped into a single file. The *XFSTest* adapter automatically detects what version of J-lang file is passed in, and decides whether to generate a single test or a condensed test. The adapter can be run with the same arguments as described above, with J-lang files replaced by J2-lang files. For example, running:
  
 ```
 python3 xfstestAdapter.py -t <J2-LANG FILE> -p output/ -n 001 -f generic
@@ -154,7 +154,7 @@ Generating workloads with Ace is a two-step process.
       * `-l` - Sequence length of the workload, i.e., the number of core file-system operations in the workload.
       * `-n` - If True, provides an additional level of nesting to the file set. Adds a directory `A/C` and two files `A/C/foo` and `A/C/bar` to the set of files.
       * `-d` - Demo workload. If true, simply restricts the workload space to test two file-system operations `link` and `fallocate`, allowing the persistence of used files only. The file set is also restricted to just `foo` and `A/bar`.
-      * `-t` - The type of test to generate. Should be one of 'crashmonkey', 'xfstest', and 'xfstest-concise'. If unspecified, the adapter will default to 'crashmonkey'.
+      * `-t` - The type of test to generate. Should be one of 'crashmonkey', 'xfstest', or 'xfstest-concise'. If unspecified, the adapter will default to 'crashmonkey'.
 
 ___
 ### Generalizing Ace ###
