@@ -70,7 +70,7 @@
 #define BIO_DISCARD_FLAG        REQ_OP_DISCARD
 #define BIO_IS_WRITE(bio)       op_is_write(bio_op(bio))
 
-#elif LINUX_VERSION_CODE >= KERNEL_VERSION(5, 5, 2) \
+#elif LINUX_VERSION_CODE >= KERNEL_VERSION(5, 5, 0) \
   && LINUX_VERSION_CODE < KERNEL_VERSION(5, 5, 3)
 
 #define BI_RW                   bi_opf
