@@ -54,7 +54,7 @@ virtual int run( int checkpoint ) override {
 }
 ```
 
-2. *XFSTest* : The XFSTest adapter translates the high-level language into a test file and expected output file to be run with [xfstest](https://github.com/kdave/xfstests). For example, the above workload would be converted into the following code (excluding the xfstest initializiation and code and helper methods):
+2. **XFSTest** : The XFSTest adapter translates the high-level language into a test file and expected output file to be run with [xfstest](https://github.com/kdave/xfstests). For example, the above workload would be converted into the following code (excluding the xfstest initializiation and code and helper methods):
 	
 ```bash
 mkdir $SCRATCH_MNT/B -p -m 0777
@@ -65,10 +65,9 @@ check_consistency $SCRATCH_MNT/B/foo
 clean_dir
 ```
 
-The definition of `check_consistency` and `clean_dir` as well as all other helper functions can be found [here](../ace/base_xfstest.sh). The [XFSTest adapter](../ace/xfstestAdapter.py) itself can be run with the following required arguments:
+The definition of `check_consistency` and `clean_dir` as well as all other helper functions can be found [here](../code/tests/ace-base/base_xfstest.sh). The [XFSTest adapter](../ace/xfstestAdapter.py) itself can be run with the following required arguments:
 
 ```
---base_file BASE_FILE,             -b BASE_FILE       Base test file to generate workload
 --test_file TEST_FILE,             -t TEST_FILE       J lang test skeleton to generate workload
 --target_path TARGET_PATH,         -p TARGET_PATH     Directory to save the generated test files
 --test_number TEST_NUMBER,         -n TEST_NUMBER     The test number following xfstest convention. 
@@ -80,12 +79,21 @@ The definition of `check_consistency` and `clean_dir` as well as all other helpe
 For example, in running the following:
 
 ```
-python2 xfstestAdapter.py -b ../ace/base_xfstest.sh -t <J-LANG FILE> -p output/ -n 001 -f generic
+python3 xfstestAdapter.py -t <J-LANG FILE> -p output/ -n 001 -f generic
 ```
 
-would create `output/001` and `output/001.out` from the given J-lang file.  Note that the base file at `../ace/base_xfstest.sh` should be used for every use of the XFSTest adapter.
+would create `output/001` and `output/001.out` from the given J-lang file. 
+
+3. **XFSTEST-Concise** : Ace can also generate J-lang version two files (or J2-lang files) which contain multiple tests wrapped into a single file. The *XFSTest* adapter automatically detects what version of J-lang file is passed in, and decides whether to generate a single test or a condensed test. The adapter can be run with the same arguments as described above, with J-lang files replaced by J2-lang files. For example, running:
+ 
+```
+python3 xfstestAdapter.py -t <J2-LANG FILE> -p output/ -n 001 -f generic
+```
+
+would create `output/001` and `output/001.out` from the given J2-lang file.
 
 For more information explaining how to run the adapters directly, refer to the beginning of the following files for [Crashmonkey](../ace/cmAdapter.py) and [xfstest](../ace/xfstestAdapter.py) respectively.
+
 
 ---
 ### Bounds used by Ace ###
@@ -134,19 +142,19 @@ Generating workloads with Ace is a two-step process.
 
       ```python
       cd ace
-      python ace.py -l <seq_length> -n <True|False> -d<True|False>
+      python3 ace.py -l <seq_length> -n <True|False> -d<True|False>
       ```
       For example, to generate seq-2 workloads with no additional nested directory, run :
       ```python
-      python ace.py -l 2 -n False -d false
+      python3 ace.py -l 2 -n False -d false
       ```
 
       **Flags:**
 
       * `-l` - Sequence length of the workload, i.e., the number of core file-system operations in the workload.
       * `-n` - If True, provides an additional level of nesting to the file set. Adds a directory `A/C` and two files `A/C/foo` and `A/C/bar` to the set of files.
-      * `-d` - Demo workload. If true, simply restricts the workload space to test two file-system operations `link` and `fallocate`, allowing the persistence of used files only. The file set is also restricted to just `foo` and `A/bar`
-			* `-t` - The type of test to generate. Should one of 'crashmonkey' and 'xfstest'. If unspecified, the adapter will default to 'crashmonkey'.
+      * `-d` - Demo workload. If true, simply restricts the workload space to test two file-system operations `link` and `fallocate`, allowing the persistence of used files only. The file set is also restricted to just `foo` and `A/bar`.
+      * `-t` - The type of test to generate. Should be one of 'crashmonkey', 'xfstest', or 'xfstest-concise'. If unspecified, the adapter will default to 'crashmonkey'.
 
 ___
 ### Generalizing Ace ###

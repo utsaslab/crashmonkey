@@ -1,13 +1,11 @@
-#!/usr/bin/env python
+#!/usr/bin/env python3
 
-# To run : python xfstestAdapter.py -b base_xfstest.sh -t <jlang-file> \
-#               -p <output_directory> -n <test_number> -f <filesystem type>
+# To run : python3 xfstestAdapter.py -t <jlang-file> -p <output_directory> -n <test_number> -f <filesystem type>
 #
 # For example, with output_directory = "output" and test_number = "001",
 # the converted test files will be located at:
 #   - output/001
 #   - output/001.out
-
 import os
 import re
 import sys
@@ -18,11 +16,12 @@ import time
 import datetime
 import itertools
 from shutil import copyfile
-from string import maketrans
+
+from common import JLANG_FILES
 
 
 # All functions that has options go here
-FallocOptions = {
+FallocTranslate = {
     '0'                                       : '$XFS_IO_PROG -f -c \"falloc {offset} {length}\" {filename}',
     'FALLOC_FL_KEEP_SIZE'                     : '$XFS_IO_PROG -f -c \"falloc -k {offset} {length}\" {filename}',
     'FALLOC_FL_ZERO_RANGE'                    : '$XFS_IO_PROG -f -c \"fzero {offset} {length}\" {filename}',
@@ -30,41 +29,12 @@ FallocOptions = {
     'FALLOC_FL_PUNCH_HOLE|FALLOC_FL_KEEP_SIZE': '$XFS_IO_PROG -f -c \"fpunch {offset} {length}\" {filename}'
 }
 
-FsyncOptions = ['fsync','fdatasync']
-
-RemoveOptions = ['remove','unlink']
-
-LinkOptions = ['link','symlink']
-
-WriteOptions = ['WriteData','WriteDataMmap', 'pwrite']
-
 # Constants
 FILE_ATTR_KEY = "user.xattr1"
 FILE_ATTR_VALUE = "val1"
 WRITE_VALUE = "0x22"
 MMAPWRITE_VALUE = "0x33"
 DWRITE_VALUE = "0x44"
-
-# Because the filenaming convention in the high-level j-lang language 
-# seems to be arbitrary, we hard code the translation here to ensure
-# that any inconsistency will raise a clear, easy-to-debug error.
-# The format is:
-# <jlang filename> | <bash filename> | <parent jlang filename> | <file type>
-JLANG_FILES = [
-    ( ""      , ""        , ""  , "dir"  ),
-    ( "test"  , "test"    , ""  , "file" ), 
-    ( "A"     , "A"       , ""  , "dir"  ), 
-    ( "AC"    , "A/C"     , "A" , "dir"  ), 
-    ( "B"     , "B"       , ""  , "dir"  ), 
-    ( "foo"   , "foo"     , ""  , "file" ), 
-    ( "bar"   , "bar"     , ""  , "file" ), 
-    ( "Afoo"  , "A/foo"   , "A" , "file" ), 
-    ( "Abar"  , "A/bar"   , "A" , "file" ), 
-    ( "Bfoo"  , "B/foo"   , "B" , "file" ), 
-    ( "Bbar"  , "B/bar"   , "B" , "file" ), 
-    ( "ACfoo" , "A/C/foo" , "AC", "file" ), 
-    ( "ACbar" , "A/C/bar" , "AC", "file" )
-]
 
 prefix = "$SCRATCH_MNT/"
 
@@ -76,8 +46,11 @@ def get_row_from_filename(filename):
     for row in JLANG_FILES:
         if filename == row[0] or filename == row[1]:
             return row
+    return None
 
-    raise ValueError("filename")
+def is_file_or_dir(name):
+    return get_row_from_filename(name) != None
+
 
 def translate_filename(filename):
     translated_filename = get_row_from_filename(filename)[1]
@@ -90,30 +63,42 @@ def parent(filename):
 def is_dir(filename):
     get_row_from_filename(filename)[3] == "dir"
 
+def find_basefile(version):
+    cwd = os.path.dirname(os.path.realpath(__file__))
+    fname = "base_xfstest.sh" if version == 1 else "base_xfstest_concise.sh"
+    possible_locs = ["../code/tests/ace-base",
+                     "."]
+
+    for loc in possible_locs:
+        f = os.path.join(cwd, os.path.join(loc, fname))
+        if os.path.exists(f):
+            return f
+            print("Found base file : '{}'".format(f))
+    print("Cannot find {} in any of {}".format(fname, possible_locs))
+    sys.exit(1)
+
 def build_parser():
     parser = argparse.ArgumentParser(description='Workload Generator for XFSMonkey v1.0')
 
     # global args
-    parser.add_argument('--base_file', '-b', required=True, help='Base test file to generate workload')
     parser.add_argument('--test_file', '-t', required=True, help='J lang test skeleton to generate workload')
 
     # crash monkey args
     parser.add_argument('--target_path', '-p', required=True, help='Directory to save the generated test files')
 
     parser.add_argument('--test_number', '-n', required=True, help='The test number following xfstest convention. Will generate <test_number> and <test_number>.out')
-    parser.add_argument('--filesystem_type', '-f', required=True, help='The filesystem type for the test (i.e. generic, ext4, btrfs, xfs, f2fs, etc.)')
+    parser.add_argument('--filesystem_type', '-f', default="generic", help='The filesystem type for the test (i.e. generic, ext4, btrfs, xfs, f2fs, etc.)')
     return parser
 
 
 def print_setup(parsed_args):
-    print '\n{: ^50s}'.format('XFSMonkey Workload generatorv0.1\n')
-    print '='*20, 'Setup' , '='*20, '\n'
-    print '{0:20}  {1}'.format('Base test file', parsed_args.base_file)
-    print '{0:20}  {1}'.format('Test skeleton', parsed_args.test_file)
-    print '{0:20}  {1}'.format('Target directory', parsed_args.target_path)
-    print '{0:20}  {1}'.format('Test number', parsed_args.test_number)
-    print '{0:20}  {1}'.format('Filesystem type', parsed_args.filesystem_type)
-    print '\n', '='*48, '\n'
+    print('\n{: ^50s}'.format('XFSMonkey Workload generatorv0.1\n'))
+    print('='*20, 'Setup' , '='*20, '\n')
+    print('{0:20}  {1}'.format('Test skeleton', parsed_args.test_file))
+    print('{0:20}  {1}'.format('Target directory', parsed_args.target_path))
+    print('{0:20}  {1}'.format('Test number', parsed_args.test_number))
+    print('{0:20}  {1}'.format('Filesystem type', parsed_args.filesystem_type))
+    print('\n', '='*48, '\n')
     
 
 def create_dir(dir_path):
@@ -151,10 +136,12 @@ class State():
             self.opened_files.remove(filename)
 
     def _sync_file(self, filename):
+        self.opened_files.add(filename)
         self.synced_files.add(filename)
         self.data_synced_files.add(filename)
 
     def _sync_file_data(self, filename):
+        self.opened_files.add(filename)
         self.data_synced_files.add(filename)
 
     def _unsync_file(self, filename):
@@ -480,7 +467,7 @@ def translate_falloc(line, state):
 
     state.modify_file(filename)
 
-    return [FallocOptions[mode].format(filename=filename, offset=offset, length=length)], state
+    return [FallocTranslate[mode].format(filename=filename, offset=offset, length=length)], state
 
 # Translate a line of the high-level j-lang language
 # into a list of lines of bash for xfstest
@@ -540,27 +527,9 @@ def translate_functions(line, state):
     line, state = res
     return line, state
 
-def main():
-    # Parse input args
-    parsed_args = build_parser().parse_args()
-
-    # Print the test setup - just for sanity
-    #print_setup(parsed_args)
-    
-    # Check if test file exists
-    if not os.path.exists(parsed_args.test_file) or not os.path.isfile(parsed_args.test_file):
-        print parsed_args.test_file + ' : No such test file\n'
-        exit(1)
-
-    # Check that test number is a valid number/has no extension
-    if not parsed_args.test_number.isdigit():
-        print("'{}' is not a valid test number".format(parsed_args.test_number))
-        exit(1)
-    
-    # Create the target directory
-    create_dir(parsed_args.target_path)
-
-    base_file = parsed_args.base_file
+# Creates a test file for J-lang V1 files.
+def build_test_v1(parsed_args):
+    base_file = find_basefile(1)
     test_file = parsed_args.test_file
     test_number = parsed_args.test_number
     filesystem_type = parsed_args.filesystem_type
@@ -624,6 +593,289 @@ def main():
     out_lines = ["QA output created by {}\n".format(test_number), "Silence is golden\n"]
     with open(generated_test_output, 'w+') as f:
         f.writelines(out_lines)
+
+# Given a list of commands (i.e. "fsync ...", "dwrite ..."), create a function
+# name (i.e. 'fsync_dwrite_template').
+def function_name_from_commands(commands):
+    functions = [c.split(" ")[0] for c in commands]
+    return "{}_template".format("_".join(functions))
+
+def build_template_function(commands, commands_with_deps, args, fname, do_fsync):
+    lines = ["function {}() {{".format(fname)]
+    for i, a in enumerate(args):
+        lines.append("\tlocal {}=\"${}\"".format(a[0], i+1))
+
+
+    if do_fsync:
+        lines.append("\tlocal fsync_file=\"${}\"".format(len(args)+1))
+        lines.append("\tlocal fsync_command=\"${}\"".format(len(args)+2))
+
+    # TODO: generalize this
+    # Hack for num_ops = 1, ignore link operations
+    if commands[0].split(" ")[0] in ["link", "rename"]:
+        lines.append("\t[[ $file1 == $file2 ]] && return")
+
+    lines.append("\n\t_mount_flakey")
+
+    for c in commands_with_deps:
+        lines.append("\t{}".format(c))
+
+    lines.append("\tclean_dir")
+    lines.append("}\n")
+
+    return lines
+
+def build_for_loops(args, fname, do_fsync):
+    lines, num_tabs = [], 0
+
+    for a in args:
+        lines.append('\t' * num_tabs + "for {0} in ${{{0}_options[@]}}; do".format(a[0]))
+        num_tabs += 1
+
+    fsync_files = ["\"${0}\" \"$(dirname ${0})\"".format(a[0]) for a in args if "file" in a[0]]
+
+    # For fsync files
+    lines.append('\t' * num_tabs + "fsync_files=({})".format(" ".join(fsync_files)))
+    lines.append('\t' * num_tabs + "uniques=($(for v in ${fsync_files[@]}; do echo $v; done | sort -u))")
+    lines.append('\t' * num_tabs + "for fsync_file in ${uniques[@]}; do")
+    num_tabs += 1
+
+    if do_fsync:
+        lines.append('\t' * num_tabs + "for fsync_command in fsync fdatasync; do")
+        num_tabs += 1
+
+    function_call = fname + " " + " ".join(list(map(lambda a: "$" + a[0], args)))
+
+    if do_fsync:
+        function_call += " $fsync_file $fsync_command"
+
+    lines.append('\t' * num_tabs + function_call)
+
+    while num_tabs != 0:
+        num_tabs -= 1
+        lines.append('\t' * num_tabs + 'done')
+    return lines
+
+
+def build_command_dependencies(commands):
+    lines = []
+
+    create_parent_dir = lambda f : "mkdir -p $(dirname {})".format(f)
+    create_file = lambda f : "touch " + f
+    ensure_file_size = lambda f : "ensure_file_size_one_block " + f
+    remove_if_exists = lambda f : "rm -rf " + f
+
+    for c in commands:
+        parts = c.split(" ")
+
+        if parts[0] == "open":
+            lines.append(create_parent_dir(parts[1]))
+            lines.append(create_file(parts[1]))
+            lines.append("chmod {} {}".format(parts[3], parts[1]))
+        elif parts[0] == "mkdir":
+            lines.append("mkdir {} -p -m {}".format(parts[1], parts[2]))
+        elif parts[0] == "falloc":
+            lines.append(create_parent_dir(parts[1]))
+            lines.append(create_file(parts[1]))
+            lines.append(ensure_file_size(parts[1]))
+            lines.append("do_falloc {} {} {}".format(parts[1], parts[2], parts[3]))
+        elif parts[0] == "write":
+            lines.append(create_parent_dir(parts[1]))
+            lines.append(create_file(parts[1]))
+            lines.append("[[ {} != 'append' ]] && ensure_file_size_one_block {}".format(
+                parts[2], 
+                parts[1]))
+            lines.append("_pwrite_byte {} $(translate_range {} {}) {} > /dev/null".format(
+                WRITE_VALUE,
+                parts[1],
+                parts[2],
+                parts[1]))
+        elif parts[0] == "dwrite":
+            lines.append(create_parent_dir(parts[1]))
+            lines.append(create_file(parts[1]))
+            lines.append("[[ {} != 'append' ]] && ensure_file_size_one_block {}".format(
+                parts[2], 
+                parts[1]))
+            lines.append("_dwrite_byte {} $(translate_range {} {}) {} > /dev/null".format(
+                DWRITE_VALUE,
+                parts[1],
+                parts[2],
+                parts[1]))
+        elif parts[0] == "mmapwrite":
+            lines.append(create_parent_dir(parts[1]))
+            lines.append(create_file(parts[1]))
+            lines.append("read offset size <<< $(translate_range {} {})".format(
+                parts[1],
+                parts[2]))
+            lines.append("mmap_offset=$((offset + size))")
+            lines.append("$XFS_IO_PROG -f -c \"falloc 0 $mmap_offset\" " + parts[1])
+            lines.append("_mwrite_byte_and_msync {} $offset $size $mmap_offset {} > /dev/null".format(
+                MMAPWRITE_VALUE,
+                parts[1]))
+        elif parts[0] == "link" or parts[0] == "symlink":
+            lines.append(create_parent_dir(parts[1]))
+            lines.append(create_file(parts[1]))
+            lines.append(create_parent_dir(parts[2]))
+            lines.append(remove_if_exists(parts[2]))
+            lines.append("ln{} {} {}".format(
+                "" if parts[0] == "link" else " -s",
+                parts[1],
+                parts[2]))
+        elif parts[0] == "unlink" or parts[0] == "remove": 
+            lines.append(create_parent_dir(parts[1]))
+            lines.append(create_file(parts[1]))
+            lines.append("rm -rf " + parts[1])
+        elif parts[0] == "rename":
+            lines.append(create_parent_dir(parts[1]))
+            lines.append(create_file(parts[1]))
+            lines.append(create_parent_dir(parts[2]))
+            lines.append("rename {} {}".format(parts[1], parts[2]))
+        elif parts[0] == "fsetxattr":
+            lines.append(create_parent_dir(parts[1]))
+            lines.append(create_file(parts[1]))
+            lines.append("attr -s {} -V {} {} > /dev/null".format(
+                FILE_ATTR_KEY,
+                FILE_ATTR_VALUE,
+                parts[1]))
+        elif parts[0] == "removexattr":
+            lines.append(create_parent_dir(parts[1]))
+            lines.append(create_file(parts[1]))
+            lines.append("attr -s {} -V {} {} > /dev/null".format(
+                FILE_ATTR_KEY,
+                FILE_ATTR_VALUE,
+                parts[1]))
+            lines.append("attr -r {} {}".format(FILE_ATTR_KEY, parts[1]))
+        elif parts[0] == "truncate":
+            lines.append(create_parent_dir(parts[1]))
+            lines.append(create_file(parts[1]))
+            lines.append("truncate {} -s {}".format(parts[1], parts[2]))
+        elif parts[0] == "fdatasync":
+            lines.append(create_parent_dir(parts[1]))
+            lines.append(create_file(parts[1]))
+            lines.append(ensure_file_size(parts[1]))
+            lines.append("fdatasync " + parts[1])
+    return lines
+
+def build_array_lines(lines):
+    lines_to_add = []
+    for elems in lines:
+        name = elems[0]
+        options = sorted(list(map(lambda x: "{}".format(
+            translate_filename(x) if is_file_or_dir(x) else x), 
+            elems[1:])))
+
+        lines_to_add.append("{}_options=(\"{}\")".format(name, "\" \"".join(options)))
+    return lines_to_add
+
+def add_sync_check_consistency(commands_with_deps, commands, do_fsync):
+    if do_fsync:
+        commands_with_deps.append("do_fsync_check $fsync_file $fsync_command")
+    else:
+        # For mmapwrite and fdatasync, the file is the first argument.
+        elems = commands[0].split(" ")
+        commands_with_deps.append("check_consistency " + elems[1])
+    return commands_with_deps
+
+
+# Creates a test file for J-lang V2 files.
+def build_test_v2(parsed_args):
+    base_file = find_basefile(2)
+    test_file = parsed_args.test_file
+    test_number = parsed_args.test_number
+    filesystem_type = parsed_args.filesystem_type
+    generated_test = os.path.join(parsed_args.target_path, test_number)
+    generated_test_output = os.path.join(parsed_args.target_path, test_number + ".out")
+
+    # Template parameters and helper functions for populating the base file
+    template_params = [("$CURRENT_YEAR", str(datetime.datetime.now().year)),
+                       ("$TEST_NUMBER", test_number),
+                       ("$FILESYSTEM_TYPE", filesystem_type)]
+
+    def filter_line(line):
+        for param, value in template_params:
+            if param in line:
+                line = line.replace(param, value)
+        return line
+
+    # Find index to insert tests cases, this region is marked by
+    # a line containing the comment '# Test cases'. Also, replace
+    # template parameters.
+    with open(base_file, 'r') as f:
+        base_contents = f.readlines()
+        base_contents = list(map(filter_line, base_contents))
+        test_cases_index = base_contents.index("# Test cases\n") + 1
+
+    copyfile(base_file, generated_test)
+
+
+    args = []
+    commands = []
+    with open(test_file, 'r') as f:
+        # Ignore first line
+        f.readline()
+
+        for line in f:
+            line = line.strip()
+
+            if line.startswith("file") or line.startswith("option"):
+                args.append(line.split(" "))
+            else:
+                commands.append(line)
+
+    assert len(commands) == 1
+    do_fsync = commands[0].split(" ")[0] != "mmapwrite"
+
+    fname = function_name_from_commands(commands)
+    commands_with_deps = build_command_dependencies(commands)
+    commands_with_deps = add_sync_check_consistency(commands_with_deps, commands, do_fsync)
+
+    template_lines = build_template_function(commands, commands_with_deps, args, fname, do_fsync)
+    array_lines = build_array_lines(args)
+    loop_lines = build_for_loops(args, fname, do_fsync)
+
+    lines_to_add = template_lines + array_lines + loop_lines
+
+    # Insert lines into relevant location and write output files.
+    lines_to_add = list(map(lambda x: x + "\n", lines_to_add))
+    output_contents = base_contents[:test_cases_index] + lines_to_add + base_contents[test_cases_index:]
+    with open(generated_test, 'w+') as f:
+        f.writelines(output_contents)
+
+    out_lines = ["QA output created by {}\n".format(test_number), "Silence is golden\n"]
+    with open(generated_test_output, 'w+') as f:
+        f.writelines(out_lines)
+
+def main():
+    # Parse input args
+    parsed_args = build_parser().parse_args()
+
+    # Print the test setup - just for sanity
+    #print_setup(parsed_args)
+    
+    # Check if test file exists
+    if not os.path.exists(parsed_args.test_file) or not os.path.isfile(parsed_args.test_file):
+        print(parsed_args.test_file + ' : No such test file\n')
+        exit(1)
+
+    # Get J-lang version number
+    jlang_version = 1
+    with open(parsed_args.test_file, "r") as f:
+        if "J2-Lang" in f.readline().strip():
+            jlang_version = 2
+
+    # Check that test number is a valid number/has no extension
+    if not parsed_args.test_number.isdigit():
+        print("'{}' is not a valid test number".format(parsed_args.test_number))
+        exit(1)
+    
+    # Create the target directory
+    create_dir(parsed_args.target_path)
+
+    if jlang_version == 1:
+        build_test_v1(parsed_args)
+    elif jlang_version == 2:
+        build_test_v2(parsed_args)
+
 
 if __name__ == '__main__':
     main()
