@@ -75,6 +75,11 @@ def print_setup(parsed_args):
 	print('{0:20}  {1}'.format('Test path', parsed_args.test_path))
 	print('\n{}\n'.format('=' * 48))
 
+def ensure_sudo():
+    if os.getuid() != 0:
+        print("Crashmonkey must be run with sudo!")
+        sys.exit(1)
+
 def validate_setup(parsed_args):
     if parsed_args.fs_type.lower() == "btrfs" and parsed_args.disk_size < 204800:
         print("Btrfs only supports Disk sizes >= 200 MB, but size is {} MB".format(
@@ -82,7 +87,7 @@ def validate_setup(parsed_args):
         sys.exit(1)
     if not parsed_args.test_path.endswith("/"):
         parsed_args.test_path += "/"
-
+    ensure_sudo()
 
 def main():
 

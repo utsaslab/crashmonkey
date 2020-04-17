@@ -580,8 +580,12 @@ static struct brd_device *brd_alloc(int i)
   brd->brd_queue->limits.max_discard_sectors = UINT_MAX;
 #if LINUX_VERSION_CODE < KERNEL_VERSION(4, 12, 0)
   brd->brd_queue->limits.discard_zeroes_data = 1;
-#endif
+#elif LINUX_VERSION_CODE >= KERNEL_VERSION(5, 5, 0) && \
+     LINUX_VERSION_CODE < KERNEL_VERSION(5, 5, 3)
+  blk_queue_flag_set(QUEUE_FLAG_DISCARD, brd->brd_queue);
+#else
   queue_flag_set_unlocked(QUEUE_FLAG_DISCARD, brd->brd_queue);
+#endif
 
   disk = brd->brd_disk = alloc_disk(1 << part_shift);
   if (!disk)
@@ -664,7 +668,9 @@ static struct kobject *brd_probe(dev_t dev, int *part, void *data)
   mutex_lock(&brd_devices_mutex);
   brd = brd_init_one(MINOR(dev) >> part_shift);
 #if LINUX_VERSION_CODE >= KERNEL_VERSION(4, 16, 0) && \
-  LINUX_VERSION_CODE < KERNEL_VERSION(4, 17, 0)
+  LINUX_VERSION_CODE < KERNEL_VERSION(4, 17, 0) || \
+  LINUX_VERSION_CODE >= KERNEL_VERSION(5, 5, 0) && \
+     LINUX_VERSION_CODE < KERNEL_VERSION(5, 5, 3)
   kobj = brd ? get_disk_and_module(brd->brd_disk) : NULL;
 #else
   kobj = brd ? get_disk(brd->brd_disk) : NULL;
