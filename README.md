@@ -5,7 +5,7 @@
 
 ## Bounded Black-Box Crash Testing ##
 Bounded black-box crash testing (B<sup>3</sup>) is a new approach to testing file-system crash consistency. B<sup>3</sup> is a black-box testing approach which requires **no modification** to file-system code. B<sup>3</sup> exhaustively generates and tests workloads in a bounded space. We implement B<sup>3</sup> by building two tools - CrashMonkey and Ace. The OSDI'18 paper **Finding Crash-Consistency Bugs with Bounded Black-Box Crash Testing** has a detailed discussion of B<sup>3</sup>, CrashMonkey, and Ace. <br>
-[[Paper PDF](https://www.cs.utexas.edu/~vijay/papers/osdi18-crashmonkey.pdf)] [[Slides](http://www.cs.utexas.edu/~vijay/papers/osdi18-crashmonkey-slides.pdf)] [[Bibtex](http://www.cs.utexas.edu/~vijay/bibtex/osdi18-crashmonkey.bib)]  
+[[Paper PDF](https://www.cs.utexas.edu/~vijay/papers/osdi18-crashmonkey.pdf)] [[Slides](http://www.cs.utexas.edu/~vijay/papers/osdi18-crashmonkey-slides.pdf)] [[Bibtex](http://www.cs.utexas.edu/~vijay/bibtex/osdi18-crashmonkey.bib)]  [[Talk video](https://youtu.be/BmhKbGoCyqo)]
 
 CrashMonkey and Ace have found several long-standing bugs in widely-used file systems like btrfs and F2FS. The tools work out-of-the-box with any POSIX file system: no modification required to the file system. 
 
@@ -16,7 +16,7 @@ CrashMonkey is a file-system agnostic record-replay-and-test framework. Unlike e
 ### Automatic Crash Explorer (Ace) ###
 Ace is an automatic workload generator, that exhaustively generates sequences of file-system operations (workloads), given certain bounds. Ace consists of a workload synthesizer that generates workloads in a high-level language which we call J-lang. A CrashMonkey adapter, that we built, converts these workloads into C++ test files that CrashMonkey can work with. We also have an XFSTest adapter that allows us to convert workloads into bash scripts to be used with [xfstest](https://github.com/kdave/xfstests). More details on the current bounds imposed by Ace and guidelines on workload generation can be found [here](docs/Ace.md).
 
-CrashMonkey and Ace can be used out of the box on any Linux filesystem that implements POSIX API. Our tools have been tested to work with ext2, ext3, ext4, xfs, F2FS, and btrfs, across Linux kernel versions - 3.12, 3.13, 3.16, 4.1, 4.4, 4.15, and 4.16.
+CrashMonkey and Ace can be used out of the box on any Linux filesystem that implements POSIX API. Our tools have been tested to work with ext2, ext3, ext4, xfs, F2FS, and btrfs, across Linux kernel versions - 3.12, 3.13, 3.16, 4.1, 4.4, 4.15, 4.16, and 5.5.
 
 ### Results ###
 We have tested four Linux file systems (ext4, xfs, btrfs, F2FS) and two verified file systems: [FCSQ](https://github.com/mit-pdos/fscq) and the [Yxv6](https://github.com/locore/yggdrasil) file system.
