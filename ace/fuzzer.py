@@ -1,6 +1,15 @@
 #!/usr/bin/env python3
 
-# TODO: put some usage instructions here
+# Usage: fuzzer.py [-h] --test_file TEST_FILE --output_dir OUTPUT_DIR
+#
+# Workload Fuzzer for CrashMonkey v1.0
+
+# Optional arguments:
+#   -h, --help            show this help message and exit
+#   --test_file TEST_FILE, -t TEST_FILE
+#                         J-lang test file to use as seed for fuzzer
+#   --output_dir OUTPUT_DIR, -o OUTPUT_DIR
+#                         Directory to save the generated test files
 
 import os
 import sys
@@ -126,8 +135,8 @@ def fuzz(instructions, test_file, output_dir):
         num_created += 1
         return name
 
-    # TODO: improve this, for now just try manipulating the 
-    # options of each command.
+    # Single-operation mutation. For each operation, try all
+    # possible modifications.
     options = [get_permutations(i) for i in instructions]
     modified_instructions = instructions[:]
     for i, instr in enumerate(instructions):
@@ -140,14 +149,18 @@ def fuzz(instructions, test_file, output_dir):
         modified_instructions[i] = instr
 
     # Convert the original J-lang file using the Crashmonkey Adapter.
-    cmd = "python3 cmAdapter.py -b {} -t {} -p {}\n".format(base_cm, test_name, output_dir)
+    cmd = "python3 cmAdapter.py -b {} -t {} -p {}\n".format(base_cm, test_file, output_dir)
     subprocess.call(cmd, shell=True)
+    copyfile(test_file, os.path.join(output_dir, test_name))
 
     # Convert the generated J-lang files.
     for i in range(1, num_created):
         jlang_name = "{}-fuzz{}".format(test_name, i)
 
-        cmd = "python3 cmAdapter.py -b {} -t {} -p {}\n".format(base_cm, jlang_name, output_dir)
+        cmd = "python3 cmAdapter.py -b {} -t {} -p {}\n".format(
+                base_cm,
+                jlang_name,
+                output_dir)
         subprocess.call(cmd, shell=True)
 
         # Move J-lang file to output folder.
@@ -157,9 +170,9 @@ def fuzz(instructions, test_file, output_dir):
 def build_parser():
     parser = argparse.ArgumentParser(description='Workload Fuzzer for CrashMonkey v1.0')
 
-    parser.add_argument('--test_file', '-t', 
+    parser.add_argument('--test_file', '-t',
             required=True, help='J-lang test file to use as seed for fuzzer')
-    parser.add_argument('--output_dir', '-o', 
+    parser.add_argument('--output_dir', '-o',
             required=True, help='Directory to save the generated test files')
 
     return parser
