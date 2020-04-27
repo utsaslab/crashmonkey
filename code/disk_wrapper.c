@@ -62,7 +62,9 @@ static struct hwm_device {
 #elif LINUX_VERSION_CODE >= KERNEL_VERSION(4, 14, 0) && \
     LINUX_VERSION_CODE < KERNEL_VERSION(4, 17, 0) || \
   (LINUX_VERSION_CODE >= KERNEL_VERSION(5, 5, 0) && \
-    LINUX_VERSION_CODE < KERNEL_VERSION(5, 5, 3))
+    LINUX_VERSION_CODE < KERNEL_VERSION(5, 5, 3)) || \
+  (LINUX_VERSION_CODE >= KERNEL_VERSION(5, 6, 0) && \
+    LINUX_VERSION_CODE < KERNEL_VERSION(5, 6, 7))
   struct gendisk* target_dev;
   u8 target_partno;
   struct block_device* target_bd;
@@ -135,7 +137,9 @@ static int disk_wrapper_ioctl(struct block_device* bdev, fmode_t mode,
         return -ENODATA;
       }
 #if (LINUX_VERSION_CODE >= KERNEL_VERSION(5, 5, 0) && \
-      LINUX_VERSION_CODE < KERNEL_VERSION(5, 5, 3))
+      LINUX_VERSION_CODE < KERNEL_VERSION(5, 5, 3)) || \
+  (LINUX_VERSION_CODE >= KERNEL_VERSION(5, 6, 0) && \
+    LINUX_VERSION_CODE < KERNEL_VERSION(5, 6, 7))
       if (!access_ok((void*) arg,
 #else
       if (!access_ok(VERIFY_WRITE, (void*) arg,
@@ -161,7 +165,9 @@ static int disk_wrapper_ioctl(struct block_device* bdev, fmode_t mode,
         return -ENODATA;
       }
 #if (LINUX_VERSION_CODE >= KERNEL_VERSION(5, 5, 0) && \
-      LINUX_VERSION_CODE < KERNEL_VERSION(5, 5, 3))
+      LINUX_VERSION_CODE < KERNEL_VERSION(5, 5, 3)) || \
+  (LINUX_VERSION_CODE >= KERNEL_VERSION(5, 6, 0) && \
+    LINUX_VERSION_CODE < KERNEL_VERSION(5, 6, 7))
       if (!access_ok((void*) arg,
 #else
       if (!access_ok(VERIFY_WRITE, (void*) arg,
@@ -478,7 +484,9 @@ static unsigned long long convert_flags(unsigned long long flags) {
 #elif LINUX_VERSION_CODE >= KERNEL_VERSION(4, 14, 0) \
     && LINUX_VERSION_CODE < KERNEL_VERSION(4, 17, 0) || \
       LINUX_VERSION_CODE >= KERNEL_VERSION(5, 5, 0) && \
-      LINUX_VERSION_CODE < KERNEL_VERSION(5, 5, 3)
+      LINUX_VERSION_CODE < KERNEL_VERSION(5, 5, 3) || \
+  (LINUX_VERSION_CODE >= KERNEL_VERSION(5, 6, 0) && \
+    LINUX_VERSION_CODE < KERNEL_VERSION(5, 6, 7))
 
   if ((flags & REQ_OP_MASK) == REQ_OP_WRITE) {
     res |= HWM_WRITE_FLAG;
@@ -556,7 +564,9 @@ static bool should_log(struct bio *bio) {
 #elif (LINUX_VERSION_CODE >= KERNEL_VERSION(4, 14, 0) \
     && LINUX_VERSION_CODE < KERNEL_VERSION(4, 17, 0)) || \
       LINUX_VERSION_CODE >= KERNEL_VERSION(5, 5, 0) && \
-      LINUX_VERSION_CODE < KERNEL_VERSION(5, 5, 3)
+      LINUX_VERSION_CODE < KERNEL_VERSION(5, 5, 3) || \
+  (LINUX_VERSION_CODE >= KERNEL_VERSION(5, 6, 0) && \
+    LINUX_VERSION_CODE < KERNEL_VERSION(5, 6, 7))
   return
     ((bio->BI_RW & REQ_FUA) || (bio->BI_RW & REQ_PREFLUSH) ||
      (bio->BI_RW & REQ_OP_FLUSH) || (bio_op(bio) == REQ_OP_WRITE) ||
@@ -609,7 +619,9 @@ static void disk_wrapper_bio(struct request_queue* q, struct bio* bio) {
   (LINUX_VERSION_CODE >= KERNEL_VERSION(4, 14, 0) && \
     LINUX_VERSION_CODE < KERNEL_VERSION(4, 17, 0)) || \
      LINUX_VERSION_CODE >= KERNEL_VERSION(5, 5, 0) && \
-     LINUX_VERSION_CODE < KERNEL_VERSION(5, 5, 3)
+     LINUX_VERSION_CODE < KERNEL_VERSION(5, 5, 3) || \
+  (LINUX_VERSION_CODE >= KERNEL_VERSION(5, 6, 0) && \
+    LINUX_VERSION_CODE < KERNEL_VERSION(5, 6, 7))
 static blk_qc_t disk_wrapper_bio(struct request_queue* q, struct bio* bio) {
 #else
 #error "Unsupported kernel version: CrashMonkey has not been tested with " \
@@ -729,7 +741,9 @@ static blk_qc_t disk_wrapper_bio(struct request_queue* q, struct bio* bio) {
 #elif LINUX_VERSION_CODE >= KERNEL_VERSION(4, 14, 0) && \
     LINUX_VERSION_CODE < KERNEL_VERSION(4, 17, 0) || \
      LINUX_VERSION_CODE >= KERNEL_VERSION(5, 5, 0) && \
-     LINUX_VERSION_CODE < KERNEL_VERSION(5, 5, 3)
+     LINUX_VERSION_CODE < KERNEL_VERSION(5, 5, 3) || \
+  (LINUX_VERSION_CODE >= KERNEL_VERSION(5, 6, 0) && \
+    LINUX_VERSION_CODE < KERNEL_VERSION(5, 6, 7))
   bio->bi_disk = hwm->target_dev;
   bio->bi_partno = hwm->target_partno;
   submit_bio(bio);
@@ -814,7 +828,9 @@ static int __init disk_wrapper_init(void) {
 #elif LINUX_VERSION_CODE >= KERNEL_VERSION(4, 14, 0) && \
     LINUX_VERSION_CODE < KERNEL_VERSION(4, 17, 0) || \
      LINUX_VERSION_CODE >= KERNEL_VERSION(5, 5, 0) && \
-     LINUX_VERSION_CODE < KERNEL_VERSION(5, 5, 3)
+     LINUX_VERSION_CODE < KERNEL_VERSION(5, 5, 3) || \
+  (LINUX_VERSION_CODE >= KERNEL_VERSION(5, 6, 0) && \
+    LINUX_VERSION_CODE < KERNEL_VERSION(5, 6, 7))
   Device.target_dev = target_device->bd_disk;
   Device.target_partno = target_device->bd_partno;
   Device.target_bd = target_device;
@@ -923,7 +939,9 @@ static void __exit hello_cleanup(void) {
 #elif LINUX_VERSION_CODE >= KERNEL_VERSION(4, 14, 0) && \
     LINUX_VERSION_CODE < KERNEL_VERSION(4, 17, 0) || \
      LINUX_VERSION_CODE >= KERNEL_VERSION(5, 5, 0) && \
-     LINUX_VERSION_CODE < KERNEL_VERSION(5, 5, 3)
+     LINUX_VERSION_CODE < KERNEL_VERSION(5, 5, 3) || \
+  (LINUX_VERSION_CODE >= KERNEL_VERSION(5, 6, 0) && \
+    LINUX_VERSION_CODE < KERNEL_VERSION(5, 6, 7))
   blkdev_put(Device.target_bd, FMODE_READ);
 #else
 #error "Unsupported kernel version: CrashMonkey has not been tested with " \

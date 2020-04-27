@@ -61,7 +61,9 @@
 #elif (LINUX_VERSION_CODE >= KERNEL_VERSION(4, 14, 0)  \
   && LINUX_VERSION_CODE < KERNEL_VERSION(4, 17, 0)) || \
   (LINUX_VERSION_CODE >= KERNEL_VERSION(5, 5, 0)       \
-  && LINUX_VERSION_CODE < KERNEL_VERSION(5, 5, 3))
+  && LINUX_VERSION_CODE < KERNEL_VERSION(5, 5, 3)) || \
+  (LINUX_VERSION_CODE >= KERNEL_VERSION(5, 6, 0)       \
+  && LINUX_VERSION_CODE < KERNEL_VERSION(5, 6, 7))
 
 #define BI_RW                   bi_opf
 #define BI_DISK                 bi_disk
