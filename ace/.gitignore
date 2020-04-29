@@ -1,4 +1,4 @@
 Makefile
-j-lang10
+j-lang*
 *.pyc
 __pycache__/

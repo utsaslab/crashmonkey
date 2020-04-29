@@ -4,6 +4,7 @@
 import os
 import re
 import sys
+import ntpath
 import stat
 import subprocess
 import argparse
@@ -650,7 +651,7 @@ def main():
 
 
     val = 0
-    new_file = test_file  + ".cpp"
+    new_file = ntpath.basename(test_file) + ".cpp"
     new_file = os.path.join(parsed_args.target_path, new_file)
     copyfile(base_file, new_file)
 
