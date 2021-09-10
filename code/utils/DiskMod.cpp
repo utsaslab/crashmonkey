@@ -113,7 +113,8 @@ shared_ptr<char> DiskMod::Serialize(DiskMod &dm, unsigned long long *size) {
     }
 
     if (dm.mod_type == DiskMod::kFsyncMod ||
-        dm.mod_type == DiskMod::kCreateMod) {
+        dm.mod_type == DiskMod::kCreateMod ||
+        dm.mod_type == DiskMod::kRemoveMod) {
       return res_ptr;
     }
 
