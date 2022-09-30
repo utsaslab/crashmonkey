@@ -1,6 +1,7 @@
 #!/bin/bash
 # SPDX-License-Identifier: GPL-2.0
 # Copyright (c) $CURRENT_YEAR The University of Texas at Austin.  All Rights Reserved.
+# Copyright (c) $CURRENT_YEAR Elektrobit Automotive GmbH. All rights reserved.
 #
 # FS QA Test $TEST_NUMBER
 #
@@ -9,13 +10,9 @@
 # Test if we create a hard link to a file and persist either of the files, all
 # the names persist.
 #
-seq=`basename $0`
-seqres=$RESULT_DIR/$seq
-echo "QA output created by $seq"
+. ./common/preamble
+_begin_fstest auto ace
 
-here=`pwd`
-tmp=/tmp/$$
-status=1	# failure is the default!
 trap "_cleanup; exit \$status" 0 1 2 3 15
 
 _cleanup()
@@ -38,7 +35,6 @@ rm -f $seqres.full
 
 # real QA test starts here
 _supported_fs $FILESYSTEM_TYPE
-_supported_os Linux
 _require_scratch_nocheck
 _require_dm_target flakey
 
