@@ -212,6 +212,7 @@ All these steps have been assembled for you in the script [here](demo.sh). The l
 2. *Bringing Order to Chaos: Barrier-Enabled I/O Stack for Flash Storage*. Youjin Won, Joontaek Oh, Jaemin Jung, Gyeongyeol Choi, Seongbae Son, Jooyoung Hwang, and Sangyeun Cho. "Bringing Order to Chaos: Barrier-Enabled I/O Stack for Flash Storage." ACM Transactions on Storage (TOS) 14, no. 3 (2018): 24. 2018. ACM Transactions on Storage (TOS), 14(3), p.24. [Link](https://dl.acm.org/citation.cfm?id=3242091)
 3. *LineFS: Efficient SmartNIC Offload of a Distributed File System with Pipeline Parallelism*. Jongyul Kim, Insu Jang, Waleed Reda, Jaeseong Im, Marco Canini, Dejan Kostic, Youngjin Kwon, Simon Peter, Emmett Witchel. Proceedings of the ACM SIGOPS 28th Symposium on Operating Systems Principles (SOSP 21).
 [Link](https://www.cs.utexas.edu/users/witchel/pubs/kim21sosp-linefs.pdf)
+4. *A file system for safely interacting with untrusted USB flash drives*. Ke Zhong, University of Pennsylvania; Zhihao Jiang and Ke Ma, Shanghai Jiao Tong University; Sebastian Angel, University of Pennsylvania. HotStorage 2020. [Link](https://www.usenix.org/conference/hotstorage20/presentation/zhong)
 
 ## Contact Info ##
 Please contact us at vijay@cs.utexas.edu with any questions. Drop us a note if you are using or plan to use CrashMonkey or Ace to test your file system.
